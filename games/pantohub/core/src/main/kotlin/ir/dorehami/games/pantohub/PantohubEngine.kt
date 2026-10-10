@@ -138,7 +138,8 @@ object PantohubEngine {
             is GameAction.UseCard -> useCard(state, action)
             is GameAction.EndTurn -> endTurn(state, action.moment)
             is GameAction.EndGame -> endGame(state, action.moment)
-            is GameAction.Tick -> state
+            // Tick is returned above; keep this unreachable branch typed as InternalResult.
+            is GameAction.Tick -> InternalResult.Success(state)
         }
         return when (changed) {
             is InternalResult.Error -> GameActionResult.Rejected(changed.messageFa)
