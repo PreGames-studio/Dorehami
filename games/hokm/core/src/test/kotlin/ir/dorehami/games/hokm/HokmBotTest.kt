@@ -45,22 +45,22 @@ class HokmBotTest {
         val turn = session.turnSeat()
         assertEquals(hakem, turn, "شروع‌کننده حاکم است")
 
-        assertNull(session.botActionFor(playerId((turn + 1) % 4)), "رباتِ خارج از نوبت نباید حرکتی بدهد")
-        assertTrue(session.botActionFor(playerId(turn)) != null, "رباتِ صاحبِ نوبت باید حرکتی بدهد")
+        assertNull(session.botActionFor(session.seatPlayer((turn + 1) % 4)), "رباتِ خارج از نوبت نباید حرکتی بدهد")
+        assertTrue(session.botActionFor(session.seatPlayer(turn)) != null, "رباتِ صاحبِ نوبت باید حرکتی بدهد")
     }
 
     @Test
     fun `انتخابِ حکمِ ربات همیشه یکی از چهار خال است`() {
         repeat(50) { index ->
             val session = randomSession(index + 500L)
-            val action = session.botActionFor(playerId(session.publicView().int("hakemSeat")))
+            val action = session.botActionFor(session.seatPlayer(session.publicView().int("hakemSeat")))
             assertTrue(action != null)
             assertEquals(HokmModule.ACTION_DECLARE_TRUMP, action!!.type)
             val suit = Suit.valueOf(action.payload.string(HokmModule.PAYLOAD_SUIT))
             assertTrue(suit in Suit.entries)
 
             val result = session.apply(
-                playerId(session.publicView().int("hakemSeat")),
+                session.seatPlayer(session.publicView().int("hakemSeat")),
                 action,
             )
             assertTrue(result is ir.dorehami.gamesdk.ApplyResult.Ok)
@@ -94,13 +94,13 @@ class HokmBotTest {
         val first = randomSession(8_008L)
         val second = randomSession(8_008L)
         repeat(40) {
-            val a = first.botActionFor(playerId(first.turnSeat()))
-            val b = second.botActionFor(playerId(second.turnSeat()))
+            val a = first.botActionFor(first.seatPlayer(first.turnSeat()))
+            val b = second.botActionFor(second.seatPlayer(second.turnSeat()))
             assertEquals(a, b, "ربات برای یک وضعیتِ یکسان باید همان تصمیم را بگیرد")
             val actionA = a ?: return@repeat
             val actionB = b ?: return@repeat
-            first.apply(playerId(first.turnSeat()), actionA)
-            second.apply(playerId(second.turnSeat()), actionB)
+            first.apply(first.seatPlayer(first.turnSeat()), actionA)
+            second.apply(second.seatPlayer(second.turnSeat()), actionB)
         }
     }
 }

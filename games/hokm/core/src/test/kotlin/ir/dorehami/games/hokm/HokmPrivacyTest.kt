@@ -39,7 +39,7 @@ class HokmPrivacyTest {
         val publicText = session.publicView().toString()
 
         (0..3).forEach { seat ->
-            val hand = session.privateView(playerId(seat)).stringList("hand")
+            val hand = session.privateView(session.seatPlayer(seat)).stringList("hand")
             assertTrue(hand.isNotEmpty(), "دستِ صندلیِ $seat باید در نمای خصوصی باشد")
             hand.forEach { card ->
                 // کارت‌های بازی‌شده مجازند در نمای عمومی باشند؛ بقیه نه.
@@ -56,8 +56,8 @@ class HokmPrivacyTest {
         val session = session()
         session.declareAndStart(Suit.HEARTS)
 
-        val mine = session.privateView(playerId(0)).stringList("hand").toSet()
-        val others = session.privateView(playerId(1)).stringList("hand").toSet()
+        val mine = session.privateView(session.seatPlayer(0)).stringList("hand").toSet()
+        val others = session.privateView(session.seatPlayer(1)).stringList("hand").toSet()
 
         assertEquals(13, mine.size)
         assertEquals(13, others.size)
@@ -74,7 +74,7 @@ class HokmPrivacyTest {
         val session = session()
         session.declareAndStart(Suit.HEARTS)
 
-        val mine = session.privateView(playerId(0))
+        val mine = session.privateView(session.seatPlayer(0))
         assertEquals(
             mine.stringList("hand").size,
             mine.stringList("legalCards").size,
@@ -84,7 +84,7 @@ class HokmPrivacyTest {
         assertTrue(mine.bool("isYourTurn"))
         assertTrue(mine.bool("isHakem"))
 
-        val next = session.privateView(playerId(1))
+        val next = session.privateView(session.seatPlayer(1))
         assertEquals(emptyList<String>(), next.stringList("legalCards"), "وقتی نوبتِ کسی نیست کارتِ مجاز ندارد")
         assertEquals(emptyList<String>(), next.stringList("legalActions"))
         assertFalse(next.bool("isYourTurn"))
@@ -93,11 +93,11 @@ class HokmPrivacyTest {
     @Test
     fun `یارِ حاکم تا قبل از تعیینِ حکم دستی ندارد`() {
         val session = session()
-        assertEquals(0, session.privateView(playerId(2)).stringList("hand").size)
-        assertEquals(5, session.privateView(playerId(0)).stringList("hand").size)
+        assertEquals(0, session.privateView(session.seatPlayer(2)).stringList("hand").size)
+        assertEquals(5, session.privateView(session.seatPlayer(0)).stringList("hand").size)
 
         session.declareAndStart(Suit.HEARTS)
-        assertEquals(13, session.privateView(playerId(2)).stringList("hand").size)
+        assertEquals(13, session.privateView(session.seatPlayer(2)).stringList("hand").size)
     }
 
     @Test

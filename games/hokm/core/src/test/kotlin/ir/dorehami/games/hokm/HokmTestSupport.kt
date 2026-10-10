@@ -22,6 +22,14 @@ import kotlinx.serialization.json.jsonPrimitive
 
 internal fun playerId(seat: Int): PlayerId = PlayerId("p$seat")
 
+/**
+ * شناسهٔ بازیکنی که واقعاً روی این صندلی نشسته است.
+ *
+ * برای نشست‌هایی که با `skipHakemFlip` ساخته می‌شوند همان `playerId(seat)` است، اما در پخشِ
+ * واقعی صندلی‌ها بعد از تعیینِ حاکم بازچیده می‌شوند؛ پس همیشه باید از خودِ نشست پرسید.
+ */
+internal fun HokmSession.seatPlayer(seat: Int): PlayerId = playerIdAt(seat)
+
 internal fun testPlayers(): List<Player> = listOf(
     Player(playerId(0), "شما", 0, isBot = false),
     Player(playerId(1), "راست", 1, isBot = true),
@@ -77,7 +85,7 @@ internal fun randomSession(seed: Long, options: HokmOptions = HokmOptions.defaul
 }
 
 internal fun HokmSession.declare(seat: Int, suit: Suit): ApplyResult = apply(
-    playerId(seat),
+    seatPlayer(seat),
     GameAction(
         type = HokmModule.ACTION_DECLARE_TRUMP,
         payload = view { put(HokmModule.PAYLOAD_SUIT, JsonPrimitive(suit.name)) },
@@ -85,7 +93,7 @@ internal fun HokmSession.declare(seat: Int, suit: Suit): ApplyResult = apply(
 )
 
 internal fun HokmSession.play(seat: Int, card: Card): ApplyResult = apply(
-    playerId(seat),
+    seatPlayer(seat),
     GameAction(
         type = HokmModule.ACTION_PLAY_CARD,
         payload = view { put(HokmModule.PAYLOAD_CARD, JsonPrimitive(card.code)) },
@@ -155,8 +163,8 @@ internal fun HokmSession.autoPlay(maxActions: Int = 2_000): Int {
     while (phase != Phase.FINISHED && played < maxActions) {
         val view = publicView()
         val seat = if (view.string("stage") == "trump") view.int("hakemSeat") else view.int("turnSeat")
-        val action = botActionFor(playerId(seat)) ?: break
-        val result = apply(playerId(seat), action)
+        val action = botActionFor(seatPlayer(seat)) ?: break
+        val result = apply(seatPlayer(seat), action)
         check(result is ApplyResult.Ok) { "ربات حرکتِ غیرمجاز فرستاد: $result" }
         played++
     }
@@ -170,8 +178,8 @@ internal fun HokmSession.autoPlayCurrentHand(maxActions: Int = 100): Int {
     while (publicView().int("handNumber") == hand && phase != Phase.FINISHED && played < maxActions) {
         val view = publicView()
         val seat = if (view.string("stage") == "trump") view.int("hakemSeat") else view.int("turnSeat")
-        val action = botActionFor(playerId(seat)) ?: break
-        val result = apply(playerId(seat), action)
+        val action = botActionFor(seatPlayer(seat)) ?: break
+        val result = apply(seatPlayer(seat), action)
         check(result is ApplyResult.Ok) { "ربات حرکتِ غیرمجاز فرستاد: $result" }
         played++
     }

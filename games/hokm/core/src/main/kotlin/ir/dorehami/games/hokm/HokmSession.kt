@@ -485,6 +485,15 @@ class HokmSession internal constructor(
      * در حالتِ «حکم لازم» ([HokmLazimMode.OVERTRUMP]) اگر حکمی روی زمین افتاده باشد و بشود بالاتر
      * زد، فقط کارت‌هایی مجازند که آن حکم را ببرند.
      */
+    /**
+     * شناسهٔ بازیکنی که روی این صندلی نشسته است.
+     *
+     * با تعیینِ حاکم، صندلی‌ها بازچیده می‌شوند (حاکم همیشه صندلیِ ۰ می‌شود)، بنابراین
+     * «شمارهٔ صندلی» با «شمارهٔ بازیکن در فهرستِ اولیه» یکی نیست؛ هر کسی که بخواهد برای یک
+     * صندلی حرکت بفرستد باید شناسه را از اینجا بگیرد.
+     */
+    internal fun playerIdAt(seat: Int): PlayerId = seats[seat].id
+
     internal fun legalCardsFor(seat: Int): List<Card> {
         val hand = hands[seat]
         if (trick.isEmpty()) return hand.toList()

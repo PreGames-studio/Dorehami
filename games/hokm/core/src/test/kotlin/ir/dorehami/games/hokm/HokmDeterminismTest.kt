@@ -38,7 +38,7 @@ class HokmDeterminismTest {
         while (engine.session.phase != Phase.FINISHED && guard < MAX_ACTIONS) {
             val view = engine.publicView()
             val seat = if (view.string("stage") == "trump") view.int("hakemSeat") else view.int("turnSeat")
-            val result = engine.submitBotTurn(playerId(seat))
+            val result = engine.submitBotTurn((engine.session as HokmSession).seatPlayer(seat))
             check(result is ApplyResult.Ok) { "ربات حرکتِ غیرمجاز فرستاد: $result" }
             guard++
         }

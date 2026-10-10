@@ -91,7 +91,7 @@ class HokmRulesTest {
 
         val badSuitSession = testSession(singleSuitHands())
         val badSuitResult = badSuitSession.apply(
-            playerId(0),
+            badSuitSession.seatPlayer(0),
             GameAction(
                 HokmModule.ACTION_DECLARE_TRUMP,
                 view { put(HokmModule.PAYLOAD_SUIT, JsonPrimitive("BANANA")) },
@@ -107,7 +107,7 @@ class HokmRulesTest {
         assertEquals(ErrCodes.BAD_PAYLOAD, (session.play(0, "AD") as ApplyResult.Rejected).code)
         assertEquals(
             ErrCodes.UNKNOWN_ACTION,
-            (session.apply(playerId(0), GameAction("dance")) as ApplyResult.Rejected).code,
+            (session.apply(session.seatPlayer(0), GameAction("dance")) as ApplyResult.Rejected).code,
         )
         assertEquals(
             ErrCodes.NOT_IN_MATCH,
@@ -145,13 +145,13 @@ class HokmRulesTest {
             view.intList("cardsLeft"),
             "تا تعیینِ حکم، یارِ حاکم کارت نمی‌گیرد",
         )
-        assertEquals(5, session.privateView(playerId(0)).stringList("hand").size)
-        assertEquals(5, session.privateView(playerId(1)).stringList("hand").size)
-        assertEquals(0, session.privateView(playerId(2)).stringList("hand").size)
+        assertEquals(5, session.privateView(session.seatPlayer(0)).stringList("hand").size)
+        assertEquals(5, session.privateView(session.seatPlayer(1)).stringList("hand").size)
+        assertEquals(0, session.privateView(session.seatPlayer(2)).stringList("hand").size)
 
         session.declareAndStart(Suit.HEARTS)
         assertEquals(listOf(13, 13, 13, 13), session.publicView().intList("cardsLeft"))
-        assertEquals(13, session.privateView(playerId(2)).stringList("hand").size)
+        assertEquals(13, session.privateView(session.seatPlayer(2)).stringList("hand").size)
     }
 
     @Test
@@ -173,7 +173,7 @@ class HokmRulesTest {
         session.play(0, "5H")
         session.play(1, "3S") // بریدن با حکم
 
-        val legal = session.privateView(playerId(2)).stringList("legalCards").sorted()
+        val legal = session.privateView(session.seatPlayer(2)).stringList("legalCards").sorted()
         assertEquals(
             listOf("4S", "5S", "6S", "7S", "8S", "9S", "AS", "JS", "KS", "QS", "TS"),
             legal,
@@ -187,7 +187,7 @@ class HokmRulesTest {
         standard.declareAndStart(Suit.SPADES)
         standard.play(0, "5H")
         standard.play(1, "3S")
-        assertEquals(13, standard.privateView(playerId(2)).stringList("legalCards").size)
+        assertEquals(13, standard.privateView(standard.seatPlayer(2)).stringList("legalCards").size)
         assertTrue(standard.play(2, "2S") is ApplyResult.Ok)
     }
 
