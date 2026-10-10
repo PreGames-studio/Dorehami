@@ -42,9 +42,29 @@ jobs:
           {
             # خطاهای کامپایلرِ کاتلین (e: مسیر:خط:ستون: پیام)
             grep -E "^e: " test.log | sed -E 's#^e: .*/src/test/kotlin/##' | head -n 40
-            grep -E " FAILED$" test.log | head -n 25
-            grep -E "^\s+(org\.opentest4j|java\.lang|kotlin\.|expected:|Expected )" test.log | head -n 25
+            grep -A 4 -E " FAILED$" test.log | head -n 80
           } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+
+      # annotationها فقط ۳۰۰ کاراکتر را نشان می‌دهند؛ اصلِ پیام را به عنوان کامنت روی PR
+      # می‌گذاریم تا وقتی دسترسی به لاگِ کامل نیست هم بشود خطا را خواند.
+      - name: Comment the failure on the PR
+        if: failure() && github.event_name == 'pull_request'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          {
+            echo "### ❌ تست‌های ناموفق"
+            echo
+            echo "<details><summary>خلاصهٔ خروجی</summary>"
+            echo
+            echo '```'
+            grep -A 6 -E " FAILED$" test.log | head -n 120
+            echo '```'
+            echo
+            echo "</details>"
+          } > digest.md
+          gh api "repos/${{ github.repository }}/issues/${{ github.event.pull_request.number }}/comments" \
+            -F body=@digest.md || echo "::warning::گذاشتنِ کامنت ممکن نشد (دسترسیِ توکن)" 
 
       - name: Upload test reports
         if: failure()
