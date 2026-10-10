@@ -77,7 +77,7 @@
 `games/pantohub/ui` رابط Compose، ذخیرهٔ SQLite، مدیریت فایل، بازی جاری و تاریخچه؛ ثبت دکمه در `app`.
 
 **هنوز باز است:**
-- [ ] اجرای تست‌های JVM و `:app:assembleDebug` در محیط دارای JDK 17 و Android SDK؛ اجرای فعلی به‌دلیل نبود Java آغاز نشد.
+- [x] تست‌های JVM و ساخت `:app:assembleDebug` در CI موفق شدند؛ [آخرین اجرای موفق](https://github.com/PreGames-studio/Dorehami/actions/runs/38089227991). آزمون دستی روی دستگاه همچنان باز است.
 - [ ] اتصال به قرارداد `GameModule`/`SessionController` پس از تکمیل `core/gamesdk` و لابی.
 - [ ] بانک ۲۰٬۰۰۰ رکورد واقعی/معتبر با مجوز و گزارش کنترل کیفیت؛ bootstrap آزمایشی فعلی ۱٬۰۰۰ رکورد یکتا دارد و به‌تنهایی هدف کامل نیست.
 - [ ] تست دستی روی دستگاه، بازیابی پس از restart/reboot و تست‌های جامع ورود/خروجی.
