@@ -73,6 +73,15 @@ curl -s localhost:8080/healthz
   -Dkotlin.compiler.execution.strategy=in-process
 ```
 
+### گرفتن APK برای تست روی گوشی (بدون ساخت محلی)
+
+ورک‌فلوی **Debug APK** را از تب Actions روی هر برنچ اجرا کن (یا `gh workflow run debug-apk.yml --ref <branch>`).
+فایل `Dorehami-debug.apk` در Artifacts همان اجرا می‌نشیند (۳۰ روز نگهداری) و با
+`adb install -r -t Dorehami-debug.apk` روی گوشی نصب می‌شود. هر push به `main` همان فایل را روی
+ریلیز چرخشی `debug-latest` هم منتشر می‌کند تا لینک دانلود ثابت بماند
+(`…/releases/download/debug-latest/Dorehami-debug.apk`)؛ برای انتشار، توکن workflow باید در
+Settings → Actions → General روی «Read and write» باشد (اگر نباشد فقط هشدار می‌دهد و اجرا سبز می‌ماند).
+
 ### تعریف «تمام شد» برای هر تغییر
 
 1. `./gradlew checkAll` سبز است.

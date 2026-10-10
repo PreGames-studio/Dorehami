@@ -1,5 +1,5 @@
-# CI — builds the debug APK and publishes it as a downloadable artifact.
-# A `checkAll` job (all JVM tests) joins this workflow once the module skeleton (M0) lands.
+# CI — every JVM test in the repo (`checkAll`) plus the debug APK, so a green PR is installable.
+# Want just an APK for a branch? Run the `Debug APK` workflow from the Actions tab.
 name: CI
 
 on:
@@ -9,6 +9,37 @@ on:
   workflow_dispatch:
 
 jobs:
+  tests:
+    name: checkAll (all JVM tests)
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Run every module's tests
+        run: |
+          set -o pipefail
+          ./gradlew checkAll --stacktrace 2>&1 | tee tests.log
+
+      - name: Summarize test report
+        if: always()
+        run: |
+          echo "## \`checkAll\`" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^> Task .*:test|tests completed|BUILD (SUCCESSFUL|FAILED)|FAILURE:" tests.log 2>/dev/null | tail -n 25 >> "$GITHUB_STEP_SUMMARY" || echo "(no tests.log)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^[0-9]+ tests completed, [0-9]+ failed|FAILED$" tests.log 2>/dev/null | head -n 10 | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+
   build-apk:
     name: Build debug APK
     runs-on: ubuntu-latest
@@ -48,6 +79,7 @@ jobs:
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: dorehami-debug-apk
+          name: dorehami-debug-apk-ci
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
+          retention-days: 14
