@@ -40,8 +40,8 @@ jobs:
           tail -n 100 build.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no build.log)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           {
-            grep -E "FAILURE:|What went wrong|^> |Caused by:|error:|^e: |^w: |Could not|Exception|⛔" build.log 2>/dev/null | tail -n 10
-            tail -n 5 build.log 2>/dev/null
+            awk '/^\* Where:/{f=1} f' build.log 2>/dev/null | head -n 8
+            grep -E "Caused by:" build.log 2>/dev/null | head -n 2
           } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
 
       - name: Upload APK artifact

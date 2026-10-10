@@ -1,7 +1,10 @@
 plugins {
     alias(libs.plugins.kotlin.jvm)
     alias(libs.plugins.kotlin.serialization)
-    alias(libs.plugins.ktor)
+    // Plain Gradle application plugin (provides `run`) instead of io.ktor.plugin:
+    // the Ktor plugin drags its own Kotlin/AGP interop onto the build classpath and
+    // clashes with AGP 9 built-in Kotlin. Ktor itself is just a dependency below.
+    id("application")
 }
 
 group = "ir.dorehami"
