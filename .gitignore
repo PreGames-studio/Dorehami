@@ -1,0 +1,31 @@
+# Build outputs — rebuilt on each machine (docs/GITHUB_SETUP.md section 2)
+build/
+.gradle/
+.kotlin/
+
+# IDE / editor settings
+.idea/
+*.iml
+.vscode/
+
+# Machine-local config (Android SDK path differs per machine)
+local.properties
+
+# Secrets — NEVER commit (signing keys, server tokens, database passwords)
+*.jks
+*.keystore
+keystore.properties
+.env
+server.env
+
+# Transfer-only artifact (zip used to move the architecture between computers)
+dorehami-architecture.zip
+
+# Android native build leftovers
+captures/
+.externalNativeBuild/
+.cxx/
+
+# OS junk
+.DS_Store
+Thumbs.db
