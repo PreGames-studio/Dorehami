@@ -27,25 +27,31 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/** One entry of the game list. `module` is the future Gradle module of the game. */
+/** One entry of the game list. `module` is the Gradle module of the game. */
 private data class GameEntry(
+    val id: String,
     val title: String,
     val emoji: String,
     val subtitle: String,
     val module: String,
+    /** آیا این بازی ساخته شده و قابل اجرا است؟ */
+    val ready: Boolean = false,
 )
 
 private val games = listOf(
-    GameEntry("حکم", "🎴", "بازی ورق چهارنفره", "games/hokm"),
-    GameEntry("شطرنج", "♟️", "بازی فکری دونفره", "games/chess"),
-    GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub"),
-    GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban"),
+    GameEntry("hokm", "حکم", "🎴", "بازی ورق چهارنفره", "games/hokm", ready = true),
+    GameEntry("chess", "شطرنج", "♟️", "بازی فکری دونفره", "games/chess"),
+    GameEntry("pantohub", "پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub"),
+    GameEntry("dejban", "دژبان", "🏰", "بازی استراتژیک", "games/dejban"),
 )
 
 /** The «enter games» screen: four big buttons, one per game. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GamesScreen(onBack: () -> Unit) {
+fun GamesScreen(
+    onBack: () -> Unit,
+    onPickGame: (gameId: String) -> Unit,
+) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
 
@@ -68,7 +74,7 @@ fun GamesScreen(onBack: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "یک بازی را انتخاب کن — ساخت هر بازی به‌زودی شروع می‌شود.",
+                text = "یک بازی را انتخاب کن — حکم آماده است و بقیه به‌زودی می‌آیند.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -89,11 +95,15 @@ fun GamesScreen(onBack: () -> Unit) {
                                 .weight(1f)
                                 .fillMaxHeight(),
                             onClick = {
-                                Toast.makeText(
-                                    context,
-                                    "بازی «${game.title}» به‌زودی ساخته می‌شود (${game.module})",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
+                                if (game.ready) {
+                                    onPickGame(game.id)
+                                } else {
+                                    Toast.makeText(
+                                        context,
+                                        "بازی «${game.title}» به‌زودی ساخته می‌شود (${game.module})",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
                             },
                         )
                     }
@@ -131,7 +141,7 @@ private fun GameButton(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "به‌زودی",
+                text = if (game.ready) "آماده ✅" else "به‌زودی",
                 style = MaterialTheme.typography.labelSmall,
             )
         }

@@ -1,2 +1,19 @@
-// Placeholder for :core:protocol — wire format: Envelope, ProtocolCodec, Frames, ErrCodes, Ids
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.platform.launcher)
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}

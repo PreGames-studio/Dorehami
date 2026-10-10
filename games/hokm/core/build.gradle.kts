@@ -1,2 +1,24 @@
-// Placeholder for :games:hokm:core — hokm rules, scoring, deterministic bots
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    api(project(":core:gamesdk"))
+    implementation(project(":core:protocol"))
+    api(libs.kotlinx.serialization.json)
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testImplementation(libs.junit.platform.launcher)
+}
+
+tasks.named<Test>("test") {
+    useJUnitPlatform()
+}

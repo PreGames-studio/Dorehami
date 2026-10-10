@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- متن‌های صفحهٔ حکم. رابط کاربری فارسی است و اعداد با ارقام فارسی نشان داده می‌شوند. -->
+    <string name="hokm_title">حکم</string>
+    <string name="hokm_you">شما</string>
+    <string name="hokm_partner">یار</string>
+    <string name="hokm_turn_of">نوبتِ %1$s</string>
+    <string name="hokm_your_turn">نوبتِ شماست</string>
+    <string name="hokm_trump_prefix">حکم:</string>
+    <string name="hokm_choosing_trump">در حال تعیینِ حکم…</string>
+    <string name="hokm_choose_trump_title">حاکم هستید — حکم را انتخاب کن</string>
+    <string name="hokm_choose_trump_hint">فقط بر اساسِ همین ۵ کارت انتخاب کن.</string>
+    <string name="hokm_hand_number">دست %1$s</string>
+    <string name="hokm_tricks">دست‌ها</string>
+    <string name="hokm_score">امتیاز</string>
+    <string name="hokm_target">هدف %1$s امتیاز</string>
+    <string name="hokm_hakem">حاکم</string>
+    <string name="hokm_dealer">ورق‌دهنده</string>
+    <string name="hokm_kot">کوت!</string>
+    <string name="hokm_hakem_koti">حاکم‌کُتی!</string>
+    <string name="hokm_team_won">تیمِ %1$s برنده شد</string>
+    <string name="hokm_match_won">بردید 🎉</string>
+    <string name="hokm_match_lost">باختید</string>
+    <string name="hokm_match_result">تیمِ %1$s بازی را برد</string>
+    <string name="hokm_play_again">بازیِ دوباره</string>
+    <string name="hokm_exit">خروج</string>
+    <string name="hokm_sound_on">صدا</string>
+    <string name="hokm_sound_off">بی‌صدا</string>
+    <string name="hokm_settings">تنظیماتِ حکم</string>
+    <string name="hokm_start">شروع بازی</string>
+    <string name="hokm_target_points">امتیازِ هدف</string>
+    <string name="hokm_hand_end">پایانِ هر دست</string>
+    <string name="hokm_hand_end_seven">با رسیدن به ۷ دست</string>
+    <string name="hokm_hand_end_thirteen">بازی تا آخرِ ۱۳ دست</string>
+    <string name="hokm_hokm_lazim">حکمِ لازم</string>
+    <string name="hokm_hokm_lazim_off">غیرفعال (استاندارد)</string>
+    <string name="hokm_hokm_lazim_on">اگر بتوانی باید بالاتر بزنی</string>
+    <string name="hokm_turn_clock">مهلتِ هر نوبت</string>
+    <string name="hokm_turn_clock_off">بدون محدودیت</string>
+    <string name="hokm_turn_clock_value">%1$s ثانیه</string>
+    <string name="hokm_seat_bottom">شما</string>
+    <string name="hokm_waiting_bot">%1$s در حال بازی…</string>
+</resources>
