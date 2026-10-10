@@ -29,13 +29,20 @@ jobs:
       # فقط ماژول‌های JVM (قواعدِ بازی‌ها این‌جا هستند). ماژول‌های اندرویدی را jobِ بعدی
       # از نظرِ کامپایل چک می‌کند؛ فعلاً تستِ واحد ندارند.
       - name: Run JVM tests
-        run: ./gradlew :core:protocol:test :core:gamesdk:test :games:hokm:core:test --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :core:protocol:test :core:gamesdk:test :games:hokm:core:test \
+            --stacktrace --continue 2>&1 | tee test.log
 
-      # لاگِ کامل را همیشه نمی‌توان دانلود کرد؛ هر شکست را به annotation تبدیل می‌کنیم تا
-      # از طریق API هم دیده شود (اسکریپت فقط می‌خواند و چیزی را تغییر نمی‌دهد).
+      # لاگِ کامل را همیشه نمی‌توان دانلود کرد؛ اسمِ تست‌های شکست‌خورده و پیامِ خطا را به
+      # annotation تبدیل می‌کنیم تا از طریق APIِ گیت‌هاب هم دیده شوند.
       - name: Report test failures
         if: failure()
-        run: python3 .github/scripts/junit_annotations.py
+        run: |
+          {
+            grep -E " FAILED$" test.log | head -n 25
+            grep -E "^\s+(org\.opentest4j|java\.lang|kotlin\.|expected:|Expected )" test.log | head -n 25
+          } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
 
       - name: Upload test reports
         if: failure()
