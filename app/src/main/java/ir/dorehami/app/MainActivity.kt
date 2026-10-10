@@ -16,12 +16,16 @@ import ir.dorehami.app.ui.GamesScreen
 import ir.dorehami.app.ui.HomeScreen
 import ir.dorehami.app.ui.SettingsScreen
 import ir.dorehami.app.ui.theme.DorehamiTheme
+import ir.dorehami.games.chess.ui.ChessEntry
 
 /** Screens of the entry flow. The games themselves arrive later, one module per game. */
 sealed interface Screen {
     data object Home : Screen
     data object Games : Screen
     data object Settings : Screen
+
+    /** Chess table (3D board, `games/chess`). */
+    data object Chess : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -49,7 +53,12 @@ private fun EntryApp() {
             onSettings = { screen = Screen.Settings },
         )
 
-        Screen.Games -> GamesScreen(onBack = { screen = Screen.Home })
+        Screen.Games -> GamesScreen(
+            onBack = { screen = Screen.Home },
+            onOpenChess = { screen = Screen.Chess },
+        )
+
+        Screen.Chess -> ChessEntry(onExit = { screen = Screen.Games })
         Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home })
     }
 }

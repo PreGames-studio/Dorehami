@@ -33,11 +33,12 @@ private data class GameEntry(
     val emoji: String,
     val subtitle: String,
     val module: String,
+    val ready: Boolean = false,
 )
 
 private val games = listOf(
     GameEntry("حکم", "🎴", "بازی ورق چهارنفره", "games/hokm"),
-    GameEntry("شطرنج", "♟️", "بازی فکری دونفره", "games/chess"),
+    GameEntry("شطرنج", "♟️", "میز سه‌بعدی، حریف ربات", "games/chess", ready = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub"),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban"),
 )
@@ -45,7 +46,10 @@ private val games = listOf(
 /** The «enter games» screen: four big buttons, one per game. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GamesScreen(onBack: () -> Unit) {
+fun GamesScreen(
+    onBack: () -> Unit,
+    onOpenChess: () -> Unit = {},
+) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
 
@@ -68,7 +72,7 @@ fun GamesScreen(onBack: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "یک بازی را انتخاب کن — ساخت هر بازی به‌زودی شروع می‌شود.",
+                text = "یک بازی را انتخاب کن.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -89,11 +93,14 @@ fun GamesScreen(onBack: () -> Unit) {
                                 .weight(1f)
                                 .fillMaxHeight(),
                             onClick = {
-                                Toast.makeText(
-                                    context,
-                                    "بازی «${game.title}» به‌زودی ساخته می‌شود (${game.module})",
-                                    Toast.LENGTH_SHORT,
-                                ).show()
+                                when {
+                                    game.module == "games/chess" -> onOpenChess()
+                                    else -> Toast.makeText(
+                                        context,
+                                        "بازی «${game.title}» به‌زودی ساخته می‌شود (${game.module})",
+                                        Toast.LENGTH_SHORT,
+                                    ).show()
+                                }
                             },
                         )
                     }
@@ -131,7 +138,7 @@ private fun GameButton(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = "به‌زودی",
+                text = if (game.ready) "آماده" else "به‌زودی",
                 style = MaterialTheme.typography.labelSmall,
             )
         }
