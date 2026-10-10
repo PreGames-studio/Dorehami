@@ -20,16 +20,16 @@ import kotlinx.serialization.json.put
 internal object HokmTestSupport {
     val players = listOf(PlayerId("p_a"), PlayerId("p_b"), PlayerId("p_c"), PlayerId("p_d"))
 
-    fun config(seed: Long, options: JsonObject = HokmModule.defaultOptions()) = GameConfig(
+    fun config(seed: Long, options: JsonObject = HokmModule.defaultOptions(), count: Int = 4) = GameConfig(
         seed = seed,
-        players = players,
+        players = players.take(count),
         options = options,
         clock = ManualClock(),
         rng = SplitMixRng(seed),
     )
 
-    fun engine(seed: Long, options: JsonObject = HokmModule.defaultOptions()) =
-        GameEngine.start(HokmModule, config(seed, options))
+    fun engine(seed: Long, options: JsonObject = HokmModule.defaultOptions(), count: Int = 4) =
+        GameEngine.start(HokmModule, config(seed, options, count))
 
     fun session(seed: Long): HokmSession = HokmModule.create(config(seed)) as HokmSession
 
@@ -49,6 +49,7 @@ internal object HokmTestSupport {
     fun whoseTurn(engine: GameEngine): PlayerId {
         val v = engine.session.publicView()
         val seat = if (v.str("handPhase") == HandPhase.CHOOSING_HOKM.id) v.int("hakem") else v.int("turn")
+        check(seat in 0 until v.int("playerCount"))
         return players[seat]
     }
 

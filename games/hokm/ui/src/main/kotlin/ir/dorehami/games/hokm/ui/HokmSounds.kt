@@ -16,5 +16,6 @@ object HokmSounds {
         "game_lost" to R.raw.hokm_game_lost,
         "tap" to R.raw.hokm_tap,
         "your_turn" to R.raw.hokm_your_turn,
+        "sticker" to R.raw.hokm_sticker,
     )
 }

@@ -1,6 +1,6 @@
 # حکم — `games/hokm`
 
-> **خلاصه:** قواعد کامل حکم چهارنفره (دو تیم)، ربات قطعی، چهار تست قرارداد، و میز بازی Compose با
+> **خلاصه:** قواعد کامل حکم **چهارنفره (دو تیم)، سه‌نفره (انفرادی) و دونفره (با دستهٔ کشیدنی)**، ربات قطعی، پنج فایل تست، و میز بازی Compose با
 > گرافیک برداری و افکت صوتی. `core` هیچ وابستگی‌ای جز `core/gamesdk` ندارد؛ `ui` فقط `core` همین
 > بازی و `core/uikit` را می‌شناسد.
 
@@ -17,15 +17,28 @@
 | حاکم تا وقتی تیمش می‌برد ثابت است؛ وگرنه نفر بعدی | `HokmRules.nextHakem` |
 | اولین تیم به امتیاز هدف (پیش‌فرض ۷؛ ۱/۳/۵/۷ مجاز) برنده است | `result()` |
 
+### تفاوت‌های ۲ و ۳ نفره (همان `HokmSession`؛ تعداد از `config.players.size` می‌آید)
+
+| | ۴ نفره | ۳ نفره | ۲ نفره |
+|---|---|---|---|
+| دسته | ۵۲ | ۵۱ (یک «۲» حذف می‌شود) | ۵۲ |
+| کارتِ هر نفر | ۱۳ | ۱۷ | ۱۳ (۵ اول + کشیدن) |
+| تیم | ۰–۲ مقابل ۱–۳ | هر کس برای خودش | رودررو |
+| شروع دست | ۵ کارت به همه، حاکم حکم می‌کند، باقی پخش می‌شود | همان | ۵ کارت به همه، حاکم حکم می‌کند، **حاکم ۳ و حریف ۲ کارت می‌سوزاند** (`discard`)، بعد **۴۲ کارت دسته نوبتی کشیده می‌شود** (حاکم اول): کارتِ رو را نگه دار و بعدی را کور بسوزان (`keep_card`) یا رو را بسوزان و بعدی را کور بگیر (`pass_card`) تا هر نفر ۱۳ تا |
+| کُت / حاکم‌کُت | دارد | دارد (۷–۰ در برابر هر دو) | دارد |
+| حاکم بعد از باخت | نفر بعدی | نفر بعدی | حریف |
+
+فازهای دست (`handPhase`): `choosing_hokm → discarding → drawing → playing` (دو فاز وسط فقط در ۲ نفره).
+
 ## قرارداد
 
 * **حرکت‌ها:** `choose_hokm` با `{"suit":"spades|hearts|diamonds|clubs"}` و `play_card` با `{"card":"AS"}`
-  (کد رتبه + کد خال؛ `T` برای ۱۰).
+  (کد رتبه + کد خال؛ `T` برای ۱۰). فقط ۲ نفره: `discard` با `{"cards":["7H","2C"]}`، `keep_card`، `pass_card`.
 * **view عمومی:** `phase, handPhase, handNumber, hakem, hokm, turn, trickNumber, leadSuit, currentTrick,
   tricksWon, scores, targetPoints, handCounts, players, hakemDraw, lastTrick, lastHandResult` — **هیچ‌وقت** کلید
   `hand`/`hands` ندارد (تست `HokmPrivacyTest`).
-* **view خصوصی:** عمومی + `seat`, `hand`, `legalCards`.
-* **انتشارها:** `card_played`, `trick_won`, `hokm_chosen`, `hand_finished`, `hand_started`, `game_finished`
+* **view خصوصی:** عمومی + `seat`, `hand`, `legalCards` (+ `discardCount` در فاز سوزاندن و `revealed` برای کسی که نوبت کشیدنش است). view عمومی `playerCount` و `stockCount` هم دارد.
+* **انتشارها:** `card_played`, `trick_won`, `hokm_chosen`, `hand_finished`, `hand_started`, `game_finished`, `discarded`, `drawing_started`, `card_drawn`, `drawing_finished`
   + فید و نام صداها (`card_played`, `trick_won`, `hokm_chosen`, `hand_won`, `kot`, `hakem_kot`, `game_won`, `shuffle`).
 * **ربات (`HokmBot`):** فقط از `BotView` (دست خودش + میز) تصمیم می‌گیرد؛ بدون RNG. انتخاب حکم = بلندترین خال؛
   بازی = نقد کردن برنده‌های قطعی، بردن ارزان، حکم نزدن روی یارِ برنده، دور ریختن کم‌ارزش‌ترین کارت.
@@ -36,13 +49,17 @@
 ./gradlew :games:hokm:core:test
 ```
 
-چهار تست قرارداد: `HokmRulesTest`، `HokmPrivacyTest`، `HokmDeterminismTest` (بازپخش ⇒ همان digest + رد رکورد
-دست‌کاری‌شده با `MatchVerifier`)، `HokmScoringTest` (۲۰ بازی کامل ربات، هر دست با قواعد چک می‌شود).
+پنج فایل تست: `HokmRulesTest`، `HokmPrivacyTest`، `HokmDeterminismTest` (بازپخش ⇒ همان digest + رد رکورد
+دست‌کاری‌شده با `MatchVerifier`)، `HokmScoringTest` (۲۰ بازی کامل ربات، هر دست با قواعد چک می‌شود)،
+`HokmVariantsTest` (جریان سوزاندن/کشیدن ۲ نفره، بازی کامل ۲ و ۳ نفره + بازپخش، رد ۵ نفره).
+همچنین `core/session/SessionLoopbackTest` همین بازی را با میزبان + مهمان روی ترنسپورت فیک تا پایان می‌برد.
 
 ## میز بازی (`games/hokm/ui`)
 
-* `HokmEntry` ← صفحهٔ تنظیم (اسم، امتیاز هدف، صدا، قوانین) ← `HokmScreen`.
-* `HokmLocalMatch` تنها جایی است که `GameEngine.submit` را صدا می‌زند (حالت تک‌نفره با ۳ ربات). صفحه فقط
+* `HokmEntry` ← صفحهٔ تنظیم (اسم، **تعداد بازیکن ۲/۳/۴**، امتیاز هدف، صدا، قوانین؛ کارت‌های بلوتوث/آنلاین «به‌زودی») ← `HokmScreen`.
+* چیدمان میز با تعداد بازیکن عوض می‌شود (۲: حریف بالا + دستهٔ کارت وسط با پنل سوزاندن/کشیدن؛ ۳: دو حریف بالا؛ ۴: یار روبه‌رو).
+* **استیکر:** سینی ۱۲ استیکر (`Stickers.all`) با حباب روی صندلی فرستنده و صدای `sticker`؛ ربات‌ها هم به اتفاقات واکنش می‌دهند (کُت، حکم، برد).
+* `HokmLocalMatch` تنها جایی است که `GameEngine.submit` را صدا می‌زند (حالت تک‌نفره با ۱/۲/۳ ربات). صفحه فقط
   `HokmUiState` می‌خواند که از `privateView()` بازیکن ساخته می‌شود. با آمدن `core/session` همین صفحه بدون
   تغییر به اتاق بلوتوثی/آنلاین وصل می‌شود.
 * کارت‌ها کاملاً برداری‌اند (`PlayingCardView`): نقش‌های واقعی ۲ تا ۱۰، کارت‌های شاه/بی‌بی/سرباز قاب‌دار دو‌سر،

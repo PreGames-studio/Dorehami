@@ -26,8 +26,18 @@ object HokmModule : GameModule {
     /** Play one card. Payload: `{ "card": "AS" }` (rank code + suit code). */
     const val ACTION_PLAY_CARD = "play_card"
 
+    /** Two-player: burn cards. Payload: `{ "cards": ["2C","3D","4H"] }` (3 for hakem, 2 for the opponent). */
+    const val ACTION_DISCARD = "discard"
+
+    /** Two-player draw: keep the revealed card (the next card is burned blind). No payload. */
+    const val ACTION_KEEP_CARD = "keep_card"
+
+    /** Two-player draw: burn the revealed card and take the next one blind. No payload. */
+    const val ACTION_PASS_CARD = "pass_card"
+
     const val PAYLOAD_SUIT = "suit"
     const val PAYLOAD_CARD = "card"
+    const val PAYLOAD_CARDS = "cards"
 
     const val DEFAULT_TARGET_POINTS = 7
     const val DEFAULT_KOT_POINTS = 2
@@ -40,8 +50,8 @@ object HokmModule : GameModule {
         id = GameId(ID),
         titleFa = "حکم",
         titleEn = "Hokm",
-        taglineFa = "بازی ورق چهارنفره، دو تیم، حاکم و حکم",
-        minPlayers = 4,
+        taglineFa = "بازی ورق دو، سه یا چهارنفره؛ حاکم و حکم",
+        minPlayers = 2,
         maxPlayers = 4,
         teamCount = 2,
         playersPerTeam = 2,
@@ -80,11 +90,14 @@ object HokmModule : GameModule {
     }
 
     override fun create(config: GameConfig): GameSession {
-        if (config.players.size != HokmRules.SEATS) {
-            throw GameConfigException(ErrCodes.BAD_OPTIONS, "حکم دقیقاً چهار بازیکن می‌خواهد")
+        if (config.players.size !in HokmRules.SUPPORTED_PLAYERS) {
+            throw GameConfigException(ErrCodes.BAD_OPTIONS, "حکم با دو، سه یا چهار بازیکن بازی می‌شود")
         }
         return HokmSession(config)
     }
+
+    /** The classic table is four; the random queue fills to that. */
+    override fun preferredPartySize(): Int = 4
 
     override val botAction: ((GameSession, PlayerId) -> GameAction?)? = { session, player ->
         (session as? HokmSession)?.botAction(player)

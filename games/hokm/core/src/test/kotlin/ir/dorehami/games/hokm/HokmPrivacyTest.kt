@@ -18,7 +18,7 @@ import kotlin.test.assertTrue
 /** Contract rule 2: hidden information is structurally absent from the public view. */
 class HokmPrivacyTest {
 
-    private val secretKeys = listOf(HokmSession.Keys.HAND, "hands", "pending", "played", "rngState", HokmSession.Keys.LEGAL_CARDS)
+    private val secretKeys = listOf(HokmSession.Keys.HAND, "hands", "pending", "stock", "revealedCard", "played", "rngState", HokmSession.Keys.LEGAL_CARDS)
 
     @Test
     fun `public view never contains any hand related key`() {

@@ -82,9 +82,10 @@
 // session.action
 { "type": "play_card", "payload": { "suit": "H", "rank": "7" } }
 
-// session.finished
+// session.finished  (record = فقط سرصفحه؛ لاگ کامل حرکت‌ها در پاکت ۱۶KB جا نمی‌شود و نزد مرجع/سرور می‌ماند)
 { "result": { "matchId": "m_9f8e7d", "ranking": [ { "player": "p_a1b2", "seat": 0, "rank": 1, "points": 7 } ],
-              "digest": "sha256:…" }, "record": { "schema": 1, "seed": 99123871, "actions": [ … ] } }
+              "digest": "sha256:…" },
+  "record": { "schema": 1, "seed": 99123871, "gameId": "hokm", "players": [ … ], "actionCount": 412, "digest": "…" } }
 ```
 
 ## ۴. فریم‌بندی روی بلوتوث

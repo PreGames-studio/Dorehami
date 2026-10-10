@@ -34,16 +34,16 @@ class HokmRulesTest {
         val hokm = Suit.SPADES
         // No trump: highest of led suit (hearts) wins even if a diamond king is bigger on paper.
         val t1 = listOf(Play(0, c("7H")), Play(1, c("KD")), Play(2, c("QH")), Play(3, c("2H")))
-        assertEquals(2, HokmRules.trickWinner(t1, hokm))
+        assertEquals(2, HokmRules.trickWinner(t1, hokm, 4))
         // One trump beats any plain card.
         val t2 = listOf(Play(1, c("AH")), Play(2, c("2S")), Play(3, c("KH")), Play(0, c("QH")))
-        assertEquals(2, HokmRules.trickWinner(t2, hokm))
+        assertEquals(2, HokmRules.trickWinner(t2, hokm, 4))
         // Two trumps: higher trump wins.
         val t3 = listOf(Play(3, c("9C")), Play(0, c("5S")), Play(1, c("JS")), Play(2, c("AC")))
-        assertEquals(1, HokmRules.trickWinner(t3, hokm))
+        assertEquals(1, HokmRules.trickWinner(t3, hokm, 4))
         // Trump led: highest trump wins.
         val t4 = listOf(Play(2, c("TS")), Play(3, c("AS")), Play(0, c("KS")), Play(1, c("AH")))
-        assertEquals(3, HokmRules.trickWinner(t4, hokm))
+        assertEquals(3, HokmRules.trickWinner(t4, hokm, 4))
     }
 
     @Test

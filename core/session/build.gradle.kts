@@ -1,2 +1,26 @@
-// Placeholder for :core:session — room lifecycle: SessionController, lobby, turns, timers, resync
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+// :core:session — room lifecycle on top of any GameTransport: lobby, host authority, view fan-out,
+// bots for empty/disconnected seats, resync. Pure Kotlin/JVM, no Android.
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+group = "ir.dorehami"
+version = "0.1.0"
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    api(project(":core:protocol"))
+    api(project(":core:gamesdk"))
+    api(project(":transport:api"))
+    api(libs.kotlinx.coroutines.core)
+    api(libs.kotlinx.serialization.json)
+
+    testImplementation(project(":core:testkit"))
+    testImplementation(project(":games:hokm:core"))
+    testImplementation(libs.kotlin.test)
+    testImplementation(libs.kotlinx.coroutines.test)
+}

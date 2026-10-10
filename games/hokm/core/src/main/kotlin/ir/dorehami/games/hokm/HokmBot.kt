@@ -6,12 +6,14 @@ package ir.dorehami.games.hokm
  */
 data class BotView(
     val seat: Int,
+    val players: Int,
     val hand: List<Card>,
     val hokm: Suit?,
     val trick: List<Play>,
     /** All cards already played in this hand (previous tricks + current trick). */
     val played: Set<Card>,
     val tricksWon: List<Int>,
+    val hakem: Int,
 )
 
 /**
@@ -31,6 +33,32 @@ object HokmBot {
             .map { s -> Triple(s, firstFive.count { it.suit == s }, firstFive.filter { it.suit == s }.sumOf { it.rank.value }) }
             .sortedWith(compareByDescending<Triple<Suit, Int, Int>> { it.second }.thenByDescending { it.third }.thenBy { it.first.ordinal })
             .first().first
+    }
+
+    /** Two-player burn: throw away the weakest off-trump cards (short suits first). */
+    fun discard(view: BotView, count: Int): List<Card> {
+        val hokm = requireNotNull(view.hokm)
+        return view.hand
+            .sortedWith(
+                compareBy<Card> { it.suit == hokm }
+                    .thenBy { it.rank.value >= Rank.JACK.value }
+                    .thenBy { view.hand.count { c -> c.suit == it.suit } }
+                    .thenBy { it.rank.value },
+            )
+            .take(count)
+    }
+
+    /**
+     * Two-player draw: keep the shown card when it strengthens the hand — any trump, any honour,
+     * or a card in a suit we are already long in; otherwise gamble on the blind card.
+     */
+    fun keepRevealed(view: BotView, shown: Card): Boolean {
+        val hokm = requireNotNull(view.hokm)
+        if (shown.suit == hokm) return true
+        if (shown.rank.value >= Rank.QUEEN.value) return true
+        val inSuit = view.hand.count { it.suit == shown.suit }
+        if (shown.rank == Rank.JACK && inSuit >= 1) return true
+        return inSuit >= 4 && shown.rank.value >= Rank.NINE.value
     }
 
     fun playCard(view: BotView): Card {
@@ -73,8 +101,9 @@ object HokmBot {
         val trick = view.trick
         val lead = trick.first().card.suit
         val winning = HokmRules.winningPlay(trick, hokm)
-        val partnerWinning = winning.seat == HokmRules.partnerOf(view.seat)
-        val lastToPlay = trick.size == HokmRules.SEATS - 1
+        val partner = HokmRules.partnerOf(view.seat, view.players)
+        val partnerWinning = partner != null && winning.seat == partner
+        val lastToPlay = trick.size == view.players - 1
         val canFollow = legal.first().suit == lead && view.hand.any { it.suit == lead }
 
         val winners = legal.filter { HokmRules.beats(it, winning.card, lead, hokm) }

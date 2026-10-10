@@ -1,2 +1,16 @@
-// Placeholder for :transport:api — GameTransport contract (the pipe)
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+// :transport:api — the pipe contract every transport (Nearby, WebSocket, in-memory) implements.
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+}
+
+group = "ir.dorehami"
+version = "0.1.0"
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    api(project(":core:protocol"))
+    api(libs.kotlinx.coroutines.core)
+}

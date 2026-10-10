@@ -18,17 +18,17 @@ class HokmScoringTest {
 
     @Test
     fun `hand points - normal, kot and hakem kot`() {
-        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, 3, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
-        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, 6, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
-        assertEquals(HandWinKind.KOT to 2, HokmRules.handResult(7, 0, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
-        assertEquals(HandWinKind.HAKEM_KOT to 3, HokmRules.handResult(7, 0, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, 3, hakemTricks = 7, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, 6, hakemTricks = 6, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.KOT to 2, HokmRules.handResult(7, 0, hakemTricks = 7, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.HAKEM_KOT to 3, HokmRules.handResult(7, 0, hakemTricks = 0, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
     }
 
     @Test
     fun `hakem keeps the seat after a win and passes it on after a loss`() {
-        assertEquals(2, HokmRules.nextHakem(2, hakemTeamWon = true))
-        assertEquals(3, HokmRules.nextHakem(2, hakemTeamWon = false))
-        assertEquals(0, HokmRules.nextHakem(3, hakemTeamWon = false))
+        assertEquals(2, HokmRules.nextHakem(2, hakemTeamWon = true, players = 4))
+        assertEquals(3, HokmRules.nextHakem(2, hakemTeamWon = false, players = 4))
+        assertEquals(0, HokmRules.nextHakem(3, hakemTeamWon = false, players = 4))
     }
 
     @Test
@@ -50,7 +50,7 @@ class HokmScoringTest {
                 assertEquals(prevHakem, hakem, "seed $seed: hakem rotation broken")
                 assertEquals(7, tricks[winner], "winner must have exactly 7 tricks")
                 assertTrue(tricks[1 - winner] in 0..6)
-                val hakemLost = HokmRules.teamOf(hakem) != winner
+                val hakemLost = HokmRules.teamOf(hakem, 4) != winner
                 val expected = when {
                     tricks[1 - winner] > 0 -> "normal" to 1
                     hakemLost -> "hakem_kot" to 3
@@ -59,7 +59,7 @@ class HokmScoringTest {
                 assertEquals(expected, kind to points, "seed $seed hand ${p.int("handNumber")}")
                 running[winner] += points
                 assertEquals(running.toList(), p.ints("scores"))
-                prevHakem = HokmRules.nextHakem(hakem, hakemTeamWon = !hakemLost)
+                prevHakem = HokmRules.nextHakem(hakem, hakemTeamWon = !hakemLost, players = 4)
             }
             val final = e.session.publicView().ints("scores")
             assertEquals(Phase.FINISHED, e.session.phase)

@@ -16,9 +16,11 @@ import ir.dorehami.games.hokm.HandPhase
 import ir.dorehami.games.hokm.HandWinKind
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.HokmRules
+import ir.dorehami.games.hokm.HokmSession
 import ir.dorehami.games.hokm.Play
 import ir.dorehami.games.hokm.Suit
 import ir.dorehami.protocol.PlayerId
+import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.delay
@@ -38,12 +40,39 @@ data class SeatInfo(val seat: Int, val name: String, val isBot: Boolean)
 /** Result of the last finished hand, as the UI needs it. */
 data class HandSummary(
     val handNumber: Int,
-    val winnerTeam: Int,
+    /** `null` for a void three-player hand. */
+    val winnerTeam: Int?,
     val points: Int,
     val kind: HandWinKind,
     val hakem: Int,
     val tricks: List<Int>,
 )
+
+/** A sticker shown in a bubble over a seat. */
+data class Sticker(val id: String, val emoji: String, val captionFa: String)
+
+/** All stickers available in the tray; ids are what travels over the wire later. */
+object Stickers {
+    val all = listOf(
+        Sticker("clap", "👏", "آفرین!"),
+        Sticker("laugh", "😂", "خنده‌دار بود"),
+        Sticker("cool", "😎", "حرفه‌ای"),
+        Sticker("angry", "😤", "اَه!"),
+        Sticker("think", "🤔", "صبر کن…"),
+        Sticker("fire", "🔥", "ترکوندی"),
+        Sticker("crown", "👑", "حاکم منم"),
+        Sticker("heart", "❤️", "دمت گرم"),
+        Sticker("cry", "😭", "باختیم…"),
+        Sticker("fast", "⏱️", "زود باش!"),
+        Sticker("tea", "🍵", "یه چایی بزنیم"),
+        Sticker("gg", "🤝", "بازی خوبی بود"),
+    )
+
+    fun byId(id: String): Sticker? = all.firstOrNull { it.id == id }
+}
+
+/** A sticker currently visible over [seat]; [stamp] makes repeated identical stickers re-animate. */
+data class SeatSticker(val seat: Int, val sticker: Sticker, val stamp: Long)
 
 /** Something transient to say on the table (feed line / banner). */
 data class Banner(val title: String, val subtitle: String? = null, val big: Boolean = false)
@@ -54,6 +83,7 @@ data class Banner(val title: String, val subtitle: String? = null, val big: Bool
  */
 data class HokmUiState(
     val seats: List<SeatInfo> = emptyList(),
+    val playerCount: Int = 4,
     val mySeat: Int = 0,
     val phase: Phase = Phase.PLAYING,
     val handPhase: HandPhase = HandPhase.CHOOSING_HOKM,
@@ -68,6 +98,14 @@ data class HokmUiState(
     val handCounts: List<Int> = listOf(0, 0, 0, 0),
     val myHand: List<Card> = emptyList(),
     val legalCards: Set<Card> = emptySet(),
+    /** Two-player: the stock card shown to me while I decide keep/pass. */
+    val revealed: Card? = null,
+    /** Two-player: how many cards I must burn right now (0 = not my burn turn). */
+    val discardCount: Int = 0,
+    val stockCount: Int = 0,
+    /** Cards I have tapped so far while burning. */
+    val selectedForDiscard: Set<Card> = emptySet(),
+    val stickers: List<SeatSticker> = emptyList(),
     /** Cards on the table right now (kept visible for a moment after a trick closes). */
     val tableCards: List<Play> = emptyList(),
     /** Seat that is sweeping the current trick, while the collect animation runs. */
@@ -83,9 +121,14 @@ data class HokmUiState(
     val winnerTeam: Int? = null,
     val feed: List<String> = emptyList(),
 ) {
-    val myTeam: Int get() = HokmRules.teamOf(mySeat)
-    val isMyTurn: Boolean get() = !finished && handPhase == HandPhase.PLAYING && turn == mySeat && introShown == null && collectingTo == null && !dealing && banner == null
-    val iChooseHokm: Boolean get() = !finished && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat && introShown == null && !dealing
+    val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
+    fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
+    private val calm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
+    val isMyTurn: Boolean get() = calm && handPhase == HandPhase.PLAYING && turn == mySeat
+    val iChooseHokm: Boolean get() = calm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
+    val iDiscard: Boolean get() = calm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
+    val iDraw: Boolean get() = calm && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
+    val isTeamGame: Boolean get() = playerCount == 4
 }
 
 /**
@@ -98,6 +141,7 @@ data class HokmUiState(
 class HokmLocalMatch(
     private val scope: CoroutineScope,
     private val playerName: String,
+    private val playerCount: Int,
     targetPoints: Int,
     seed: Long,
     private val onSound: (String) -> Unit,
@@ -114,13 +158,11 @@ class HokmLocalMatch(
         private const val HAND_BANNER_MS = 2600L
     }
 
-    private val players = listOf(PlayerId("p_me"), PlayerId("p_bot1"), PlayerId("p_bot2"), PlayerId("p_bot3"))
-    private val seats = listOf(
-        SeatInfo(0, playerName.ifBlank { "شما" }, isBot = false),
-        SeatInfo(1, BOT_NAMES[0], isBot = true),
-        SeatInfo(2, BOT_NAMES[1], isBot = true),
-        SeatInfo(3, BOT_NAMES[2], isBot = true),
-    )
+    private val players = listOf(PlayerId("p_me"), PlayerId("p_bot1"), PlayerId("p_bot2"), PlayerId("p_bot3")).take(playerCount)
+    private val seats = (0 until playerCount).map { seat ->
+        if (seat == HUMAN_SEAT) SeatInfo(0, playerName.ifBlank { "شما" }, isBot = false)
+        else SeatInfo(seat, BOT_NAMES[seat - 1], isBot = true)
+    }
 
     private val engine: GameEngine = GameEngine.start(
         HokmModule,
@@ -133,7 +175,8 @@ class HokmLocalMatch(
         ),
     )
 
-    private val _state = mutableStateOf(HokmUiState(seats = seats, mySeat = HUMAN_SEAT))
+    private val _state = mutableStateOf(HokmUiState(seats = seats, playerCount = playerCount, mySeat = HUMAN_SEAT))
+    private var stickerStamp = 0L
     val state: State<HokmUiState> get() = _state
 
     private val wake = Channel<Unit>(Channel.CONFLATED)
@@ -178,6 +221,86 @@ class HokmLocalMatch(
         wake.trySend(Unit)
     }
 
+    /** Two-player burn: toggle a card; when enough are selected call [confirmDiscard]. */
+    fun toggleDiscard(card: Card) {
+        val s = _state.value
+        if (!s.iDiscard || card !in s.myHand) return
+        val sel = if (card in s.selectedForDiscard) s.selectedForDiscard - card else {
+            if (s.selectedForDiscard.size >= s.discardCount) return
+            s.selectedForDiscard + card
+        }
+        onSound("tap")
+        _state.value = s.copy(selectedForDiscard = sel)
+    }
+
+    fun confirmDiscard() {
+        val s = _state.value
+        if (!s.iDiscard || s.selectedForDiscard.size != s.discardCount) return
+        val payload = buildJsonObject {
+            put(HokmModule.PAYLOAD_CARDS, kotlinx.serialization.json.buildJsonArray { s.selectedForDiscard.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.code)) } })
+        }
+        _state.value = s.copy(selectedForDiscard = emptySet())
+        submit(players[HUMAN_SEAT], GameAction(HokmModule.ACTION_DISCARD, payload))
+        wake.trySend(Unit)
+    }
+
+    fun keepCard() = drawDecision(keep = true)
+
+    fun passCard() = drawDecision(keep = false)
+
+    private fun drawDecision(keep: Boolean) {
+        if (!_state.value.iDraw) return
+        submit(players[HUMAN_SEAT], GameAction(if (keep) HokmModule.ACTION_KEEP_CARD else HokmModule.ACTION_PASS_CARD))
+        wake.trySend(Unit)
+    }
+
+    /** Show a sticker over my seat (bots may answer). Chat is UI-only: it never enters the rules. */
+    fun sendSticker(sticker: Sticker) {
+        showSticker(HUMAN_SEAT, sticker)
+        // A light-hearted reply from a bot now and then — deterministic in the id so it never spams.
+        val replyFrom = 1 + ((sticker.id.hashCode() and 0x7fffffff) % (playerCount - 1))
+        val reply = when (sticker.id) {
+            "angry", "cry" -> Stickers.byId("laugh")
+            "clap", "heart", "gg" -> Stickers.byId("heart")
+            "fast" -> Stickers.byId("think")
+            "tea" -> Stickers.byId("tea")
+            else -> null
+        }
+        if (reply != null) scope.launch { delay(1400); showSticker(replyFrom, reply) }
+    }
+
+    private fun showSticker(seat: Int, sticker: Sticker) {
+        val stamp = ++stickerStamp
+        onSound("sticker")
+        _state.value = _state.value.copy(stickers = _state.value.stickers.filter { it.seat != seat } + SeatSticker(seat, sticker, stamp))
+        scope.launch {
+            delay(2600)
+            _state.value = _state.value.copy(stickers = _state.value.stickers.filter { it.stamp != stamp })
+        }
+    }
+
+    /** Bots "talk" on big moments: kot, hakem kot, winning the match. */
+    private fun botReactions(summary: HandSummary) {
+        val humanTeam = HokmRules.teamOf(HUMAN_SEAT, playerCount)
+        val winnerTeam = summary.winnerTeam ?: return
+        val botsOnWinningSide = (1 until playerCount).filter { HokmRules.teamOf(it, playerCount) == winnerTeam }
+        val botsOnLosingSide = (1 until playerCount).filter { HokmRules.teamOf(it, playerCount) != winnerTeam }
+        scope.launch {
+            delay(TRICK_SHOW_MS + COLLECT_MS + 300)
+            when (summary.kind) {
+                HandWinKind.KOT, HandWinKind.HAKEM_KOT -> {
+                    botsOnWinningSide.firstOrNull()?.let { showSticker(it, Stickers.byId("fire")!!) }
+                    if (winnerTeam != humanTeam) {
+                        delay(900)
+                        botsOnLosingSide.firstOrNull { it != HUMAN_SEAT }?.let { showSticker(it, Stickers.byId("cry")!!) }
+                    }
+                }
+                HandWinKind.NORMAL -> if (summary.handNumber % 3 == 0) botsOnWinningSide.firstOrNull()?.let { showSticker(it, Stickers.byId("cool")!!) }
+                HandWinKind.VOID -> botsOnWinningSide.firstOrNull()?.let { showSticker(it, Stickers.byId("think")!!) }
+            }
+        }
+    }
+
     fun clearError() {
         if (_state.value.error != null) _state.value = _state.value.copy(error = null)
     }
@@ -214,7 +337,7 @@ class HokmLocalMatch(
                 pendingCollect?.let { winner ->
                     pendingCollect = null
                     _state.value = _state.value.copy(collectingTo = winner)
-                    onSound(if (HokmRules.teamOf(winner) == HokmRules.teamOf(HUMAN_SEAT)) "trick_won" else "trick_lost")
+                    onSound(if (HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(HUMAN_SEAT, playerCount)) "trick_won" else "trick_lost")
                     delay(COLLECT_MS)
                     _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
                     refresh()
@@ -247,6 +370,10 @@ class HokmLocalMatch(
             // 2) Whose move?
             val s = _state.value
             val actor = if (s.handPhase == HandPhase.CHOOSING_HOKM) s.hakem else s.turn
+            if (actor !in 0 until playerCount) {
+                wake.receive()
+                continue
+            }
             if (actor == HUMAN_SEAT) {
                 if (s.handPhase == HandPhase.PLAYING) onSound("your_turn")
                 wake.receive()
@@ -255,10 +382,11 @@ class HokmLocalMatch(
 
             // 3) Bot move, with a human-like pause.
             delay(
-                when {
-                    s.handPhase == HandPhase.CHOOSING_HOKM -> 1400L
-                    s.tableCards.isEmpty() -> BOT_LEAD_MS
-                    else -> BOT_THINK_MS
+                when (s.handPhase) {
+                    HandPhase.CHOOSING_HOKM -> 1400L
+                    HandPhase.DISCARDING -> 1200L
+                    HandPhase.DRAWING -> 450L
+                    HandPhase.PLAYING -> if (s.tableCards.isEmpty()) BOT_LEAD_MS else BOT_THINK_MS
                 },
             )
             val r = engine.submitBot(players[actor])
@@ -312,7 +440,7 @@ class HokmLocalMatch(
                             myHand = if (seat == HUMAN_SEAT) cur.myHand - card else cur.myHand,
                             legalCards = if (seat == HUMAN_SEAT) emptySet() else cur.legalCards,
                             // While a closed trick sits on the table nobody is "on turn".
-                            turn = if (cur.tableCards.size + 1 >= HokmRules.SEATS) -1 else HokmRules.nextSeat(seat),
+                            turn = if (cur.tableCards.size + 1 >= playerCount) -1 else HokmRules.nextSeat(seat, playerCount),
                         )
                     }
 
@@ -325,26 +453,48 @@ class HokmLocalMatch(
 
                     "hand_finished" -> {
                         val summary = parseHand(e.payload)
-                        val mine = summary.winnerTeam == HokmRules.teamOf(HUMAN_SEAT)
+                        val myTeam = HokmRules.teamOf(HUMAN_SEAT, playerCount)
+                        val mine = summary.winnerTeam == myTeam
+                        val we = if (playerCount == 4) "بردیم" else "بردی"
+                        val lost = if (playerCount == 4) "باختیم" else "باختی"
                         val title = when (summary.kind) {
-                            HandWinKind.NORMAL -> if (mine) "این دست را بردیم!" else "این دست را باختیم"
-                            HandWinKind.KOT -> if (mine) "کُت کردیم!" else "کُت شدیم!"
-                            HandWinKind.HAKEM_KOT -> if (mine) "حاکم‌کُت! سه امتیاز" else "حاکم‌کُت شدیم…"
+                            HandWinKind.NORMAL -> if (mine) "این دست را $we!" else "این دست را $lost"
+                            HandWinKind.KOT -> if (mine) "کُت!" else "کُت ${if (playerCount == 4) "شدیم" else "شدی"}!"
+                            HandWinKind.HAKEM_KOT -> if (mine) "حاکم‌کُت! ${summary.points.toFaDigitsLocal()} امتیاز" else "حاکم‌کُت ${if (playerCount == 4) "شدیم" else "شدی"}…"
+                            HandWinKind.VOID -> "مساوی — این دست بی‌نتیجه ماند"
                         }
-                        pendingHandBanner = Banner(title, "${summary.points} امتیاز برای ${teamName(summary.winnerTeam)}", big = true)
+                        val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
+                        pendingHandBanner = Banner(title, subtitle, big = true)
                         val sound = when (summary.kind) {
-                            HandWinKind.NORMAL -> if (mine) "hand_won" else "hand_lost"
+                            HandWinKind.NORMAL, HandWinKind.VOID -> if (mine) "hand_won" else "hand_lost"
                             else -> if (mine) "kot" else "hand_lost"
                         }
                         scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); onSound(sound) }
+                        botReactions(summary)
                         feed += title
+                    }
+
+                    "card_drawn" -> {
+                        val seat = e.payload["seat"]!!.jsonPrimitive.int
+                        val kept = e.payload["kept"]!!.jsonPrimitive.content.toBoolean()
+                        if (seat != HUMAN_SEAT) feed += "${seats[seat].name} کارت را ${if (kept) "برداشت" else "رد کرد"}"
+                    }
+
+                    "discarded" -> {
+                        val seat = e.payload["seat"]!!.jsonPrimitive.int
+                        feed += "${seats[seat].name} ${e.payload["count"]!!.jsonPrimitive.int.toFaDigitsLocal()} کارت سوزاند"
+                    }
+
+                    "drawing_finished" -> {
+                        pendingHandBanner = Banner("دست‌ها کامل شد", "حاکم شروع می‌کند")
+                        pendingPauseMs = maxOf(pendingPauseMs, 150L)
                     }
 
                     "hand_started" -> Unit // the new hakem's five cards simply appear with the next refresh
 
                     "game_finished" -> {
                         val winner = e.payload["winnerTeam"]!!.jsonPrimitive.int
-                        val mine = winner == HokmRules.teamOf(HUMAN_SEAT)
+                        val mine = winner == HokmRules.teamOf(HUMAN_SEAT, playerCount)
                         scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS + 600); onSound(if (mine) "game_won" else "game_lost") }
                     }
 
@@ -355,8 +505,8 @@ class HokmLocalMatch(
                         if (actor != HUMAN_SEAT) {
                             pendingHandBanner = Banner("حکم: ${suit.titleFa} ${suit.symbol}", "به انتخاب ${seats[hakem].name}")
                         }
-                        // Now the remaining cards are dealt out — animate it before showing 13 cards.
-                        pendingDeal = true
+                        // 3p/4p: the remaining cards are dealt out — animate it before showing them.
+                        if (playerCount > 2) pendingDeal = true
                         pendingPauseMs = maxOf(pendingPauseMs, 150L)
                     }
                 }
@@ -369,7 +519,13 @@ class HokmLocalMatch(
         }
     }
 
-    private fun teamName(team: Int) = if (team == HokmRules.teamOf(HUMAN_SEAT)) "تیم ما" else "تیم حریف"
+    private fun teamName(team: Int): String = when {
+        playerCount == 4 -> if (team == HokmRules.teamOf(HUMAN_SEAT, playerCount)) "تیم ما" else "تیم حریف"
+        team == HUMAN_SEAT -> "شما"
+        else -> seats[team].name
+    }
+
+    private fun Int.toFaDigitsLocal(): String = this.toFa()
 
     private fun setError(message: String) {
         _state.value = _state.value.copy(error = message)
@@ -398,6 +554,9 @@ class HokmLocalMatch(
             handCounts = v["handCounts"]!!.jsonArray.map { it.jsonPrimitive.int },
             myHand = v["hand"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! },
             legalCards = v["legalCards"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! }.toSet(),
+            revealed = v[HokmSession.Keys.REVEALED]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Card.parse(it) },
+            discardCount = v[HokmSession.Keys.DISCARD_COUNT]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
+            stockCount = v["stockCount"]!!.jsonPrimitive.int,
             hakemDraw = v["hakemDraw"]!!.jsonArray.map { p ->
                 val o = p.jsonObject
                 Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
@@ -405,12 +564,13 @@ class HokmLocalMatch(
             lastHand = v["lastHandResult"]?.let { parseHand(it.jsonObject) },
             finished = finished,
             winnerTeam = if (finished) scores.indexOf(scores.max()) else null,
+            selectedForDiscard = if (v["handPhase"]!!.jsonPrimitive.content == HandPhase.DISCARDING.id) old.selectedForDiscard else emptySet(),
         )
     }
 
     private fun parseHand(o: JsonObject) = HandSummary(
         handNumber = o["handNumber"]!!.jsonPrimitive.int,
-        winnerTeam = o["winnerTeam"]!!.jsonPrimitive.int,
+        winnerTeam = o["winnerTeam"]!!.jsonPrimitive.content.toIntOrNull(),
         points = o["points"]!!.jsonPrimitive.int,
         kind = HandWinKind.entries.first { it.id == o["kind"]!!.jsonPrimitive.content },
         hakem = o["hakem"]!!.jsonPrimitive.int,

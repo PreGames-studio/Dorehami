@@ -102,11 +102,17 @@ fun HokmScreen(
     state: HokmUiState,
     onPlayCard: (Card) -> Unit,
     onChooseHokm: (Suit) -> Unit,
+    onToggleDiscard: (Card) -> Unit,
+    onConfirmDiscard: () -> Unit,
+    onKeepCard: () -> Unit,
+    onPassCard: () -> Unit,
+    onSticker: (Sticker) -> Unit,
     onClearError: () -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
 ) {
     var confirmExit by remember { mutableStateOf(false) }
+    var stickerTray by remember { mutableStateOf(false) }
     BackHandler { confirmExit = true }
 
     val haptics = LocalHapticFeedback.current
@@ -132,7 +138,8 @@ fun HokmScreen(
 
             FeltBackground()
 
-            // ---- top: score bar, feed, partner
+            // ---- top: score bar, feed, and the seat(s) facing me
+            val topSeat = when (state.playerCount) { 4 -> 2; 2 -> 1; else -> null }
             Column(
                 Modifier
                     .align(Alignment.TopCenter)
@@ -145,21 +152,44 @@ fun HokmScreen(
                     val line = state.feed.lastOrNull()
                     if (line != null && state.banner == null && state.introShown == null) FeedChip(line)
                 }
-                SeatBadge(state, seat = 2)
-                Spacer(Modifier.height(6.dp))
-                OpponentHand(count = state.handCounts.getOrElse(2) { 0 }, rotation = 180f, horizontal = true)
+                if (topSeat != null) {
+                    SeatWithBubble(state, topSeat)
+                    Spacer(Modifier.height(6.dp))
+                    OpponentHand(count = state.handCounts.getOrElse(topSeat) { 0 }, rotation = 180f, horizontal = true)
+                } else {
+                    // three players: the two opponents sit at the upper corners
+                    Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            SeatWithBubble(state, 2)
+                            Spacer(Modifier.height(6.dp))
+                            OpponentHand(count = state.handCounts.getOrElse(2) { 0 }, rotation = 150f, horizontal = true)
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            SeatWithBubble(state, 1)
+                            Spacer(Modifier.height(6.dp))
+                            OpponentHand(count = state.handCounts.getOrElse(1) { 0 }, rotation = 210f, horizontal = true)
+                        }
+                    }
+                }
             }
 
-            // ---- side opponents
-            Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                SeatBadge(state, seat = 1)
-                Spacer(Modifier.height(6.dp))
-                OpponentHand(count = state.handCounts.getOrElse(1) { 0 }, rotation = 270f, horizontal = false)
+            // ---- side opponents (four players only)
+            if (state.playerCount == 4) {
+                Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SeatWithBubble(state, 1)
+                    Spacer(Modifier.height(6.dp))
+                    OpponentHand(count = state.handCounts.getOrElse(1) { 0 }, rotation = 270f, horizontal = false)
+                }
+                Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    SeatWithBubble(state, 3)
+                    Spacer(Modifier.height(6.dp))
+                    OpponentHand(count = state.handCounts.getOrElse(3) { 0 }, rotation = 90f, horizontal = false)
+                }
             }
-            Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                SeatBadge(state, seat = 3)
-                Spacer(Modifier.height(6.dp))
-                OpponentHand(count = state.handCounts.getOrElse(3) { 0 }, rotation = 90f, horizontal = false)
+
+            // ---- two players: the stock sits beside the table centre while drawing
+            if (state.playerCount == 2 && state.handPhase == HandPhase.DRAWING && state.stockCount > 0) {
+                StockPile(state.stockCount, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
             }
 
             // ---- trick area
@@ -180,15 +210,20 @@ fun HokmScreen(
                     .padding(bottom = 6.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                SeatBadge(state, seat = state.mySeat, modifier = Modifier.padding(bottom = 4.dp))
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    StickerButton(onClick = { stickerTray = !stickerTray })
+                    SeatWithBubble(state, state.mySeat)
+                }
+                Spacer(Modifier.height(4.dp))
                 HandFan(
                     cards = state.myHand,
-                    legal = state.legalCards,
-                    enabled = state.isMyTurn,
+                    legal = if (state.iDiscard) state.myHand.toSet() else state.legalCards,
+                    enabled = state.isMyTurn || state.iDiscard,
+                    selected = state.selectedForDiscard,
                     cardWidth = handCardW,
                     onTap = { card ->
                         haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
-                        onPlayCard(card)
+                        if (state.iDiscard) onToggleDiscard(card) else onPlayCard(card)
                     },
                 )
             }
@@ -199,6 +234,30 @@ fun HokmScreen(
                     hand = state.myHand,
                     onChoose = onChooseHokm,
                     modifier = Modifier.align(Alignment.Center),
+                )
+            }
+            if (state.iDiscard) {
+                DiscardPanel(
+                    need = state.discardCount,
+                    selected = state.selectedForDiscard.size,
+                    onConfirm = onConfirmDiscard,
+                    modifier = Modifier.align(Alignment.Center).offset(y = (-20).dp),
+                )
+            }
+            if (state.iDraw) {
+                DrawPanel(
+                    revealed = state.revealed!!,
+                    stockCount = state.stockCount,
+                    onKeep = onKeepCard,
+                    onPass = onPassCard,
+                    modifier = Modifier.align(Alignment.Center).offset(y = (-20).dp),
+                )
+            }
+            if (stickerTray) {
+                StickerTray(
+                    onPick = { stickerTray = false; onSticker(it) },
+                    onDismiss = { stickerTray = false },
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 200.dp),
                 )
             }
             state.introShown?.let { shown ->
@@ -278,7 +337,7 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
             (state.handPhase == HandPhase.CHOOSING_HOKM && state.hakem == seat)
         )
     val isHakem = state.hakem == seat
-    val team = HokmRules.teamOf(seat)
+    val team = state.teamOf(seat)
     val teamColor = if (team == state.myTeam) Table.ours else Table.theirs
 
     val pulse = rememberInfiniteTransition(label = "turn")
@@ -315,7 +374,11 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
             Column {
                 Text(info.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text(
-                    if (team == state.myTeam) "تیم ما" else "حریف",
+                    when {
+                        state.isTeamGame -> if (team == state.myTeam) "تیم ما" else "حریف"
+                        seat == state.mySeat -> "شما"
+                        else -> "${state.scores.getOrElse(team) { 0 }.toFa()} امتیاز"
+                    },
                     color = teamColor,
                     fontSize = 11.sp,
                 )
@@ -330,8 +393,14 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
                     Text("👑 حاکم", color = Color(0xFF3E2410), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
-            if (state.handPhase == HandPhase.CHOOSING_HOKM && isHakem && info.isBot && state.introShown == null && !state.dealing) {
-                Text("در حال انتخاب حکم…", color = Table.turnGlow, fontSize = 11.sp)
+            if (info.isBot && state.introShown == null && !state.dealing) {
+                val hint = when {
+                    state.handPhase == HandPhase.CHOOSING_HOKM && isHakem -> "در حال انتخاب حکم…"
+                    state.handPhase == HandPhase.DISCARDING && state.turn == seat -> "دارد کارت می‌سوزاند…"
+                    state.handPhase == HandPhase.DRAWING && state.turn == seat -> "دارد کارت برمی‌دارد…"
+                    else -> null
+                }
+                if (hint != null) Text(hint, color = Table.turnGlow, fontSize = 11.sp)
             }
         }
     }
@@ -368,18 +437,21 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val cw = maxWidth
         val ch = maxHeight
-        fun slot(seat: Int): Pair<Dp, Dp> = when (seat) {
-            0 -> 0.dp to ch * 0.22f
-            1 -> cw * 0.26f to 0.dp
-            2 -> 0.dp to -ch * 0.22f
-            else -> -cw * 0.26f to 0.dp
+        // Physical direction of each seat around the table, per player count.
+        fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
+            2 -> if (seat == 0) 0f to 1f else 0f to -1f
+            3 -> when (seat) { 0 -> 0f to 1f; 1 -> 0.8f to -0.7f; else -> -0.8f to -0.7f }
+            else -> when (seat) { 0 -> 0f to 1f; 1 -> 1f to 0f; 2 -> 0f to -1f; else -> -1f to 0f }
         }
 
-        fun origin(seat: Int): Pair<Dp, Dp> = when (seat) {
-            0 -> 0.dp to ch * 1.4f
-            1 -> cw * 0.9f to 0.dp
-            2 -> 0.dp to -ch * 1.4f
-            else -> -cw * 0.9f to 0.dp
+        fun slot(seat: Int): Pair<Dp, Dp> {
+            val d = dir(seat)
+            return cw * 0.26f * d.first to ch * 0.22f * d.second
+        }
+
+        fun origin(seat: Int): Pair<Dp, Dp> {
+            val d = dir(seat)
+            return cw * 0.9f * d.first to ch * 1.4f * d.second
         }
 
         val collectTo = state.collectingTo
@@ -443,6 +515,7 @@ private fun HandFan(
     enabled: Boolean,
     cardWidth: Dp,
     onTap: (Card) -> Unit,
+    selected: Set<Card> = emptySet(),
 ) {
     BoxWithConstraints(Modifier.fillMaxWidth().height(cardWidth / CARD_ASPECT + 26.dp)) {
         val n = cards.size
@@ -459,7 +532,8 @@ private fun HandFan(
             val angle = rel * (if (n > 8) 2.2f else 3.5f)
             val lift = (abs(rel) * abs(rel) * 1.1f).dp
             val playable = enabled && card in legal
-            val raise by animateFloatAsState(if (playable) 1f else 0f, tween(180), label = "raise")
+            val isSelected = card in selected
+            val raise by animateFloatAsState(if (isSelected) 2.2f else if (playable) 1f else 0f, tween(180), label = "raise")
             PlayingCardView(
                 card = card,
                 width = cardWidth,
@@ -483,8 +557,6 @@ private fun HandFan(
 
 @Composable
 private fun ScoreBar(state: HokmUiState, onExit: () -> Unit, modifier: Modifier = Modifier) {
-    val my = state.myTeam
-    val them = 1 - my
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
             modifier
@@ -498,28 +570,49 @@ private fun ScoreBar(state: HokmUiState, onExit: () -> Unit, modifier: Modifier 
                 Text("خروج", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
             }
             Spacer(Modifier.width(4.dp))
-            TeamScore("ما", state.scores.getOrElse(my) { 0 }, state.tricksWon.getOrElse(my) { 0 }, Table.ours)
-            Spacer(Modifier.weight(1f))
-            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-                    Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
-                    val hokm = state.hokm
-                    if (hokm != null) {
-                        SuitIcon(hokm, 18.dp, onDark = true)
-                        Text(hokm.titleFa, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                    } else {
-                        Text("—", color = Color.White, fontSize = 13.sp)
-                    }
+            if (state.isTeamGame) {
+                val my = state.myTeam
+                TeamScore("ما", state.scores.getOrElse(my) { 0 }, state.tricksWon.getOrElse(my) { 0 }, Table.ours)
+                Spacer(Modifier.weight(1f))
+                HokmBadge(state)
+                Spacer(Modifier.weight(1f))
+                TeamScore("حریف", state.scores.getOrElse(1 - my) { 0 }, state.tricksWon.getOrElse(1 - my) { 0 }, Table.theirs)
+            } else {
+                // Everybody alone: one compact column per player, me first.
+                val order = listOf(state.mySeat) + (0 until state.playerCount).filter { it != state.mySeat }
+                order.forEach { seat ->
+                    TeamScore(
+                        label = if (seat == state.mySeat) "شما" else state.seats.getOrNull(seat)?.name?.take(6) ?: "",
+                        score = state.scores.getOrElse(seat) { 0 },
+                        tricks = state.tricksWon.getOrElse(seat) { 0 },
+                        color = if (seat == state.mySeat) Table.ours else Table.theirs,
+                    )
+                    Spacer(Modifier.weight(1f))
                 }
-                Text(
-                    "دست ${state.handNumber.toFa()} • تا ${state.targetPoints.toFa()} امتیاز",
-                    color = Color.White.copy(alpha = 0.7f),
-                    fontSize = 10.sp,
-                )
+                HokmBadge(state)
             }
-            Spacer(Modifier.weight(1f))
-            TeamScore("حریف", state.scores.getOrElse(them) { 0 }, state.tricksWon.getOrElse(them) { 0 }, Table.theirs)
         }
+    }
+}
+
+@Composable
+private fun HokmBadge(state: HokmUiState) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            val hokm = state.hokm
+            if (hokm != null) {
+                SuitIcon(hokm, 18.dp, onDark = true)
+                Text(hokm.titleFa, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+            } else {
+                Text("—", color = Color.White, fontSize = 13.sp)
+            }
+        }
+        Text(
+            "دست ${state.handNumber.toFa()} • تا ${state.targetPoints.toFa()} امتیاز",
+            color = Color.White.copy(alpha = 0.7f),
+            fontSize = 10.sp,
+        )
     }
 }
 
@@ -714,13 +807,14 @@ private fun ErrorChip(text: String, modifier: Modifier = Modifier) {
 private fun GameOverDialog(state: HokmUiState, onPlayAgain: () -> Unit, onExit: () -> Unit) {
     val won = state.winnerTeam == state.myTeam
     val my = state.scores.getOrElse(state.myTeam) { 0 }
-    val them = state.scores.getOrElse(1 - state.myTeam) { 0 }
+    val them = if (state.isTeamGame) state.scores.getOrElse(1 - state.myTeam) { 0 } else state.scores.filterIndexed { i, _ -> i != state.myTeam }.maxOrNull() ?: 0
+    val winnerName = state.winnerTeam?.let { state.seats.getOrNull(it)?.name } ?: ""
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         AlertDialog(
             onDismissRequest = {},
             title = {
                 Text(
-                    if (won) "🏆 بردیم!" else "این بار باختیم",
+                    if (won) (if (state.isTeamGame) "🏆 بردیم!" else "🏆 بردی!") else (if (state.isTeamGame) "این بار باختیم" else "این بار $winnerName برد"),
                     fontWeight = FontWeight.Black,
                     textAlign = TextAlign.Center,
                     modifier = Modifier.fillMaxWidth(),
@@ -729,7 +823,11 @@ private fun GameOverDialog(state: HokmUiState, onPlayAgain: () -> Unit, onExit: 
             text = {
                 Column(horizontalAlignment = Alignment.CenterHorizontally, modifier = Modifier.fillMaxWidth()) {
                     Text("${my.toFa()} — ${them.toFa()}", fontSize = 34.sp, fontWeight = FontWeight.Black)
-                    Text("تیم ما — تیم حریف", color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = 12.sp)
+                    Text(
+                        if (state.isTeamGame) "تیم ما — تیم حریف" else if (won) "شما — بهترین حریف" else "شما — $winnerName",
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        fontSize = 12.sp,
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         if (won) "دست مریزاد! یک بازی دیگر؟" else "بازی بعدی مال ماست. دوباره؟",
@@ -740,5 +838,145 @@ private fun GameOverDialog(state: HokmUiState, onPlayAgain: () -> Unit, onExit: 
             confirmButton = { Button(onClick = onPlayAgain) { Text("بازی دوباره") } },
             dismissButton = { TextButton(onClick = onExit) { Text("بازگشت") } },
         )
+    }
+}
+
+
+// --------------------------------------------------------------------------------------- two-player panels
+
+@Composable
+private fun StockPile(count: Int, modifier: Modifier = Modifier) {
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box {
+            repeat(minOf(5, 1 + count / 9)) { i -> CardBackView(width = 44.dp, elevation = 2.dp, modifier = Modifier.offset(x = (i * 1.5f).dp, y = (-i * 1.5f).dp)) }
+        }
+        Spacer(Modifier.height(4.dp))
+        Text("${count.toFa()} برگ", color = Color.White, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Table.chip).padding(horizontal = 8.dp, vertical = 2.dp))
+    }
+}
+
+@Composable
+private fun DiscardPanel(need: Int, selected: Int, onConfirm: () -> Unit, modifier: Modifier = Modifier) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Column(
+            modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xF2102A1A))
+                .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 20.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("${need.toFa()} کارت بسوزان", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Text("کارت‌های ضعیف را از دستت انتخاب کن", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
+            Spacer(Modifier.height(10.dp))
+            Button(onClick = onConfirm, enabled = selected == need, shape = RoundedCornerShape(14.dp)) {
+                Text(if (selected == need) "بسوزان 🔥" else "${selected.toFa()} از ${need.toFa()} انتخاب شده")
+            }
+        }
+    }
+}
+
+@Composable
+private fun DrawPanel(revealed: Card, stockCount: Int, onKeep: () -> Unit, onPass: () -> Unit, modifier: Modifier = Modifier) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Column(
+            modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xF2102A1A))
+                .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                .padding(horizontal = 18.dp, vertical = 14.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Text("این کارت را می‌خواهی؟", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
+                key(revealed.code) { PlayingCardView(revealed, width = 78.dp, elevation = 10.dp) }
+                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                    CardBackView(width = 44.dp, elevation = 3.dp)
+                    Text("${stockCount.toFa()} برگ", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Button(onClick = onKeep, shape = RoundedCornerShape(14.dp)) { Text("نگه می‌دارم ✔") }
+                TextButton(onClick = onPass, shape = RoundedCornerShape(14.dp)) { Text("رد می‌کنم، بعدی را کور برمی‌دارم", color = Color.White) }
+            }
+        }
+    }
+}
+
+// --------------------------------------------------------------------------------------- stickers
+
+@Composable
+private fun SeatWithBubble(state: HokmUiState, seat: Int) {
+    val sticker = state.stickers.firstOrNull { it.seat == seat }
+    Box(contentAlignment = Alignment.TopCenter) {
+        SeatBadge(state, seat = seat, modifier = Modifier.padding(top = if (sticker != null) 30.dp else 0.dp))
+        AnimatedVisibility(visible = sticker != null, enter = fadeIn() + scaleIn(initialScale = 0.5f), exit = fadeOut() + scaleOut()) {
+            val s = sticker ?: return@AnimatedVisibility
+            key(s.stamp) {
+                Row(
+                    Modifier
+                        .clip(RoundedCornerShape(14.dp))
+                        .background(Color.White)
+                        .padding(horizontal = 10.dp, vertical = 4.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    Text(s.sticker.emoji, fontSize = 20.sp)
+                    Text(s.sticker.captionFa, color = Color.Black, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun StickerButton(onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(38.dp)
+            .clip(CircleShape)
+            .background(Table.chip)
+            .border(1.dp, Table.brass.copy(alpha = 0.6f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) { Text("😊", fontSize = 18.sp) }
+}
+
+@Composable
+private fun StickerTray(onPick: (Sticker) -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Column(
+            modifier
+                .clip(RoundedCornerShape(20.dp))
+                .background(Color(0xF2102A1A))
+                .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
+                .padding(12.dp),
+        ) {
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("استیکر بفرست", color = Color.White, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.weight(1f))
+                TextButton(onClick = onDismiss) { Text("بستن", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
+            }
+            Stickers.all.chunked(4).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
+                    row.forEach { st ->
+                        Column(
+                            Modifier
+                                .width(70.dp)
+                                .clip(RoundedCornerShape(12.dp))
+                                .background(Color.White.copy(alpha = 0.08f))
+                                .clickable { onPick(st) }
+                                .padding(vertical = 6.dp),
+                            horizontalAlignment = Alignment.CenterHorizontally,
+                        ) {
+                            Text(st.emoji, fontSize = 24.sp)
+                            Text(st.captionFa, color = Color.White, fontSize = 10.sp, textAlign = TextAlign.Center)
+                        }
+                    }
+                }
+            }
+        }
     }
 }

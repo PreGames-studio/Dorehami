@@ -8,29 +8,52 @@ enum class HandWinKind(val id: String, val titleFa: String) {
     /** Normal win: 7 tricks against at least one. */
     NORMAL("normal", "برد"),
 
-    /** Kot: the opponents did not take a single trick. */
+    /** Kot: the losing side did not take a single trick. */
     KOT("kot", "کُت"),
 
-    /** Hakem kot: the hakem's own team was kotted. */
+    /** Hakem kot: the hakem's own side was kotted. */
     HAKEM_KOT("hakem_kot", "حاکم‌کُت"),
+
+    /** Three-player only: all cards played, top scorers tied — nobody gets a point. */
+    VOID("void", "بی‌نتیجه"),
 }
 
 /**
- * Pure rules of Hokm — no state, no randomness, no I/O. Everything here is unit-testable on its own
- * and reused by the session, the bot and (for highlighting) the UI.
+ * Pure rules of Hokm — no state, no randomness, no I/O. Shared by the session, the bot and the UI.
+ *
+ * Variants (all first-to-7-tricks, first-to-N-points):
+ * * **4 players** — two fixed teams (0+2 vs 1+3), 13 cards each.
+ * * **3 players** — everyone for themselves, one deuce removed (51 cards), 17 cards each.
+ * * **2 players** — 5 cards each; hakem burns 3 and the opponent 2; then they alternately draw
+ *   from the 42-card stock ("keep the card you see and burn the next blind, or burn it and take
+ *   the next blind") until both hold 13.
  */
 object HokmRules {
-    const val SEATS = 4
-    const val TEAMS = 2
     const val TRICKS_TO_WIN_HAND = 7
-    const val CARDS_PER_PLAYER = 13
     const val HAKEM_FIRST_DEAL = 5
+    const val TWO_PLAYER_HAKEM_BURN = 3
+    const val TWO_PLAYER_OPPONENT_BURN = 2
+    val SUPPORTED_PLAYERS = listOf(2, 3, 4)
 
-    fun teamOf(seat: Int): Int = seat % TEAMS
+    /** The deuce removed in the three-player game so 51 cards split evenly. */
+    val THREE_PLAYER_REMOVED = Card(Rank.TWO, Suit.CLUBS)
 
-    fun partnerOf(seat: Int): Int = (seat + 2) % SEATS
+    fun teamCount(players: Int): Int = if (players == 4) 2 else players
 
-    fun nextSeat(seat: Int): Int = (seat + 1) % SEATS
+    fun teamOf(seat: Int, players: Int): Int = if (players == 4) seat % 2 else seat
+
+    /** Partner seat in the four-player game; `null` when everybody plays alone. */
+    fun partnerOf(seat: Int, players: Int): Int? = if (players == 4) (seat + 2) % 4 else null
+
+    fun nextSeat(seat: Int, players: Int): Int = (seat + 1) % players
+
+    fun cardsPerPlayer(players: Int): Int = when (players) {
+        3 -> 17
+        else -> 13
+    }
+
+    fun deckFor(players: Int): List<Card> =
+        if (players == 3) Card.fullDeck().filter { it != THREE_PLAYER_REMOVED } else Card.fullDeck()
 
     /** Cards [seat] is allowed to play: must follow the led suit when possible. */
     fun legalCards(hand: List<Card>, trick: List<Play>): List<Card> {
@@ -66,34 +89,36 @@ object HokmRules {
     }
 
     /** Seat that takes a complete trick. */
-    fun trickWinner(trick: List<Play>, hokm: Suit): Int {
-        require(trick.size == SEATS) { "a trick has exactly $SEATS cards" }
+    fun trickWinner(trick: List<Play>, hokm: Suit, players: Int): Int {
+        require(trick.size == players) { "a trick has exactly $players cards" }
         return winningPlay(trick, hokm).seat
     }
 
     /**
      * Points for a finished hand.
      *
-     * @param winnerTricks tricks of the winning team (always [TRICKS_TO_WIN_HAND] when a hand ends normally)
-     * @param loserTricks tricks of the losing team
-     * @param hakemLost whether the hakem's team is the losing team
+     * @param winnerTricks tricks of the winning side
+     * @param minLoserTricks fewest tricks among the losing sides (0 ⇒ somebody was kotted)
+     * @param hakemTricks tricks of the hakem's side
+     * @param hakemLost whether the hakem's side lost
      */
     fun handResult(
         winnerTricks: Int,
-        loserTricks: Int,
+        minLoserTricks: Int,
+        hakemTricks: Int,
         hakemLost: Boolean,
         kotPoints: Int,
         hakemKotPoints: Int,
     ): Pair<HandWinKind, Int> {
-        require(winnerTricks >= TRICKS_TO_WIN_HAND) { "hand is not over" }
+        require(winnerTricks > 0) { "hand is not over" }
         return when {
-            loserTricks > 0 -> HandWinKind.NORMAL to 1
-            hakemLost -> HandWinKind.HAKEM_KOT to hakemKotPoints
-            else -> HandWinKind.KOT to kotPoints
+            hakemLost && hakemTricks == 0 -> HandWinKind.HAKEM_KOT to hakemKotPoints
+            minLoserTricks == 0 -> HandWinKind.KOT to kotPoints
+            else -> HandWinKind.NORMAL to 1
         }
     }
 
-    /** Who is hakem next hand: the same player if their team won, otherwise the next seat around. */
-    fun nextHakem(currentHakem: Int, hakemTeamWon: Boolean): Int =
-        if (hakemTeamWon) currentHakem else nextSeat(currentHakem)
+    /** Who is hakem next hand: the same player if their side won, otherwise the next seat around. */
+    fun nextHakem(currentHakem: Int, hakemTeamWon: Boolean, players: Int): Int =
+        if (hakemTeamWon) currentHakem else nextSeat(currentHakem, players)
 }

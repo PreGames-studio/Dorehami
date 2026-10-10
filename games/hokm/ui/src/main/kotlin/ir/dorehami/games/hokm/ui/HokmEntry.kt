@@ -58,6 +58,7 @@ fun HokmEntry(onExit: () -> Unit) {
     var started by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var target by rememberSaveable { mutableStateOf(HokmModule.DEFAULT_TARGET_POINTS) }
+    var playerCount by rememberSaveable { mutableStateOf(4) }
     var soundOn by rememberSaveable { mutableStateOf(true) }
     var matchKey by rememberSaveable { mutableStateOf(0) }
 
@@ -67,6 +68,8 @@ fun HokmEntry(onExit: () -> Unit) {
             onName = { name = it },
             target = target,
             onTarget = { target = it },
+            playerCount = playerCount,
+            onPlayerCount = { playerCount = it },
             soundOn = soundOn,
             onSound = { soundOn = it },
             onStart = { started = true },
@@ -76,6 +79,7 @@ fun HokmEntry(onExit: () -> Unit) {
         HokmSoloGame(
             key = matchKey,
             playerName = name,
+            playerCount = playerCount,
             targetPoints = target,
             soundOn = soundOn,
             onPlayAgain = { matchKey++ },
@@ -88,6 +92,7 @@ fun HokmEntry(onExit: () -> Unit) {
 private fun HokmSoloGame(
     key: Int,
     playerName: String,
+    playerCount: Int,
     targetPoints: Int,
     soundOn: Boolean,
     onPlayAgain: () -> Unit,
@@ -102,6 +107,7 @@ private fun HokmSoloGame(
         HokmLocalMatch(
             scope = scope,
             playerName = playerName,
+            playerCount = playerCount,
             targetPoints = targetPoints,
             // Seed picked by the UI (never by the rules): wall clock is fine here, it is recorded.
             seed = System.currentTimeMillis() xor (key.toLong() shl 20),
@@ -118,6 +124,11 @@ private fun HokmSoloGame(
         state = state,
         onPlayCard = match::playCard,
         onChooseHokm = match::chooseHokm,
+        onToggleDiscard = match::toggleDiscard,
+        onConfirmDiscard = match::confirmDiscard,
+        onKeepCard = match::keepCard,
+        onPassCard = match::passCard,
+        onSticker = match::sendSticker,
         onClearError = match::clearError,
         onPlayAgain = onPlayAgain,
         onExit = onExit,
@@ -130,6 +141,8 @@ private fun HokmSetupScreen(
     onName: (String) -> Unit,
     target: Int,
     onTarget: (Int) -> Unit,
+    playerCount: Int,
+    onPlayerCount: (Int) -> Unit,
     soundOn: Boolean,
     onSound: (Boolean) -> Unit,
     onStart: () -> Unit,
@@ -180,6 +193,31 @@ private fun HokmSetupScreen(
                 modifier = Modifier.fillMaxWidth(),
             )
             Spacer(Modifier.height(14.dp))
+            Text("چند نفره؟", fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf(
+                    Triple(4, "۴ نفره", "دو تیم دو نفره"),
+                    Triple(3, "۳ نفره", "هر کس برای خودش"),
+                    Triple(2, "۲ نفره", "سوزاندن و برداشتن"),
+                ).forEach { (count, title, sub) ->
+                    val selected = count == playerCount
+                    Column(
+                        Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                            .clickable { onPlayerCount(count) }
+                            .padding(vertical = 8.dp, horizontal = 4.dp),
+                        horizontalAlignment = Alignment.CenterHorizontally,
+                    ) {
+                        Text(title, fontWeight = FontWeight.Bold, color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface)
+                        Text(sub, fontSize = 10.sp, textAlign = TextAlign.Center, color = if (selected) Color.White.copy(alpha = 0.85f) else MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                }
+            }
+            Spacer(Modifier.height(14.dp))
             Text("بازی تا چند امتیاز؟", fontWeight = FontWeight.SemiBold)
             Spacer(Modifier.height(8.dp))
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
@@ -217,12 +255,8 @@ private fun HokmSetupScreen(
         ) {
             Text("شروع بازی با ربات‌ها 🎴", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
-        Spacer(Modifier.height(8.dp))
-        Text(
-            "بازی بلوتوثی و آنلاین با همین میز به‌زودی",
-            color = Color.White.copy(alpha = 0.55f),
-            fontSize = 12.sp,
-        )
+        Spacer(Modifier.height(12.dp))
+        ModeRow()
         Spacer(Modifier.height(16.dp))
     }
 }
@@ -263,6 +297,30 @@ private fun RulesCard() {
         )
         rules.forEachIndexed { i, r ->
             Text("${(i + 1).toFa()}. $r", color = Color.White.copy(alpha = 0.9f), fontSize = 13.sp, lineHeight = 20.sp)
+        }
+    }
+}
+
+
+/** Multiplayer entry points. They share this very table; they go live with the transport milestones. */
+@Composable
+private fun ModeRow() {
+    Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+        listOf("📶 بلوتوث / آفلاین" to "دور هم، بدون اینترنت", "🌐 آنلاین" to "با کد اتاق یا حریف تصادفی").forEach { (title, sub) ->
+            Column(
+                Modifier
+                    .weight(1f)
+                    .clip(RoundedCornerShape(16.dp))
+                    .background(Color.White.copy(alpha = 0.08f))
+                    .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+                    .padding(12.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                Text(sub, color = Color.White.copy(alpha = 0.65f), fontSize = 11.sp, textAlign = TextAlign.Center)
+                Spacer(Modifier.height(4.dp))
+                Text("به‌زودی", color = Color(0xFFD9B55A), fontSize = 11.sp)
+            }
         }
     }
 }

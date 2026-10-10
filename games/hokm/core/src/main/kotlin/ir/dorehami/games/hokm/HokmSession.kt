@@ -12,6 +12,7 @@ import ir.dorehami.gamesdk.shuffle
 import ir.dorehami.gamesdk.view
 import ir.dorehami.protocol.ErrCodes
 import ir.dorehami.protocol.PlayerId
+import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonObjectBuilder
 import kotlinx.serialization.json.JsonPrimitive
@@ -23,20 +24,25 @@ import kotlinx.serialization.json.put
 /** Sub-phase of a hand, exposed as `handPhase` in the views. */
 enum class HandPhase(val id: String) {
     CHOOSING_HOKM("choosing_hokm"),
+
+    /** Two-player only: hakem burns 3, opponent burns 2. */
+    DISCARDING("discarding"),
+
+    /** Two-player only: alternately drawing from the stock until both hold 13. */
+    DRAWING("drawing"),
     PLAYING("playing"),
 }
 
 /**
- * The rules of Hokm, Iranian style, four players in two fixed teams (seats 0+2 vs 1+3).
+ * The rules of Hokm for 2, 3 or 4 players (see [HokmRules] for the variants).
  *
- * * First hakem: cards are dealt face up one at a time from seat 0 until an Ace shows; that seat is hakem.
- * * Deal: hakem gets 5 cards and names hokm (trump); then everybody is filled to 13.
+ * * First hakem: cards are dealt face up one at a time from seat 0 until an Ace shows.
+ * * Hakem gets 5 cards and names hokm. Then the hand is filled (4p/3p: dealt; 2p: burn + draw).
  * * Hakem leads. Players must follow suit if they can; otherwise any card (trumping is allowed).
  * * Highest trump wins the trick, else highest card of the led suit. The winner leads the next trick.
- * * The first team to 7 tricks wins the hand: 1 point; 7–0 ("kot") = [Options.KOT_POINTS];
- *   kot against the hakem's own team ("hakem kot") = [Options.HAKEM_KOT_POINTS].
- * * Hakem stays while their team keeps winning; otherwise hakem moves to the next seat.
- * * First team to [Options.TARGET_POINTS] wins the match.
+ * * First side to 7 tricks wins the hand: 1 point; kot = [Options.KOT_POINTS]; hakem kot =
+ *   [Options.HAKEM_KOT_POINTS]. Hakem stays while their side wins; otherwise moves to the next seat.
+ * * First side to [Options.TARGET_POINTS] wins the match.
  *
  * Pure function of `(seed, actions)`: the only randomness is the injected [GameConfig.rng].
  */
@@ -52,9 +58,13 @@ class HokmSession(private val config: GameConfig) : GameSession {
         const val HAND = "hand"
         const val LEGAL_CARDS = "legalCards"
         const val SEAT = "seat"
+        const val REVEALED = "revealed"
+        const val DISCARD_COUNT = "discardCount"
     }
 
     private val players: List<PlayerId> = config.players
+    private val n = players.size
+    private val teams = HokmRules.teamCount(n)
     private val targetPoints = config.options.int(Options.TARGET_POINTS, HokmModule.DEFAULT_TARGET_POINTS)
     private val kotPoints = config.options.int(Options.KOT_POINTS, HokmModule.DEFAULT_KOT_POINTS)
     private val hakemKotPoints = config.options.int(Options.HAKEM_KOT_POINTS, HokmModule.DEFAULT_HAKEM_KOT_POINTS)
@@ -65,7 +75,7 @@ class HokmSession(private val config: GameConfig) : GameSession {
         private set
 
     // ---- match state
-    private val scores = IntArray(HokmRules.TEAMS)
+    private val scores = IntArray(teams)
     private var handNumber = 0
     private var hakem = 0
     private val hakemDraw = ArrayList<Play>()
@@ -74,20 +84,23 @@ class HokmSession(private val config: GameConfig) : GameSession {
     // ---- hand state
     private var handPhase = HandPhase.CHOOSING_HOKM
     private var hokm: Suit? = null
-    private val hands: Array<MutableList<Card>> = Array(HokmRules.SEATS) { ArrayList(HokmRules.CARDS_PER_PLAYER) }
+    private val hands: Array<MutableList<Card>> = Array(n) { ArrayList(17) }
     private var pending: List<Card> = emptyList()
+    private val stock = ArrayDeque<Card>()
+    private var revealed: Card? = null
     private var turn = 0
     private var trickNumber = 0
-    private val currentTrick = ArrayList<Play>(HokmRules.SEATS)
+    private val currentTrick = ArrayList<Play>(n)
     private var lastTrick: CompletedTrick? = null
-    private val tricksWon = IntArray(HokmRules.TEAMS)
+    private val tricksWon = IntArray(teams)
     private val played = LinkedHashSet<Card>()
 
     data class CompletedTrick(val number: Int, val winner: Int, val plays: List<Play>)
 
     data class HandResult(
         val handNumber: Int,
-        val winnerTeam: Int,
+        /** `null` for a void hand. */
+        val winnerTeam: Int?,
         val points: Int,
         val kind: HandWinKind,
         val hakem: Int,
@@ -95,16 +108,19 @@ class HokmSession(private val config: GameConfig) : GameSession {
     )
 
     init {
-        require(players.size == HokmRules.SEATS) { "Hokm needs exactly ${HokmRules.SEATS} players" }
+        require(n in HokmRules.SUPPORTED_PLAYERS) { "Hokm is for 2, 3 or 4 players" }
         drawFirstHakem()
         startHand()
     }
+
+    private fun teamOf(seat: Int) = HokmRules.teamOf(seat, n)
+    private fun next(seat: Int) = HokmRules.nextSeat(seat, n)
 
     // ------------------------------------------------------------------ setup
 
     /** Classic opening: one card each, face up, from seat 0 around the table until an Ace appears. */
     private fun drawFirstHakem() {
-        val deck = config.rng.shuffle(Card.fullDeck())
+        val deck = config.rng.shuffle(HokmRules.deckFor(n))
         var seat = 0
         for (card in deck) {
             hakemDraw += Play(seat, card)
@@ -112,7 +128,7 @@ class HokmSession(private val config: GameConfig) : GameSession {
                 hakem = seat
                 return
             }
-            seat = HokmRules.nextSeat(seat)
+            seat = next(seat)
         }
     }
 
@@ -121,6 +137,8 @@ class HokmSession(private val config: GameConfig) : GameSession {
         handPhase = HandPhase.CHOOSING_HOKM
         hokm = null
         hands.forEach { it.clear() }
+        stock.clear()
+        revealed = null
         currentTrick.clear()
         lastTrick = null
         played.clear()
@@ -128,31 +146,45 @@ class HokmSession(private val config: GameConfig) : GameSession {
         trickNumber = 0
         turn = hakem
 
-        val deck = config.rng.shuffle(Card.fullDeck())
+        val deck = config.rng.shuffle(HokmRules.deckFor(n))
         hands[hakem] += deck.take(HokmRules.HAKEM_FIRST_DEAL)
         hands[hakem].sort()
         pending = deck.drop(HokmRules.HAKEM_FIRST_DEAL)
     }
 
-    /** After hokm is named: the other three get 5, then two rounds of 4 to everybody. */
+    /** 4p/3p: the others get 5, then rounds of 4 to everybody until the deck is out. */
     private fun dealRest() {
         val deck = ArrayDeque(pending)
-        var seat = HokmRules.nextSeat(hakem)
-        repeat(HokmRules.SEATS - 1) {
+        var seat = next(hakem)
+        repeat(n - 1) {
             repeat(HokmRules.HAKEM_FIRST_DEAL) { hands[seat] += deck.removeFirst() }
-            seat = HokmRules.nextSeat(seat)
+            seat = next(seat)
         }
-        repeat(2) {
-            var s = HokmRules.nextSeat(hakem)
-            repeat(HokmRules.SEATS) {
+        while (deck.isNotEmpty()) {
+            var s = next(hakem)
+            repeat(n) {
                 repeat(4) { hands[s] += deck.removeFirst() }
-                s = HokmRules.nextSeat(s)
+                s = next(s)
             }
         }
-        check(deck.isEmpty())
         pending = emptyList()
         hands.forEach { it.sort() }
     }
+
+    /** 2p: the opponent also gets 5; the remaining 42 become the stock. */
+    private fun setupTwoPlayer() {
+        val deck = ArrayDeque(pending)
+        val opp = next(hakem)
+        repeat(HokmRules.HAKEM_FIRST_DEAL) { hands[opp] += deck.removeFirst() }
+        hands[opp].sort()
+        stock.addAll(deck)
+        pending = emptyList()
+        handPhase = HandPhase.DISCARDING
+        turn = hakem
+    }
+
+    private fun discardCountFor(seat: Int): Int =
+        if (seat == hakem) HokmRules.TWO_PLAYER_HAKEM_BURN else HokmRules.TWO_PLAYER_OPPONENT_BURN
 
     // ------------------------------------------------------------------ apply
 
@@ -163,6 +195,9 @@ class HokmSession(private val config: GameConfig) : GameSession {
 
         return when (action.type) {
             HokmModule.ACTION_CHOOSE_HOKM -> chooseHokm(seat, action.payload)
+            HokmModule.ACTION_DISCARD -> discard(seat, action.payload)
+            HokmModule.ACTION_KEEP_CARD -> draw(seat, keep = true)
+            HokmModule.ACTION_PASS_CARD -> draw(seat, keep = false)
             HokmModule.ACTION_PLAY_CARD -> playCard(seat, action.payload)
             else -> reject(ErrCodes.ILLEGAL_ACTION, "حرکت «${action.type}» در حکم وجود ندارد")
         }
@@ -171,33 +206,95 @@ class HokmSession(private val config: GameConfig) : GameSession {
     private fun chooseHokm(seat: Int, payload: JsonObject): ApplyResult {
         if (handPhase != HandPhase.CHOOSING_HOKM) return reject(ErrCodes.BAD_STATE, "حکم این دست قبلاً انتخاب شده")
         if (seat != hakem) return reject(ErrCodes.NOT_YOUR_TURN, "فقط حاکم حکم را انتخاب می‌کند")
-        val suitText = payload[HokmModule.PAYLOAD_SUIT]?.let { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            ?: return reject(ErrCodes.BAD_PAYLOAD, "خال حکم مشخص نشده")
+        val suitText = payload.string(HokmModule.PAYLOAD_SUIT) ?: return reject(ErrCodes.BAD_PAYLOAD, "خال حکم مشخص نشده")
         val suit = Suit.parse(suitText) ?: return reject(ErrCodes.BAD_PAYLOAD, "خال «$suitText» معتبر نیست")
 
         hokm = suit
-        dealRest()
-        handPhase = HandPhase.PLAYING
-        turn = hakem
-        trickNumber = 1
+        version++
+        val emissions = ArrayList<Emission>()
+        emissions += Emission.Public("hokm_chosen", view { put("hakem", hakem); put("hokm", suit.id); put("handNumber", handNumber) })
+        emissions += Emission.Feed("hokm_chosen", view { put("seat", hakem); put("suit", suit.id) })
+        emissions += Emission.Sound("hokm_chosen")
+
+        if (n == 2) {
+            setupTwoPlayer()
+        } else {
+            dealRest()
+            handPhase = HandPhase.PLAYING
+            turn = hakem
+            trickNumber = 1
+        }
+        emissions += privateEmissions()
+        return ApplyResult.Ok(emissions)
+    }
+
+    private fun discard(seat: Int, payload: JsonObject): ApplyResult {
+        if (handPhase != HandPhase.DISCARDING) return reject(ErrCodes.BAD_STATE, "الان وقت سوزاندن کارت نیست")
+        if (seat != turn) return reject(ErrCodes.NOT_YOUR_TURN, "نوبت شما نیست")
+        val codes = payload[HokmModule.PAYLOAD_CARDS] as? JsonArray
+            ?: return reject(ErrCodes.BAD_PAYLOAD, "کارت‌های سوزاندنی مشخص نشده")
+        val cards = codes.map { el ->
+            Card.parse(runCatching { el.jsonPrimitive.content }.getOrDefault(""))
+                ?: return reject(ErrCodes.BAD_PAYLOAD, "کارت نامعتبر")
+        }
+        val need = discardCountFor(seat)
+        if (cards.size != need || cards.toSet().size != need) return reject(ErrCodes.ILLEGAL_ACTION, "باید دقیقاً ${need.toFaWord()} کارت بسوزانی")
+        if (cards.any { it !in hands[seat] }) return reject(ErrCodes.ILLEGAL_ACTION, "این کارت در دست شما نیست")
+
+        hands[seat].removeAll(cards)
+        version++
+        val emissions = ArrayList<Emission>()
+        emissions += Emission.Public("discarded", view { put("seat", seat); put("count", need) })
+        emissions += Emission.Sound("card_played")
+
+        val opp = next(seat)
+        if (seat == hakem) {
+            turn = opp
+        } else {
+            handPhase = HandPhase.DRAWING
+            turn = hakem
+            revealed = stock.removeFirst()
+            emissions += Emission.Public("drawing_started", view { put("stockCount", stock.size + 1) })
+        }
+        emissions += privateEmissions()
+        return ApplyResult.Ok(emissions)
+    }
+
+    private fun draw(seat: Int, keep: Boolean): ApplyResult {
+        if (handPhase != HandPhase.DRAWING) return reject(ErrCodes.BAD_STATE, "الان وقت برداشتن کارت نیست")
+        if (seat != turn) return reject(ErrCodes.NOT_YOUR_TURN, "نوبت شما نیست")
+        val shown = revealed ?: return reject(ErrCodes.BAD_STATE, "کارتی رو نشده")
+        val blind = stock.removeFirst()
+        val taken = if (keep) shown else blind
+        hands[seat] += taken
+        hands[seat].sort()
+        revealed = null
         version++
 
         val emissions = ArrayList<Emission>()
-        emissions += Emission.Public(
-            "hokm_chosen",
-            view { put("hakem", hakem); put("hokm", suit.id); put("handNumber", handNumber) },
-        )
-        emissions += Emission.Feed("hokm_chosen", view { put("seat", hakem); put("suit", suit.id) })
-        emissions += Emission.Sound("hokm_chosen")
+        emissions += Emission.Public("card_drawn", view { put("seat", seat); put("kept", keep); put("stockCount", stock.size) })
+        emissions += Emission.Sound("card_deal")
+
+        if (stock.isEmpty()) {
+            check(hands.all { it.size == HokmRules.cardsPerPlayer(2) }) { "two-player draw must end with 13 cards each" }
+            handPhase = HandPhase.PLAYING
+            turn = hakem
+            trickNumber = 1
+            emissions += Emission.Public("drawing_finished", view { })
+        } else {
+            turn = next(seat)
+            revealed = stock.removeFirst()
+        }
         emissions += privateEmissions()
         return ApplyResult.Ok(emissions)
     }
 
     private fun playCard(seat: Int, payload: JsonObject): ApplyResult {
-        if (handPhase != HandPhase.PLAYING) return reject(ErrCodes.BAD_STATE, "اول باید حاکم حکم را انتخاب کند")
+        if (handPhase != HandPhase.PLAYING) {
+            return reject(ErrCodes.BAD_STATE, if (handPhase == HandPhase.CHOOSING_HOKM) "اول باید حاکم حکم را انتخاب کند" else "هنوز دست‌ها کامل نشده")
+        }
         if (seat != turn) return reject(ErrCodes.NOT_YOUR_TURN, "نوبت شما نیست")
-        val cardText = payload[HokmModule.PAYLOAD_CARD]?.let { runCatching { it.jsonPrimitive.content }.getOrNull() }
-            ?: return reject(ErrCodes.BAD_PAYLOAD, "کارت مشخص نشده")
+        val cardText = payload.string(HokmModule.PAYLOAD_CARD) ?: return reject(ErrCodes.BAD_PAYLOAD, "کارت مشخص نشده")
         val card = Card.parse(cardText) ?: return reject(ErrCodes.BAD_PAYLOAD, "کارت «$cardText» معتبر نیست")
         val hand = hands[seat]
         if (card !in hand) return reject(ErrCodes.ILLEGAL_ACTION, "این کارت در دست شما نیست")
@@ -213,91 +310,95 @@ class HokmSession(private val config: GameConfig) : GameSession {
         version++
 
         val emissions = ArrayList<Emission>()
-        emissions += Emission.Public(
-            "card_played",
-            view { put("seat", seat); put("card", card.code); put("trickNumber", trickNumber) },
-        )
+        emissions += Emission.Public("card_played", view { put("seat", seat); put("card", card.code); put("trickNumber", trickNumber) })
         emissions += Emission.Sound("card_played")
 
-        if (currentTrick.size < HokmRules.SEATS) {
-            turn = HokmRules.nextSeat(seat)
+        if (currentTrick.size < n) {
+            turn = next(seat)
             emissions += Emission.Private(players[seat], privateView(players[seat]))
             return ApplyResult.Ok(emissions)
         }
 
         // ---- trick complete
-        val winner = HokmRules.trickWinner(currentTrick, trump)
-        val winnerTeam = HokmRules.teamOf(winner)
+        val winner = HokmRules.trickWinner(currentTrick, trump, n)
+        val winnerTeam = teamOf(winner)
         tricksWon[winnerTeam]++
         lastTrick = CompletedTrick(trickNumber, winner, currentTrick.toList())
         currentTrick.clear()
         turn = winner
         emissions += Emission.Public(
             "trick_won",
-            view {
-                put("winner", winner)
-                put("team", winnerTeam)
-                put("trickNumber", trickNumber)
-                put("tricksWon", intArray(tricksWon))
-            },
+            view { put("winner", winner); put("team", winnerTeam); put("trickNumber", trickNumber); put("tricksWon", intArray(tricksWon)) },
         )
         emissions += Emission.Feed("trick_won", view { put("seat", winner); put("trickNumber", trickNumber) })
         emissions += Emission.Sound("trick_won")
 
-        if (tricksWon[winnerTeam] < HokmRules.TRICKS_TO_WIN_HAND) {
+        val someoneReachedSeven = tricksWon[winnerTeam] >= HokmRules.TRICKS_TO_WIN_HAND
+        val cardsExhausted = hands.all { it.isEmpty() }
+        if (!someoneReachedSeven && !cardsExhausted) {
             trickNumber++
             emissions += Emission.Private(players[seat], privateView(players[seat]))
             return ApplyResult.Ok(emissions)
         }
 
         // ---- hand complete
-        val loserTeam = 1 - winnerTeam
-        val hakemLost = HokmRules.teamOf(hakem) == loserTeam
-        val (kind, points) = HokmRules.handResult(
-            winnerTricks = tricksWon[winnerTeam],
-            loserTricks = tricksWon[loserTeam],
-            hakemLost = hakemLost,
-            kotPoints = kotPoints,
-            hakemKotPoints = hakemKotPoints,
-        )
-        scores[winnerTeam] += points
-        val result = HandResult(handNumber, winnerTeam, points, kind, hakem, tricksWon.toList())
+        val result = scoreHand(if (someoneReachedSeven) winnerTeam else null)
         lastHandResult = result
         emissions += Emission.Public("hand_finished", handResultJson(result))
         emissions += Emission.Feed(
             "hand_finished",
-            view { put("team", winnerTeam); put("points", points); put("kind", kind.id) },
-            kind = if (kind == HandWinKind.NORMAL) "info" else "highlight",
+            view { put("team", result.winnerTeam); put("points", result.points); put("kind", result.kind.id) },
+            kind = if (result.kind == HandWinKind.NORMAL) "info" else "highlight",
         )
         emissions += Emission.Sound(
-            when (kind) {
-                HandWinKind.NORMAL -> "hand_won"
+            when (result.kind) {
+                HandWinKind.NORMAL, HandWinKind.VOID -> "hand_won"
                 HandWinKind.KOT -> "kot"
                 HandWinKind.HAKEM_KOT -> "hakem_kot"
             },
         )
 
-        if (scores[winnerTeam] >= targetPoints) {
+        val wt = result.winnerTeam
+        if (wt != null && scores[wt] >= targetPoints) {
             phase = Phase.FINISHED
-            emissions += Emission.Public(
-                "game_finished",
-                view { put("winnerTeam", winnerTeam); put("scores", intArray(scores)) },
-            )
-            emissions += Emission.Feed("game_finished", view { put("team", winnerTeam) }, kind = "highlight")
+            emissions += Emission.Public("game_finished", view { put("winnerTeam", wt); put("scores", intArray(scores)) })
+            emissions += Emission.Feed("game_finished", view { put("team", wt) }, kind = "highlight")
             emissions += Emission.Sound("game_won")
             return ApplyResult.Ok(emissions)
         }
 
-        hakem = HokmRules.nextHakem(hakem, hakemTeamWon = !hakemLost)
+        val hakemTeamWon = wt == teamOf(hakem)
+        hakem = HokmRules.nextHakem(hakem, hakemTeamWon, n)
         startHand()
-        emissions += Emission.Public(
-            "hand_started",
-            view { put("handNumber", handNumber); put("hakem", hakem) },
-        )
+        emissions += Emission.Public("hand_started", view { put("handNumber", handNumber); put("hakem", hakem) })
         emissions += Emission.Feed("hand_started", view { put("handNumber", handNumber); put("hakem", hakem) })
         emissions += Emission.Sound("shuffle")
         emissions += privateEmissions()
         return ApplyResult.Ok(emissions)
+    }
+
+    /** Settles a finished hand. [reachedSeven] is the side that got 7, or `null` when cards ran out (3p). */
+    private fun scoreHand(reachedSeven: Int?): HandResult {
+        val hakemTeam = teamOf(hakem)
+        val winnerTeam: Int? = reachedSeven ?: run {
+            val max = tricksWon.max()
+            val leaders = tricksWon.indices.filter { tricksWon[it] == max }
+            if (leaders.size == 1) leaders.first() else null
+        }
+        if (winnerTeam == null) {
+            return HandResult(handNumber, null, 0, HandWinKind.VOID, hakem, tricksWon.toList())
+        }
+        val losers = tricksWon.indices.filter { it != winnerTeam }
+        val (kind, points) = HokmRules.handResult(
+            winnerTricks = tricksWon[winnerTeam],
+            minLoserTricks = losers.minOf { tricksWon[it] },
+            hakemTricks = tricksWon[hakemTeam],
+            hakemLost = hakemTeam != winnerTeam,
+            kotPoints = kotPoints,
+            hakemKotPoints = hakemKotPoints,
+        )
+        scores[winnerTeam] += points
+        return HandResult(handNumber, winnerTeam, points, kind, hakem, tricksWon.toList())
     }
 
     private fun reject(code: String, messageFa: String) = ApplyResult.Rejected(code, messageFa)
@@ -312,6 +413,8 @@ class HokmSession(private val config: GameConfig) : GameSession {
         if (seat < 0) return emptyList()
         return when (handPhase) {
             HandPhase.CHOOSING_HOKM -> if (seat == hakem) listOf(HokmModule.ACTION_CHOOSE_HOKM) else emptyList()
+            HandPhase.DISCARDING -> if (seat == turn) listOf(HokmModule.ACTION_DISCARD) else emptyList()
+            HandPhase.DRAWING -> if (seat == turn) listOf(HokmModule.ACTION_KEEP_CARD, HokmModule.ACTION_PASS_CARD) else emptyList()
             HandPhase.PLAYING -> if (seat == turn) listOf(HokmModule.ACTION_PLAY_CARD) else emptyList()
         }
     }
@@ -325,12 +428,10 @@ class HokmSession(private val config: GameConfig) : GameSession {
             if (seat >= 0) {
                 put(Keys.SEAT, seat)
                 put(Keys.HAND, cards(hands[seat]))
-                val legal = if (handPhase == HandPhase.PLAYING && seat == turn) {
-                    HokmRules.legalCards(hands[seat], currentTrick)
-                } else {
-                    emptyList()
-                }
+                val legal = if (handPhase == HandPhase.PLAYING && seat == turn) HokmRules.legalCards(hands[seat], currentTrick) else emptyList()
                 put(Keys.LEGAL_CARDS, cards(legal))
+                if (handPhase == HandPhase.DRAWING && seat == turn) put(Keys.REVEALED, revealed?.code)
+                if (handPhase == HandPhase.DISCARDING && seat == turn) put(Keys.DISCARD_COUNT, discardCountFor(seat))
             }
         }
     }
@@ -339,6 +440,8 @@ class HokmSession(private val config: GameConfig) : GameSession {
         publicFields()
         put("hands", buildJsonArray { hands.forEach { add(cards(it)) } })
         put("pending", cards(pending))
+        put("stock", cards(stock.toList()))
+        put("revealedCard", revealed?.code)
         put("played", cards(played.toList()))
         put("rngState", config.rng.state)
     }
@@ -347,6 +450,7 @@ class HokmSession(private val config: GameConfig) : GameSession {
         put("game", HokmModule.ID)
         put("version", version)
         put("phase", phase.name)
+        put("playerCount", n)
         put("handPhase", handPhase.id)
         put("handNumber", handNumber)
         put("hakem", hakem)
@@ -358,15 +462,11 @@ class HokmSession(private val config: GameConfig) : GameSession {
         put("tricksWon", intArray(tricksWon))
         put("scores", intArray(scores))
         put("targetPoints", targetPoints)
+        put("stockCount", stock.size + (if (revealed != null) 1 else 0))
         put("handCounts", buildJsonArray { hands.forEach { add(JsonPrimitive(it.size)) } })
         put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
         put("hakemDraw", plays(hakemDraw))
-        lastTrick?.let { t ->
-            put(
-                "lastTrick",
-                view { put("number", t.number); put("winner", t.winner); put("cards", plays(t.plays)) },
-            )
-        }
+        lastTrick?.let { t -> put("lastTrick", view { put("number", t.number); put("winner", t.winner); put("cards", plays(t.plays)) }) }
         lastHandResult?.let { put("lastHandResult", handResultJson(it)) }
     }
 
@@ -382,15 +482,19 @@ class HokmSession(private val config: GameConfig) : GameSession {
 
     override fun result(): MatchResult? {
         if (phase != Phase.FINISHED) return null
-        val teamA = listOf(players[0], players[2])
-        val teamB = listOf(players[1], players[3])
-        val aWins = scores[0] >= scores[1]
-        return MatchResult(
-            standings = listOf(
-                Standing(teamA, if (aWins) 1 else 2, scores[0]),
-                Standing(teamB, if (aWins) 2 else 1, scores[1]),
-            ).sortedBy { it.rank },
-        )
+        val order = scores.indices.sortedByDescending { scores[it] }
+        val standings = ArrayList<Standing>()
+        var rank = 0
+        var prev = Int.MIN_VALUE
+        order.forEachIndexed { i, team ->
+            if (scores[team] != prev) {
+                rank = i + 1
+                prev = scores[team]
+            }
+            val members = players.indices.filter { teamOf(it) == team }.map { players[it] }
+            standings += Standing(members, rank, scores[team])
+        }
+        return MatchResult(standings)
     }
 
     // ------------------------------------------------------------------ bot
@@ -400,26 +504,37 @@ class HokmSession(private val config: GameConfig) : GameSession {
         if (phase == Phase.FINISHED) return null
         val seat = config.seatOf(player)
         if (seat < 0) return null
+        val view = BotView(
+            seat = seat,
+            players = n,
+            hand = hands[seat].toList(),
+            hokm = hokm,
+            trick = currentTrick.toList(),
+            played = played.toSet(),
+            tricksWon = tricksWon.toList(),
+            hakem = hakem,
+        )
         return when (handPhase) {
             HandPhase.CHOOSING_HOKM -> {
                 if (seat != hakem) return null
-                val suit = HokmBot.chooseHokm(hands[seat])
-                GameAction(HokmModule.ACTION_CHOOSE_HOKM, view { put(HokmModule.PAYLOAD_SUIT, suit.id) })
+                GameAction(HokmModule.ACTION_CHOOSE_HOKM, view { put(HokmModule.PAYLOAD_SUIT, HokmBot.chooseHokm(hands[seat]).id) })
+            }
+
+            HandPhase.DISCARDING -> {
+                if (seat != turn) return null
+                val burn = HokmBot.discard(view, discardCountFor(seat))
+                GameAction(HokmModule.ACTION_DISCARD, view { put(HokmModule.PAYLOAD_CARDS, cards(burn)) })
+            }
+
+            HandPhase.DRAWING -> {
+                if (seat != turn) return null
+                val keep = HokmBot.keepRevealed(view, requireNotNull(revealed))
+                GameAction(if (keep) HokmModule.ACTION_KEEP_CARD else HokmModule.ACTION_PASS_CARD)
             }
 
             HandPhase.PLAYING -> {
                 if (seat != turn) return null
-                val card = HokmBot.playCard(
-                    BotView(
-                        seat = seat,
-                        hand = hands[seat].toList(),
-                        hokm = hokm,
-                        trick = currentTrick.toList(),
-                        played = played.toSet(),
-                        tricksWon = tricksWon.toList(),
-                    ),
-                )
-                GameAction(HokmModule.ACTION_PLAY_CARD, view { put(HokmModule.PAYLOAD_CARD, card.code) })
+                GameAction(HokmModule.ACTION_PLAY_CARD, view { put(HokmModule.PAYLOAD_CARD, HokmBot.playCard(view).code) })
             }
         }
     }
@@ -428,12 +543,18 @@ class HokmSession(private val config: GameConfig) : GameSession {
 
     private fun cards(list: List<Card>) = buildJsonArray { list.forEach { add(JsonPrimitive(it.code)) } }
 
-    private fun plays(list: List<Play>) = buildJsonArray {
-        list.forEach { p -> add(view { put("seat", p.seat); put("card", p.card.code) }) }
-    }
+    private fun plays(list: List<Play>) = buildJsonArray { list.forEach { p -> add(view { put("seat", p.seat); put("card", p.card.code) }) } }
 
     private fun intArray(values: IntArray) = buildJsonArray { values.forEach { add(JsonPrimitive(it)) } }
 
     private fun JsonObject.int(key: String, default: Int): Int =
         this[key]?.let { runCatching { it.jsonPrimitive.content.toInt() }.getOrNull() } ?: default
+
+    private fun JsonObject.string(key: String): String? = this[key]?.let { runCatching { it.jsonPrimitive.content }.getOrNull() }
+
+    private fun Int.toFaWord(): String = when (this) {
+        2 -> "دو"
+        3 -> "سه"
+        else -> toString()
+    }
 }
