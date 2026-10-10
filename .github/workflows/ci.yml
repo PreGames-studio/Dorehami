@@ -26,19 +26,34 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # `-x lint`: `check` on Android modules also runs lint, which is a separate concern (and slow);
+      # here we only want the JVM tests of every module.
       - name: Run every module's tests
         run: |
           set -o pipefail
-          ./gradlew checkAll --stacktrace 2>&1 | tee tests.log
+          ./gradlew checkAll -x lint --stacktrace 2>&1 | tee tests.log
 
-      - name: Summarize test report
+      # The runner's log lives behind a blob URL that API-only environments often cannot fetch, so
+      # the interesting lines are also published as annotations and in the job summary.
+      - name: Report test results
         if: always()
         run: |
-          echo "## \`checkAll\`" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep -E "^> Task .*:test|tests completed|BUILD (SUCCESSFUL|FAILED)|FAILURE:" tests.log 2>/dev/null | tail -n 25 >> "$GITHUB_STEP_SUMMARY" || echo "(no tests.log)" >> "$GITHUB_STEP_SUMMARY"
-          echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep -E "^[0-9]+ tests completed, [0-9]+ failed|FAILED$" tests.log 2>/dev/null | head -n 10 | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+          python3 - <<'PY'
+          import os, re
+          path = "tests.log"
+          txt = open(path, errors="replace").read() if os.path.exists(path) else "(no tests.log)"
+          lines = txt.splitlines()
+          pat = re.compile(
+              r"FAILURE:|What went wrong|^e: |error:|Execution failed|Caused by:|tests? completed|BUILD (SUCCESSFUL|FAILED)|> Task .*:test.*FAILED"
+          )
+          hits = [l for l in lines if pat.search(l)]
+          report = (hits or lines)[-10:]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
+              f.write("## `checkAll -x lint`\n\n```\n" + "\n".join(report) + "\n```\n")
+          for l in report:
+              safe = l.replace("%", "%25").replace("\r", "").replace(":", "%3A")[:280]
+              print(f"::error file=tests.log,line=1::{safe}")
+          PY
 
   build-apk:
     name: Build debug APK
