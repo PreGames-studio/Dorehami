@@ -97,9 +97,10 @@ class HokmBotTest {
             val a = first.botActionFor(playerId(first.turnSeat()))
             val b = second.botActionFor(playerId(second.turnSeat()))
             assertEquals(a, b, "ربات برای یک وضعیتِ یکسان باید همان تصمیم را بگیرد")
-            if (a == null) return@repeat
-            first.apply(playerId(first.turnSeat()), a)
-            second.apply(playerId(second.turnSeat()), b)
+            val actionA = a ?: return@repeat
+            val actionB = b ?: return@repeat
+            first.apply(playerId(first.turnSeat()), actionA)
+            second.apply(playerId(second.turnSeat()), actionB)
         }
     }
 }
