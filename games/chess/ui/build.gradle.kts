@@ -41,7 +41,10 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
 
+    // On Android the Kotlin plugin does not map kotlin.test to a framework by itself, so the
+    // JUnit 5 flavour is named explicitly (the JVM game modules do not need this line).
     testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)
     testRuntimeOnly(libs.junit.platform.launcher)
