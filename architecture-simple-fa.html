@@ -1,0 +1,222 @@
+<!doctype html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>دورهمی — زبان و معماری به زبان ساده</title>
+<style>
+  :root{
+    --bg:#f7f8fc; --card:#ffffff; --ink:#1b1d23; --muted:#6b7280;
+    --green:#0f9d58; --red:#e4572e; --blue:#2563eb; --violet:#7c3aed; --amber:#b45309;
+    --line:#e6e8ef;
+  }
+  *{box-sizing:border-box}
+  body{margin:0;padding:28px 18px;background:var(--bg);color:var(--ink);
+       font-family:"Vazirmatn","IRANSans",Tahoma,system-ui,-apple-system,"Segoe UI",sans-serif;
+       line-height:2}
+  .wrap{max-width:900px;margin:0 auto}
+  h1{font-size:26px;margin:0 0 6px}
+  h2{font-size:20px;margin:0 0 14px;display:flex;align-items:center;gap:10px}
+  h2 .num{background:var(--violet);color:#fff;width:30px;height:30px;border-radius:9px;
+          display:grid;place-items:center;font-size:15px;flex:none}
+  p{margin:8px 0}
+  .lead{color:var(--muted);font-size:15px;margin-bottom:26px}
+  .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px 22px;
+        margin-bottom:18px;box-shadow:0 6px 18px rgba(20,20,50,.05)}
+  .verdict{display:flex;gap:14px;align-items:center;background:#f0fdf4;border:1px solid #bbf7d0;
+           border-radius:14px;padding:14px 16px;margin:10px 0 16px}
+  .verdict .big{font-size:22px;font-weight:800;color:#166534}
+  .verdict small{color:#166534;opacity:.85;display:block;font-size:13px;font-weight:400}
+  table{width:100%;border-collapse:collapse;font-size:14.5px}
+  th,td{padding:10px 8px;text-align:right;border-bottom:1px solid var(--line);vertical-align:top}
+  th{color:var(--muted);font-weight:600;font-size:13.5px}
+  .yes{color:var(--green);font-weight:800}
+  .no{color:var(--red);font-weight:700}
+  .half{color:var(--amber);font-weight:700}
+
+  /* نقشه */
+  .map{display:flex;flex-direction:column;gap:0;align-items:stretch}
+  .tier{border:2px dashed var(--line);border-radius:16px;padding:14px;text-align:center}
+  .tier .t{font-weight:800;font-size:16px;margin-bottom:8px}
+  .chips{display:flex;flex-wrap:wrap;gap:8px;justify-content:center}
+  .chip{background:#eef2ff;color:#3730a3;border-radius:999px;padding:4px 14px;font-size:14px;font-weight:700}
+  .chip.future{background:#f1f5f9;color:#64748b;border:1px dashed #cbd5e1}
+  .arrow{text-align:center;color:#94a3b8;font-size:20px;line-height:1.2;padding:6px 0}
+  .branch{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+  @media(max-width:640px){.branch{grid-template-columns:1fr}}
+  .path{border-radius:16px;padding:14px;text-align:center}
+  .path.bl{background:#eff6ff;border:1px solid #bfdbfe}
+  .path.net{background:#faf5ff;border:1px solid #e9d5ff}
+  .path .h{font-weight:800;margin-bottom:4px}
+  .path .sub{color:var(--muted);font-size:13.5px;line-height:1.9}
+  .server{margin-top:12px;background:#f5f3ff;border:1px solid #ddd6fe;border-radius:14px;
+          padding:12px 14px;text-align:center;font-size:14.5px}
+  .core{background:#fff7ed;border:2px solid #fed7aa !important}
+  .core .t{color:#9a3412}
+
+  /* گام‌ها */
+  ol.steps{margin:0;padding:0;list-style:none;counter-reset:s}
+  ol.steps li{position:relative;padding:0 46px 16px 0;counter-increment:s}
+  ol.steps li::before{content:counter(s);position:absolute;right:0;top:2px;width:30px;height:30px;
+      background:var(--blue);color:#fff;border-radius:50%;display:grid;place-items:center;font-weight:800;font-size:14px}
+  ol.steps li:not(:last-child)::after{content:"";position:absolute;right:14px;top:34px;bottom:2px;
+      border-right:2px dashed #dbe3f0}
+  ol.steps b{display:block}
+
+  ul.plain{margin:0;padding:0;list-style:none}
+  ul.plain li{padding:8px 30px 8px 0;position:relative}
+  ul.plain li::before{content:"✅";position:absolute;right:0;top:8px;font-size:15px}
+
+  .note{background:#fffbeb;border:1px solid #fde68a;border-radius:14px;padding:12px 16px;font-size:14.5px}
+  .quote{background:#f8fafc;border-right:5px solid var(--violet);border-radius:10px;padding:10px 14px;
+         color:#334155;font-size:14.5px}
+  footer{color:var(--muted);font-size:13px;text-align:center;margin:26px 0 10px;line-height:2}
+</style>
+</head>
+<body>
+<div class="wrap">
+
+  <h1>🎲 دورهمی — با چه زبانی و با چه ساختاری؟</h1>
+  <p class="lead">این سند ساده نوشته شده: بدون اصطلاح فنی. دو سؤال را جواب می‌دهد: «با چه زبانی بسازیم؟» و «کل ساختار پروژه چطور باشد؟»</p>
+
+  <!-- ۱ -->
+  <div class="card">
+    <h2><span class="num">۱</span> با چه زبانی نوشته می‌شود؟</h2>
+
+    <div class="verdict">
+      <div style="font-size:34px">🤖</div>
+      <div>
+        <div class="big">انتخاب نهایی: کاتلین (Kotlin) — اپ اندروید</div>
+        <small>هم اپ گوشی با آن نوشته می‌شود، هم سرور. یک زبان برای کل پروژه.</small>
+      </div>
+    </div>
+
+    <p>مهم‌ترین دلیلش یک جمله است: <b>تو بلوتوث آفلاین می‌خواهی.</b> مرورگرِ وب و اپ‌های «وب‌گونه» به
+    بلوتوث گوشی دسترسی ندارند، پس بازی بدون اینترنت عملاً از دست می‌رود. هر زبانی که این شرط را
+    برآورده کند، در دور بعد باید سرعت، انتشار در کافه‌بازار و «یک زبان برای همه‌کار» را هم داشته باشد.</p>
+
+    <table>
+      <tr><th>گزینه</th><th>حکم</th><th>چرا (خیلی خلاصه)</th></tr>
+      <tr>
+        <td><b>وب‌اپ / PWA</b><br><span style="color:var(--muted);font-size:13px">(HTML و جاوااسکریپت)</span></td>
+        <td class="no">❌ نمی‌شود</td>
+        <td>دسترسی به بلوتوث گوشی ندارد ⇒ بازی آفلاین ممکن نیست. برای اپ نصب‌شده در کافه‌بازار هم ساخته نشده.</td>
+      </tr>
+      <tr>
+        <td><b>کاتلین + Compose</b><br><span style="color:var(--muted);font-size:13px">(اندروید)</span></td>
+        <td class="yes">✅ انتخاب شد</td>
+        <td>بلوتوث و همه‌چیز گوشی در دسترس است؛ انتشار در کافه‌بازار ساده است؛ سرور هم با همین زبان نوشته می‌شود.</td>
+      </tr>
+      <tr>
+        <td><b>Flutter</b></td>
+        <td class="no">❌</td>
+        <td>بد نیست، ولی کار با بلوتوث سخت‌تر است و نمی‌توانی سرور را هم با همان زبان بنویسی ⇒ دو زبان، دو برابر زحمت.</td>
+      </tr>
+      <tr>
+        <td><b>Unity</b> / <b>موتورهای بازی‌سازی</b></td>
+        <td class="no">❌</td>
+        <td>برای بازی‌های سه‌بعدی خوب است؛ برای حکم و پانتومیم زیادی سنگین و گران است. حجم اپ زیاد می‌شود.</td>
+      </tr>
+      <tr>
+        <td><b>پایتون / PHP / …</b></td>
+        <td class="half">⚠️ فقط سرور</td>
+        <td>برای ساخت اپ اندروید مناسب نیستند؛ فقط به‌عنوان سرور کاربرد دارند و ما سرور را با همان کاتلین می‌نویسیم.</td>
+      </tr>
+    </table>
+
+    <p class="quote" style="margin-top:14px">یک هدیهٔ اضافه: ساختار را طوری می‌چینیم که روزی بتوان بدون بازنویسی، همین بازی‌ها را
+    به آیفون یا کامپیوتر هم آورد — فقط ظاهر عوض می‌شود، قوانین دست‌نخورده می‌مانند.</p>
+  </div>
+
+  <!-- ۲ -->
+  <div class="card">
+    <h2><span class="num">۲</span> کل ساختار پروژه (نقشهٔ کلی)</h2>
+
+    <div class="map">
+
+      <div class="tier">
+        <div class="t">🧩 بازی‌ها</div>
+        <div class="chips">
+          <span class="chip">حکم</span>
+          <span class="chip">پانتومیم</span>
+          <span class="chip">شطرنج</span>
+          <span class="chip future">منچ / مافیا / …</span>
+        </div>
+        <p style="color:var(--muted);font-size:13.5px;margin:10px 0 0">هر بازی، یک تکهٔ جدا و مستقل است. مثل قطعه‌های لِگو: بازی جدید = قطعهٔ جدید، بدون دست‌زدن به بقیه.</p>
+      </div>
+
+      <div class="arrow">▼</div>
+
+      <div class="tier core">
+        <div class="t">🧠 هستهٔ مشترک</div>
+        <p style="margin:0 0 6px">قوانین بازی، نوبت‌ها، امتیاز، اطلاعات پنهان (دستِ هر بازیکن)، ذخیرهٔ نتیجه.</p>
+        <p style="margin:0;color:#9a3412;font-size:13.5px">یک‌بار نوشته می‌شود؛ هم بازی‌های آفلاین از آن استفاده می‌کنند، هم آنلاین، هم بازی با ربات.</p>
+      </div>
+
+      <div class="arrow">▼</div>
+
+      <div class="branch">
+        <div class="path bl">
+          <div class="h">📶 بازی آفلاین (بلوتوث)</div>
+          <div class="sub">بدون اینترنت. یک گوشی «میزبان» می‌شود، بقیه با زدن دکمه وصل می‌شوند. حداکثر افراد نزدیک دور هم.</div>
+        </div>
+        <div class="path net">
+          <div class="h">🌐 بازی آنلاین (اینترنت)</div>
+          <div class="sub">با کد اتاق یا حریف تصادفی. دوستانت می‌توانند در شهر دیگری باشند.</div>
+        </div>
+      </div>
+
+      <div class="server">
+        🖥️ <b>سرور</b> — همان هاست ایرانی که خودت می‌خری. اتاق می‌سازد، حریف تصادفی پیدا می‌کند،
+        و نتیجهٔ بازی‌ها را نگه می‌دارد. <span style="color:var(--muted)">(فقط برای حالت آنلاین لازم است.)</span>
+      </div>
+    </div>
+  </div>
+
+  <!-- ۳ -->
+  <div class="card">
+    <h2><span class="num">۳</span> یک دست بازی، از اول تا آخر</h2>
+    <ol class="steps">
+      <li><b>اتاق ساخته می‌شود.</b> یک نفر اتاق می‌زند: بلوتوثی یا اینترنتی. یک کد ۵ حرفی مثل <b>۴QP۶R</b> می‌گیرد.</li>
+      <li><b>دوستان وصل می‌شوند.</b> کد را می‌فرستی؛ اسمشان یکی‌یکی روی صندلی‌ها می‌نشیند.</li>
+      <li><b>بازی شروع می‌شود.</b> هرکس فقط دستِ خودش را روی گوشی خودش می‌بیند؛ دست دیگران مخفی است.</li>
+      <li><b>حرکت‌ها به «داور» می‌رود.</b> داور یا گوشیِ میزبان است یا سرور. داور حرف آخر را می‌زند: حرکت را قبول یا رد می‌کند و نتیجه را برای همه می‌فرستد.</li>
+      <li><b>قطع‌شدن = برگشت بی‌دردسر.</b> اگر کسی اینترنتش بپرد و برگردد، داور وضعیت را برایش می‌فرستد و از همان‌جا ادامه می‌دهد.</li>
+      <li><b>پایان بازی، یک «رسید» می‌سازد.</b> نتیجه جوری ذخیره می‌شود که بعداً می‌توان کل بازی را از اول مرور کرد و ثابت کرد دستکاری نشده — پایهٔ امتیازها و تورنمنت‌ها.</li>
+    </ol>
+
+    <p class="note">💡 چرا «داور فعل»؟ برای دو چیز: تقلب تقریباً غیرممکن می‌شود، و قوانین فقط <b>یک‌بار</b>
+    نوشته می‌شوند و همان‌ها هم در بلوتوث اجرا می‌شوند، هم در آنلاین، هم در بازی با ربات.</p>
+  </div>
+
+  <!-- ۴ -->
+  <div class="card">
+    <h2><span class="num">۴</span> چرا این ساختار برای تیم سه‌نفرهٔ تو مناسب است</h2>
+    <ul class="plain">
+      <li><b>هر بازی، یک پوشهٔ مستقل.</b> هر نفر تیم کامل مالک یک بازی می‌شود و کارشان به هم نمی‌خورد. بازی بعدی هم همین‌طور اضافه می‌شود.</li>
+      <li><b>بازی جدید = یک پوشه + دو خط ثبت.</b> لابی، اتاق، حریف تصادفی، تایمر نوبت و ذخیرهٔ نتیجه خودکار به بازی جدید می‌رسند.</li>
+      <li><b>قوانین یک‌بار نوشته می‌شوند.</b> تغییری در حکم بدهی؟ هم آفلاین درست می‌شود هم آنلاین. هیچ‌وقت دو نسخه از یک بازی نداریم.</li>
+      <li><b>آمادهٔ کار با هوش مصنوعی روی گیت‌هاب.</b> یک راهنمای استاندارد در ریشهٔ پروژه می‌گذریم که هر عامل (Copilot، Claude، Cursor…) اول آن را می‌خواند؛ هر تسک = یک پوشه + معیار «چه‌وقت تمام است».</li>
+    </ul>
+  </div>
+
+  <!-- ۵ -->
+  <div class="card">
+    <h2><span class="num">۵</span> به همین ترتیب ساخته می‌شود</h2>
+    <ol class="steps">
+      <li><b>هستهٔ مشترک.</b> قواعد و «زبان حرف‌زدن» قطعه‌ها با هم (تا همه‌چیز روی هم سوار شود).</li>
+      <li><b>اولین بازی: حکم.</b> کامل: بازی با ربات، امتیاز، پایان بازی.</li>
+      <li><b>اتاق بلوتوثی.</b> بازی بدون اینترنت، همان‌طور که خواستی.</li>
+      <li><b>سرور و حالت آنلاین.</b> اتاق خصوصی + حریف تصادفی روی هاست ایرانی خودت.</li>
+      <li><b>پانتومیم، بعد شطرنج.</b> هر کدام یک پوشهٔ جدید.</li>
+      <li><b>ظاهر و انتشار.</b> صفحه‌ها، و بعد ثبت در کافه‌بازار.</li>
+    </ol>
+  </div>
+
+  <footer>
+    همین یک صفحه، کل ماجراست. 🌱<br>
+    نسخهٔ فنی و جزئی (برای برنامه‌نویس‌ها و عامل‌های هوش مصنوعی): <b>docs/ARCHITECTURE.md</b>
+  </footer>
+</div>
+</body>
+</html>
