@@ -32,6 +32,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ir.dorehami.core.uikit.DorehamiPageFrame as PageFrame
 import ir.dorehami.games.pantohub.Difficulty
 import ir.dorehami.games.pantohub.PhraseType
 import ir.dorehami.games.pantohub.WordBankCsvCodec

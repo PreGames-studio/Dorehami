@@ -407,28 +407,33 @@ private fun SecretWordScreen(
         storageError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
         Text("${turn.playerName}  •  فقط اجراکننده نگاه کند", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         TimerView(state, remainingMs, remainingSeconds)
-        Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) {
-            val wordCard: @Composable () -> Unit = {
-                Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                    Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                        Text(turn.currentWord?.difficulty?.labelFa.orEmpty(), style = MaterialTheme.typography.labelLarge)
-                        Spacer(Modifier.height(8.dp))
-                        Text(
-                            turn.currentWord?.text.orEmpty(),
-                            style = MaterialTheme.typography.headlineMedium,
-                            fontWeight = FontWeight.Bold,
-                            textAlign = TextAlign.Center,
-                        )
-                        Spacer(Modifier.height(8.dp))
-                        Text("گوشی را از بقیه دور نگه دار.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
-                    }
+        val wordCard: @Composable () -> Unit = {
+            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+                Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                    Text(turn.currentWord?.difficulty?.labelFa.orEmpty(), style = MaterialTheme.typography.labelLarge)
+                    Spacer(Modifier.height(8.dp))
+                    Text(
+                        turn.currentWord?.text.orEmpty(),
+                        style = MaterialTheme.typography.headlineMedium,
+                        fontWeight = FontWeight.Bold,
+                        textAlign = TextAlign.Center,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Text("گوشی را از بقیه دور نگه دار.", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
                 }
             }
-            if (state.settings.animationsEnabled) {
-                AnimatedVisibility(visible = true, enter = fadeIn(), exit = fadeOut()) { wordCard() }
-            } else {
-                wordCard()
+        }
+        if (state.settings.animationsEnabled) {
+            AnimatedVisibility(
+                visible = true,
+                modifier = Modifier.weight(1f).fillMaxWidth(),
+                enter = fadeIn(),
+                exit = fadeOut(),
+            ) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) { wordCard() }
             }
+        } else {
+            Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { wordCard() }
         }
         Button(onClick = onHide, modifier = Modifier.fillMaxWidth().height(64.dp)) {
             Text("پوشاندن سریع واژه")
