@@ -14,17 +14,17 @@ class HokmScoringTest {
 
     /** دست‌های سناریوهای امتیاز: تیمِ ۰ (صندلی‌های ۰ و ۲) می‌تواند هفت دست بگیرد. */
     private fun scoringHands(): List<List<Card>> = listOf(
-        cards("AS", "KS", "QS", "JS", "TS", "9S", "8S", "AC", "KC", "QC", "JC", "TC", "9C"),
+        cards("AS", "KS", "QS", "JS", "10S", "9S", "8S", "AC", "KC", "QC", "JC", "10C", "9C"),
         cards("8C", "7C", "6C", "5C", "4C", "3C", "2C", "7D", "6D", "5D", "4D", "3D", "2D"),
-        cards("AD", "KD", "QD", "JD", "TD", "9D", "8D", "7S", "6S", "5S", "4S", "3S", "2S"),
-        cards("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
+        cards("AD", "KD", "QD", "JD", "10D", "9D", "8D", "7S", "6S", "5S", "4S", "3S", "2S"),
+        cards("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
     )
 
     /** دست‌هایی که با آن‌ها تیمِ ۱ (صندلی‌های ۱ و ۳) حاکم را کوت می‌کند. */
     private fun hakemKotiHands(): List<List<Card>> = listOf(
-        cards("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
-        cards("AS", "KS", "QS", "JS", "TS", "9S", "8S", "AC", "KC", "QC", "JC", "TC", "9C"),
-        cards("8C", "7C", "6C", "5C", "4C", "3C", "2C", "AD", "KD", "QD", "JD", "TD", "9D"),
+        cards("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
+        cards("AS", "KS", "QS", "JS", "10S", "9S", "8S", "AC", "KC", "QC", "JC", "10C", "9C"),
+        cards("8C", "7C", "6C", "5C", "4C", "3C", "2C", "AD", "KD", "QD", "JD", "10D", "9D"),
         cards("7S", "6S", "5S", "4S", "3S", "2S", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
     )
 
@@ -35,7 +35,7 @@ class HokmScoringTest {
 
         repeat(6) { index ->
             session.playTrick(
-                listOf("AS", "KS", "QS", "JS", "TS", "9S")[index],
+                listOf("AS", "KS", "QS", "JS", "10S", "9S")[index],
                 listOf("2C", "3C", "4C", "5C", "6C", "7C")[index],
                 listOf("2S", "3S", "4S", "5S", "6S", "7S")[index],
                 listOf("2H", "3H", "4H", "5H", "6H", "7H")[index],
@@ -55,7 +55,7 @@ class HokmScoringTest {
         val session = testSession(scoringHands())
         session.declareAndStart(Suit.SPADES)
 
-        val spades = listOf("AS", "KS", "QS", "JS", "TS", "9S", "8S")
+        val spades = listOf("AS", "KS", "QS", "JS", "10S", "9S", "8S")
         val clubs = listOf("2C", "3C", "4C", "5C", "6C", "7C", "8C")
         val follows = listOf("2S", "3S", "4S", "5S", "6S", "7S", "AD")
         val hearts = listOf("2H", "3H", "4H", "5H", "6H", "7H", "8H")
@@ -81,7 +81,7 @@ class HokmScoringTest {
         session.playTrick("2H", "AS", "2C", "2D")
         assertEquals(listOf(0, 1), session.publicView().intList("tricks"))
 
-        val spades = listOf("KS", "QS", "JS", "TS", "9S", "8S")
+        val spades = listOf("KS", "QS", "JS", "10S", "9S", "8S")
         val clubs = listOf("3C", "4C", "5C", "6C", "7C", "8C")
         val follows = listOf("2S", "3S", "4S", "5S", "6S", "7S")
         val hearts = listOf("3H", "4H", "5H", "6H", "7H", "8H")
@@ -116,8 +116,8 @@ class HokmScoringTest {
         session.playTrick("AH", "3S", "2H", "7S")
         session.playTrick("QS", "KH", "4S", "4C")
         session.playTrick("JS", "QH", "5S", "5C")
-        session.playTrick("TS", "JH", "6S", "6C")
-        session.playTrick("9S", "TH", "KD", "7C")
+        session.playTrick("10S", "JH", "6S", "6C")
+        session.playTrick("9S", "10H", "KD", "7C")
         session.playTrick("8S", "9H", "QD", "8C")
         session.playTrick("AC", "8H", "AD", "2C")
 
@@ -135,9 +135,9 @@ class HokmScoringTest {
      * دست — یعنی کوت نیست و فقط ۱ امتیاز دارد.
      */
     private fun normalWinHands(): List<List<Card>> = listOf(
-        cards("KS", "QS", "JS", "TS", "9S", "8S", "7S", "AC", "KC", "QC", "JC", "TC", "9C"),
-        cards("AS", "AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H"),
-        cards("6S", "5S", "4S", "3S", "2S", "AD", "KD", "QD", "JD", "TD", "9D", "8D", "7D"),
+        cards("KS", "QS", "JS", "10S", "9S", "8S", "7S", "AC", "KC", "QC", "JC", "10C", "9C"),
+        cards("AS", "AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H"),
+        cards("6S", "5S", "4S", "3S", "2S", "AD", "KD", "QD", "JD", "10D", "9D", "8D", "7D"),
         cards("8C", "7C", "6C", "5C", "4C", "3C", "2C", "6D", "5D", "4D", "3D", "2D", "2H"),
     )
 
@@ -147,7 +147,7 @@ class HokmScoringTest {
         val session = testSession(scoringHands(), options = options)
         session.declareAndStart(Suit.SPADES)
 
-        val spades = listOf("AS", "KS", "QS", "JS", "TS", "9S", "8S")
+        val spades = listOf("AS", "KS", "QS", "JS", "10S", "9S", "8S")
         val clubs = listOf("2C", "3C", "4C", "5C", "6C", "7C", "8C")
         val follows = listOf("2S", "3S", "4S", "5S", "6S", "7S", "AD")
         val hearts = listOf("2H", "3H", "4H", "5H", "6H", "7H", "8H")
@@ -186,7 +186,7 @@ class HokmScoringTest {
         val session = testSession(scoringHands(), options = options)
         session.declareAndStart(Suit.SPADES)
 
-        val spades = listOf("AS", "KS", "QS", "JS", "TS", "9S", "8S")
+        val spades = listOf("AS", "KS", "QS", "JS", "10S", "9S", "8S")
         val clubs = listOf("2C", "3C", "4C", "5C", "6C", "7C", "8C")
         val follows = listOf("2S", "3S", "4S", "5S", "6S", "7S", "AD")
         val hearts = listOf("2H", "3H", "4H", "5H", "6H", "7H", "8H")

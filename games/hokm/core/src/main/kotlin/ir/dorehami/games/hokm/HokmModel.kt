@@ -71,7 +71,7 @@ enum class Rank(
  * @property rank رتبهٔ کارت.
  */
 data class Card(val suit: Suit, val rank: Rank) : Comparable<Card> {
-    /** کدِ کوتاهِ کارت، مثل `"AS"` (آس پیک) یا `"TD"` (ده خشت). */
+    /** کدِ کوتاهِ کارت، مثل `"AS"` (آس پیک) یا `"10D"` (ده خشت). */
     val code: String
         get() = "${rank.label}${suit.code}"
 

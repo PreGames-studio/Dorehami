@@ -21,10 +21,10 @@ class HokmRulesTest {
 
     /** هر صندلی همهٔ ۱۳ کارتِ یک خال را دارد — ساده‌ترین حالت برای سنجیدنِ قدرتِ حکم. */
     private fun singleSuitHands(): List<List<Card>> = listOf(
-        cards("AS", "KS", "QS", "JS", "TS", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"),
-        cards("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
-        cards("AD", "KD", "QD", "JD", "TD", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
-        cards("AC", "KC", "QC", "JC", "TC", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C"),
+        cards("AS", "KS", "QS", "JS", "10S", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"),
+        cards("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
+        cards("AD", "KD", "QD", "JD", "10D", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
+        cards("AC", "KC", "QC", "JC", "10C", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C"),
     )
 
     @Test
@@ -175,7 +175,7 @@ class HokmRulesTest {
 
         val legal = session.privateView(session.seatPlayer(2)).stringList("legalCards").sorted()
         assertEquals(
-            listOf("4S", "5S", "6S", "7S", "8S", "9S", "AS", "JS", "KS", "QS", "TS"),
+            listOf("10S", "4S", "5S", "6S", "7S", "8S", "9S", "AS", "JS", "KS", "QS"),
             legal,
             "وقتی حکم لازم است، فقط حکم‌های بالاتر مجازند",
         )
@@ -210,17 +210,17 @@ class HokmRulesTest {
      * **باید** همان یک دل را بازی کند.
      */
     private fun followSuitHands(): List<List<Card>> = listOf(
-        cards("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2S"),
-        cards("AS", "KS", "QS", "JS", "TS", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2H"),
-        cards("AD", "KD", "QD", "JD", "TD", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
-        cards("AC", "KC", "QC", "JC", "TC", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C"),
+        cards("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2S"),
+        cards("AS", "KS", "QS", "JS", "10S", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2H"),
+        cards("AD", "KD", "QD", "JD", "10D", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
+        cards("AC", "KC", "QC", "JC", "10C", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C"),
     )
 
     /** سناریوی «حکم لازم»: صندلیِ ۲ می‌تواند حکمِ روی زمین را با حکمِ بالاتر ببرد. */
     private fun lazimHands(): List<List<Card>> = listOf(
-        cards("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
-        cards("AC", "KC", "QC", "JC", "TC", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "3S"),
-        cards("AS", "KS", "QS", "JS", "TS", "9S", "8S", "7S", "6S", "5S", "4S", "2S", "2C"),
-        cards("AD", "KD", "QD", "JD", "TD", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
+        cards("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
+        cards("AC", "KC", "QC", "JC", "10C", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "3S"),
+        cards("AS", "KS", "QS", "JS", "10S", "9S", "8S", "7S", "6S", "5S", "4S", "2S", "2C"),
+        cards("AD", "KD", "QD", "JD", "10D", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
     )
 }

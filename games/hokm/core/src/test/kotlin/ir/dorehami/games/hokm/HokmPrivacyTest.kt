@@ -16,10 +16,10 @@ class HokmPrivacyTest {
 
     private fun session(): HokmSession = testSession(
         listOf(
-            cards("AS", "KS", "QS", "JS", "TS", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"),
-            cards("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
-            cards("AD", "KD", "QD", "JD", "TD", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
-            cards("AC", "KC", "QC", "JC", "TC", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C"),
+            cards("AS", "KS", "QS", "JS", "10S", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"),
+            cards("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
+            cards("AD", "KD", "QD", "JD", "10D", "9D", "8D", "7D", "6D", "5D", "4D", "3D", "2D"),
+            cards("AC", "KC", "QC", "JC", "10C", "9C", "8C", "7C", "6C", "5C", "4C", "3C", "2C"),
         ),
     )
 
@@ -63,8 +63,8 @@ class HokmPrivacyTest {
         assertEquals(13, others.size)
         assertTrue(mine.intersect(others).isEmpty(), "هیچ کارتی نباید در دو دست باشد")
         assertEquals(
-            setOf("AS", "KS", "QS", "JS", "TS"),
-            mine.intersect(setOf("AS", "KS", "QS", "JS", "TS")),
+            setOf("AS", "KS", "QS", "JS", "10S"),
+            mine.intersect(setOf("AS", "KS", "QS", "JS", "10S")),
         )
         assertFalse(mine.contains("AH"), "کارتِ حریف نباید در دستِ من باشد")
     }
@@ -129,11 +129,11 @@ class HokmPrivacyTest {
         emissions.filterIsInstance<ir.dorehami.gamesdk.Emission.Private>().forEach { emission ->
             when (emission.to.value) {
                 "p0" -> assertEquals(
-                    listOf("AS", "KS", "QS", "JS", "TS", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"),
+                    listOf("AS", "KS", "QS", "JS", "10S", "9S", "8S", "7S", "6S", "5S", "4S", "3S", "2S"),
                     emission.view.stringList("hand"),
                 )
                 "p1" -> assertEquals(
-                    listOf("AH", "KH", "QH", "JH", "TH", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
+                    listOf("AH", "KH", "QH", "JH", "10H", "9H", "8H", "7H", "6H", "5H", "4H", "3H", "2H"),
                     emission.view.stringList("hand"),
                 )
             }

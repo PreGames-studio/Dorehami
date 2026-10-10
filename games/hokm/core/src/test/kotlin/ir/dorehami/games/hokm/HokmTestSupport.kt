@@ -37,7 +37,7 @@ internal fun testPlayers(): List<Player> = listOf(
     Player(playerId(3), "چپ", 3, isBot = true),
 )
 
-/** ساختِ فهرستی از کارت‌ها از کدهای کوتاه (`"AS"`، `"TD"`). */
+/** ساختِ فهرستی از کارت‌ها از کدهای کوتاه (`"AS"`، `"10D"`). */
 internal fun cards(vararg codes: String): List<Card> = codes.map { code ->
     requireNotNull(Card.fromCode(code)) { "کارت نامعتبر در تست: $code" }
 }
