@@ -1,0 +1,6 @@
+# Copy to `local.properties` on your machine (it is git-ignored).
+# Android SDK location — different on every machine.
+sdk.dir=/path/to/Android/Sdk
+
+# Only needed when running Gradle without the Android Studio JDK:
+# java.home=/path/to/jdk-17
