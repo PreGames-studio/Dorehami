@@ -44,7 +44,8 @@ class HostController(
     private val scope: CoroutineScope,
     val roomCode: String,
     val roomName: String,
-    hostPlayer: PlayerInfo,
+    /** The host's own seat. `null` = a headless authority (the server): no seat, it only arbitrates. */
+    hostPlayer: PlayerInfo?,
     private val options: JsonObject = module.defaultOptions(),
     private val seed: Long,
     private val clock: Clock,
@@ -55,9 +56,13 @@ class HostController(
     /** When a human drops mid-game the bot plays their seat until they resync. */
     private val botTakeoverOnDisconnect: Boolean = true,
     private val botNamesFa: List<String> = listOf("ربات آبی", "ربات سبز", "ربات قرمز"),
+    /** Called once with the full replayable record when the match ends (persist it here). */
+    private val onFinished: ((ir.dorehami.gamesdk.MatchRecord) -> Unit)? = null,
 ) : SessionClient {
     val partySize: Int = partySize.coerceIn(module.meta.minPlayers, module.meta.maxPlayers)
-    val me: PlayerId = hostPlayer.id
+    val hostPlays: Boolean = hostPlayer != null
+    val me: PlayerId = hostPlayer?.id ?: PlayerId("authority")
+    val isStarted: Boolean get() = started
 
     private val lock = Mutex()
     private val members = LinkedHashMap<PlayerId, Member>()
@@ -74,9 +79,12 @@ class HostController(
     override val events: Flow<SessionEvent> = _events.asSharedFlow()
 
     init {
-        members[me] = Member(hostPlayer, seat = 0, ready = true, connected = true, isHost = true)
+        if (hostPlayer != null) members[me] = Member(hostPlayer, seat = 0, ready = true, connected = true, isHost = true)
         publishRoom()
     }
+
+    /** Headless mode: the first human to join owns the room and may press start. */
+    private var ownerId: PlayerId? = hostPlayer?.id
 
     /** Begins listening to the transport. Call once. */
     fun open() {
@@ -87,7 +95,9 @@ class HostController(
     }
 
     /** The host's "start" button: empty seats become bots. */
-    suspend fun startMatch(): Boolean = lock.withLock {
+    suspend fun startMatch(): Boolean = lock.withLock { startLocked() }
+
+    private suspend fun startLocked(): Boolean {
         if (started) return false
         val humans = members.values.sortedBy { it.seat }
         if (humans.size > partySize) return false
@@ -121,7 +131,7 @@ class HostController(
         publishRoom()
         pushViews()
         runBots()
-        true
+        return true
     }
 
     // ---- SessionClient (host seat, loopback) ----
@@ -171,6 +181,14 @@ class HostController(
                 roster()
             }
             Msg.LOBBY_LEAVE -> onPeerGone(peer, explicit = true)
+            Msg.LOBBY_START -> {
+                val pid = playerOfPeer[peer]
+                if (pid != null && pid == ownerId) {
+                    if (!startLocked()) reject(peer, ErrCodes.BAD_STATE, "هنوز نمی‌شود شروع کرد")
+                } else {
+                    reject(peer, ErrCodes.AUTH_UNAUTHORIZED, "فقط سازندهٔ اتاق می‌تواند شروع کند")
+                }
+            }
             Msg.SESSION_ACTION -> {
                 val pid = playerOfPeer[peer] ?: return reject(peer, ErrCodes.AUTH_NOT_IN_ROOM, "شما عضو این اتاق نیستید")
                 val type = env.payload.str("type") ?: return reject(peer, ErrCodes.BAD_PAYLOAD, "حرکت بدون نوع")
@@ -203,9 +221,10 @@ class HostController(
             members.values.count { !it.isBot } >= partySize -> return sendTo(peer, Msg.LOBBY_REJECTED, buildJsonObject { put("code", ErrCodes.ROOM_FULL) })
             else -> {
                 val seat = (0 until partySize).first { s -> members.values.none { it.seat == s } }
-                members[info.id] = Member(info, seat = seat, ready = false, connected = true, isHost = false)
+                members[info.id] = Member(info, seat = seat, ready = false, connected = true, isHost = ownerId == null)
                 peerOf[info.id] = peer
                 playerOfPeer[peer] = info.id
+                if (ownerId == null) ownerId = info.id
             }
         }
         val m = members.getValue(info.id)
@@ -217,7 +236,7 @@ class HostController(
                 put("roomName", roomName)
                 put("gameId", module.meta.id.value)
                 put("seat", m.seat)
-                put("isHost", false)
+                put("isHost", m.isHost)
                 put("started", started)
                 put("members", membersJson(members.values))
             },
@@ -274,7 +293,8 @@ class HostController(
                 put("record", recordJson(eng))
             }
             broadcast(Msg.SESSION_FINISHED, payload)
-            _state.value = _state.value.copy(result = payload)
+            _state.value = _state.value.copy(result = payload, phase = "FINISHED")
+            onFinished?.invoke(eng.record())
         }
     }
 

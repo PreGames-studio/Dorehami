@@ -41,7 +41,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.platform.LocalContext
 import ir.dorehami.games.hokm.HokmModule
+import ir.dorehami.games.hokm.ui.room.LobbyScreen
+import ir.dorehami.games.hokm.ui.room.RoomFlow
+import ir.dorehami.games.hokm.ui.room.RoomMode
+import ir.dorehami.games.hokm.ui.room.RoomStage
 import ir.dorehami.uikit.rememberSoundPlayer
 import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.cancel
@@ -49,9 +54,12 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 
+/** Default for the self-hosted server (docs/DEPLOY.md). `10.0.2.2` = the dev machine from the emulator. */
+const val DEFAULT_SERVER_URL = "http://10.0.2.2:8080"
+
 /**
- * Entry point of the Hokm feature: a short setup screen, then the table against three bots.
- * Online and Bluetooth rooms plug in here once `core/session` lands — the table itself is unchanged.
+ * Entry point of the Hokm feature: a short setup screen, then the table — solo against bots, in a
+ * Bluetooth room, or in an online room. The table composable is the same in all three.
  */
 @Composable
 fun HokmEntry(onExit: () -> Unit) {
@@ -61,8 +69,21 @@ fun HokmEntry(onExit: () -> Unit) {
     var playerCount by rememberSaveable { mutableStateOf(4) }
     var soundOn by rememberSaveable { mutableStateOf(true) }
     var matchKey by rememberSaveable { mutableStateOf(0) }
+    var roomMode by rememberSaveable { mutableStateOf<String?>(null) }
+    var serverUrl by rememberSaveable { mutableStateOf(DEFAULT_SERVER_URL) }
 
-    if (!started) {
+    if (roomMode != null) {
+        HokmRoom(
+            mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
+            playerName = name,
+            playerCount = playerCount,
+            targetPoints = target,
+            soundOn = soundOn,
+            serverUrl = serverUrl,
+            onServerUrl = { serverUrl = it },
+            onExit = { roomMode = null },
+        )
+    } else if (!started) {
         HokmSetupScreen(
             name = name,
             onName = { name = it },
@@ -73,6 +94,7 @@ fun HokmEntry(onExit: () -> Unit) {
             soundOn = soundOn,
             onSound = { soundOn = it },
             onStart = { started = true },
+            onMode = { roomMode = if (it == RoomMode.BLUETOOTH) "bt" else "online" },
             onBack = onExit,
         )
     } else {
@@ -135,6 +157,53 @@ private fun HokmSoloGame(
     )
 }
 
+/** Lobby → shared table. One scope for the whole room so the transport outlives recompositions. */
+@Composable
+private fun HokmRoom(
+    mode: RoomMode,
+    playerName: String,
+    playerCount: Int,
+    targetPoints: Int,
+    soundOn: Boolean,
+    serverUrl: String,
+    onServerUrl: (String) -> Unit,
+    onExit: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
+    val flow = remember { RoomFlow(context.applicationContext, scope, mode, playerName, playerCount, targetPoints, serverUrl) }
+    DisposableEffect(Unit) {
+        onDispose {
+            flow.leave()
+            scope.cancel()
+        }
+    }
+    val stage by flow.stage
+    val playing = stage as? RoomStage.Playing
+    if (playing == null) {
+        LobbyScreen(flow = flow, playerCount = playerCount, serverUrl = serverUrl, onServerUrl = onServerUrl, onExit = onExit)
+    } else {
+        val sounds = rememberSoundPlayer(HokmSounds.map)
+        LaunchedEffect(soundOn) { sounds.enabled = soundOn }
+        val match = remember(playing.client) { HokmSessionMatch(scope, playing.client) { sounds.play(it) } }
+        LaunchedEffect(match) { match.begin() }
+        val state by match.state
+        HokmScreen(
+            state = state,
+            onPlayCard = match::playCard,
+            onChooseHokm = match::chooseHokm,
+            onToggleDiscard = match::toggleDiscard,
+            onConfirmDiscard = match::confirmDiscard,
+            onKeepCard = match::keepCard,
+            onPassCard = match::passCard,
+            onSticker = match::sendSticker,
+            onClearError = match::clearError,
+            onPlayAgain = onExit,
+            onExit = onExit,
+        )
+    }
+}
+
 @Composable
 private fun HokmSetupScreen(
     name: String,
@@ -146,6 +215,7 @@ private fun HokmSetupScreen(
     soundOn: Boolean,
     onSound: (Boolean) -> Unit,
     onStart: () -> Unit,
+    onMode: (RoomMode) -> Unit,
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
@@ -256,7 +326,7 @@ private fun HokmSetupScreen(
             Text("شروع بازی با ربات‌ها 🎴", fontSize = 18.sp, fontWeight = FontWeight.Bold)
         }
         Spacer(Modifier.height(12.dp))
-        ModeRow()
+        ModeRow(onMode)
         Spacer(Modifier.height(16.dp))
     }
 }
@@ -302,24 +372,26 @@ private fun RulesCard() {
 }
 
 
-/** Multiplayer entry points. They share this very table; they go live with the transport milestones. */
+/** Multiplayer entry points. They share this very table. */
 @Composable
-private fun ModeRow() {
+private fun ModeRow(onMode: (RoomMode) -> Unit) {
     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-        listOf("📶 بلوتوث / آفلاین" to "دور هم، بدون اینترنت", "🌐 آنلاین" to "با کد اتاق یا حریف تصادفی").forEach { (title, sub) ->
+        listOf(
+            Triple(RoomMode.BLUETOOTH, "📶 بلوتوث / آفلاین", "دور هم، بدون اینترنت"),
+            Triple(RoomMode.ONLINE, "🌐 آنلاین", "با کد اتاق یا حریف تصادفی"),
+        ).forEach { (mode, title, sub) ->
             Column(
                 Modifier
                     .weight(1f)
                     .clip(RoundedCornerShape(16.dp))
                     .background(Color.White.copy(alpha = 0.08f))
                     .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(16.dp))
+                    .clickable { onMode(mode) }
                     .padding(12.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Text(title, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
                 Text(sub, color = Color.White.copy(alpha = 0.65f), fontSize = 11.sp, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(4.dp))
-                Text("به‌زودی", color = Color(0xFFD9B55A), fontSize = 11.sp)
             }
         }
     }

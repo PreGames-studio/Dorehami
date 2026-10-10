@@ -20,13 +20,13 @@ kotlin {
 
 dependencies {
     // Shared kernel: the server is an *authority*, it reuses exactly the same rules and protocol.
+    implementation(project(":core:protocol"))
     implementation(project(":core:gamesdk"))
     implementation(project(":core:session"))
     implementation(project(":transport:api"))
 
     // Games that the server can arbitrate.
     implementation(project(":games:hokm:core"))
-    implementation(project(":games:pantohub:core"))
 
     implementation(libs.ktor.server.core)
     implementation(libs.ktor.server.netty)
@@ -49,6 +49,7 @@ dependencies {
 
     implementation(libs.logback)
 
+    testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test"))
     testImplementation(platform(libs.junit.bom))
     testImplementation(libs.junit.jupiter)

@@ -151,7 +151,7 @@ internal fun membersJson(members: Collection<Member>): JsonElement = buildJsonAr
     members.sortedBy { it.seat }.forEach { add(it.toJson()) }
 }
 
-internal fun membersFromJson(e: JsonElement?): List<Member> =
+fun membersFromJson(e: JsonElement?): List<Member> =
     (e as? kotlinx.serialization.json.JsonArray)?.mapNotNull { (it as? JsonObject)?.let(Member::fromJson) } ?: emptyList()
 
 internal fun JsonObject.str(key: String): String? = (this[key] as? JsonPrimitive)?.contentOrNull

@@ -50,6 +50,9 @@ class GuestController(
         send(Msg.LOBBY_JOIN, buildJsonObject { put("player", player.toJson()); put("resume", _state.value.room != null); put("version", lastSeq) })
     }
 
+    /** Owner of a server-hosted room: ask the authority to start (bots fill empty seats). */
+    suspend fun requestStart() = send(Msg.LOBBY_START, JsonObject(emptyMap()))
+
     override suspend fun ready(ready: Boolean) = send(Msg.LOBBY_READY, buildJsonObject { put("ready", ready) })
 
     override suspend fun send(action: GameAction) =
@@ -80,7 +83,8 @@ class GuestController(
                 _events.tryEmit(SessionEvent.Error(ErrCodes.TRANSPORT_PEER_TIMEOUT, "ارتباط با میزبان قطع شد"))
             }
             TransportEvent.Closed -> _state.value = _state.value.copy(connected = false)
-            is TransportEvent.PeerConnected -> Unit
+            // Link came back (transport reconnected): re-join with the same id → host resyncs us.
+            is TransportEvent.PeerConnected -> if (ev.peer == hostPeer && _state.value.room != null) scope.launch { join() }
         }
     }
 
@@ -94,6 +98,7 @@ class GuestController(
                 _state.value = _state.value.copy(
                     room = RoomInfo(p.str("roomCode") ?: roomCode, p.str("roomName") ?: "", p.str("gameId") ?: "", members, p.str("started") == "true"),
                     seat = p["seat"]?.jsonPrimitive?.long?.toInt() ?: -1,
+                    isHost = p.str("isHost") == "true",
                     connected = true,
                 )
             }

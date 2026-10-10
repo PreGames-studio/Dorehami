@@ -30,6 +30,11 @@ kotlin {
 
 dependencies {
     implementation(project(":games:hokm:core"))
+    implementation(project(":core:session"))
+    implementation(project(":transport:api"))
+    implementation(project(":transport:nearby"))
+    implementation(project(":transport:online"))
+    implementation(libs.ktor.client.okhttp)
     implementation(project(":core:uikit"))
 
     implementation(platform(libs.androidx.compose.bom))
