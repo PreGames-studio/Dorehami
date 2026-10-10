@@ -1,5 +1,6 @@
 # CI — builds the debug APK and publishes it as a downloadable artifact.
-# A `checkAll` job (all JVM tests) joins this workflow once the module skeleton (M0) lands.
+# `test` runs every JVM module's unit tests (the game rules live there, so this is the
+# real safety net); `build-apk` proves the Android/Compose side still compiles.
 name: CI
 
 on:
@@ -9,6 +10,35 @@ on:
   workflow_dispatch:
 
 jobs:
+  test:
+    name: JVM tests
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      # فقط ماژول‌های JVM (قواعدِ بازی‌ها این‌جا هستند). ماژول‌های اندرویدی را jobِ بعدی
+      # از نظرِ کامپایل چک می‌کند؛ فعلاً تستِ واحد ندارند.
+      - name: Run JVM tests
+        run: ./gradlew :core:protocol:test :core:gamesdk:test :games:hokm:core:test --stacktrace
+
+      - name: Report test failures
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-reports
+          path: '*/build/reports/tests/test/**'
+          if-no-files-found: ignore
+
   build-apk:
     name: Build debug APK
     runs-on: ubuntu-latest
