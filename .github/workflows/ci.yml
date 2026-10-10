@@ -42,9 +42,29 @@ jobs:
           {
             awk '/^\* Where:/{f=1} f' build.log 2>/dev/null | head -n 6
             grep -E "requires|Dependency '|issues were found" build.log 2>/dev/null | head -n 6
-            grep -E '(^e: |kt:[0-9]+:[0-9]+:|must be exhaustive)' build.log 2>/dev/null | tail -n 30
+            grep -E '(^e: |kt:[0-9]+:[0-9]+:|must be exhaustive|FAILED|expected:|but was:|tests completed)' build.log 2>/dev/null | tail -n 40
             grep -E "Caused by:" build.log 2>/dev/null | head -n 2
           } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+          python3 - <<'PY'
+          import os
+          import xml.etree.ElementTree as ET
+          from pathlib import Path
+          results = []
+          for path in Path("games/pantohub/core/build/test-results/test").glob("TEST-*.xml"):
+              root = ET.parse(path).getroot()
+              for case in root.iter("testcase"):
+                  failure = case.find("failure")
+                  if failure is None:
+                      failure = case.find("error")
+                  if failure is not None:
+                      detail = (failure.attrib.get("message", "") + " " + (failure.text or "")).replace("\\n", " ")
+                      message = f"FAILED {case.attrib.get('classname', '')}.{case.attrib.get('name', '')}: {detail[:700]}"
+                      print(f"::error::{message}")
+                      results.append(message)
+          if results:
+              with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+                  summary.write("\\n## JVM test failures\\n\\n" + "\\n".join(f"- {item}" for item in results) + "\\n")
+          PY
 
       - name: Upload build log on failure
         if: failure()
