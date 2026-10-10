@@ -70,9 +70,11 @@ class GameStateJsonCodecTest {
         assertEquals(1, teamStats.getValue("قرمزها").wins)
         assertEquals(2, teamStats.getValue("قرمزها").totalPoints)
         assertEquals(1, teamStats.getValue("قرمزها").mediumCorrect)
-        val player = GameStatistics.players(listOf(finished)).single()
-        assertEquals("r", player.playerId)
+        val players = GameStatistics.players(listOf(finished)).associateBy { it.playerId }
+        assertEquals(setOf("r", "b"), players.keys)
+        val player = players.getValue("r")
         assertEquals(1, player.correctAnswers)
         assertEquals(2, player.pointsEarned)
+        assertEquals(0, players.getValue("b").pointsEarned)
     }
 }
