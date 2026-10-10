@@ -39,11 +39,14 @@ jobs:
       - name: Report test failures
         if: failure()
         run: |
+          # یک annotationِ چندخطی: سقفِ ۱۰ تاییِ annotationها را دور می‌زند و پیام و پشته را
+          # کامل نگه می‌دارد (GitHub در annotationها %0A را خطِ جدید می‌فهمد).
           {
             # خطاهای کامپایلرِ کاتلین (e: مسیر:خط:ستون: پیام)
-            grep -E "^e: " test.log | sed -E 's#^e: .*/src/test/kotlin/##' | head -n 40
-            grep -A 4 -E " FAILED$" test.log | head -n 80
-          } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+            grep -E "^e: " test.log | sed -E 's#^e: .*/src/test/kotlin/##' | head -n 30
+            grep -A 8 -E " FAILED$" test.log | head -n 200
+          } | head -n 80 | sed -E 's/%/%25/g' | awk '{ printf "%s%%0A", $0 }' > encoded.txt
+          echo "::error::$(cat encoded.txt)" 
 
       # annotationها فقط ۳۰۰ کاراکتر را نشان می‌دهند؛ اصلِ پیام را به عنوان کامنت روی PR
       # می‌گذاریم تا وقتی دسترسی به لاگِ کامل نیست هم بشود خطا را خواند.

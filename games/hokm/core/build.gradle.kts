@@ -25,7 +25,7 @@ tasks.named<Test>("test") {
     // تا job بتواند آن‌ها را به annotation تبدیل کند.
     testLogging {
         events("failed")
-        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.SHORT
+        exceptionFormat = org.gradle.api.tasks.testing.logging.TestExceptionFormat.FULL
         showCauses = true
         showExceptions = true
     }
