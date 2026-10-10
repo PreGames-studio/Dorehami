@@ -29,6 +29,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import ir.dorehami.core.uikit.DorehamiPageFrame as PageFrame
 import ir.dorehami.games.pantohub.GamePhase
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.GameStatistics
