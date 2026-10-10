@@ -77,10 +77,10 @@ jobs:
                       f.write(f"| `{mod}` | {n} | {fl} | {sk} |\n")
               f.write("\n```\n" + "\n".join(report) + "\n```\n")
           level = "notice" if good else "error"
-          print(f"::{level} file=tests.log,line=1::{head.replace(':', '%3A')}")
+          print(f"::{level} file=tests.log,line=1::{head}")
           if not ok or bad:
               for l in report:
-                  safe = l.replace("%", "%25").replace("\r", "").replace(":", "%3A")[:280]
+                  safe = l.replace("%", "%25").replace("\r", "")[:280]
                   print(f"::error file=tests.log,line=1::{safe}")
           PY
 
