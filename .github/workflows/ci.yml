@@ -25,10 +25,10 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build debug APK
+      - name: Test logic and build debug APK
         run: |
           set -o pipefail
-          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee build.log
+          ./gradlew :games:pantohub:core:test :app:assembleDebug --stacktrace 2>&1 | tee build.log
 
       # On failure, surface the interesting part of the log as workflow annotations
       # (readable via the API even when the full log download is unavailable).

@@ -201,9 +201,12 @@ class PantohubRepository(context: Context) {
             "SELECT * FROM words WHERE ${clauses.joinToString(" AND ")}",
             args.toTypedArray(),
         ).use { cursor -> cursor.map(::wordFromCursor) }
-        return WordBankRules.chooseWord(candidateWords, settings, usedWordIds) { bound ->
-            secureRandom.nextInt(bound)
-        }
+        return WordBankRules.chooseWord(
+            words = candidateWords,
+            settings = settings,
+            usedWordIds = usedWordIds,
+            randomIndex = { bound -> secureRandom.nextInt(bound) },
+        )
     }
 
     fun addReviewedWord(word: WordRecord): Result<Unit> {
