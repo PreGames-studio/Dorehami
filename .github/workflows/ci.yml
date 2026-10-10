@@ -31,7 +31,13 @@ jobs:
       - name: Run JVM tests
         run: ./gradlew :core:protocol:test :core:gamesdk:test :games:hokm:core:test --stacktrace
 
+      # لاگِ کامل را همیشه نمی‌توان دانلود کرد؛ هر شکست را به annotation تبدیل می‌کنیم تا
+      # از طریق API هم دیده شود (اسکریپت فقط می‌خواند و چیزی را تغییر نمی‌دهد).
       - name: Report test failures
+        if: failure()
+        run: python3 .github/scripts/junit_annotations.py
+
+      - name: Upload test reports
         if: failure()
         uses: actions/upload-artifact@v4
         with:
