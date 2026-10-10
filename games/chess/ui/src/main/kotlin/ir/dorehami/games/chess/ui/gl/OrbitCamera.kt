@@ -165,7 +165,11 @@ class OrbitCamera {
     }
 
     companion object {
-        const val DEFAULT_PITCH = 54f
+        /**
+         * Slightly above 45°: the board surface stays easy to read while the pieces still have
+         * height, and the whole board fits the width of a tall phone.
+         */
+        const val DEFAULT_PITCH = 58f
         const val MIN_PITCH = 18f
         const val MAX_PITCH = 88f
         const val MIN_ZOOM = 0.55f
