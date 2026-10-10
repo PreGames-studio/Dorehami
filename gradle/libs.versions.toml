@@ -1,6 +1,8 @@
 [versions]
-# Build toolchain. Android Gradle Plugin 9.4 needs Gradle 9.6+ and JDK 17.
-agp = "9.4.1"
+# Build toolchain. Kotlin 2.4.x fully supports AGP 8.5.2–9.3.1 and Gradle up to 9.7.x
+# (https://kotlinlang.org/docs/gradle-configure-project.html#agp-compatibility).
+# AGP 9 has built-in Kotlin; the Compose compiler plugin tracks the Kotlin version.
+agp = "9.3.1"
 kotlin = "2.4.20"
 
 # Kotlin ecosystem
@@ -93,7 +95,8 @@ junit-platform-launcher = { module = "org.junit.platform:junit-platform-launcher
 [plugins]
 android-application = { id = "com.android.application", version.ref = "agp" }
 android-library = { id = "com.android.library", version.ref = "agp" }
-kotlin-android = { id = "org.jetbrains.kotlin.android", version.ref = "kotlin" }
+# kotlin-android is intentionally absent: AGP 9 has built-in Kotlin
+# (https://developer.android.com/build/migrate-to-built-in-kotlin)
 kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
