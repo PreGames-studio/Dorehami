@@ -1,2 +1,42 @@
-// Placeholder for :games:hokm:ui — hokm screens (Compose + core/uikit)
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+// :games:hokm:ui — the Hokm table (Compose). Depends on the Hokm rules + core/uikit only.
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.compose.compiler)
+}
+
+android {
+    namespace = "ir.dorehami.games.hokm.ui"
+    compileSdk = providers.gradleProperty("dorehami.compileSdk").get().toInt()
+
+    defaultConfig {
+        minSdk = providers.gradleProperty("dorehami.minSdk").get().toInt()
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
+    buildFeatures {
+        compose = true
+    }
+}
+
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    implementation(project(":games:hokm:core"))
+    implementation(project(":core:uikit"))
+
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.ui.graphics)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.androidx.activity.compose)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.kotlinx.coroutines.android)
+}

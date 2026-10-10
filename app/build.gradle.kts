@@ -40,6 +40,10 @@ kotlin {
 }
 
 dependencies {
+    // Games are independent modules; the app only wires them into navigation.
+    implementation(project(":games:hokm:ui"))
+    implementation(project(":core:uikit"))
+
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.ui.graphics)
