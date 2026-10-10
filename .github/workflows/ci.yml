@@ -40,6 +40,8 @@ jobs:
         if: failure()
         run: |
           {
+            # خطاهای کامپایلرِ کاتلین (e: مسیر:خط:ستون: پیام)
+            grep -E "^e: " test.log | sed -E 's#^e: .*/src/test/kotlin/##' | head -n 40
             grep -E " FAILED$" test.log | head -n 25
             grep -E "^\s+(org\.opentest4j|java\.lang|kotlin\.|expected:|Expected )" test.log | head -n 25
           } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
