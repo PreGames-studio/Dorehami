@@ -45,9 +45,12 @@ class HokmScoringTest {
 
         session.playTrick("8S", "8C", "AD", "8H")
         val view = session.publicView()
-        assertEquals(listOf(7, 0), view.intList("tricks"), "تیمِ اول باید هفت دست گرفته باشد")
+        // با هفتمین دست، دست تمام می‌شود و شمارنده‌ها برای دستِ بعد صفر می‌شوند؛
+        // بنابراین نتیجه را باید در خلاصهٔ دست خواند.
+        assertEquals(listOf(7, 0), view.obj("lastHand").intList("tricks"), "تیمِ اول باید هفت دست گرفته باشد")
         assertEquals(2, view.int("handNumber"), "با هفت دست، دستِ جدید شروع می‌شود")
         assertEquals("trump", view.string("stage"))
+        assertEquals(listOf(0, 0), view.intList("tricks"), "دستِ جدید با شمارندهٔ صفر شروع می‌شود")
     }
 
     @Test

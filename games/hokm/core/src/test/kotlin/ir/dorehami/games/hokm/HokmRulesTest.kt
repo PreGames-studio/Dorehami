@@ -54,7 +54,7 @@ class HokmRulesTest {
         illegal as ApplyResult.Rejected
         assertEquals(ErrCodes.ILLEGAL_ACTION, illegal.code)
         assertTrue(illegal.messageFa.contains("دل"), "پیام باید خالِ واجب را بگوید: ${illegal.messageFa}")
-        assertEquals(0, session.turnSeat(), "حرکتِ رد شده نباید نوبت را عوض کند")
+        assertEquals(1, session.turnSeat(), "حرکتِ رد شده نباید نوبت را عوض کند")
 
         session.play(1, "2H")
         session.play(2, "2D")

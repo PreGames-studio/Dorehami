@@ -117,6 +117,9 @@ class HokmPrivacyTest {
     @Test
     fun `رویدادهای خصوصی فقط برای صاحبشان فرستاده می‌شوند`() {
         val session = session()
+        // رویدادهای پخشِ دورِ اول متعلق به لحظهٔ ساختِ نشست است (در برنامه، موتور آن‌ها را
+        // در bootEmissions برمی‌دارد)؛ اینجا تخلیه می‌شوند تا فقط رویدادهای تعیینِ حکم بمانند.
+        session.drainPendingEmissions()
         val result = session.declare(0, Suit.SPADES)
         val emissions = (result as ir.dorehami.gamesdk.ApplyResult.Ok).emissions
 
