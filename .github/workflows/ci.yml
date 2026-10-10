@@ -26,7 +26,23 @@ jobs:
         uses: gradle/actions/setup-gradle@v4
 
       - name: Build debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee build.log
+
+      # On failure, surface the interesting part of the log as workflow annotations
+      # (readable via the API even when the full log download is unavailable).
+      - name: Report build failure
+        if: failure()
+        run: |
+          echo "## Build failed — last 100 log lines" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 100 build.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no build.log)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          {
+            grep -E "FAILURE:|What went wrong|^> |Caused by:|error:|Could not|Exception" build.log 2>/dev/null | tail -n 10
+            tail -n 5 build.log 2>/dev/null
+          } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
