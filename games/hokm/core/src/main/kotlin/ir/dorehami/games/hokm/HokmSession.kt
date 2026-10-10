@@ -98,8 +98,13 @@ class HokmSession internal constructor(
     /** بازیکن‌ها به ترتیبِ صندلی (بعد از چیدمانِ «یارها روبه‌رو»). */
     private val seats: List<Player>
 
-    /** دستهٔ کارتِ فعلی و جایگاهِ پخش در آن. */
-    private var deck: List<Card>
+    /**
+     * دستهٔ کارتِ فعلی و جایگاهِ پخش در آن.
+     *
+     * مقدارِ اولیه خالی است چون [prepareDeck] (که دسته را می‌چیند) از `init` صدا زده می‌شود
+     * و کامپایلر قطعیّتِ مقداردهیِ درونِ تابع را تشخیص نمی‌دهد.
+     */
+    private var deck: List<Card> = emptyList()
     private var deckCursor = 0
 
     private val hands: Array<MutableList<Card>> = Array(PLAYERS) { mutableListOf() }
