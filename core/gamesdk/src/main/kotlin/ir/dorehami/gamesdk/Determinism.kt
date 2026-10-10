@@ -59,11 +59,24 @@ interface Rng {
 class SeededRng(seed: Long) : Rng {
     private var state: Long = seed
 
+    private companion object {
+        // ثابت‌های splitmix64. کاتلین (برخلافِ جاوا) لیترالِ هگزِ بزرگ‌تر از Long.MAX_VALUE را
+        // نمی‌پذیرد، بنابراین مکملِ دویِ علامت‌دارِ همان ثابت‌ها نوشته شده است.
+        // 0x9E3779B97F4A7C15 = -0x61C8864680B583EB
+        const val GOLDEN_GAMMA: Long = -0x61C8864680B583EBL
+
+        // 0xBF58476D1CE4E5B9 = -0x40A7B892E31B1A47
+        const val MIX_A: Long = -0x40A7B892E31B1A47L
+
+        // 0x94D049BB133111EB = -0x6B2FB644ECCEEE15
+        const val MIX_B: Long = -0x6B2FB644ECCEEE15L
+    }
+
     override fun nextLong(): Long {
-        state += 0x9E3779B97F4A7C15L
+        state += GOLDEN_GAMMA
         var z = state
-        z = (z xor (z ushr 30)) * 0xBF58476D1CE4E5B9L
-        z = (z xor (z ushr 27)) * 0x94D049BB133111EBL
+        z = (z xor (z ushr 30)) * MIX_A
+        z = (z xor (z ushr 27)) * MIX_B
         return z xor (z ushr 31)
     }
 
