@@ -32,7 +32,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import ir.dorehami.core.uikit.DorehamiPageFrame as PageFrame
 import ir.dorehami.games.pantohub.Difficulty
 import ir.dorehami.games.pantohub.PhraseType
 import ir.dorehami.games.pantohub.WordBankCsvCodec
@@ -139,7 +138,7 @@ internal fun WordBankScreen(
         if (uri != null) exportWords(uri, "json", context, repository, scope, onFailure = { error = it })
     }
 
-    PageFrame("مدیریت بانک واژه", onBack) {
+    PantohubPageFrame("مدیریت بانک واژه", onBack) {
         Text("جست‌وجو، بازبینی، ورود و خروجی بانک آفلاین", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
         summary?.let { BankSummaryCard(it) }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {

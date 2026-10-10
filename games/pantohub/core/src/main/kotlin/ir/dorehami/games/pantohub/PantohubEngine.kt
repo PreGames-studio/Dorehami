@@ -508,7 +508,7 @@ object PantohubEngine {
             return "نام و شناسهٔ همهٔ بازیکنان را وارد کن."
         }
         val playerIds = request.teams.flatMap { it.players }.map { it.id }
-        if (playerIds.toSet().size != playerIds.size) return "بازیکن با همین نام در چند تیم ثبت شده است؛ برای تمایز، نام کامل یا لقب وارد کن."
+        if (playerIds.toSet().size != playerIds.size) return "شناسهٔ بازیکن تکراری است؛ هر جایگاه بازیکن باید شناسهٔ جداگانه داشته باشد."
         if (request.settings.turnSeconds !in 15..600) return "زمان هر نوبت باید بین ۱۵ ثانیه و ۱۰ دقیقه باشد."
         if (request.settings.finalRoundSeconds !in 15..600) return "زمان دور پایانی باید بین ۱۵ ثانیه و ۱۰ دقیقه باشد."
         if (request.settings.roundsPerTeam !in 1..100) return "تعداد نوبت‌های هر تیم باید دست‌کم ۱ باشد."

@@ -50,11 +50,14 @@ class PantohubRepository(context: Context) {
         val parsed = appContext.assets.open(SEED_ASSET).bufferedReader(Charsets.UTF_8).use { reader ->
             WordBankCsvCodec.parse(reader.readText())
         }
+        check(parsed.invalidRows.isEmpty() && parsed.duplicateRows == 0 && parsed.records.size == SEED_RECORD_COUNT) {
+            "Pantohub seed bank must contain exactly $SEED_RECORD_COUNT valid, unique records."
+        }
         db.beginTransaction()
         try {
             parsed.records.forEach { record ->
                 val reviewedBootstrapWord = record.copy(validated = true, sourceVersion = SEED_VERSION)
-                insertWord(db, reviewedBootstrapWord)
+                insertWordIfAbsent(db, reviewedBootstrapWord)
             }
             putMetadata(db, SEED_MARKER, SEED_VERSION)
             db.setTransactionSuccessful()
@@ -372,6 +375,11 @@ class PantohubRepository(context: Context) {
         db.insertOrThrow("words", null, wordValues(word))
     }
 
+    /** Seed upgrades only add absent rows; existing seed edits and user-imported words are preserved. */
+    private fun insertWordIfAbsent(db: SQLiteDatabase, word: WordRecord) {
+        db.insertWithOnConflict("words", null, wordValues(word), SQLiteDatabase.CONFLICT_IGNORE)
+    }
+
     private fun wordValues(word: WordRecord) = ContentValues().apply {
         put("id", word.id)
         put("normalized_text", WordBankRules.normalizePersian(word.text))
@@ -460,7 +468,8 @@ class PantohubRepository(context: Context) {
         const val DB_VERSION = 1
         const val SEED_ASSET = "pantohub-words-fa.csv"
         const val SEED_MARKER = "bootstrap_words"
-        const val SEED_VERSION = "curated-bootstrap-v1"
+        const val SEED_VERSION = "curated-bootstrap-v2"
+        const val SEED_RECORD_COUNT = 1_000
         const val STATUS_ACTIVE = "ACTIVE"
         const val STATUS_FINISHED = "FINISHED"
         const val STATUS_ABANDONED = "ABANDONED"

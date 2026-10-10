@@ -38,7 +38,6 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import ir.dorehami.core.uikit.DorehamiPageFrame as PageFrame
 import ir.dorehami.games.pantohub.Difficulty
 import ir.dorehami.games.pantohub.GameSettings
 import ir.dorehami.games.pantohub.GameState
@@ -117,7 +116,7 @@ internal fun GameSetupScreen(
         if (index in teams.indices) teams[index] = transform(teams[index])
     }
 
-    PageFrame("آماده‌سازی بازی", onBack) {
+    PantohubPageFrame("آماده‌سازی بازی", onBack) {
         Text("نام بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
             value = gameName,
@@ -134,6 +133,7 @@ internal fun GameSetupScreen(
             }) { Text("+ افزودن تیم") }
         }
         Text("تعداد تیم‌ها سقف ثابتی ندارد؛ بازیکنان را با ویرگول یا رفتن به خط بعد جدا کن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+        Text("نام‌های یکسان در تیم‌های مختلف مجازند؛ هر حضور در بازی جداگانه شناخته می‌شود.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         teams.forEachIndexed { index, draft ->
             Card(modifier = Modifier.fillMaxWidth()) {
                 Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
@@ -286,17 +286,27 @@ internal fun GameSetupScreen(
                 scope.launch {
                     val result = runCatching {
                         withContext(Dispatchers.IO) {
-                            val builtTeams = drafts.map { teamDraft ->
-                                val playerNames = teamDraft.playersText
+                            val playerNamesByTeam = drafts.map { teamDraft ->
+                                teamDraft.playersText
                                     .split(',', '،', '\n')
                                     .map { it.trim() }
                                     .filter { it.isNotEmpty() }
                                     .distinctBy(WordBankRules::normalizePersian)
+                            }
+                            // Name-keyed profiles may repeat across teams; the engine requires roster-seat IDs to be unique.
+                            val playerAppearances = mutableMapOf<String, Int>()
+                            val builtTeams = drafts.mapIndexed { teamIndex, teamDraft ->
+                                val players = playerNamesByTeam[teamIndex].map { playerName ->
+                                    val profile = repository.resolvePlayer(playerName)
+                                    val appearance = (playerAppearances[profile.id] ?: 0) + 1
+                                    playerAppearances[profile.id] = appearance
+                                    if (appearance == 1) profile else profile.copy(id = "${profile.id}:roster:$appearance")
+                                }
                                 Team(
                                     id = UUID.randomUUID().toString(),
                                     name = teamDraft.name.trim(),
                                     colorArgb = teamDraft.colorArgb,
-                                    players = playerNames.map(repository::resolvePlayer),
+                                    players = players,
                                 )
                             }
                             val settings = GameSettings(

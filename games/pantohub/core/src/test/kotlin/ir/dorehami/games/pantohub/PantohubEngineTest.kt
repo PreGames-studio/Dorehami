@@ -26,6 +26,49 @@ class PantohubEngineTest {
     }
 
     @Test
+    fun `same display name on different teams is accepted when player identities differ`() {
+        val request = NewGameRequest(
+            id = "same-name-match",
+            name = "دورهمی",
+            createdAtEpochMs = 100,
+            teams = listOf(
+                Team("red", "قرمزها", 0xffff0000.toInt(), listOf(Player("red-player", "رضا"))),
+                Team("blue", "آبی‌ها", 0xff0000ff.toInt(), listOf(Player("blue-player", "رضا"))),
+            ),
+            settings = GameSettings(),
+        )
+
+        val result = PantohubEngine.createGame(request)
+
+        assertInstanceOf(GameActionResult.Accepted::class.java, result)
+        val state = (result as GameActionResult.Accepted).state
+        assertEquals("رضا", state.teams[0].players.single().name)
+        assertEquals("رضا", state.teams[1].players.single().name)
+    }
+
+    @Test
+    fun `same player identity is still rejected when assigned to multiple teams`() {
+        val request = NewGameRequest(
+            id = "duplicate-player-id-match",
+            name = "دورهمی",
+            createdAtEpochMs = 100,
+            teams = listOf(
+                Team("red", "قرمزها", 0xffff0000.toInt(), listOf(Player("shared-player", "رضا"))),
+                Team("blue", "آبی‌ها", 0xff0000ff.toInt(), listOf(Player("shared-player", "رضا"))),
+            ),
+            settings = GameSettings(),
+        )
+
+        val result = PantohubEngine.createGame(request)
+
+        assertInstanceOf(GameActionResult.Rejected::class.java, result)
+        assertEquals(
+            "شناسهٔ بازیکن تکراری است؛ هر جایگاه بازیکن باید شناسهٔ جداگانه داشته باشد.",
+            (result as GameActionResult.Rejected).messageFa,
+        )
+    }
+
+    @Test
     fun `timeout closes the turn and records an unresolved word exactly once`() {
         var state = newGame(rounds = 1)
         state = accepted(state, GameAction.StartTurn(state.version, word("w1"), moment(1_000)))

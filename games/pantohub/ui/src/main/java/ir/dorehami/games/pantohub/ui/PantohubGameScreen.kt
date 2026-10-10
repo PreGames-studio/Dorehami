@@ -38,6 +38,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -191,8 +192,12 @@ internal fun PantohubGameScreen(
     val currentPlayer = PantohubEngine.currentPlayer(state)
 
     Scaffold(
+        containerColor = MaterialTheme.colorScheme.background,
         topBar = {
             TopAppBar(
+                colors = TopAppBarDefaults.topAppBarColors(
+                    containerColor = MaterialTheme.colorScheme.surface,
+                ),
                 title = {
                     Text(
                         when {
@@ -213,149 +218,153 @@ internal fun PantohubGameScreen(
             )
         },
     ) { padding ->
-        if (state.phase == GamePhase.RUNNING && currentTurn?.wordRevealed == true) {
-            SecretWordScreen(
-                modifier = Modifier.padding(padding).fillMaxWidth().padding(20.dp),
-                state = state,
-                turn = currentTurn!!,
-                remainingMs = remaining,
-                remainingSeconds = remainingSeconds,
-                storageError = storageError,
-                onHide = { dispatch(GameAction.HideWord(latestState.version, gameMoment())) },
-            )
-        } else {
-            Column(
-                modifier = Modifier
-                    .padding(padding)
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                storageError?.let {
-                    Card(modifier = Modifier.fillMaxWidth()) {
-                        Text(it, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
+        Box(modifier = Modifier.fillMaxSize()) {
+            PantohubBackdrop()
+            if (state.phase == GamePhase.RUNNING && currentTurn?.wordRevealed == true) {
+                SecretWordScreen(
+                    modifier = Modifier.padding(padding).fillMaxWidth().padding(20.dp),
+                    state = state,
+                    turn = currentTurn!!,
+                    remainingMs = remaining,
+                    remainingSeconds = remainingSeconds,
+                    storageError = storageError,
+                    onHide = { dispatch(GameAction.HideWord(latestState.version, gameMoment())) },
+                )
+            } else {
+                Column(
+                    modifier = Modifier
+                        .padding(padding)
+                        .fillMaxSize()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp, vertical = 12.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    storageError?.let {
+                        Card(modifier = Modifier.fillMaxWidth()) {
+                            Text(it, modifier = Modifier.padding(12.dp), color = MaterialTheme.colorScheme.error)
+                        }
                     }
-                }
-                Scoreboard(state)
+                    Scoreboard(state)
 
-                when (state.phase) {
-                    GamePhase.READY, GamePhase.FINAL_READY -> {
-                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
-                            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    if (state.phase == GamePhase.FINAL_READY) "دور پایانی" else "نوبت بعدی",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                                Spacer(Modifier.height(6.dp))
-                                Text(currentTeam?.name.orEmpty(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-                                Text("اجراکننده: ${currentPlayer?.name.orEmpty()}", style = MaterialTheme.typography.titleMedium)
-                                if (state.phase == GamePhase.READY && currentTeam != null) {
-                                    val done = state.completedTurnsByTeam[currentTeam.id] ?: 0
-                                    Text("دور ${(done + 1).toString().toPersianDigits()} از ${state.settings.roundsPerTeam.toString().toPersianDigits()}")
-                                } else {
-                                    Text("هر تیم واجد شرایط یک نوبت اضافه می‌گیرد؛ ضریب امتیاز ${state.settings.finalRoundMultiplier.toString().toPersianDigits()} برابر است.")
-                                }
-                                Spacer(Modifier.height(16.dp))
-                                Button(onClick = ::startNextTurn, modifier = Modifier.fillMaxWidth()) {
-                                    Text("شروع نوبت و انتخاب واژه")
+                    when (state.phase) {
+                        GamePhase.READY, GamePhase.FINAL_READY -> {
+                            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+                                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        if (state.phase == GamePhase.FINAL_READY) "دور پایانی" else "نوبت بعدی",
+                                        style = MaterialTheme.typography.titleMedium,
+                                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    )
+                                    Spacer(Modifier.height(6.dp))
+                                    Text(currentTeam?.name.orEmpty(), style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+                                    Text("اجراکننده: ${currentPlayer?.name.orEmpty()}", style = MaterialTheme.typography.titleMedium)
+                                    if (state.phase == GamePhase.READY && currentTeam != null) {
+                                        val done = state.completedTurnsByTeam[currentTeam.id] ?: 0
+                                        Text("دور ${(done + 1).toString().toPersianDigits()} از ${state.settings.roundsPerTeam.toString().toPersianDigits()}")
+                                    } else {
+                                        Text("هر تیم واجد شرایط یک نوبت اضافه می‌گیرد؛ ضریب امتیاز ${state.settings.finalRoundMultiplier.toString().toPersianDigits()} برابر است.")
+                                    }
+                                    Spacer(Modifier.height(16.dp))
+                                    Button(onClick = ::startNextTurn, modifier = Modifier.fillMaxWidth()) {
+                                        Text("شروع نوبت و انتخاب واژه")
+                                    }
                                 }
                             }
+                            if (errorMessage != null) ErrorCard(errorMessage!!, ::openBankAndPause)
+                            Text("پیش از شروع، گوشی را به اجراکننده بده. واژه به‌صورت خودکار به صفحهٔ عمومی نشان داده نمی‌شود.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (errorMessage != null) ErrorCard(errorMessage!!, ::openBankAndPause)
-                        Text("پیش از شروع، گوشی را به اجراکننده بده. واژه به‌صورت خودکار به صفحهٔ عمومی نشان داده نمی‌شود.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
 
-                    GamePhase.RUNNING, GamePhase.PAUSED -> {
-                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                            Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    "${currentTeam?.name.orEmpty()}  •  ${currentTurn?.playerName.orEmpty()}",
-                                    style = MaterialTheme.typography.titleMedium,
-                                    fontWeight = FontWeight.Bold,
-                                )
-                                Spacer(Modifier.height(12.dp))
-                                TimerView(state, remaining, remainingSeconds)
-                                if (state.phase == GamePhase.PAUSED) {
-                                    Text("بازی متوقف است؛ زمان باقی‌مانده حفظ شده.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                                }
-                                Spacer(Modifier.height(12.dp))
-                                val currentWord = currentTurn?.currentWord
-                                if (currentWord == null) {
+                        GamePhase.RUNNING, GamePhase.PAUSED -> {
+                            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+                                Column(Modifier.padding(18.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                                     Text(
-                                        "واژهٔ دیگری مطابق فیلترها پیدا نشد.",
+                                        "${currentTeam?.name.orEmpty()}  •  ${currentTurn?.playerName.orEmpty()}",
                                         style = MaterialTheme.typography.titleMedium,
-                                        color = MaterialTheme.colorScheme.error,
-                                        textAlign = TextAlign.Center,
+                                        fontWeight = FontWeight.Bold,
                                     )
-                                    Text("بازی سطح یا دسته را خودکار عوض نمی‌کند.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                                    OutlinedButton(onClick = ::openBankAndPause) { Text("مدیریت بانک واژه") }
-                                } else if (currentTurn?.wordRevealed != true) {
-                                    Text("واژه فقط برای اجراکننده است", fontWeight = FontWeight.SemiBold)
-                                    Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
-                                    Spacer(Modifier.height(8.dp))
-                                    Button(
-                                        onClick = { dispatch(GameAction.RevealWord(latestState.version, gameMoment())) },
-                                        enabled = state.phase == GamePhase.RUNNING,
-                                        modifier = Modifier.fillMaxWidth(),
-                                    ) { Text("نمایش واژه برای اجراکننده") }
-                                }
-                                Spacer(Modifier.height(12.dp))
-                                if (state.phase == GamePhase.PAUSED) {
-                                    Button(onClick = { dispatch(GameAction.ResumeTurn(latestState.version, gameMoment())) }, modifier = Modifier.fillMaxWidth()) {
-                                        Text("ادامهٔ نوبت")
+                                    Spacer(Modifier.height(12.dp))
+                                    TimerView(state, remaining, remainingSeconds)
+                                    if (state.phase == GamePhase.PAUSED) {
+                                        Text("بازی متوقف است؛ زمان باقی‌مانده حفظ شده.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                                     }
-                                } else {
-                                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                    Spacer(Modifier.height(12.dp))
+                                    val currentWord = currentTurn?.currentWord
+                                    if (currentWord == null) {
+                                        Text(
+                                            "واژهٔ دیگری مطابق فیلترها پیدا نشد.",
+                                            style = MaterialTheme.typography.titleMedium,
+                                            color = MaterialTheme.colorScheme.error,
+                                            textAlign = TextAlign.Center,
+                                        )
+                                        Text("بازی سطح یا دسته را خودکار عوض نمی‌کند.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+                                        OutlinedButton(onClick = ::openBankAndPause) { Text("مدیریت بانک واژه") }
+                                    } else if (currentTurn?.wordRevealed != true) {
+                                        Text("واژه فقط برای اجراکننده است", fontWeight = FontWeight.SemiBold)
+                                        Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                                        Spacer(Modifier.height(8.dp))
                                         Button(
-                                            onClick = { resolve(WordOutcome.CORRECT) },
-                                            enabled = currentWord != null && currentTurn?.wordRevealed == true,
-                                            modifier = Modifier.weight(1f),
-                                        ) { Text("حدس درست") }
-                                        if (state.settings.allowSkip) {
-                                            OutlinedButton(
-                                                onClick = { resolve(WordOutcome.SKIPPED) },
-                                                enabled = currentWord != null && currentTurn?.wordRevealed == true && (currentTurn?.skippedWords ?: Int.MAX_VALUE) < state.settings.maxSkipsPerTurn,
-                                                modifier = Modifier.weight(1f),
-                                            ) { Text("رد واژه") }
+                                            onClick = { dispatch(GameAction.RevealWord(latestState.version, gameMoment())) },
+                                            enabled = state.phase == GamePhase.RUNNING,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) { Text("نمایش واژه برای اجراکننده") }
+                                    }
+                                    Spacer(Modifier.height(12.dp))
+                                    if (state.phase == GamePhase.PAUSED) {
+                                        Button(onClick = { dispatch(GameAction.ResumeTurn(latestState.version, gameMoment())) }, modifier = Modifier.fillMaxWidth()) {
+                                            Text("ادامهٔ نوبت")
                                         }
+                                    } else {
+                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                            Button(
+                                                onClick = { resolve(WordOutcome.CORRECT) },
+                                                enabled = currentWord != null && currentTurn?.wordRevealed == true,
+                                                modifier = Modifier.weight(1f),
+                                            ) { Text("حدس درست") }
+                                            if (state.settings.allowSkip) {
+                                                OutlinedButton(
+                                                    onClick = { resolve(WordOutcome.SKIPPED) },
+                                                    enabled = currentWord != null && currentTurn?.wordRevealed == true && (currentTurn?.skippedWords ?: Int.MAX_VALUE) < state.settings.maxSkipsPerTurn,
+                                                    modifier = Modifier.weight(1f),
+                                                ) { Text("رد واژه") }
+                                            }
+                                        }
+                                        OutlinedButton(
+                                            onClick = { dispatch(GameAction.PauseTurn(latestState.version, gameMoment())) },
+                                            modifier = Modifier.fillMaxWidth(),
+                                        ) { Text("توقف موقت") }
                                     }
                                     OutlinedButton(
-                                        onClick = { dispatch(GameAction.PauseTurn(latestState.version, gameMoment())) },
+                                        onClick = { dispatch(GameAction.EndTurn(latestState.version, gameMoment())) },
                                         modifier = Modifier.fillMaxWidth(),
-                                    ) { Text("توقف موقت") }
+                                    ) { Text("پایان نوبت") }
                                 }
-                                OutlinedButton(
-                                    onClick = { dispatch(GameAction.EndTurn(latestState.version, gameMoment())) },
-                                    modifier = Modifier.fillMaxWidth(),
-                                ) { Text("پایان نوبت") }
                             }
+                            if (state.settings.cardsEnabled && state.phase == GamePhase.RUNNING) {
+                                SpecialCardsRow(state, ::dispatch)
+                            }
+                            if (errorMessage != null) ErrorCard(errorMessage!!, ::openBankAndPause)
+                            Text("اگر گوشی را از اجراکننده می‌گیری، واژه را بپوشان یا نوبت را متوقف کن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
-                        if (state.settings.cardsEnabled && state.phase == GamePhase.RUNNING) {
-                            SpecialCardsRow(state, ::dispatch)
-                        }
-                        if (errorMessage != null) ErrorCard(errorMessage!!, ::openBankAndPause)
-                        Text("اگر گوشی را از اجراکننده می‌گیری، واژه را بپوشان یا نوبت را متوقف کن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    }
 
-                    GamePhase.FINISHED -> {
-                        val winners = state.teams.filter { it.id in state.winnerTeamIds }
-                        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
-                            Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text("🏆", style = MaterialTheme.typography.displaySmall)
-                                Text(
-                                    if (winners.size == 1) "قهرمان: ${winners.single().name}" else "بازی با تساوی تمام شد",
-                                    style = MaterialTheme.typography.headlineSmall,
-                                    fontWeight = FontWeight.Bold,
-                                    textAlign = TextAlign.Center,
-                                )
-                                Text("امتیاز نهایی از نتیجهٔ واقعی نوبت‌ها محاسبه شده است.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
-                                Spacer(Modifier.height(10.dp))
-                                state.teams.sortedByDescending { state.teamScores[it.id] ?: 0 }.forEach { team ->
-                                    Text("${team.name}: ${(state.teamScores[team.id] ?: 0).toString().toPersianDigits()} امتیاز")
+                        GamePhase.FINISHED -> {
+                            val winners = state.teams.filter { it.id in state.winnerTeamIds }
+                            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+                                Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text("🏆", style = MaterialTheme.typography.displaySmall)
+                                    Text(
+                                        if (winners.size == 1) "قهرمان: ${winners.single().name}" else "بازی با تساوی تمام شد",
+                                        style = MaterialTheme.typography.headlineSmall,
+                                        fontWeight = FontWeight.Bold,
+                                        textAlign = TextAlign.Center,
+                                    )
+                                    Text("امتیاز نهایی از نتیجهٔ واقعی نوبت‌ها محاسبه شده است.", style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center)
+                                    Spacer(Modifier.height(10.dp))
+                                    state.teams.sortedByDescending { state.teamScores[it.id] ?: 0 }.forEach { team ->
+                                        Text("${team.name}: ${(state.teamScores[team.id] ?: 0).toString().toPersianDigits()} امتیاز")
+                                    }
+                                    Spacer(Modifier.height(14.dp))
+                                    Button(onClick = onReturnHome, modifier = Modifier.fillMaxWidth()) { Text("بازگشت به پانتومیم") }
                                 }
-                                Spacer(Modifier.height(14.dp))
-                                Button(onClick = onReturnHome, modifier = Modifier.fillMaxWidth()) { Text("بازگشت به پانتومیم") }
                             }
                         }
                     }

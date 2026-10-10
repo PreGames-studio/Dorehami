@@ -29,7 +29,6 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import ir.dorehami.core.uikit.DorehamiPageFrame as PageFrame
 import ir.dorehami.games.pantohub.GamePhase
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.GameStatistics
@@ -86,7 +85,7 @@ internal fun GameHistoryScreen(repository: PantohubRepository, onBack: () -> Uni
         }
     }
 
-    PageFrame("تاریخچه و آمار", onBack) {
+    PantohubPageFrame("تاریخچه و آمار", onBack) {
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
             HistoryTab.entries.forEach { item ->
                 FilterChip(

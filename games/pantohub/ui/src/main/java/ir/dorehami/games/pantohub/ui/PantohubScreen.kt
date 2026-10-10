@@ -27,7 +27,6 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
-import ir.dorehami.core.uikit.DorehamiPageFrame as PageFrame
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import ir.dorehami.games.pantohub.GameMoment
@@ -45,6 +44,13 @@ private enum class PantoPage { HOME, SETUP, GAME, HISTORY, BANK, SETTINGS }
 /** Native, offline-first pantomime area attached to the existing Android game picker. */
 @Composable
 fun PantohubScreen(onBack: () -> Unit) {
+    PantohubTheme {
+        PantohubScreenContent(onBack)
+    }
+}
+
+@Composable
+private fun PantohubScreenContent(onBack: () -> Unit) {
     val context = LocalContext.current
     val repository = remember { PantohubRepository(context) }
     DisposableEffect(repository) { onDispose { repository.close() } }
@@ -190,12 +196,12 @@ private fun PantohubHome(
     onBank: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    PageFrame(title = "پانتومیم", onBack = onBack) {
+    PantohubPageFrame(title = "پانتومیم", onBack = onBack) {
         if (loading) {
             Text("در حال آماده‌سازی بازی و بانک محلی…", style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(12.dp))
             LinearProgressIndicator(modifier = Modifier.fillMaxWidth())
-            return@PageFrame
+            return@PantohubPageFrame
         }
         storageError?.let {
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -271,7 +277,7 @@ private fun PantohubHome(
 
 @Composable
 internal fun SimplePantoPage(title: String, onBack: () -> Unit, content: @Composable () -> Unit) {
-    PageFrame(title, onBack) { content() }
+    PantohubPageFrame(title, onBack) { content() }
 }
 
 internal fun Int.toPersianDigits(): String = toString().toPersianDigits()
@@ -287,7 +293,7 @@ private fun PantohubSettingsScreen(onBack: () -> Unit) {
     var soundEnabled by remember { mutableStateOf(preferences.getBoolean("sound", true)) }
     var animationsEnabled by remember { mutableStateOf(preferences.getBoolean("animations", true)) }
 
-    PageFrame("تنظیمات پانتومیم", onBack) {
+    PantohubPageFrame("تنظیمات پانتومیم", onBack) {
         PreferenceToggleRow(
             title = "صدای رویدادها",
             subtitle = "صدای کوتاه برای پاسخ درست؛ بدون ضبط صدا.",
