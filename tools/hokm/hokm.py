@@ -10,7 +10,7 @@ SUITS = ["SPADES", "HEARTS", "DIAMONDS", "CLUBS"]  # ordinal 0..3 (همان تر
 SUIT_OF_CODE = {"S": "SPADES", "H": "HEARTS", "D": "DIAMONDS", "C": "CLUBS"}
 RED = {"HEARTS", "DIAMONDS"}
 RANKS = list(range(2, 15))  # 2..14 (14 = آس)
-LABEL = {11: "J", 12: "Q", 13: "K", 14: "A", 10: "T"}
+LABEL = {11: "J", 12: "Q", 13: "K", 14: "A", 10: "10"}  # همان Rank.label در کاتلین
 
 
 def full_deck():
