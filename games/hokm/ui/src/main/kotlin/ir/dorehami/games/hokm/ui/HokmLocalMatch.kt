@@ -26,6 +26,7 @@ class HokmLocalMatch(
     playerCount: Int,
     targetPoints: Int,
     seed: Long,
+    botLevel: String = HokmModule.BOT_PRO,
     onSound: (String) -> Unit,
 ) : HokmTable(
     scope = scope,
@@ -48,11 +49,18 @@ class HokmLocalMatch(
         GameConfig(
             seed = seed,
             players = players,
-            options = buildJsonObject { put(HokmSession.Options.TARGET_POINTS, targetPoints) },
+            options = buildJsonObject {
+                put(HokmSession.Options.TARGET_POINTS, targetPoints)
+                put(HokmSession.Options.BOT_LEVEL, botLevel)
+            },
             clock = ManualClock(),
             rng = SplitMixRng(seed),
         ),
     )
+
+    init {
+        _state.value = _state.value.copy(modeLabel = if (botLevel == HokmModule.BOT_EASY) "ربات ساده" else "ربات حرفه‌ای")
+    }
 
     /** The record of this match so far (for saving / verification later). */
     fun record() = engine.record()

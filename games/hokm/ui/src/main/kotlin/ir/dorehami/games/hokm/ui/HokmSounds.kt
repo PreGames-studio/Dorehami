@@ -17,5 +17,10 @@ object HokmSounds {
         "tap" to R.raw.hokm_tap,
         "your_turn" to R.raw.hokm_your_turn,
         "sticker" to R.raw.hokm_sticker,
+        "card_cut" to R.raw.hokm_card_cut,
+        "card_slide" to R.raw.hokm_card_slide,
+        "timer_tick" to R.raw.hokm_timer_tick,
+        "timer_warn" to R.raw.hokm_timer_warn,
+        "whoosh" to R.raw.hokm_whoosh,
     )
 }

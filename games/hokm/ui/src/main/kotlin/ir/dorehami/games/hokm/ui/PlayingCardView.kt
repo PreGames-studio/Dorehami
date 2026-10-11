@@ -1,6 +1,9 @@
 package ir.dorehami.games.hokm.ui
 
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -120,6 +123,34 @@ fun PlayingCardView(
 /** The back of a card: deep red stock with a Persian "girih" lattice and a thin gold frame. */
 @Composable
 fun CardBackView(
+    width: Dp,
+    modifier: Modifier = Modifier,
+    elevation: Dp = 4.dp,
+) {
+    // Photographic back (crimson girih on gold); the painted lattice below stays as a fallback.
+    val height = width / CARD_ASPECT
+    val corner = width * 0.09f
+    val shape = RoundedCornerShape(corner)
+    Box(
+        modifier
+            .size(width, height)
+            .shadow(elevation, shape, clip = false)
+            .clip(shape)
+            .background(CardColors.ivory)
+            .border(width * 0.015f, Color(0x33000000), shape),
+    ) {
+        Image(
+            painter = painterResource(R.drawable.hokm_card_back),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
+}
+
+/** Vector-drawn card back (used nowhere by default; kept for low-memory devices / tests). */
+@Composable
+fun PaintedCardBackView(
     width: Dp,
     modifier: Modifier = Modifier,
     elevation: Dp = 4.dp,

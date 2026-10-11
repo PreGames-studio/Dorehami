@@ -37,6 +37,9 @@ data class ClientState(
     val seq: Long = 0,
     val result: JsonObject? = null,
     val connected: Boolean = true,
+    /** Host clock time by which the current human move must arrive (0 = no timer). */
+    val deadlineMs: Long = 0L,
+    val turnSeconds: Int = 0,
 ) {
     val players: List<PlayerId> get() = room?.members?.sortedBy { it.seat }?.map { it.player.id } ?: emptyList()
 }

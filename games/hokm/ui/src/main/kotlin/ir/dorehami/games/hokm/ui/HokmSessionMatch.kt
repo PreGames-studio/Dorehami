@@ -21,6 +21,7 @@ import kotlinx.serialization.json.jsonPrimitive
 class HokmSessionMatch(
     scope: CoroutineScope,
     private val client: SessionClient,
+    private val modeLabel: String,
     onSound: (String) -> Unit,
 ) : HokmTable(
     scope = scope,
@@ -67,6 +68,10 @@ class HokmSessionMatch(
 
     private fun onState(s: ClientState) {
         if (!s.connected) setError("ارتباط قطع شد — در حال تلاش برای برگشت…")
+        val ui0 = _state.value
+        if (ui0.turnDeadlineMs != s.deadlineMs || ui0.turnSeconds != s.turnSeconds || ui0.modeLabel != modeLabel) {
+            _state.value = ui0.copy(turnDeadlineMs = s.deadlineMs, turnSeconds = s.turnSeconds, modeLabel = modeLabel)
+        }
         // Refresh only when the table is calm; during trick/hand animations the loop refreshes itself.
         val ui = _state.value
         if (pendingPauseMs == 0L && ui.collectingTo == null && ui.introShown == null && !ui.dealing) refresh()

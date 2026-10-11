@@ -63,14 +63,33 @@ const val DEFAULT_SERVER_URL = "http://10.0.2.2:8080"
  */
 @Composable
 fun HokmEntry(onExit: () -> Unit) {
+    val context = LocalContext.current
+    val prefs = remember { HokmPrefs(context) }
     var started by rememberSaveable { mutableStateOf(false) }
-    var name by rememberSaveable { mutableStateOf("") }
-    var target by rememberSaveable { mutableStateOf(HokmModule.DEFAULT_TARGET_POINTS) }
-    var playerCount by rememberSaveable { mutableStateOf(4) }
-    var soundOn by rememberSaveable { mutableStateOf(true) }
+    var name by rememberSaveable { mutableStateOf(prefs.name) }
+    var target by rememberSaveable { mutableStateOf(prefs.targetPoints) }
+    var playerCount by rememberSaveable { mutableStateOf(prefs.playerCount) }
+    var soundOn by rememberSaveable { mutableStateOf(prefs.soundOn) }
+    var hapticsOn by rememberSaveable { mutableStateOf(prefs.hapticsOn) }
+    var botLevel by rememberSaveable { mutableStateOf(prefs.botLevel) }
     var matchKey by rememberSaveable { mutableStateOf(0) }
     var roomMode by rememberSaveable { mutableStateOf<String?>(null) }
-    var serverUrl by rememberSaveable { mutableStateOf(DEFAULT_SERVER_URL) }
+    var serverUrl by rememberSaveable { mutableStateOf(prefs.serverUrl) }
+    var stats by remember { mutableStateOf(prefs.stats) }
+
+    val onFinished: (HokmUiState) -> Unit = { s ->
+        val kots = s.handHistory.count {
+            (it.kind == ir.dorehami.games.hokm.HandWinKind.KOT || it.kind == ir.dorehami.games.hokm.HandWinKind.HAKEM_KOT) &&
+                it.winnerTeam == s.myTeam
+        }
+        prefs.recordMatch(
+            won = s.winnerTeam == s.myTeam,
+            hands = s.handHistory.size,
+            handsWon = s.handHistory.count { it.winnerTeam == s.myTeam },
+            kots = kots,
+        )
+        stats = prefs.stats
+    }
 
     if (roomMode != null) {
         HokmRoom(
@@ -79,20 +98,28 @@ fun HokmEntry(onExit: () -> Unit) {
             playerCount = playerCount,
             targetPoints = target,
             soundOn = soundOn,
+            hapticsOn = hapticsOn,
             serverUrl = serverUrl,
-            onServerUrl = { serverUrl = it },
+            onServerUrl = { serverUrl = it; prefs.serverUrl = it },
+            onFinished = onFinished,
             onExit = { roomMode = null },
         )
     } else if (!started) {
         HokmSetupScreen(
             name = name,
-            onName = { name = it },
+            onName = { name = it; prefs.name = it },
             target = target,
-            onTarget = { target = it },
+            onTarget = { target = it; prefs.targetPoints = it },
             playerCount = playerCount,
-            onPlayerCount = { playerCount = it },
+            onPlayerCount = { playerCount = it; prefs.playerCount = it },
             soundOn = soundOn,
-            onSound = { soundOn = it },
+            onSound = { soundOn = it; prefs.soundOn = it },
+            hapticsOn = hapticsOn,
+            onHaptics = { hapticsOn = it; prefs.hapticsOn = it },
+            botLevel = botLevel,
+            onBotLevel = { botLevel = it; prefs.botLevel = it },
+            stats = stats,
+            onResetStats = { prefs.resetStats(); stats = prefs.stats },
             onStart = { started = true },
             onMode = { roomMode = if (it == RoomMode.BLUETOOTH) "bt" else "online" },
             onBack = onExit,
@@ -103,10 +130,25 @@ fun HokmEntry(onExit: () -> Unit) {
             playerName = name,
             playerCount = playerCount,
             targetPoints = target,
+            botLevel = botLevel,
             soundOn = soundOn,
+            hapticsOn = hapticsOn,
+            onFinished = onFinished,
             onPlayAgain = { matchKey++ },
             onExit = { started = false },
         )
+    }
+}
+
+/** Fires [onFinished] exactly once per match, when the table reports the game over. */
+@Composable
+private fun RecordWhenFinished(state: HokmUiState, onFinished: (HokmUiState) -> Unit) {
+    var recorded by remember { mutableStateOf(false) }
+    LaunchedEffect(state.finished) {
+        if (state.finished && !recorded) {
+            recorded = true
+            onFinished(state)
+        }
     }
 }
 
@@ -116,7 +158,10 @@ private fun HokmSoloGame(
     playerName: String,
     playerCount: Int,
     targetPoints: Int,
+    botLevel: String,
     soundOn: Boolean,
+    hapticsOn: Boolean,
+    onFinished: (HokmUiState) -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
 ) {
@@ -133,6 +178,7 @@ private fun HokmSoloGame(
             targetPoints = targetPoints,
             // Seed picked by the UI (never by the rules): wall clock is fine here, it is recorded.
             seed = System.currentTimeMillis() xor (key.toLong() shl 20),
+            botLevel = botLevel,
             onSound = { sounds.play(it) },
         )
     }
@@ -142,8 +188,11 @@ private fun HokmSoloGame(
     }
 
     val state by match.state
+    RecordWhenFinished(state, onFinished)
     HokmScreen(
         state = state,
+        hapticsEnabled = hapticsOn,
+        onUiSound = { sounds.play(it) },
         onPlayCard = match::playCard,
         onChooseHokm = match::chooseHokm,
         onToggleDiscard = match::toggleDiscard,
@@ -165,8 +214,10 @@ private fun HokmRoom(
     playerCount: Int,
     targetPoints: Int,
     soundOn: Boolean,
+    hapticsOn: Boolean,
     serverUrl: String,
     onServerUrl: (String) -> Unit,
+    onFinished: (HokmUiState) -> Unit,
     onExit: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -185,11 +236,15 @@ private fun HokmRoom(
     } else {
         val sounds = rememberSoundPlayer(HokmSounds.map)
         LaunchedEffect(soundOn) { sounds.enabled = soundOn }
-        val match = remember(playing.client) { HokmSessionMatch(scope, playing.client) { sounds.play(it) } }
+        val label = if (mode == RoomMode.BLUETOOTH) "بلوتوث" else "آنلاین"
+        val match = remember(playing.client) { HokmSessionMatch(scope, playing.client, label) { sounds.play(it) } }
         LaunchedEffect(match) { match.begin() }
         val state by match.state
+        RecordWhenFinished(state, onFinished)
         HokmScreen(
             state = state,
+            hapticsEnabled = hapticsOn,
+            onUiSound = { sounds.play(it) },
             onPlayCard = match::playCard,
             onChooseHokm = match::chooseHokm,
             onToggleDiscard = match::toggleDiscard,
@@ -214,6 +269,12 @@ private fun HokmSetupScreen(
     onPlayerCount: (Int) -> Unit,
     soundOn: Boolean,
     onSound: (Boolean) -> Unit,
+    hapticsOn: Boolean,
+    onHaptics: (Boolean) -> Unit,
+    botLevel: String,
+    onBotLevel: (String) -> Unit,
+    stats: HokmStats,
+    onResetStats: () -> Unit,
     onStart: () -> Unit,
     onMode: (RoomMode) -> Unit,
     onBack: () -> Unit,
@@ -309,10 +370,43 @@ private fun HokmSetupScreen(
                 }
             }
             Spacer(Modifier.height(14.dp))
+            Text("سطح ربات‌ها", fontWeight = FontWeight.SemiBold)
+            Spacer(Modifier.height(8.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                listOf(
+                    HokmModule.BOT_PRO to "حرفه‌ای",
+                    HokmModule.BOT_EASY to "ساده",
+                ).forEach { (level, title) ->
+                    val selected = level == botLevel
+                    Text(
+                        title,
+                        textAlign = TextAlign.Center,
+                        fontWeight = FontWeight.Bold,
+                        color = if (selected) Color.White else MaterialTheme.colorScheme.onSurface,
+                        modifier = Modifier
+                            .weight(1f)
+                            .clip(RoundedCornerShape(12.dp))
+                            .background(if (selected) MaterialTheme.colorScheme.primary else Color.Transparent)
+                            .border(1.dp, MaterialTheme.colorScheme.primary, RoundedCornerShape(12.dp))
+                            .clickable { onBotLevel(level) }
+                            .padding(vertical = 10.dp),
+                    )
+                }
+            }
+            Spacer(Modifier.height(14.dp))
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Text("افکت‌های صوتی", modifier = Modifier.weight(1f))
                 Switch(checked = soundOn, onCheckedChange = onSound)
             }
+            Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                Text("لرزش", modifier = Modifier.weight(1f))
+                Switch(checked = hapticsOn, onCheckedChange = onHaptics)
+            }
+        }
+
+        if (stats.games > 0) {
+            Spacer(Modifier.height(12.dp))
+            StatsCard(stats, onResetStats)
         }
 
         Spacer(Modifier.height(20.dp))
@@ -340,6 +434,38 @@ private fun SettingsCard(content: @Composable () -> Unit) {
             .background(MaterialTheme.colorScheme.surface)
             .padding(16.dp),
     ) { content() }
+}
+
+@Composable
+private fun StatsCard(stats: HokmStats, onReset: () -> Unit) {
+    Column(
+        Modifier
+            .fillMaxWidth()
+            .clip(RoundedCornerShape(22.dp))
+            .background(Color.White.copy(alpha = 0.08f))
+            .border(1.dp, Color.White.copy(alpha = 0.18f), RoundedCornerShape(22.dp))
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text("کارنامهٔ شما", color = Color(0xFFD9B55A), fontWeight = FontWeight.Bold, fontSize = 15.sp, modifier = Modifier.weight(1f))
+            TextButton(onClick = onReset) { Text("پاک کردن", color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp) }
+        }
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
+            StatCell("بازی", stats.games.toFa())
+            StatCell("بُرد", stats.wins.toFa())
+            StatCell("درصد برد", "٪" + stats.winRate.toFa())
+            StatCell("کُت", stats.kots.toFa())
+            StatCell("دست‌های برده", "${stats.handsWon.toFa()}/${stats.hands.toFa()}")
+        }
+    }
+}
+
+@Composable
+private fun StatCell(label: String, value: String) {
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Text(value, color = Color.White, fontWeight = FontWeight.Black, fontSize = 18.sp)
+        Text(label, color = Color.White.copy(alpha = 0.65f), fontSize = 10.sp)
+    }
 }
 
 @Composable

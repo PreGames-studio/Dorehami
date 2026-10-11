@@ -52,6 +52,8 @@ class HokmSession(private val config: GameConfig) : GameSession {
         const val TARGET_POINTS = "targetPoints"
         const val KOT_POINTS = "kotPoints"
         const val HAKEM_KOT_POINTS = "hakemKotPoints"
+        /** `"pro"` (default) or `"easy"` — how the bots play. */
+        const val BOT_LEVEL = "botLevel"
     }
 
     object Keys {
@@ -67,6 +69,7 @@ class HokmSession(private val config: GameConfig) : GameSession {
     private val teams = HokmRules.teamCount(n)
     private val targetPoints = config.options.int(Options.TARGET_POINTS, HokmModule.DEFAULT_TARGET_POINTS)
     private val kotPoints = config.options.int(Options.KOT_POINTS, HokmModule.DEFAULT_KOT_POINTS)
+    private val easyBots = (config.options[Options.BOT_LEVEL] as? JsonPrimitive)?.content == HokmModule.BOT_EASY
     private val hakemKotPoints = config.options.int(Options.HAKEM_KOT_POINTS, HokmModule.DEFAULT_HAKEM_KOT_POINTS)
 
     override var phase: Phase = Phase.PLAYING
@@ -476,6 +479,7 @@ class HokmSession(private val config: GameConfig) : GameSession {
         put("points", r.points)
         put("kind", r.kind.id)
         put("hakem", r.hakem)
+        put("hokm", hokm?.id)
         put("tricks", intArray(r.tricks.toIntArray()))
         put("scores", intArray(scores))
     }
@@ -534,7 +538,8 @@ class HokmSession(private val config: GameConfig) : GameSession {
 
             HandPhase.PLAYING -> {
                 if (seat != turn) return null
-                GameAction(HokmModule.ACTION_PLAY_CARD, view { put(HokmModule.PAYLOAD_CARD, HokmBot.playCard(view).code) })
+                val card = if (easyBots) HokmBot.playCardEasy(view) else HokmBot.playCard(view)
+                GameAction(HokmModule.ACTION_PLAY_CARD, view { put(HokmModule.PAYLOAD_CARD, card.code) })
             }
         }
     }

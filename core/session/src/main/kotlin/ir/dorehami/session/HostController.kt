@@ -58,6 +58,8 @@ class HostController(
     private val botNamesFa: List<String> = listOf("ربات آبی", "ربات سبز", "ربات قرمز"),
     /** Called once with the full replayable record when the match ends (persist it here). */
     private val onFinished: ((ir.dorehami.gamesdk.MatchRecord) -> Unit)? = null,
+    /** Time a human has to move before the bot moves for them. 0 = no limit (solo / friends). */
+    private val turnMillis: Long = 0L,
 ) : SessionClient {
     val partySize: Int = partySize.coerceIn(module.meta.minPlayers, module.meta.maxPlayers)
     val hostPlays: Boolean = hostPlayer != null
@@ -72,6 +74,8 @@ class HostController(
     private var started = false
     private var finishedSent = false
     private var collector: Job? = null
+    private var turnTimer: Job? = null
+    private var deadlineMs: Long = 0L
 
     private val _state = MutableStateFlow(ClientState(me = me, seat = 0, isHost = true))
     override val state: StateFlow<ClientState> = _state.asStateFlow()
@@ -150,6 +154,7 @@ class HostController(
     override suspend fun leave() {
         lock.withLock { broadcast(Msg.LOBBY_LEAVE, buildJsonObject { put("reason", "host_left") }) }
         collector?.cancel()
+        turnTimer?.cancel()
         transport.close()
     }
 
@@ -321,7 +326,43 @@ class HostController(
     }
 
     private suspend fun pushViews() {
+        armTurnTimer()
         for (m in members.values) if (!m.isBot) pushViewsTo(m.player.id, resync = false)
+    }
+
+    /**
+     * If a connected human must move now, give them [turnSeconds]; when the deadline passes with the
+     * same version, the bot policy moves for them (the game never stalls on one phone).
+     */
+    private fun armTurnTimer() {
+        turnTimer?.cancel()
+        turnTimer = null
+        deadlineMs = 0L
+        if (turnMillis <= 0L) return
+        val eng = engine ?: return
+        if (eng.session.result() != null) return
+        val waitingOn = members.values.filter { !it.isBot && it.connected && eng.session.legalActions(it.player.id).isNotEmpty() }
+        if (waitingOn.isEmpty()) return
+        val version = eng.session.version
+        deadlineMs = clock.nowMillis() + turnMillis
+        turnTimer = scope.launch {
+            delay(turnMillis)
+            lock.withLock {
+                val e = engine ?: return@withLock
+                if (e.session.version != version || e.session.result() != null) return@withLock
+                for (m in waitingOn) {
+                    if (e.session.legalActions(m.player.id).isEmpty()) continue
+                    val r = e.submitBot(m.player.id) ?: continue
+                    if (r is ApplyResult.Ok) {
+                        _events.tryEmit(SessionEvent.Feed("turn_timeout", buildJsonObject { put("seat", m.seat) }, "warn"))
+                        broadcast(Msg.SESSION_EVENT, buildJsonObject { put("kind", "feed"); put("key", "turn_timeout"); put("args", buildJsonObject { put("seat", m.seat) }); put("level", "warn") }, e.session.version)
+                        fanOut(r.emissions)
+                    }
+                }
+                pushViews()
+                runBots()
+            }
+        }
     }
 
     private suspend fun pushViewsTo(pid: PlayerId, resync: Boolean) {
@@ -333,7 +374,7 @@ class HostController(
         if (pid == me) {
             _state.value = _state.value.copy(
                 publicView = pub, privateView = priv, legalActions = legal,
-                phase = s.phase.name, seq = s.version,
+                phase = s.phase.name, seq = s.version, deadlineMs = deadlineMs,
             )
             return
         }
@@ -342,6 +383,8 @@ class HostController(
             put("view", pub)
             put("seq", s.version)
             put("phase", s.phase.name)
+            put("deadlineMs", deadlineMs)
+            put("turnSeconds", (turnMillis / 1000L).toInt())
         }
         val privPayload = buildJsonObject {
             put("view", priv)

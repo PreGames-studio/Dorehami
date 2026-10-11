@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.contentOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.long
 import kotlinx.serialization.json.put
@@ -41,6 +42,8 @@ class GuestController(
     override val events: Flow<SessionEvent> = _events.asSharedFlow()
     private var collector: Job? = null
     private var lastSeq = -1L
+    /** my clock − host clock, from the latest envelope. */
+    private var clockSkewMs = 0L
 
     /** Starts listening and asks the host for a seat. */
     suspend fun join() {
@@ -91,6 +94,7 @@ class GuestController(
     private fun onMessage(text: String) {
         val env = Envelope.decode(text) ?: return
         if (env.room != roomCode) return
+        if (env.ts > 0) clockSkewMs = nowMs() - env.ts
         val p = env.payload
         when (env.type) {
             Msg.LOBBY_ACK -> {
@@ -139,10 +143,14 @@ class GuestController(
     private fun applyState(p: JsonObject, seq: Long) {
         if (seq < lastSeq) return
         lastSeq = seq
+        // Deadline is translated into *my* clock using the skew measured from the envelope `ts`.
+        val hostDeadline = p["deadlineMs"]?.jsonPrimitive?.contentOrNull?.toLongOrNull() ?: 0L
         _state.value = _state.value.copy(
             publicView = p.obj("view") ?: JsonObject(emptyMap()),
             phase = p.str("phase") ?: _state.value.phase,
             seq = seq,
+            deadlineMs = if (hostDeadline > 0) hostDeadline + clockSkewMs else 0L,
+            turnSeconds = p["turnSeconds"]?.jsonPrimitive?.contentOrNull?.toIntOrNull() ?: 0,
         )
     }
 

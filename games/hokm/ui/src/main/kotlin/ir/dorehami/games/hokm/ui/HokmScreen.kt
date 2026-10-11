@@ -16,6 +16,13 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.random.Random
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -31,6 +38,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
+import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
@@ -110,12 +120,29 @@ fun HokmScreen(
     onClearError: () -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
+    hapticsEnabled: Boolean = true,
+    /** Timer sounds are routed through the same player as the table ("timer_tick" / "timer_warn"). */
+    onUiSound: (String) -> Unit = {},
 ) {
     var confirmExit by remember { mutableStateOf(false) }
     var stickerTray by remember { mutableStateOf(false) }
-    BackHandler { confirmExit = true }
+    var showLastTrick by remember { mutableStateOf(false) }
+    var showSheet by remember { mutableStateOf(false) }
+    BackHandler {
+        when {
+            showLastTrick -> showLastTrick = false
+            showSheet -> showSheet = false
+            else -> confirmExit = true
+        }
+    }
 
-    val haptics = LocalHapticFeedback.current
+    val rawHaptics = LocalHapticFeedback.current
+    val haptics = remember(rawHaptics, hapticsEnabled) { if (hapticsEnabled) rawHaptics else null }
+    // A nudge when it becomes my turn, a thump on kot.
+    LaunchedEffect(state.isMyTurn) { if (state.isMyTurn) haptics?.performHapticFeedback(HapticFeedbackType.LongPress) }
+    LaunchedEffect(state.fx.lastOrNull()?.stamp) {
+        if (state.fx.lastOrNull()?.kind == FxKind.KOT) haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
+    }
 
     LaunchedEffect(state.error) {
         if (state.error != null) {
@@ -136,7 +163,7 @@ fun HokmScreen(
             val handCardW = if (compact) 58.dp else 68.dp
             val tableCardW = if (compact) 60.dp else 72.dp
 
-            FeltBackground()
+            TableBackground()
 
             // ---- top: score bar, feed, and the seat(s) facing me
             val topSeat = when (state.playerCount) { 4 -> 2; 2 -> 1; else -> null }
@@ -147,7 +174,7 @@ fun HokmScreen(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                ScoreBar(state = state, onExit = { confirmExit = true })
+                ScoreBar(state = state, onExit = { confirmExit = true }, onSheet = { showSheet = true })
                 Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
                     val line = state.feed.lastOrNull()
                     if (line != null && state.banner == null && state.introShown == null) FeedChip(line)
@@ -222,7 +249,7 @@ fun HokmScreen(
                     selected = state.selectedForDiscard,
                     cardWidth = handCardW,
                     onTap = { card ->
-                        haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         if (state.iDiscard) onToggleDiscard(card) else onPlayCard(card)
                     },
                 )
@@ -265,7 +292,30 @@ fun HokmScreen(
             }
             if (state.dealing) DealingOverlay(Modifier.align(Alignment.Center))
 
+            FxOverlay(state, tableCardWidth = tableCardW, modifier = Modifier.fillMaxSize())
+
             BannerOverlay(state.banner, Modifier.align(Alignment.Center).offset(y = (-40).dp))
+
+            // ---- turn timer (rooms only) + last-trick peek, stacked above my hand on the left
+            Column(
+                Modifier.align(Alignment.BottomStart).padding(start = 10.dp, bottom = 150.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+                horizontalAlignment = Alignment.CenterHorizontally,
+            ) {
+                if (state.turnDeadlineMs > 0L && state.turnSeconds > 0 && !state.finished) {
+                    TurnTimer(state, haptics = haptics, onSound = onUiSound)
+                }
+                if (state.lastTrick.isNotEmpty() && state.handPhase == HandPhase.PLAYING) {
+                    RoundIconButton(text = "↶", onClick = { showLastTrick = true })
+                }
+            }
+
+            if (showLastTrick) {
+                LastTrickOverlay(state, tableCardW, onDismiss = { showLastTrick = false }, modifier = Modifier.fillMaxSize())
+            }
+            if (showSheet) {
+                ScoreSheetOverlay(state, onDismiss = { showSheet = false }, modifier = Modifier.fillMaxSize())
+            }
 
             state.error?.let { ErrorChip(it, Modifier.align(Alignment.BottomCenter).padding(bottom = 180.dp)) }
 
@@ -287,6 +337,31 @@ fun HokmScreen(
 
 // --------------------------------------------------------------------------------------- felt
 
+/** Photographic baize + walnut rim, with a soft vignette and the brass medallion painted on top. */
+@Composable
+private fun TableBackground() {
+    Image(
+        painter = painterResource(R.drawable.hokm_table),
+        contentDescription = null,
+        contentScale = ContentScale.Crop,
+        modifier = Modifier.fillMaxSize(),
+    )
+    Canvas(Modifier.fillMaxSize()) {
+        drawRect(
+            Brush.radialGradient(
+                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)),
+                center = Offset(size.width / 2f, size.height * 0.45f),
+                radius = size.height * 0.75f,
+            ),
+        )
+        val c = Offset(size.width / 2f, size.height * 0.45f)
+        drawCircle(Table.brass.copy(alpha = 0.14f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
+        drawCircle(Table.brass.copy(alpha = 0.09f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
+    }
+}
+
+/** Vector fallback of the table (not used by default). */
+@Suppress("unused")
 @Composable
 private fun FeltBackground() {
     Canvas(Modifier.fillMaxSize()) {
@@ -556,13 +631,14 @@ private fun HandFan(
 // --------------------------------------------------------------------------------------- score bar
 
 @Composable
-private fun ScoreBar(state: HokmUiState, onExit: () -> Unit, modifier: Modifier = Modifier) {
+private fun ScoreBar(state: HokmUiState, onExit: () -> Unit, onSheet: () -> Unit = {}, modifier: Modifier = Modifier) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
             modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
                 .background(Table.chip)
+                .clickable(onClick = onSheet)
                 .padding(horizontal = 10.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -979,4 +1055,311 @@ private fun StickerTray(onPick: (Sticker) -> Unit, onDismiss: () -> Unit, modifi
             }
         }
     }
+}
+
+
+// --------------------------------------------------------------------------------------- effects
+
+/** Particle bursts: gold sparks on a cut, a sparkle on each trick, a big burst on kot, confetti on a win. */
+@Composable
+private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier = Modifier) {
+    if (state.fx.isEmpty()) return
+    BoxWithConstraints(modifier) {
+        val cw = maxWidth
+        val ch = maxHeight
+        fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
+            2 -> if (seat == 0) 0f to 1f else 0f to -1f
+            3 -> when (seat) { 0 -> 0f to 1f; 1 -> 0.8f to -0.7f; else -> -0.8f to -0.7f }
+            else -> when (seat) { 0 -> 0f to 1f; 1 -> 1f to 0f; 2 -> 0f to -1f; else -> -1f to 0f }
+        }
+        state.fx.forEach { fx ->
+            key(fx.stamp) {
+                val centre = if (fx.seat < 0) 0.5f to 0.45f else {
+                    val d = dir(fx.seat)
+                    (0.5f + 0.26f * d.first) to (0.45f + 0.18f * d.second)
+                }
+                when (fx.kind) {
+                    FxKind.CUT -> Burst(
+                        cx = cw * centre.first, cy = ch * centre.second,
+                        count = 18, radius = tableCardWidth * 1.6f, durationMs = 900,
+                        colors = listOf(Color(0xFFFFE082), Color(0xFFFFC107), Color.White),
+                        label = "بُرید!",
+                    )
+                    FxKind.TRICK_WIN -> Burst(
+                        cx = cw * centre.first, cy = ch * centre.second,
+                        count = 8, radius = tableCardWidth, durationMs = 700,
+                        colors = listOf(Color.White.copy(alpha = 0.9f), Table.brass),
+                    )
+                    FxKind.KOT -> Burst(
+                        cx = cw * 0.5f, cy = ch * 0.45f,
+                        count = 48, radius = cw * 0.55f, durationMs = 2200,
+                        colors = listOf(Color(0xFFFF7043), Color(0xFFFFD54F), Color(0xFFEF5350), Color.White),
+                    )
+                    FxKind.CONFETTI -> Confetti(cw, ch, durationMs = 3800)
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun Burst(
+    cx: Dp,
+    cy: Dp,
+    count: Int,
+    radius: Dp,
+    durationMs: Int,
+    colors: List<Color>,
+    label: String? = null,
+) {
+    val t = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { t.animateTo(1f, tween(durationMs, easing = FastOutSlowInEasing)) }
+    val seeds = remember { List(count) { i -> Triple(i * (360f / count) + Random.nextFloat() * 12f, 0.6f + Random.nextFloat() * 0.4f, colors[i % colors.size]) } }
+    Canvas(Modifier.fillMaxSize()) {
+        val p = t.value
+        val c = Offset(cx.toPx(), cy.toPx())
+        val r = radius.toPx()
+        seeds.forEach { (deg, speed, color) ->
+            val rad = Math.toRadians(deg.toDouble())
+            val dist = r * speed * p
+            val pos = Offset(c.x + (cos(rad) * dist).toFloat(), c.y + (sin(rad) * dist).toFloat() + p * p * r * 0.25f)
+            val size = (6f - 5f * p).coerceAtLeast(0.5f).dp.toPx()
+            drawCircle(color.copy(alpha = (1f - p).coerceIn(0f, 1f)), size, pos)
+        }
+        // central flash
+        if (p < 0.35f) drawCircle(Color.White.copy(alpha = (0.35f - p) * 1.5f), r * 0.35f * (0.5f + p), c)
+    }
+    if (label != null) {
+        val scale = 0.6f + 0.6f * t.value
+        Box(
+            Modifier
+                .offset(x = cx - 30.dp, y = cy - 14.dp)
+                .graphicsLayer { scaleX = scale; scaleY = scale; alpha = (1f - t.value * 1.1f).coerceIn(0f, 1f) },
+        ) {
+            Text(label, color = Color(0xFFFFE082), fontWeight = FontWeight.Black, fontSize = 20.sp)
+        }
+    }
+}
+
+@Composable
+private fun Confetti(w: Dp, h: Dp, durationMs: Int) {
+    val t = remember { Animatable(0f) }
+    LaunchedEffect(Unit) { t.animateTo(1f, tween(durationMs, easing = LinearEasing)) }
+    val palette = listOf(Color(0xFFEF5350), Color(0xFF42A5F5), Color(0xFFFFD54F), Color(0xFF66BB6A), Color(0xFFAB47BC), Color.White)
+    val bits = remember {
+        List(90) {
+            floatArrayOf(Random.nextFloat(), Random.nextFloat() * -0.6f, 0.5f + Random.nextFloat(), Random.nextFloat() * 360f, (Random.nextFloat() - 0.5f) * 0.2f, it.toFloat())
+        }
+    }
+    Canvas(Modifier.fillMaxSize()) {
+        val p = t.value
+        val W = w.toPx()
+        val H = h.toPx()
+        bits.forEach { b ->
+            val y = (b[1] + p * b[2] * 1.4f) * H
+            if (y < -20f || y > H + 20f) return@forEach
+            val x = (b[0] + sin(p * 6f + b[5]) * 0.03f + b[4] * p) * W
+            val rot = b[3] + p * 720f * (b[2] - 0.5f)
+            val color = palette[b[5].toInt() % palette.size].copy(alpha = (1f - (p - 0.8f) * 5f).coerceIn(0f, 1f))
+            androidx.compose.ui.graphics.drawscope.withTransform({ rotate(rot, Offset(x, y)) }) {
+                drawRect(color, topLeft = Offset(x - 4.dp.toPx(), y - 2.5.dp.toPx()), size = androidx.compose.ui.geometry.Size(8.dp.toPx(), 5.dp.toPx()))
+            }
+        }
+    }
+}
+
+// --------------------------------------------------------------------------------------- timer
+
+/**
+ * Countdown ring for rooms with a move limit. Counts the *host's* deadline (already translated to
+ * this device's clock by the session layer). Ticks in the last five seconds, warns at two.
+ */
+@Composable
+private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfeedback.HapticFeedback?, onSound: (String) -> Unit) {
+    var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(state.turnDeadlineMs) {
+        while (true) {
+            now = System.currentTimeMillis()
+            delay(100)
+        }
+    }
+    val total = state.turnSeconds * 1000f
+    val left = (state.turnDeadlineMs - now).coerceIn(0L, total.toLong())
+    val frac = if (total <= 0f) 0f else left / total
+    val secs = ((left + 999) / 1000).toInt()
+    val mine = state.isMyTurn
+    LaunchedEffect(secs, state.turnDeadlineMs, mine) {
+        if (!mine) return@LaunchedEffect
+        when {
+            secs in 1..2 -> { onSound("timer_warn"); haptics?.performHapticFeedback(HapticFeedbackType.LongPress) }
+            secs in 3..5 -> onSound("timer_tick")
+        }
+    }
+    val color = when {
+        !mine -> Color.White.copy(alpha = 0.55f)
+        secs <= 5 -> Color(0xFFEF5350)
+        secs <= 10 -> Color(0xFFFFB300)
+        else -> Table.turnGlow
+    }
+    Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val stroke = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+            drawCircle(Color.Black.copy(alpha = 0.45f))
+            drawArc(Color.White.copy(alpha = 0.15f), -90f, 360f, useCenter = false, style = stroke)
+            drawArc(color, -90f, 360f * frac, useCenter = false, style = stroke)
+        }
+        Text(secs.toFa(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+    }
+}
+
+@Composable
+private fun RoundIconButton(text: String, onClick: () -> Unit) {
+    Box(
+        Modifier
+            .size(40.dp)
+            .clip(CircleShape)
+            .background(Table.chip)
+            .border(1.dp, Table.brass.copy(alpha = 0.6f), CircleShape)
+            .clickable(onClick = onClick),
+        contentAlignment = Alignment.Center,
+    ) {
+        Text(text, color = Table.brass, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+    }
+}
+
+// --------------------------------------------------------------------------------------- overlays
+
+/** The previous trick, laid out exactly like the table, with the winner highlighted. */
+@Composable
+private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    Box(
+        modifier
+            .background(Color.Black.copy(alpha = 0.72f))
+            .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Text("دستِ قبلی", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+            state.lastTrickWinner?.let { w ->
+                val name = if (w == state.mySeat) "شما" else state.seats.getOrNull(w)?.name ?: ""
+                Text("برنده: $name", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
+            }
+            Spacer(Modifier.height(12.dp))
+            Box(Modifier.size(cardWidth * 4.2f, cardWidth * 4.6f), contentAlignment = Alignment.Center) {
+                fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
+                    2 -> if (seat == 0) 0f to 1f else 0f to -1f
+                    3 -> when (seat) { 0 -> 0f to 1f; 1 -> 0.8f to -0.7f; else -> -0.8f to -0.7f }
+                    else -> when (seat) { 0 -> 0f to 1f; 1 -> 1f to 0f; 2 -> 0f to -1f; else -> -1f to 0f }
+                }
+                state.lastTrick.forEach { play ->
+                    val d = dir(play.seat)
+                    val win = play.seat == state.lastTrickWinner
+                    Box(
+                        Modifier
+                            .offset(x = cardWidth * 1.3f * d.first, y = cardWidth * 1.45f * d.second)
+                            .then(if (win) Modifier.border(3.dp, Table.turnGlow, RoundedCornerShape(cardWidth * 0.09f)) else Modifier),
+                    ) {
+                        PlayingCardView(play.card, width = cardWidth, elevation = if (win) 10.dp else 4.dp)
+                    }
+                }
+            }
+            Spacer(Modifier.height(8.dp))
+            Text("برای بستن ضربه بزنید", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+        }
+    }
+}
+
+/** The score sheet: one row per finished hand. */
+@Composable
+private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+        Box(
+            modifier
+                .background(Color.Black.copy(alpha = 0.72f))
+                .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null, onClick = onDismiss),
+            contentAlignment = Alignment.Center,
+        ) {
+            Column(
+                Modifier
+                    .fillMaxWidth(0.88f)
+                    .clip(RoundedCornerShape(22.dp))
+                    .background(Color(0xFF102A1A))
+                    .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .padding(16.dp),
+            ) {
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Text("برگهٔ امتیاز", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
+                    if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                }
+                Spacer(Modifier.height(6.dp))
+                Text(
+                    "هدف: ${state.targetPoints.toFa()} امتیاز",
+                    color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp,
+                )
+                Spacer(Modifier.height(10.dp))
+                if (state.handHistory.isEmpty()) {
+                    Text("هنوز دستی تمام نشده.", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                } else {
+                    Row(Modifier.fillMaxWidth()) {
+                        SheetCell("دست", Modifier.weight(0.7f), header = true)
+                        SheetCell("حاکم", Modifier.weight(1.3f), header = true)
+                        SheetCell("حکم", Modifier.weight(0.7f), header = true)
+                        SheetCell("نتیجه", Modifier.weight(1.5f), header = true)
+                        SheetCell("امتیاز", Modifier.weight(0.8f), header = true)
+                    }
+                    Column(Modifier.heightIn(max = 300.dp).verticalScroll(rememberScrollState())) {
+                        state.handHistory.forEachIndexed { i, hnd ->
+                            val mine = hnd.winnerTeam == state.myTeam
+                            val hakemName = if (hnd.hakem == state.mySeat) "شما" else state.seats.getOrNull(hnd.hakem)?.name ?: ""
+                            val kind = when (hnd.kind) {
+                                ir.dorehami.games.hokm.HandWinKind.KOT -> "کُت"
+                                ir.dorehami.games.hokm.HandWinKind.HAKEM_KOT -> "حاکم‌کُت"
+                                ir.dorehami.games.hokm.HandWinKind.VOID -> "بی‌نتیجه"
+                                else -> hnd.tricks.joinToString(" – ") { it.toFa() }
+                            }
+                            Row(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .background(if (i % 2 == 0) Color.White.copy(alpha = 0.04f) else Color.Transparent)
+                                    .padding(vertical = 2.dp),
+                                verticalAlignment = Alignment.CenterVertically,
+                            ) {
+                                SheetCell((i + 1).toFa(), Modifier.weight(0.7f))
+                                SheetCell(hakemName, Modifier.weight(1.3f))
+                                Box(Modifier.weight(0.7f), contentAlignment = Alignment.Center) {
+                                    hnd.hokm?.let { SuitIcon(it, 16.dp, onDark = true) }
+                                }
+                                SheetCell(kind, Modifier.weight(1.5f), color = if (mine) Table.ours else Table.theirs)
+                                SheetCell("+" + hnd.points.toFa(), Modifier.weight(0.8f), color = if (mine) Table.ours else Table.theirs)
+                            }
+                        }
+                    }
+                }
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceEvenly) {
+                    if (state.isTeamGame) {
+                        Text("ما ${state.scores.getOrElse(state.myTeam) { 0 }.toFa()}", color = Table.ours, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                        Text("حریف ${state.scores.getOrElse(1 - state.myTeam) { 0 }.toFa()}", color = Table.theirs, fontWeight = FontWeight.Black, fontSize = 20.sp)
+                    } else {
+                        (0 until state.playerCount).forEach { seat ->
+                            val n = if (seat == state.mySeat) "شما" else state.seats.getOrNull(seat)?.name?.take(6) ?: ""
+                            Text("$n ${state.scores.getOrElse(seat) { 0 }.toFa()}", color = if (seat == state.mySeat) Table.ours else Table.theirs, fontWeight = FontWeight.Black, fontSize = 16.sp)
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun SheetCell(text: String, modifier: Modifier, header: Boolean = false, color: Color = Color.White) {
+    Text(
+        text,
+        modifier = modifier,
+        textAlign = TextAlign.Center,
+        color = if (header) Table.brass else color,
+        fontSize = if (header) 11.sp else 13.sp,
+        fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
+    )
 }

@@ -41,6 +41,7 @@ data class HandSummary(
     val kind: HandWinKind,
     val hakem: Int,
     val tricks: List<Int>,
+    val hokm: Suit? = null,
 )
 
 /** A sticker shown in a bubble over a seat. */
@@ -71,6 +72,20 @@ data class SeatSticker(val seat: Int, val sticker: Sticker, val stamp: Long)
 
 /** Something transient to say on the table (feed line / banner). */
 data class Banner(val title: String, val subtitle: String? = null, val big: Boolean = false)
+
+/** One-shot visual effects the screen renders on top of the table. */
+enum class FxKind {
+    /** A trump was thrown on a non-trump lead ("بریدن"): golden flash + sparks at that seat's slot. */
+    CUT,
+    /** Trick swept: a small sparkle at the winner. */
+    TRICK_WIN,
+    /** Kot / hakem kot: a big burst in the middle. */
+    KOT,
+    /** Match won by my side: confetti. */
+    CONFETTI,
+}
+
+data class TableFx(val kind: FxKind, val seat: Int, val stamp: Long)
 
 /**
  * Everything the screen draws. Built **only** from the human player's `privateView()` plus the
@@ -115,6 +130,16 @@ data class HokmUiState(
     val finished: Boolean = false,
     val winnerTeam: Int? = null,
     val feed: List<String> = emptyList(),
+    val fx: List<TableFx> = emptyList(),
+    /** Every finished hand so far (score sheet). */
+    val handHistory: List<HandSummary> = emptyList(),
+    val lastTrick: List<Play> = emptyList(),
+    val lastTrickWinner: Int? = null,
+    /** Wall-clock deadline for the current human move in rooms (0 = no timer). */
+    val turnDeadlineMs: Long = 0L,
+    val turnSeconds: Int = 0,
+    /** Short label of the game mode shown in the score bar ("ربات", "بلوتوث", "آنلاین"). */
+    val modeLabel: String = "",
 ) {
     val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
     fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
@@ -178,7 +203,18 @@ abstract class HokmTable(
 
     protected val _state = mutableStateOf(HokmUiState(seats = seats, playerCount = playerCount, mySeat = mySeat))
     private var stickerStamp = 0L
+    private var fxStamp = 0L
+    private var cutPending = false
     val state: State<HokmUiState> get() = _state
+
+    protected fun pushFx(kind: FxKind, seat: Int, ttlMs: Long = 1400) {
+        val stamp = ++fxStamp
+        _state.value = _state.value.copy(fx = _state.value.fx + TableFx(kind, seat, stamp))
+        scope.launch {
+            delay(ttlMs)
+            _state.value = _state.value.copy(fx = _state.value.fx.filter { it.stamp != stamp })
+        }
+    }
 
     protected val wake = Channel<Unit>(Channel.CONFLATED)
     protected var pendingPauseMs = 0L
@@ -341,7 +377,9 @@ abstract class HokmTable(
                 pendingCollect?.let { winner ->
                     pendingCollect = null
                     _state.value = _state.value.copy(collectingTo = winner)
+                    onSound("whoosh")
                     onSound(if (HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)) "trick_won" else "trick_lost")
+                    pushFx(FxKind.TRICK_WIN, winner, 900)
                     delay(COLLECT_MS)
                     _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
                     refresh()
@@ -409,7 +447,10 @@ abstract class HokmTable(
         for (e in emissions) {
             when (e) {
                 is Emission.Sound -> when (e.name) {
-                    "card_played" -> onSound("card_play")
+                    "card_played" -> {
+                        onSound(if (cutPending) "card_cut" else "card_play")
+                        cutPending = false
+                    }
                     "hokm_chosen" -> onSound("hokm_chosen")
                     "trick_won" -> Unit // voiced when the collect animation starts
                     "shuffle" -> Unit // voiced when the deal animation starts
@@ -422,6 +463,13 @@ abstract class HokmTable(
                         val seat = e.payload["seat"]!!.jsonPrimitive.int
                         val card = Card.parse(e.payload["card"]!!.jsonPrimitive.content)!!
                         val cur = _state.value
+                        val lead = cur.tableCards.firstOrNull()?.card?.suit
+                        val hokm = cur.hokm
+                        if (lead != null && hokm != null && card.suit == hokm && lead != hokm) {
+                            cutPending = true
+                            pushFx(FxKind.CUT, seat)
+                            feed += "${seats[seat].name} با حکم برید!"
+                        }
                         _state.value = cur.copy(
                             tableCards = cur.tableCards + Play(seat, card),
                             myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
@@ -452,6 +500,10 @@ abstract class HokmTable(
                         }
                         val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
                         pendingHandBanner = Banner(title, subtitle, big = true)
+                        _state.value = _state.value.copy(handHistory = _state.value.handHistory + summary)
+                        if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
+                            scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
+                        }
                         val sound = when (summary.kind) {
                             HandWinKind.NORMAL, HandWinKind.VOID -> if (mine) "hand_won" else "hand_lost"
                             else -> if (mine) "kot" else "hand_lost"
@@ -482,7 +534,11 @@ abstract class HokmTable(
                     "game_finished" -> {
                         val winner = e.payload["winnerTeam"]!!.jsonPrimitive.int
                         val mine = winner == HokmRules.teamOf(mySeat, playerCount)
-                        scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS + 600); onSound(if (mine) "game_won" else "game_lost") }
+                        scope.launch {
+                            delay(TRICK_SHOW_MS + COLLECT_MS + 600)
+                            onSound(if (mine) "game_won" else "game_lost")
+                            if (mine) pushFx(FxKind.CONFETTI, -1, 4000)
+                        }
                     }
 
                     "hokm_chosen" -> {
@@ -549,6 +605,11 @@ abstract class HokmTable(
                 Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
             },
             lastHand = v["lastHandResult"]?.let { parseHand(it.jsonObject) },
+            lastTrick = (v["lastTrick"] as? JsonObject)?.get("cards")?.jsonArray?.map { p ->
+                val o = p.jsonObject
+                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
+            } ?: emptyList(),
+            lastTrickWinner = (v["lastTrick"] as? JsonObject)?.get("winner")?.jsonPrimitive?.int,
             finished = finished,
             winnerTeam = if (finished) scores.indexOf(scores.max()) else null,
             selectedForDiscard = if (v["handPhase"]!!.jsonPrimitive.content == HandPhase.DISCARDING.id) old.selectedForDiscard else emptySet(),
@@ -562,5 +623,6 @@ abstract class HokmTable(
         kind = HandWinKind.entries.first { it.id == o["kind"]!!.jsonPrimitive.content },
         hakem = o["hakem"]!!.jsonPrimitive.int,
         tricks = o["tricks"]!!.jsonArray.map { it.jsonPrimitive.int },
+        hokm = o["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
     )
 }

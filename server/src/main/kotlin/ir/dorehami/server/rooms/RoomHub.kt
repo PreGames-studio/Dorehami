@@ -50,6 +50,8 @@ class RoomHub(
     private val botDelayMs: Long = 900,
     /** Finished/abandoned rooms are reaped after this. */
     private val roomTtlMs: Long = 30 * 60 * 1000L,
+    /** Online rooms: seconds per human move before the bot steps in. */
+    private val turnSeconds: Int = 30,
 ) {
     private val rooms = ConcurrentHashMap<String, ServerRoom>()
 
@@ -75,6 +77,7 @@ class RoomHub(
             clock = { nowMs() }, rngFactory = { SplitMixRng(it) },
             partySize = size, botDelayMs = botDelayMs,
             onFinished = { record -> store.save(code, record) },
+            turnMillis = turnSeconds * 1000L,
         )
         controller.open()
         val room = ServerRoom(code, name, module, size, opts, seed, nowMs(), transport, controller)

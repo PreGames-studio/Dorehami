@@ -61,6 +61,22 @@ object HokmBot {
         return inSuit >= 4 && shown.rank.value >= Rank.NINE.value
     }
 
+    /**
+     * Beginner-friendly bot: follows the rules but plays naively — lowest legal card unless it is
+     * already winning cheaply. Deterministic like the pro bot (no RNG).
+     */
+    fun playCardEasy(view: BotView): Card {
+        val legal = HokmRules.legalCards(view.hand, view.trick)
+        require(legal.isNotEmpty()) { "bot has no cards" }
+        val hokm = requireNotNull(view.hokm)
+        if (view.trick.isEmpty()) return legal.maxByOrNull { if (it.suit == hokm) it.rank.value - 20 else it.rank.value } ?: legal.first()
+        // Follow: take the trick with the cheapest winner if one exists, otherwise dump the lowest.
+        val winners = legal.filter { c -> HokmRules.trickWinner(view.trick + Play(view.seat, c), hokm, view.players) == view.seat }
+        return winners.minByOrNull { if (it.suit == hokm) it.rank.value + 20 else it.rank.value }
+            ?: legal.minByOrNull { if (it.suit == hokm) it.rank.value + 20 else it.rank.value }
+            ?: legal.first()
+    }
+
     fun playCard(view: BotView): Card {
         val hokm = requireNotNull(view.hokm) { "hokm must be chosen before playing" }
         val legal = HokmRules.legalCards(view.hand, view.trick)

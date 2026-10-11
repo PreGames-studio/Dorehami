@@ -35,14 +35,33 @@ import kotlin.test.assertTrue
  */
 class SessionLoopbackTest {
 
-    private fun host(scope: CoroutineScope, hub: FakeHub, party: Int, seed: Long = 7L): HostController {
+    private fun host(scope: CoroutineScope, hub: FakeHub, party: Int, seed: Long = 7L, turnMillis: Long = 0L): HostController {
         val t = hub.connect("peer_host")
         return HostController(
             module = HokmModule, transport = t, scope = scope, roomCode = "4QP6R", roomName = "اتاق تست",
             hostPlayer = PlayerInfo(PlayerId("p_host"), "میزبان"),
             seed = seed, clock = ManualClock(0), rngFactory = { SplitMixRng(it) },
-            partySize = party, botDelayMs = 0,
+            partySize = party, botDelayMs = 0, turnMillis = turnMillis,
         ).also { it.open() }
+    }
+
+    @Test
+    fun `turn timer - idle humans are played by the bot so the room never stalls`() = runBlocking {
+        val scope = CoroutineScope(Dispatchers.Default + Job())
+        try {
+            val hub = FakeHub()
+            val h = host(scope, hub, party = 4, turnMillis = 60)
+            val g = guest(scope, hub, "p_a")
+            val feeds = ArrayList<SessionEvent.Feed>()
+            scope.launch { g.events.collect { if (it is SessionEvent.Feed) feeds += it } }
+            settle()
+            g.join(); settle()
+            assertTrue(h.startMatch()); settle()
+            assertTrue(h.state.value.deadlineMs > 0 || g.state.value.deadlineMs > 0, "a deadline is published while a human must move")
+            // Nobody touches the phone: the whole match must still finish.
+            awaitUntil("finished without any human move", timeoutMs = 120_000) { g.state.value.result != null }
+            assertTrue(feeds.any { it.key == "turn_timeout" }, "timeouts are announced in the feed")
+        } finally { scope.cancel() }
     }
 
     private fun guest(scope: CoroutineScope, hub: FakeHub, id: String, peer: String = "peer_$id"): GuestController =

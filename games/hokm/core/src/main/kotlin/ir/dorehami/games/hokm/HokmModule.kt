@@ -39,6 +39,9 @@ object HokmModule : GameModule {
     const val PAYLOAD_CARD = "card"
     const val PAYLOAD_CARDS = "cards"
 
+    const val BOT_PRO = "pro"
+    const val BOT_EASY = "easy"
+
     const val DEFAULT_TARGET_POINTS = 7
     const val DEFAULT_KOT_POINTS = 2
     const val DEFAULT_HAKEM_KOT_POINTS = 3
@@ -68,6 +71,7 @@ object HokmModule : GameModule {
             put(HokmSession.Options.TARGET_POINTS, DEFAULT_TARGET_POINTS)
             put(HokmSession.Options.KOT_POINTS, DEFAULT_KOT_POINTS)
             put(HokmSession.Options.HAKEM_KOT_POINTS, DEFAULT_HAKEM_KOT_POINTS)
+            put(HokmSession.Options.BOT_LEVEL, BOT_PRO)
         },
     )
 
@@ -82,10 +86,13 @@ object HokmModule : GameModule {
         if (hakemKot !in kot..4) {
             throw GameConfigException(ErrCodes.BAD_OPTIONS, "امتیاز حاکم‌کُت باید حداقل برابر کُت و حداکثر ۴ باشد")
         }
+        val level = (options[HokmSession.Options.BOT_LEVEL] as? kotlinx.serialization.json.JsonPrimitive)?.content ?: BOT_PRO
+        if (level != BOT_PRO && level != BOT_EASY) throw GameConfigException(ErrCodes.BAD_OPTIONS, "سطح ربات باید pro یا easy باشد")
         return buildJsonObject {
             put(HokmSession.Options.TARGET_POINTS, target)
             put(HokmSession.Options.KOT_POINTS, kot)
             put(HokmSession.Options.HAKEM_KOT_POINTS, hakemKot)
+            put(HokmSession.Options.BOT_LEVEL, level)
         }
     }
 
