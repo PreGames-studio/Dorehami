@@ -27,7 +27,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/** One game-picker entry. `module` identifies its existing or planned Gradle module. */
+/**
+ * One game-picker entry. `module` identifies its existing or planned Gradle module and is also
+ * the routing key, so adding a game never changes the buttons of another one.
+ */
 private data class GameEntry(
     val title: String,
     val emoji: String,
@@ -38,7 +41,7 @@ private data class GameEntry(
 
 private val games = listOf(
     GameEntry("حکم", "🎴", "بازی ورق چهارنفره", "games/hokm"),
-    GameEntry("شطرنج", "♟️", "بازی فکری دونفره", "games/chess"),
+    GameEntry("شطرنج", "♟️", "میز سه‌بعدی، حریف ربات", "games/chess", implemented = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", implemented = true),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban"),
 )
@@ -46,7 +49,11 @@ private val games = listOf(
 /** The «enter games» screen: four big buttons, one per game. */
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun GamesScreen(onBack: () -> Unit, onPantomime: () -> Unit) {
+fun GamesScreen(
+    onBack: () -> Unit,
+    onOpenChess: () -> Unit = {},
+    onPantomime: () -> Unit = {},
+) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
 
@@ -69,7 +76,7 @@ fun GamesScreen(onBack: () -> Unit, onPantomime: () -> Unit) {
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "یک بازی را انتخاب کن. پانتومیم به‌صورت آفلاین قابل بازی است.",
+                text = "یک بازی را انتخاب کن. پانتومیم و شطرنج به‌صورت آفلاین قابل بازی هستند.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -90,14 +97,15 @@ fun GamesScreen(onBack: () -> Unit, onPantomime: () -> Unit) {
                                 .weight(1f)
                                 .fillMaxHeight(),
                             onClick = {
-                                if (game.implemented) {
-                                    onPantomime()
-                                } else {
-                                    Toast.makeText(
+                                when {
+                                    !game.implemented -> Toast.makeText(
                                         context,
                                         "بازی «${game.title}» هنوز آماده نشده است (${game.module})",
                                         Toast.LENGTH_SHORT,
                                     ).show()
+
+                                    game.module == "games/chess" -> onOpenChess()
+                                    game.module == "games/pantohub" -> onPantomime()
                                 }
                             },
                         )

@@ -1,3 +1,4 @@
+// :core:uikit — shared Compose pieces (Persian digits, sound player, page shells). No game logic, no state.
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.compose.compiler)
