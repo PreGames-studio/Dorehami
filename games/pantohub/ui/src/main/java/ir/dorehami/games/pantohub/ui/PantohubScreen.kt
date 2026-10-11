@@ -39,7 +39,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class PantoPage { HOME, SETUP, GAME, HISTORY, BANK, SETTINGS }
+private enum class PantoPage { MODE, HOME, SETUP, GAME, HISTORY, BANK, SETTINGS, SOLO }
 
 /** Native, offline-first pantomime area attached to the existing Android game picker. */
 @Composable
@@ -55,8 +55,8 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
     val repository = remember { PantohubRepository(context) }
     DisposableEffect(repository) { onDispose { repository.close() } }
     val scope = rememberCoroutineScope()
-    var page by remember { mutableStateOf(PantoPage.HOME) }
-    var returnPage by remember { mutableStateOf(PantoPage.HOME) }
+    var page by remember { mutableStateOf(PantoPage.MODE) }
+    var returnPage by remember { mutableStateOf(PantoPage.MODE) }
     var activeGame by remember { mutableStateOf<GameState?>(null) }
     var bankSummary by remember { mutableStateOf<WordBankSummary?>(null) }
     var loading by remember { mutableStateOf(true) }
@@ -83,11 +83,11 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
         page = destination
     }
 
-    BackHandler(enabled = page != PantoPage.HOME) {
-        page = if (page == PantoPage.BANK || page == PantoPage.HISTORY || page == PantoPage.SETTINGS) {
-            returnPage
-        } else {
-            PantoPage.HOME
+    BackHandler(enabled = page != PantoPage.MODE) {
+        page = when (page) {
+            PantoPage.BANK, PantoPage.HISTORY, PantoPage.SETTINGS -> returnPage
+            PantoPage.HOME, PantoPage.SOLO -> PantoPage.MODE
+            else -> PantoPage.HOME
         }
     }
 
@@ -118,8 +118,16 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
     }
 
     when (page) {
-        PantoPage.HOME -> PantohubHome(
+        PantoPage.MODE -> PantohubModeScreen(
             onBack = onBack,
+            onGroup = { page = PantoPage.HOME },
+            onSolo = { page = PantoPage.SOLO },
+        )
+
+        PantoPage.SOLO -> PantohubSoloScreen(onBack = { page = PantoPage.MODE })
+
+        PantoPage.HOME -> PantohubHome(
+            onBack = { page = PantoPage.MODE },
             loading = loading,
             activeGame = activeGame,
             bankSummary = bankSummary,
@@ -196,7 +204,7 @@ private fun PantohubHome(
     onBank: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    PantohubPageFrame(title = "پانتومیم", onBack = onBack) {
+    PantohubPageFrame(title = "بازی گروهی", onBack = onBack, imageRes = R.drawable.pantohub_bg_party) {
         if (loading) {
             Text("در حال آماده‌سازی بازی و بانک محلی…", style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(12.dp))
@@ -271,6 +279,71 @@ private fun PantohubHome(
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             OutlinedButton(onClick = onHistory, modifier = Modifier.weight(1f)) { Text("تاریخچه و آمار") }
             OutlinedButton(onClick = onSettings, modifier = Modifier.weight(1f)) { Text("تنظیمات") }
+        }
+    }
+}
+
+@Composable
+private fun PantohubModeScreen(onBack: () -> Unit, onGroup: () -> Unit, onSolo: () -> Unit) {
+    PantohubPageFrame(title = "پانتومیم", onBack = onBack, imageRes = R.drawable.pantohub_bg_stage) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Text(
+                text = "بازی پانتومیم را چطور می‌خواهی اجرا کنی؟",
+                modifier = Modifier.padding(20.dp),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        ModeChoiceCard(
+            emoji = "👥",
+            title = "بازی گروهی",
+            description = "تیم بساز، واژه را فقط به اجراکننده نشان بده و امتیازها را روی همین گوشی ثبت کن.",
+            buttonLabel = "ورود به بازی گروهی",
+            onClick = onGroup,
+        )
+        ModeChoiceCard(
+            emoji = "🧑",
+            title = "بازی تک نفره",
+            description = "این حالت به‌زودی طراحی و فعال می‌شود.",
+            buttonLabel = "ورود به بازی تک نفره",
+            onClick = onSolo,
+        )
+    }
+}
+
+@Composable
+private fun ModeChoiceCard(
+    emoji: String,
+    title: String,
+    description: String,
+    buttonLabel: String,
+    onClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+        Column(Modifier.padding(20.dp)) {
+            Text("$emoji  $title", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(16.dp))
+            Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(56.dp)) {
+                Text(buttonLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+        }
+    }
+}
+
+@Composable
+private fun PantohubSoloScreen(onBack: () -> Unit) {
+    PantohubPageFrame(title = "بازی تک نفره", onBack = onBack, imageRes = R.drawable.pantohub_bg_stage) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Column(Modifier.padding(20.dp)) {
+                Text("🧑  بازی تک نفره", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "این بخش هنوز طراحی نشده است. بعداً با هم قوانین و صفحه‌های آن را طراحی و اضافه می‌کنیم.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
