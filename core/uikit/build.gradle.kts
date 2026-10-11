@@ -1,2 +1,36 @@
-// Placeholder for :core:uikit — shared Compose theme, RTL, common UI pieces
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+plugins {
+    alias(libs.plugins.android.library)
+    alias(libs.plugins.compose.compiler)
+}
+
+android {
+    namespace = "ir.dorehami.core.uikit"
+    compileSdk = providers.gradleProperty("dorehami.compileSdk").get().toInt()
+
+    defaultConfig {
+        minSdk = providers.gradleProperty("dorehami.minSdk").get().toInt()
+    }
+
+    buildFeatures {
+        compose = true
+    }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+}
+
+// AGP 9 has built-in Kotlin — use the Compose compiler plugin without kotlin-android.
+kotlin {
+    compilerOptions {
+        jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+    }
+}
+
+dependencies {
+    implementation(platform(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.foundation)
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.material3)
+}
