@@ -1,2 +1,20 @@
-// Placeholder for :games:pantohub:core — pantomime rules, bots
-// Fill this module per docs/ (ARCHITECTURE.md + GAME_CONTRACT.md / ADD_A_GAME.md).
+plugins {
+    alias(libs.plugins.kotlin.jvm)
+    alias(libs.plugins.kotlin.serialization)
+}
+
+kotlin {
+    jvmToolchain(17)
+}
+
+dependencies {
+    implementation(libs.kotlinx.serialization.json)
+
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.test {
+    useJUnitPlatform()
+}
