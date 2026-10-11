@@ -21,6 +21,9 @@ android {
 kotlin {
     compilerOptions {
         jvmTarget = org.jetbrains.kotlin.gradle.dsl.JvmTarget.JVM_17
+        // play-services-nearby ships .kotlin_module files built with a newer Kotlin metadata version
+        // than our compiler; we only use its Java API, so the version check is safe to skip here.
+        freeCompilerArgs.add("-Xskip-metadata-version-check")
     }
 }
 
