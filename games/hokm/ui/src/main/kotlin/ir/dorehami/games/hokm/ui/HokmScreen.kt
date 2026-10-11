@@ -72,6 +72,7 @@ import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.drawscope.rotate as drawScopeRotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -1161,7 +1162,7 @@ private fun Confetti(w: Dp, h: Dp, durationMs: Int) {
             val x = (b[0] + sin(p * 6f + b[5]) * 0.03f + b[4] * p) * W
             val rot = b[3] + p * 720f * (b[2] - 0.5f)
             val color = palette[b[5].toInt() % palette.size].copy(alpha = (1f - (p - 0.8f) * 5f).coerceIn(0f, 1f))
-            androidx.compose.ui.graphics.drawscope.withTransform({ rotate(rot, Offset(x, y)) }) {
+            drawScopeRotate(rot, Offset(x, y)) {
                 drawRect(color, topLeft = Offset(x - 4.dp.toPx(), y - 2.5.dp.toPx()), size = androidx.compose.ui.geometry.Size(8.dp.toPx(), 5.dp.toPx()))
             }
         }
