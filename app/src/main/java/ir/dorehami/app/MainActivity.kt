@@ -17,8 +17,9 @@ import ir.dorehami.app.ui.HomeScreen
 import ir.dorehami.app.ui.SettingsScreen
 import ir.dorehami.app.ui.theme.DorehamiTheme
 import ir.dorehami.games.chess.ui.ChessEntry
+import ir.dorehami.games.pantohub.ui.PantohubScreen
 
-/** Screens of the entry flow. The games themselves arrive later, one module per game. */
+/** Entry-flow destinations; individual games remain in their own Gradle modules. */
 sealed interface Screen {
     data object Home : Screen
     data object Games : Screen
@@ -26,6 +27,8 @@ sealed interface Screen {
 
     /** Chess table (3D board, `games/chess`). */
     data object Chess : Screen
+
+    data object Pantomime : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -56,9 +59,11 @@ private fun EntryApp() {
         Screen.Games -> GamesScreen(
             onBack = { screen = Screen.Home },
             onOpenChess = { screen = Screen.Chess },
+            onPantomime = { screen = Screen.Pantomime },
         )
 
         Screen.Chess -> ChessEntry(onExit = { screen = Screen.Games })
         Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home })
+        Screen.Pantomime -> PantohubScreen(onBack = { screen = Screen.Games })
     }
 }

@@ -27,19 +27,22 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 
-/** One entry of the game list. `module` is the future Gradle module of the game. */
+/**
+ * One game-picker entry. `module` identifies its existing or planned Gradle module and is also
+ * the routing key, so adding a game never changes the buttons of another one.
+ */
 private data class GameEntry(
     val title: String,
     val emoji: String,
     val subtitle: String,
     val module: String,
-    val ready: Boolean = false,
+    val implemented: Boolean = false,
 )
 
 private val games = listOf(
     GameEntry("حکم", "🎴", "بازی ورق چهارنفره", "games/hokm"),
-    GameEntry("شطرنج", "♟️", "میز سه‌بعدی، حریف ربات", "games/chess", ready = true),
-    GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub"),
+    GameEntry("شطرنج", "♟️", "میز سه‌بعدی، حریف ربات", "games/chess", implemented = true),
+    GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", implemented = true),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban"),
 )
 
@@ -49,6 +52,7 @@ private val games = listOf(
 fun GamesScreen(
     onBack: () -> Unit,
     onOpenChess: () -> Unit = {},
+    onPantomime: () -> Unit = {},
 ) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
@@ -72,7 +76,7 @@ fun GamesScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "یک بازی را انتخاب کن.",
+                text = "یک بازی را انتخاب کن. پانتومیم و شطرنج به‌صورت آفلاین قابل بازی هستند.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -94,12 +98,14 @@ fun GamesScreen(
                                 .fillMaxHeight(),
                             onClick = {
                                 when {
-                                    game.module == "games/chess" -> onOpenChess()
-                                    else -> Toast.makeText(
+                                    !game.implemented -> Toast.makeText(
                                         context,
-                                        "بازی «${game.title}» به‌زودی ساخته می‌شود (${game.module})",
+                                        "بازی «${game.title}» هنوز آماده نشده است (${game.module})",
                                         Toast.LENGTH_SHORT,
                                     ).show()
+
+                                    game.module == "games/chess" -> onOpenChess()
+                                    game.module == "games/pantohub" -> onPantomime()
                                 }
                             },
                         )
@@ -138,7 +144,7 @@ private fun GameButton(
             )
             Spacer(Modifier.height(8.dp))
             Text(
-                text = if (game.ready) "آماده" else "به‌زودی",
+                text = if (game.implemented) "شروع بازی" else "به‌زودی",
                 style = MaterialTheme.typography.labelSmall,
             )
         }
