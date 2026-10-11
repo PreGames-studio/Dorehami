@@ -41,6 +41,8 @@ kotlin {
 
 dependencies {
     // Games are independent modules; the app only wires them into navigation.
+    implementation(project(":core:uikit"))
+    implementation(project(":games:hokm:ui"))
     implementation(project(":games:chess:ui"))
     implementation(project(":games:pantohub:ui"))
 

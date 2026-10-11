@@ -119,7 +119,7 @@ jobs:
           {
             awk '/^\* Where:/{f=1} f' build.log 2>/dev/null | head -n 6
             grep -E "requires|Dependency '|issues were found" build.log 2>/dev/null | head -n 6
-            grep -E '(^e: |kt:[0-9]+:[0-9]+:|must be exhaustive|FAILED|expected:|but was:|tests completed)' build.log 2>/dev/null | tail -n 40
+            grep -E '(^e: |kt:[0-9]+:[0-9]+:|must be exhaustive|FAILED|expected:|but was:|tests completed)' build.log 2>/dev/null | head -n 12
             grep -E "Caused by:" build.log 2>/dev/null | head -n 2
           } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
           python3 - <<'PY'

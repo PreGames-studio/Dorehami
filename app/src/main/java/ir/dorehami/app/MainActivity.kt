@@ -17,6 +17,7 @@ import ir.dorehami.app.ui.HomeScreen
 import ir.dorehami.app.ui.SettingsScreen
 import ir.dorehami.app.ui.theme.DorehamiTheme
 import ir.dorehami.games.chess.ui.ChessEntry
+import ir.dorehami.games.hokm.ui.HokmEntry
 import ir.dorehami.games.pantohub.ui.PantohubScreen
 
 /** Entry-flow destinations; individual games remain in their own Gradle modules. */
@@ -24,6 +25,9 @@ sealed interface Screen {
     data object Home : Screen
     data object Games : Screen
     data object Settings : Screen
+
+    /** Hokm table (`games/hokm`): solo, Bluetooth, online. */
+    data object Hokm : Screen
 
     /** Chess table (3D board, `games/chess`). */
     data object Chess : Screen
@@ -58,10 +62,12 @@ private fun EntryApp() {
 
         Screen.Games -> GamesScreen(
             onBack = { screen = Screen.Home },
+            onOpenHokm = { screen = Screen.Hokm },
             onOpenChess = { screen = Screen.Chess },
             onPantomime = { screen = Screen.Pantomime },
         )
 
+        Screen.Hokm -> HokmEntry(onExit = { screen = Screen.Games })
         Screen.Chess -> ChessEntry(onExit = { screen = Screen.Games })
         Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home })
         Screen.Pantomime -> PantohubScreen(onBack = { screen = Screen.Games })

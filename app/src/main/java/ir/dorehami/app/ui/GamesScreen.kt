@@ -40,7 +40,7 @@ private data class GameEntry(
 )
 
 private val games = listOf(
-    GameEntry("حکم", "🎴", "بازی ورق چهارنفره", "games/hokm"),
+    GameEntry("حکم", "🎴", "۲/۳/۴ نفره، ربات، بلوتوث و آنلاین", "games/hokm", implemented = true),
     GameEntry("شطرنج", "♟️", "میز سه‌بعدی، حریف ربات", "games/chess", implemented = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", implemented = true),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban"),
@@ -51,6 +51,7 @@ private val games = listOf(
 @Composable
 fun GamesScreen(
     onBack: () -> Unit,
+    onOpenHokm: () -> Unit = {},
     onOpenChess: () -> Unit = {},
     onPantomime: () -> Unit = {},
 ) {
@@ -76,7 +77,7 @@ fun GamesScreen(
                 .padding(horizontal = 16.dp, vertical = 8.dp),
         ) {
             Text(
-                text = "یک بازی را انتخاب کن. پانتومیم و شطرنج به‌صورت آفلاین قابل بازی هستند.",
+                text = "یک بازی را انتخاب کن. حکم، شطرنج و پانتومیم آماده‌اند.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(horizontal = 4.dp),
@@ -104,6 +105,7 @@ fun GamesScreen(
                                         Toast.LENGTH_SHORT,
                                     ).show()
 
+                                    game.module == "games/hokm" -> onOpenHokm()
                                     game.module == "games/chess" -> onOpenChess()
                                     game.module == "games/pantohub" -> onPantomime()
                                 }

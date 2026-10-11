@@ -82,9 +82,10 @@
 // session.action
 { "type": "play_card", "payload": { "suit": "H", "rank": "7" } }
 
-// session.finished
+// session.finished  (record = فقط سرصفحه؛ لاگ کامل حرکت‌ها در پاکت ۱۶KB جا نمی‌شود و نزد مرجع/سرور می‌ماند)
 { "result": { "matchId": "m_9f8e7d", "ranking": [ { "player": "p_a1b2", "seat": 0, "rank": 1, "points": 7 } ],
-              "digest": "sha256:…" }, "record": { "schema": 1, "seed": 99123871, "actions": [ … ] } }
+              "digest": "sha256:…" },
+  "record": { "schema": 1, "seed": 99123871, "gameId": "hokm", "players": [ … ], "actionCount": 412, "digest": "…" } }
 ```
 
 ## ۴. فریم‌بندی روی بلوتوث
@@ -128,20 +129,25 @@ transport.peer_timeout | transport.closed | server.internal
    `proto.version` رد می‌کند (کاربر پیام «نسخهٔ برنامهٔ شما با میزبان هم‌خوان نیست» می‌بیند).
 4. کدهای خطا هرگز تغییر معنی نمی‌دهند؛ کد جدید اضافه می‌شود.
 
-## ۷. مسیرهای سرور (خلاصه)
+## ۷. مسیرهای سرور (خلاصه — پیاده‌شده در `server/Application.kt`)
 
 ```
-POST /v1/auth/guest              توکن مهمان (یا /v1/auth/telegram با initData تلگرام)
-GET  /v1/games                   فهرست بازی‌ها + قابلیت‌ها + تنظیمات پیش‌فرض
-POST /v1/rooms                   ساخت اتاق خصوصی (کد ۵ حرفی)
-POST /v1/rooms/{code}/start      شروع بازی
-GET  /v1/rooms/{code}            وضعیت اتاق
-POST /v1/matchmaking/queue       ورود به صف حریف تصادفی
-GET  /v1/matchmaking/{id}?wait=20  انتظار (long-poll) برای حریف
-POST /v1/matches                 ارسال رکورد بازی برای راستی‌آزمایی (بازپخش)
-GET  /v1/stats                   آمار و بازی‌های اخیر
+GET  /healthz                     زنده‌بودن + تعداد اتاق‌ها/منتظرها
+POST /v1/auth/guest               توکن مهمان (HMAC بدون حالت؛ /v1/auth/telegram بعداً)
+GET  /v1/games                    فهرست بازی‌ها + تنظیمات پیش‌فرض
+POST /v1/rooms                    ساخت اتاق خصوصی (کد ۵ حرفی بدون 0/O/1/I/L)   [Bearer]
+GET  /v1/rooms/{code}             وضعیت اتاق
+POST /v1/rooms/{code}/join        اجازهٔ ورود (پر/شروع‌شده ⇒ 409) و مسیر سوکت    [Bearer]
+POST /v1/matchmaking              ورود به صف حریف تصادفی                        [Bearer]
+GET  /v1/matchmaking/{id}?wait=20 انتظار (long-poll) برای حریف؛ بعد از ۲۵ ثانیه اتاق با ربات
+DELETE /v1/matchmaking/{id}       انصراف
+GET  /v1/matches/{code}           رکورد کامل قابل بازپخش (seed + لاگ + digest)
 WS   /v1/ws/room/{code}?ticket=… سوکت اتاق — از این لحظه همه‌چیز Envelope است
 ```
+
+شروع بازی روی سرور با پیام `lobby.start` از طرف صاحب اتاق (اولین عضو) روی همان سوکت انجام می‌شود،
+نه با مسیر HTTP جدا. سرور یک `HostController` بدون صندلی است؛ یعنی دقیقاً همان منطق میزبان بلوتوثی.
+
 
 ## ۸. شناسه‌ها
 
