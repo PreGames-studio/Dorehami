@@ -49,11 +49,8 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
@@ -121,6 +118,7 @@ fun HokmScreen(
     onClearError: () -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
+    playAgainAvailable: Boolean = true,
     hapticsEnabled: Boolean = true,
     /** Timer sounds are routed through the same player as the table ("timer_tick" / "timer_warn"). */
     onUiSound: (String) -> Unit = {},
@@ -131,6 +129,7 @@ fun HokmScreen(
     var showSheet by remember { mutableStateOf(false) }
     BackHandler {
         when {
+            stickerTray -> stickerTray = false
             showLastTrick -> showLastTrick = false
             showSheet -> showSheet = false
             else -> confirmExit = true
@@ -175,7 +174,19 @@ fun HokmScreen(
                     .padding(horizontal = 8.dp, vertical = 4.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                ScoreBar(state = state, onExit = { confirmExit = true }, onSheet = { showSheet = true })
+                ScoreBar(
+                    state = state,
+                    onExit = { confirmExit = true },
+                    onSheet = {
+                        onUiSound("tap")
+                        haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        showSheet = true
+                    },
+                    onTap = {
+                        onUiSound("tap")
+                        haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                    },
+                )
                 Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
                     val line = state.feed.lastOrNull()
                     if (line != null && state.banner == null && state.introShown == null) FeedChip(line)
@@ -239,14 +250,14 @@ fun HokmScreen(
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
                 Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    StickerButton(onClick = { stickerTray = !stickerTray })
+                    StickerButton(onClick = { stickerTray = !stickerTray }, onTap = { onUiSound("tap") })
                     SeatWithBubble(state, state.mySeat)
                 }
                 Spacer(Modifier.height(4.dp))
                 HandFan(
                     cards = state.myHand,
                     legal = if (state.iDiscard) state.myHand.toSet() else state.legalCards,
-                    enabled = state.isMyTurn || state.iDiscard,
+                    enabled = (state.isMyTurn && !state.iDraw && !state.iChooseHokm) || state.iDiscard,
                     selected = state.selectedForDiscard,
                     cardWidth = handCardW,
                     onTap = { card ->
@@ -261,6 +272,7 @@ fun HokmScreen(
                 HokmChooser(
                     hand = state.myHand,
                     onChoose = onChooseHokm,
+                    onTap = { onUiSound("tap") },
                     modifier = Modifier.align(Alignment.Center),
                 )
             }
@@ -269,6 +281,7 @@ fun HokmScreen(
                     need = state.discardCount,
                     selected = state.selectedForDiscard.size,
                     onConfirm = onConfirmDiscard,
+                    onTap = { onUiSound("tap") },
                     modifier = Modifier.align(Alignment.Center).offset(y = (-20).dp),
                 )
             }
@@ -278,15 +291,31 @@ fun HokmScreen(
                     stockCount = state.stockCount,
                     onKeep = onKeepCard,
                     onPass = onPassCard,
+                    onTap = { onUiSound("tap") },
                     modifier = Modifier.align(Alignment.Center).offset(y = (-20).dp),
                 )
             }
             if (stickerTray) {
-                StickerTray(
-                    onPick = { stickerTray = false; onSticker(it) },
-                    onDismiss = { stickerTray = false },
-                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 200.dp),
-                )
+                Box(
+                    Modifier
+                        .fillMaxSize()
+                        .background(Color.Black.copy(alpha = 0.36f))
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { stickerTray = false },
+                    contentAlignment = Alignment.Center,
+                ) {
+                    StickerTray(
+                        onPick = { stickerTray = false; onSticker(it) },
+                        onDismiss = { stickerTray = false },
+                        onTap = { onUiSound("tap") },
+                        modifier = Modifier.clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                        ) { },
+                    )
+                }
             }
             state.introShown?.let { shown ->
                 HakemDrawOverlay(state, shown, Modifier.align(Alignment.Center))
@@ -307,30 +336,70 @@ fun HokmScreen(
                     TurnTimer(state, haptics = haptics, onSound = onUiSound)
                 }
                 if (state.lastTrick.isNotEmpty() && state.handPhase == HandPhase.PLAYING) {
-                    RoundIconButton(text = "↶", onClick = { showLastTrick = true })
+                    RoundIconButton(text = "↶", onClick = { showLastTrick = true }, onTap = { onUiSound("tap") })
                 }
             }
 
             if (showLastTrick) {
-                LastTrickOverlay(state, tableCardW, onDismiss = { showLastTrick = false }, modifier = Modifier.fillMaxSize())
+                LastTrickOverlay(
+                    state,
+                    tableCardW,
+                    onDismiss = { showLastTrick = false },
+                    onTap = { onUiSound("tap") },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
             if (showSheet) {
-                ScoreSheetOverlay(state, onDismiss = { showSheet = false }, modifier = Modifier.fillMaxSize())
+                ScoreSheetOverlay(
+                    state,
+                    onDismiss = { showSheet = false },
+                    onTap = { onUiSound("tap") },
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
 
             state.error?.let { ErrorChip(it, Modifier.align(Alignment.BottomCenter).padding(bottom = 180.dp)) }
 
             if (state.finished) {
-                GameOverDialog(state, onPlayAgain = onPlayAgain, onExit = onExit)
+                GameOverDialog(
+                    state = state,
+                    onPlayAgain = onPlayAgain,
+                    onExit = onExit,
+                    playAgainAvailable = playAgainAvailable,
+                    onTap = { onUiSound("tap") },
+                )
             }
             if (confirmExit && !state.finished) {
-                AlertDialog(
-                    onDismissRequest = { confirmExit = false },
-                    title = { Text("خروج از بازی؟", textAlign = TextAlign.Right) },
-                    text = { Text("اگر بیرون بروی این بازی از دست می‌رود.", textAlign = TextAlign.Right) },
-                    confirmButton = { TextButton(onClick = onExit) { Text("خروج") } },
-                    dismissButton = { TextButton(onClick = { confirmExit = false }) { Text("ادامهٔ بازی") } },
-                )
+                CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
+                    AlertDialog(
+                        onDismissRequest = { confirmExit = false },
+                        title = { Text("خروج از بازی؟", textAlign = TextAlign.Right) },
+                        text = { Text("اگر بیرون بروی این بازی از دست می‌رود.", textAlign = TextAlign.Right) },
+                        containerColor = HokmPalette.deepGreen,
+                        titleContentColor = HokmPalette.goldLight,
+                        textContentColor = HokmPalette.text,
+                        confirmButton = {
+                            Hokm3DButton(
+                                text = "خروج",
+                                tone = HokmButtonTone.CORAL,
+                                height = 42.dp,
+                                modifier = Modifier.width(86.dp),
+                                onSound = { onUiSound("tap") },
+                                onClick = onExit,
+                            )
+                        },
+                        dismissButton = {
+                            Hokm3DButton(
+                                text = "ادامه",
+                                tone = HokmButtonTone.GLASS,
+                                height = 42.dp,
+                                modifier = Modifier.width(100.dp),
+                                onSound = { onUiSound("tap") },
+                                onClick = { confirmExit = false },
+                            )
+                        },
+                    )
+                }
             }
         }
     }
@@ -632,21 +701,34 @@ private fun HandFan(
 // --------------------------------------------------------------------------------------- score bar
 
 @Composable
-private fun ScoreBar(state: HokmUiState, onExit: () -> Unit, onSheet: () -> Unit = {}, modifier: Modifier = Modifier) {
+private fun ScoreBar(
+    state: HokmUiState,
+    onExit: () -> Unit,
+    onSheet: () -> Unit = {},
+    onTap: () -> Unit = {},
+    modifier: Modifier = Modifier,
+) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
             modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Table.chip)
+                .background(Brush.verticalGradient(listOf(Color(0xDD12372D), Color(0xE608211A))))
+                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
                 .clickable(onClick = onSheet)
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            TextButton(onClick = onExit, contentPadding = androidx.compose.foundation.layout.PaddingValues(horizontal = 6.dp)) {
-                Text("خروج", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
-            }
-            Spacer(Modifier.width(4.dp))
+            Hokm3DButton(
+                text = "خروج",
+                leading = "‹",
+                tone = HokmButtonTone.GLASS,
+                height = 39.dp,
+                modifier = Modifier.width(74.dp),
+                onSound = onTap,
+                onClick = onExit,
+            )
+            Spacer(Modifier.width(5.dp))
             if (state.isTeamGame) {
                 val my = state.myTeam
                 TeamScore("ما", state.scores.getOrElse(my) { 0 }, state.tricksWon.getOrElse(my) { 0 }, Table.ours)
@@ -724,43 +806,40 @@ fun SuitIcon(suit: Suit, size: Dp, onDark: Boolean = false, modifier: Modifier =
 // --------------------------------------------------------------------------------------- overlays
 
 @Composable
-private fun HokmChooser(hand: List<Card>, onChoose: (Suit) -> Unit, modifier: Modifier = Modifier) {
+private fun HokmChooser(
+    hand: List<Card>,
+    onChoose: (Suit) -> Unit,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Surface(
-            modifier
-                .padding(16.dp)
-                .fillMaxWidth(0.92f),
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xF2102A1A),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Table.brass.copy(alpha = 0.6f)),
-            tonalElevation = 8.dp,
+        HokmGlassPanel(
+            modifier.padding(14.dp).fillMaxWidth(0.94f),
+            contentPadding = 15.dp,
         ) {
-            Column(Modifier.padding(16.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("شما حاکم هستید — حکم را انتخاب کن", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-                Spacer(Modifier.height(4.dp))
-                Text("پنج کارت اولت را ببین و خال حکم را بگو", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-                Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
-                    hand.forEach { PlayingCardView(it, width = 50.dp, elevation = 4.dp) }
-                }
-                Spacer(Modifier.height(16.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                    Suit.entries.forEach { suit ->
-                        val count = hand.count { it.suit == suit }
-                        Column(
-                            Modifier
-                                .clip(RoundedCornerShape(16.dp))
-                                .background(Color.White)
-                                .clickable { onChoose(suit) }
-                                .padding(horizontal = 12.dp, vertical = 10.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            SuitIcon(suit, 34.dp)
-                            Spacer(Modifier.height(4.dp))
-                            Text(suit.titleFa, color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            Text("${count.toFa()} برگ", color = Color.DarkGray, fontSize = 10.sp)
-                        }
-                    }
+            Text("حاکم هستی؛ حکم را انتخاب کن", color = HokmPalette.text, fontWeight = FontWeight.Black, fontSize = 17.sp)
+            Spacer(Modifier.height(3.dp))
+            Text("پنج کارت اولت را ببین و خالِ حکم را بگو", color = HokmPalette.muted, fontSize = 11.sp)
+            Spacer(Modifier.height(11.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
+                hand.forEach { PlayingCardView(it, width = 48.dp, elevation = 5.dp) }
+            }
+            Spacer(Modifier.height(14.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                Suit.entries.forEach { suit ->
+                    val count = hand.count { it.suit == suit }
+                    val suitColor = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFF27B78) else HokmPalette.ivory
+                    Hokm3DButton(
+                        text = suit.titleFa,
+                        subtitle = "${count.toFa()} برگ",
+                        leading = suit.symbol,
+                        leadingColor = suitColor,
+                        tone = HokmButtonTone.GLASS,
+                        height = 66.dp,
+                        modifier = Modifier.weight(1f),
+                        onSound = onTap,
+                        onClick = { onChoose(suit) },
+                    )
                 }
             }
         }
@@ -881,14 +960,28 @@ private fun ErrorChip(text: String, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun GameOverDialog(state: HokmUiState, onPlayAgain: () -> Unit, onExit: () -> Unit) {
+private fun GameOverDialog(
+    state: HokmUiState,
+    onPlayAgain: () -> Unit,
+    onExit: () -> Unit,
+    playAgainAvailable: Boolean,
+    onTap: () -> Unit,
+) {
     val won = state.winnerTeam == state.myTeam
     val my = state.scores.getOrElse(state.myTeam) { 0 }
     val them = if (state.isTeamGame) state.scores.getOrElse(1 - state.myTeam) { 0 } else state.scores.filterIndexed { i, _ -> i != state.myTeam }.maxOrNull() ?: 0
     val winnerName = state.winnerTeam?.let { state.seats.getOrNull(it)?.name } ?: ""
+    val gameOverMessage = when {
+        !playAgainAvailable -> "این میز تمام شد؛ برای دور بعدی به منو برگرد."
+        won -> "دست مریزاد! یک بازی دیگر؟"
+        else -> "بازی بعدی مال ماست. دوباره؟"
+    }
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         AlertDialog(
             onDismissRequest = {},
+            containerColor = HokmPalette.deepGreen,
+            titleContentColor = HokmPalette.goldLight,
+            textContentColor = HokmPalette.text,
             title = {
                 Text(
                     if (won) (if (state.isTeamGame) "🏆 بردیم!" else "🏆 بردی!") else (if (state.isTeamGame) "این بار باختیم" else "این بار $winnerName برد"),
@@ -902,18 +995,36 @@ private fun GameOverDialog(state: HokmUiState, onPlayAgain: () -> Unit, onExit: 
                     Text("${my.toFa()} — ${them.toFa()}", fontSize = 34.sp, fontWeight = FontWeight.Black)
                     Text(
                         if (state.isTeamGame) "تیم ما — تیم حریف" else if (won) "شما — بهترین حریف" else "شما — $winnerName",
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        color = HokmPalette.muted,
                         fontSize = 12.sp,
                     )
                     Spacer(Modifier.height(8.dp))
-                    Text(
-                        if (won) "دست مریزاد! یک بازی دیگر؟" else "بازی بعدی مال ماست. دوباره؟",
-                        textAlign = TextAlign.Center,
+                    Text(gameOverMessage, textAlign = TextAlign.Center)
+                }
+            },
+            confirmButton = {
+                Hokm3DButton(
+                    text = if (playAgainAvailable) "بازی دوباره" else "بازگشت",
+                    leading = if (playAgainAvailable) "↻" else "‹",
+                    tone = if (playAgainAvailable) HokmButtonTone.EMERALD else HokmButtonTone.GLASS,
+                    height = 46.dp,
+                    modifier = Modifier.width(if (playAgainAvailable) 126.dp else 102.dp),
+                    onSound = onTap,
+                    onClick = if (playAgainAvailable) onPlayAgain else onExit,
+                )
+            },
+            dismissButton = {
+                if (playAgainAvailable) {
+                    Hokm3DButton(
+                        text = "بازگشت",
+                        tone = HokmButtonTone.GLASS,
+                        height = 46.dp,
+                        modifier = Modifier.width(102.dp),
+                        onSound = onTap,
+                        onClick = onExit,
                     )
                 }
             },
-            confirmButton = { Button(onClick = onPlayAgain) { Text("بازی دوباره") } },
-            dismissButton = { TextButton(onClick = onExit) { Text("بازگشت") } },
         )
     }
 }
@@ -933,50 +1044,74 @@ private fun StockPile(count: Int, modifier: Modifier = Modifier) {
 }
 
 @Composable
-private fun DiscardPanel(need: Int, selected: Int, onConfirm: () -> Unit, modifier: Modifier = Modifier) {
+private fun DiscardPanel(
+    need: Int,
+    selected: Int,
+    onConfirm: () -> Unit,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Column(
-            modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xF2102A1A))
-                .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 20.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("${need.toFa()} کارت بسوزان", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Text("کارت‌های ضعیف را از دستت انتخاب کن", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
-            Spacer(Modifier.height(10.dp))
-            Button(onClick = onConfirm, enabled = selected == need, shape = RoundedCornerShape(14.dp)) {
-                Text(if (selected == need) "بسوزان 🔥" else "${selected.toFa()} از ${need.toFa()} انتخاب شده")
-            }
+        HokmGlassPanel(modifier.fillMaxWidth(0.9f), contentPadding = 18.dp) {
+            Text("${need.toFa()} کارت بسوزان", color = HokmPalette.text, fontWeight = FontWeight.Black, fontSize = 17.sp)
+            Spacer(Modifier.height(3.dp))
+            Text("کارت‌های کم‌ارزش را از دستت انتخاب کن", color = HokmPalette.muted, fontSize = 11.sp)
+            Spacer(Modifier.height(11.dp))
+            Hokm3DButton(
+                text = if (selected == need) "بسوزان" else "${selected.toFa()} از ${need.toFa()} انتخاب شده",
+                leading = "🔥",
+                tone = HokmButtonTone.CORAL,
+                enabled = selected == need,
+                modifier = Modifier.fillMaxWidth(),
+                onSound = onTap,
+                onClick = onConfirm,
+            )
         }
     }
 }
 
 @Composable
-private fun DrawPanel(revealed: Card, stockCount: Int, onKeep: () -> Unit, onPass: () -> Unit, modifier: Modifier = Modifier) {
+private fun DrawPanel(
+    revealed: Card,
+    stockCount: Int,
+    onKeep: () -> Unit,
+    onPass: () -> Unit,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Column(
-            modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xF2102A1A))
-                .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                .padding(horizontal = 18.dp, vertical = 14.dp),
-            horizontalAlignment = Alignment.CenterHorizontally,
-        ) {
-            Text("این کارت را می‌خواهی؟", color = Color.White, fontWeight = FontWeight.Bold, fontSize = 17.sp)
-            Spacer(Modifier.height(10.dp))
+        HokmGlassPanel(modifier.fillMaxWidth(0.92f), contentPadding = 16.dp) {
+            Text("این کارت را می‌خواهی؟", color = HokmPalette.text, fontWeight = FontWeight.Black, fontSize = 17.sp)
+            Spacer(Modifier.height(9.dp))
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(14.dp)) {
-                key(revealed.code) { PlayingCardView(revealed, width = 78.dp, elevation = 10.dp) }
+                key(revealed.code) { PlayingCardView(revealed, width = 76.dp, elevation = 12.dp) }
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                    CardBackView(width = 44.dp, elevation = 3.dp)
-                    Text("${stockCount.toFa()} برگ", color = Color.White.copy(alpha = 0.7f), fontSize = 10.sp)
+                    CardBackView(width = 44.dp, elevation = 4.dp)
+                    Text("${stockCount.toFa()} برگ", color = HokmPalette.muted, fontSize = 10.sp)
                 }
             }
-            Spacer(Modifier.height(12.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Button(onClick = onKeep, shape = RoundedCornerShape(14.dp)) { Text("نگه می‌دارم ✔") }
-                TextButton(onClick = onPass, shape = RoundedCornerShape(14.dp)) { Text("رد می‌کنم، بعدی را کور برمی‌دارم", color = Color.White) }
+            Spacer(Modifier.height(11.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                Hokm3DButton(
+                    text = "نگه می‌دارم",
+                    subtitle = "همین کارت",
+                    leading = "✓",
+                    tone = HokmButtonTone.EMERALD,
+                    height = 54.dp,
+                    modifier = Modifier.weight(1f),
+                    onSound = onTap,
+                    onClick = onKeep,
+                )
+                Hokm3DButton(
+                    text = "رد می‌کنم",
+                    subtitle = "بعدی را کور بردار",
+                    leading = "↻",
+                    tone = HokmButtonTone.GLASS,
+                    height = 54.dp,
+                    modifier = Modifier.weight(1f),
+                    onSound = onTap,
+                    onClick = onPass,
+                )
             }
         }
     }
@@ -1009,49 +1144,55 @@ private fun SeatWithBubble(state: HokmUiState, seat: Int) {
 }
 
 @Composable
-private fun StickerButton(onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(38.dp)
-            .clip(CircleShape)
-            .background(Table.chip)
-            .border(1.dp, Table.brass.copy(alpha = 0.6f), CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) { Text("😊", fontSize = 18.sp) }
+private fun StickerButton(onClick: () -> Unit, onTap: () -> Unit) {
+    Hokm3DButton(
+        text = "☺",
+        tone = HokmButtonTone.GLASS,
+        height = 42.dp,
+        modifier = Modifier.width(45.dp),
+        onSound = onTap,
+        onClick = onClick,
+    )
 }
 
 @Composable
-private fun StickerTray(onPick: (Sticker) -> Unit, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun StickerTray(
+    onPick: (Sticker) -> Unit,
+    onDismiss: () -> Unit,
+    onTap: () -> Unit,
+    modifier: Modifier = Modifier,
+) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Column(
-            modifier
-                .clip(RoundedCornerShape(20.dp))
-                .background(Color(0xF2102A1A))
-                .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(20.dp))
-                .padding(12.dp),
-        ) {
+        HokmGlassPanel(modifier.fillMaxWidth(0.94f), contentPadding = 12.dp) {
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                Text("استیکر بفرست", color = Color.White, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.weight(1f))
-                TextButton(onClick = onDismiss) { Text("بستن", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp) }
+                Column(Modifier.weight(1f)) {
+                    Text("استیکر بفرست", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+                    Text("واکنش سریع سر میز", color = HokmPalette.muted, fontSize = 10.sp)
+                }
+                Hokm3DButton(
+                    text = "بستن",
+                    tone = HokmButtonTone.GLASS,
+                    height = 40.dp,
+                    modifier = Modifier.width(76.dp),
+                    onSound = onTap,
+                    onClick = onDismiss,
+                )
             }
-            Stickers.all.chunked(4).forEach { row ->
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                    row.forEach { st ->
-                        Column(
-                            Modifier
-                                .width(70.dp)
-                                .clip(RoundedCornerShape(12.dp))
-                                .background(Color.White.copy(alpha = 0.08f))
-                                .clickable { onPick(st) }
-                                .padding(vertical = 6.dp),
-                            horizontalAlignment = Alignment.CenterHorizontally,
-                        ) {
-                            Text(st.emoji, fontSize = 24.sp)
-                            Text(st.captionFa, color = Color.White, fontSize = 10.sp, textAlign = TextAlign.Center)
-                        }
+            Spacer(Modifier.height(7.dp))
+            Stickers.all.chunked(3).forEach { row ->
+                Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.padding(vertical = 3.dp)) {
+                    row.forEach { sticker ->
+                        Hokm3DButton(
+                            text = sticker.emoji,
+                            subtitle = sticker.captionFa,
+                            tone = HokmButtonTone.GLASS,
+                            height = 52.dp,
+                            modifier = Modifier.weight(1f),
+                            onSound = onTap,
+                            onClick = { onPick(sticker) },
+                        )
                     }
+                    repeat(3 - row.size) { Spacer(Modifier.weight(1f)) }
                 }
             }
         }
@@ -1214,25 +1355,23 @@ private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfee
 }
 
 @Composable
-private fun RoundIconButton(text: String, onClick: () -> Unit) {
-    Box(
-        Modifier
-            .size(40.dp)
-            .clip(CircleShape)
-            .background(Table.chip)
-            .border(1.dp, Table.brass.copy(alpha = 0.6f), CircleShape)
-            .clickable(onClick = onClick),
-        contentAlignment = Alignment.Center,
-    ) {
-        Text(text, color = Table.brass, fontSize = 20.sp, fontWeight = FontWeight.Bold)
-    }
+private fun RoundIconButton(text: String, onClick: () -> Unit, onTap: () -> Unit) {
+    Hokm3DButton(
+        text = text,
+        tone = HokmButtonTone.GLASS,
+        height = 42.dp,
+        modifier = Modifier.width(46.dp),
+        textColor = Table.brass,
+        onSound = onTap,
+        onClick = onClick,
+    )
 }
 
 // --------------------------------------------------------------------------------------- overlays
 
 /** The previous trick, laid out exactly like the table, with the winner highlighted. */
 @Composable
-private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () -> Unit, onTap: () -> Unit, modifier: Modifier = Modifier) {
     Box(
         modifier
             .background(Color.Black.copy(alpha = 0.72f))
@@ -1245,7 +1384,16 @@ private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () ->
                 val name = if (w == state.mySeat) "شما" else state.seats.getOrNull(w)?.name ?: ""
                 Text("برنده: $name", color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp)
             }
-            Spacer(Modifier.height(12.dp))
+            Spacer(Modifier.height(7.dp))
+            Hokm3DButton(
+                text = "بستن",
+                tone = HokmButtonTone.GLASS,
+                height = 40.dp,
+                modifier = Modifier.width(82.dp),
+                onSound = onTap,
+                onClick = onDismiss,
+            )
+            Spacer(Modifier.height(7.dp))
             Box(Modifier.size(cardWidth * 4.2f, cardWidth * 4.6f), contentAlignment = Alignment.Center) {
                 fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
                     2 -> if (seat == 0) 0f to 1f else 0f to -1f
@@ -1272,7 +1420,7 @@ private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () ->
 
 /** The score sheet: one row per finished hand. */
 @Composable
-private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, modifier: Modifier = Modifier) {
+private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: () -> Unit, modifier: Modifier = Modifier) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Box(
             modifier
@@ -1284,13 +1432,24 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, modifie
                 Modifier
                     .fillMaxWidth(0.88f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Color(0xFF102A1A))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF164537), Color(0xFF09251D))))
                     .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                     .padding(16.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                    Text("برگهٔ امتیاز", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp, modifier = Modifier.weight(1f))
-                    if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Color.White.copy(alpha = 0.6f), fontSize = 12.sp)
+                    Column(Modifier.weight(1f)) {
+                        Text("برگهٔ امتیاز", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp)
+                        if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                    }
+                    Hokm3DButton(
+                        text = "بستن",
+                        tone = HokmButtonTone.GLASS,
+                        height = 40.dp,
+                        modifier = Modifier.width(76.dp),
+                        onSound = onTap,
+                        onClick = onDismiss,
+                    )
                 }
                 Spacer(Modifier.height(6.dp))
                 Text(
