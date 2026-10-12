@@ -216,6 +216,10 @@ class RoomFlow(
 
     companion object {
         private const val ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+        /** Normalizes pasted input to exactly the alphabet used by generated room codes. */
+        fun normalizeRoomCodeInput(value: String): String = value.uppercase().filter { it in ALPHABET }.take(5)
+
         fun randomCode(len: Int): String {
             val r = SecureRandom()
             return buildString { repeat(len) { append(ALPHABET[r.nextInt(ALPHABET.length)]) } }
