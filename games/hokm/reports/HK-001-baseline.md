@@ -13,11 +13,12 @@
 4. artifact نسخهٔ debug برای همان commit وجود دارد. آزمون دستگاه انجام نشده؛ وجود APK با بررسی آن روی گوشی یکی نیست.
 5. این محیط در ابتدا JDK کامل، Gradle، Kotlin compiler، Android SDK و adb نداشت. runtime موقت Java 17 آماده شد، ولی `javac` در آن نبود.
 6. اجرای محلی تست حکم، پیش از پیکربندی پروژه، در دریافت Gradle با خطای TLS متوقف شد؛ دریافت archive از GitHub نیز در مقصد release-assets شکست خورد.
-7. کاربر تأیید HK-001 را داد و سپس خواست مراحل با برنچ تازه ادامه یابد. **به علت ثابت‌بودن برنچ Arena، شاخهٔ دیگری ایجاد نمی‌شود**؛ اجرای HK-001.a فقط روی `arena/05a354c8-dorehami` پیش می‌رود. پس از دریافت نتیجهٔ واقعی، مرحلهٔ والد جمع‌بندی می‌شود؛ HK-002 خودکار آغاز نمی‌شود.
+7. کاربر تأیید HK-001 را داد و سپس خواست مراحل با برنچ تازه ادامه یابد. **به علت ثابت‌بودن برنچ Arena، شاخهٔ دیگری ایجاد نمی‌شود**؛ تمام تغییرها فقط روی `arena/05a354c8-dorehami` هستند. پس از شواهد اصلاح‌شده، مرحلهٔ والد جمع‌بندی می‌شود؛ HK-002 خودکار آغاز نمی‌شود.
+8. اولین اجرای full baseline روی [run `38401546325`](https://github.com/PreGames-studio/Dorehami/actions/runs/38401546325) برای commit `564ca5b` آغاز شد: گام‌های تست حکم، تست سرور، `checkAll` و build APK نتیجهٔ موفق داشتند؛ job به‌خاطر `fi` اضافه در gate پایانی fail شد. `app:lint` اجرا شد؛ نتیجهٔ واقعی‌اش هنوز PASS اعلام نمی‌شود، چون `continue-on-error` conclusion ظاهری را سبز می‌کند و گزارش تفکیکی artifact در این sandbox قابل دانلود نبود.
 
 ### اقدام فعال — HK-001.a
 
-کاربر ادامهٔ کار را خواست. تغییر اولیه به commit `8f0520a` روی برنچ ثابت push شد؛ dispatch دستی با GitHub API به‌دلیل موجودنبودن workflow تازه در default branch، `404 Not Found` داد. برای اینکه لازم نباشد به `main` ادغام کنیم، trigger فایل `[hokm-baseline.yml](../../../.github/workflows/hokm-baseline.yml)` به تغییر همین فایل در همین برنچ محدود شده است؛ پس از commit/push این اصلاح، اجرای cloud آغاز می‌شود. این یک اجرای workflow است، نه تست خودکار برنامهٔ روی گوشی. **شاخهٔ دیگر، merge، انتشار APK یا deploy تولیدی انجام نمی‌شود.** نتیجهٔ اجرای کامل baseline هنوز نامعلوم است.
+commit اولیهٔ `8f0520a` push شد. dispatch دستی با API نخست به‌علت نبودن workflow در default branch `404` داد و پس از ثبت workflow، درخواست dispatch با مجوز integration `403` برگشت. trigger دقیقاً به تغییر خود فایل baseline روی برنچ ثابت محدود شد و run اول `38401546325` را ساخت. در این اجرا همهٔ گام‌های اصلیِ حکم/سرور/checkAll/APK موفق بودند، اما اسکریپت نهایی به‌دلیل `fi` اضافی خطای syntax داشت؛ این خطا با `bash -n` روی همان اسکریپت استخراج‌شده بازتولید شد. اصلاح حذف شد، گزارش وضعیت و annotationهای تفکیکی افزوده شد و اجرای بعدی پس از commit/push در انتظار است. **این‌ها نتیجهٔ workflow هستند، نه آزمون دستی روی گوشی.** شاخهٔ دیگر، merge، انتشار APK یا deploy تولیدی انجام نمی‌شود.
 
 ## ۲. دامنه و منشأ داده‌ها
 
@@ -25,12 +26,14 @@
 |---|---|
 | تأیید کاربر | پاسخ «تایید است» به پیشنهاد اجرای HK-001 |
 | برنچ کاری | `arena/05a354c8-dorehami`؛ تعویض نشد |
-| commit مبنا | `19115ea56bb358eb602c5434a21a2d1291b95a91` |
-| عنوان commit | `Merge pull request #9 from PreGames-studio/arena/18d1c9f6-dorehami` |
+| commit مبنا برای کد بازی | `19115ea56bb358eb602c5434a21a2d1291b95a91` |
+| commit اول مستندات/workflow | `8f0520a001c8a3f13cb18abb4125b0a8522ac370`؛ push شد |
+| commit اجرای baseline اول | `564ca5ba3c7bdc3382188654f16a5cab52c251ea`؛ فقط workflow/گزارش عوض شد، Kotlin و تنظیمات build تغییر نکردند |
+| عنوان commit مبنا | `Merge pull request #9 from PreGames-studio/arena/18d1c9f6-dorehami` |
 | تغییرهای موجود ابتدای نوبت | `AGENTS.md`، `docs/ROADMAP.md`، `games/hokm/README.md` و دو سند جدید `games/hokm/AGENTS.md` و `games/hokm/ROADMAP.md`؛ همگی مستندات نوبت قبل |
 | فایل‌های تازهٔ این نوبت | workflow مستقل `.github/workflows/hokm-baseline.yml` و این گزارش؛ trigger آن فقط با تغییر همین workflow در برنچ ثابت اجرا می‌شود |
 | کد و تنظیمات نسبت به مبنا | بدون تغییر؛ بنابراین شواهد CI آن commit برای کد مبنا مرتبط‌اند، نه شاهد اجرای تازه در sandbox |
-| عملیات خارجی | commit `8f0520a` روی برنچ `arena/05a354c8-dorehami` push شد؛ درخواست dispatch مستقیم به‌علت نبود فایل workflow در default branch، 404 داد. PR/merge/release انجام نشد. commit دوم برای فعال‌کردن trigger محدود در حال آماده‌سازی است |
+| عملیات خارجی | commitهای `8f0520a` و `564ca5b` به همان برنچ push شدند؛ run محدود `38401546325` اجرا و کامل شد اما final gate به syntax error رسید؛ dispatch دستی ابتدا 404 و سپس 403 داد. دو artifact (XML/log و APK) بارگذاری شدند؛ PR/merge/release انجام نشد. commit اصلاح gate و run نهایی منتظرند |
 
 **چهار نوع شاهد از هم جدا هستند:** خواندن کد، اجرای دستور در این محیط، نتیجهٔ قبلی CI روی همان commit، و آزمون واقعی دستگاه. این گزارش آن‌ها را به جای یکدیگر جا نمی‌زند.
 
@@ -184,6 +187,27 @@ checkAll: 138 tests, 0 failing, 7 module(s) with results
 
 بنابراین ادعای «همهٔ تست‌های سرور و lint سبزند» نادرست است. کلمهٔ `all JVM tests` در عنوان job، این دو استثنای واقعی را حذف نمی‌کند.
 
+### اجرای تازهٔ خط پایه — commit `564ca5b`
+
+| کار | شاهد API روی اجرای `38401546325` |
+|---|---|
+| workflow | [Hokm Baseline](https://github.com/PreGames-studio/Dorehami/actions/runs/38401546325)، `push`، branch `arena/05a354c8-dorehami`، commit `564ca5ba3c7bdc3382188654f16a5cab52c251ea` |
+| job | [Full build and test baseline](https://github.com/PreGames-studio/Dorehami/actions/runs/38401546325/job/115310166453)، مدت ثبت‌شده حدود ۷ دقیقه و ۴۶ ثانیه؛ **نتیجهٔ کل: failure** |
+| تست حکم | step با conclusion `success`؛ شمار آزمون اجراشده در annotation/API در دسترس نبود |
+| تست سرور | `:server:test` با conclusion `success` |
+| تمام checkهای Gradle | `./gradlew checkAll --no-daemon --stacktrace` بدون استثنا با conclusion `success` |
+| APK | `:app:assembleDebug` با conclusion `success`؛ artifact debug بارگذاری شد |
+| lint اپ | فرمان اجرا شد؛ step دارای `continue-on-error` است، پس conclusion `success` به‌تنهایی PASS واقعی را ثابت نمی‌کند. نتیجهٔ تجمیعیِ این run را در این محیط نتوانستیم از log/artifact دریافت کنیم؛ در اجرای اصلاح‌شده outcome صریح ثبت خواهد شد |
+| خلاصه و uploadها | report step و هر دو upload با conclusion `success`؛ فایل خلاصه و XML به artifact پیوست شدند |
+| علت قابل اثبات failure کل | gate Bash آخر workflow در commit اولیه یک `fi` اضافه داشت. با استخراج متن همان step و `bash -n`، خطای `syntax error near unexpected token 'fi'` بازتولید شد. این شکست **اشکال workflow بود، نه شکست تست بازی**؛ اصلاح در تغییر جاری اعمال شده است |
+
+**artifactهای این اجرای نخست** (موقت؛ انقضای اعلام‌شده `2026-10-27`):
+
+- [log و گزارش JUnit](https://github.com/PreGames-studio/Dorehami/actions/runs/38401546325/artifacts/11815577585) — artifact `11815577585`, 30,735 bytes، API digest `sha256:e308263a017a92d10ac50ac45fc77cba8ef29bf1148fc18fb40ec3b5fc470c6c`.
+- [debug APK](https://github.com/PreGames-studio/Dorehami/actions/runs/38401546325/artifacts/11816047359) — artifact `11816047359`, 17,773,024 bytes، API digest `sha256:beee8ea4abe16c15c3f59faf9e69b90c1ee27e1fe4a96e062b4ec476d0d77c43`.
+
+این digestها متادیتای artifact آرشیوشده‌اند؛ hash APK استخراج‌شده نیستند. sandbox نتوانست لاگ خام را از `results-receiver.actions.githubusercontent.com` یا ZIPها را از `productionresultssa6.blob.core.windows.net` بگیرد (میزبان‌ها خارج از دسترسی محیط بودند). فایل‌ها از صفحهٔ workflow برای کاربری که دسترسی GitHub دارد قابل دریافت‌اند. ساخت APK نیز آزمون دستی روی گوشی محسوب نمی‌شود.
+
 ### متادیتای artifact APK
 
 | فیلد | مقدار ثبت‌شده |
@@ -285,6 +309,7 @@ gh api repos/PreGames-studio/Dorehami/actions/runs/38384340382/artifacts
 | B-05 | هشدار CI دربارهٔ Node.js 20 در `checkout@v4` و `setup-gradle@v4` و اجبار اجرا با Node.js 24 | نگه‌داری CI، P2 | سازگاری نسخهٔ actionها در HK-002 بررسی شود؛ این warning به‌تنهایی شکست build نیست |
 | B-06 | annotation CI از مهاجرت `ubuntu-latest` به Ubuntu 26 از 2026-10-19 خبر می‌دهد | بازتولیدپذیری runner، P2 | تصویر runner و ابزارها در بررسی CI آگاهانه انتخاب/ثبت شوند؛ ارتقای بی‌بررسی نه |
 | B-07 | آزمون اختصاصی UI حکم فعلاً وجود ندارد | پوشش کیفیت، P1/P2 | HK-002 و HK-013؛ هیچ ادعای تست‌شدن ظاهر/سنین بالاتر از CI کنونی نشود |
+| B-08 | gate نهایی workflow baseline در اجرای اول به‌خاطر `fi` اضافه syntax error داشت | خطای ابزار baseline، P1 | با `bash -n` بازتولید شد؛ اصلاح و annotation وضعیت تک‌تک stepها افزوده شد؛ اجرای اصلاح‌شده لازم است. ربطی به نتیجهٔ تست Kotlin ندارد |
 
 R-01 تا R-09 نقشهٔ راه همچنان یافته‌های خواندن کد هستند؛ در این نوبت هیچ‌کدام با اجرای تست محلی بازتولید یا رفع نشده‌اند.
 
@@ -292,8 +317,8 @@ R-01 تا R-09 نقشهٔ راه همچنان یافته‌های خواندن �
 
 دو مسیر معتبر وجود دارد:
 
-1. **مسیر فعال:** چون GitHub از dispatch workflow تازه‌ای که هنوز در default branch نیست پشتیبانی نکرد (`404`)، فایل روی برنچ ثابت به تغییر خودش path-filter شده است. پس از push اصلاح، باید workflow خودکار اجرا شود و شواهد کامل را بدهد؛ merge لازم نیست.
-2. اگر runner ابری آماده یا قابل دسترس نبود، محیط توسعهٔ دارای JDK کامل 17، SDK واقعی API 37 و دسترسی به مخازن رسمی فراهم شود؛ سپس دستورهای زیر روی همین مبنا اجرا و XML/خروجی‌ها بررسی شوند.
+1. **مسیر فعال:** path-trigger محدود اجرا شد (run `38401546325`). تست حکم/سرور/checkAll و APK به‌عنوان step موفق شدند؛ job به `fi` اضافه در gate پایانی شکست. اصلاح محلی با syntax-check و تست مصنوعی وضعیت‌های PASS/failure/گزارش مفقود/lint آماده است؛ پس از push همان فایل، اجرای ابری دوم باید هم گیت را تأیید کند و هم outcome صریح هر step را ثبت کند. merge لازم نیست.
+2. اگر runner ابری بعد از اصلاح کار نکند، محیط توسعهٔ دارای JDK کامل 17، SDK واقعی API 37 و دسترسی به مخازن رسمی فراهم شود؛ سپس دستورهای زیر روی همین مبنا اجرا و XML/خروجی‌ها بررسی شوند.
 
 ```bash
 # پیش‌نیاز: JDK کامل 17، Android SDK صحیح، مخازن رسمی در دسترس
@@ -314,11 +339,13 @@ R-01 تا R-09 نقشهٔ راه همچنان یافته‌های خواندن �
 - [x] تلاش اجرای محلی با exit code و تفکیک خطای محیط ثبت شد.
 - [x] CI موفق و artifact قبلی به همان commit تطبیق داده شدند؛ استثناها پنهان نشدند.
 - [x] سناریوهای پایهٔ دستگاه تعریف شدند؛ اجرای آن‌ها ادعا نشد.
-- [x] هیچ کد بازی، تنظیم ساخت یا dependency تغییر نکرد؛ workflow دستی مستقل آماده و ساختارش اعتبارسنجی شد.
-- [x] اولین commit مستندات/workflow روی همان برنچ Arena push شد؛ dispatch اولیه به‌علت نبود workflow در default branch با 404 رد شد.
-- [ ] trigger محدود به path روی برنچ ثابت push و اجرای baseline کامل مشاهده شود.
-- [ ] گیت کامل بدون حذف سرور/lint در محیط معتبر اجرا شود.
-- [ ] گزارش تفکیکی آزمون‌ها و خروجی build کامل به این پرونده افزوده شود.
-- [ ] آزمون دستگاه، هرجا لازم و در دسترس شد، شاهد مستقل داشته باشد.
+- [x] هیچ کد بازی، تنظیم build یا dependency تغییر نکرد؛ workflow مستقل روی trigger محدود آماده و در runner واقعی اجرا شد.
+- [x] commitهای `8f0520a` و `564ca5b` فقط روی برنچ ثابت Arena push شدند؛ trigger push خودکار run `38401546325` را آغاز کرد.
+- [x] تست حکم، سرور، `checkAll` بدون استثنا و build APK در اجرای نخست conclusion موفق داشتند؛ شواهد/API/artifactها ثبت شدند.
+- [x] علت شکست gate نهایی با `bash -n` بازتولید، اصلاح و منطق گزارش با تست‌های مصنوعی lint/JUnit/missing-report پوشش داده شد.
+- [ ] اصلاح workflow و گزارش‌ها روی برنچ ثابت commit/push شود و اجرای baseline دوم نتیجهٔ نهایی را بدهد.
+- [ ] نتیجهٔ واقعی lint و XML تفکیکی از گزارش اصلاح‌شده بررسی شود؛ هیچ نتیجه‌ای از step دارای `continue-on-error` حدس زده نشود.
+- [ ] `HK-001` پس از تکمیل گیت بدون حذف سرور/lint و گزارش نتایج جمع‌بندی شود.
+- [ ] آزمون دستی/عملکرد/صدا روی دستگاه، هرجا در دسترس شد، شاهد مستقل داشته باشد.
 
-**نتیجهٔ جاری:** `HK-001` هنوز `BLOCKED` است؛ چون گیت کامل بدون حذف server/lint شاهد ندارد. `HK-001.a` فعال است: workflow مستقل ساخته شده، اما اجرای دستی قبل از قرارگرفتن آن در default branch با 404 رد شد. trigger محدود به push همان workflow در برنچ ثابت آماده است؛ نتیجهٔ cloud پس از push بعدی ثبت می‌شود. هنوز هیچ مرحلهٔ محصولی/گرافیکی آغاز نشده است.
+**نتیجهٔ جاری:** `HK-001` هنوز `BLOCKED` است. در run نخست `38401546325` چهار گام حکم/سرور/checkAll/APK موفق بودند، اما gate پایانی workflow به علت `fi` اضافی شکست خورد. ایراد workflow با syntax-check پیدا و اصلاح شده و diagnostics افزوده شده است. `HK-001.a` فعال می‌ماند تا اصلاح روی برنچ ثابت push و run دوم کامل شود؛ هیچ مرحلهٔ محصولی/گرافیکی شروع نشده است.

@@ -180,11 +180,30 @@ jobs:
               lines += ["", "### Test-result details"]
               lines.extend(f"- {item}" for item in failures[:40])
           lines += ["", "Full logs, JUnit XML and any APK are uploaded as workflow artifacts."]
+          if not ok:
+              print(
+                  f"::error file=.github/workflows/hokm-baseline.yml,line=1::"
+                  f"Baseline summary failed: {result_files} JUnit XML files, "
+                  f"{total_tests} tests, {total_failures} failures/errors. See the summary/artifact."
+              )
+              for name, outcome in labels.items():
+                  if outcome != "success":
+                      print(
+                          f"::error file=.github/workflows/hokm-baseline.yml,line=1::"
+                          f"{name}: {outcome}"
+                      )
+          summary_text = "\n".join(lines) + "\n"
+          report_dir = Path(os.environ["RUNNER_TEMP"]) / "hokm-baseline"
+          report_dir.mkdir(parents=True, exist_ok=True)
+          status = "success" if ok else "failure"
+          (report_dir / "baseline-status.txt").write_text(status + "\n", encoding="utf-8")
+          (report_dir / "baseline-summary.md").write_text(summary_text, encoding="utf-8")
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
-              summary.write("\n".join(lines) + "\n")
-          print("\n".join(lines))
+              summary.write(summary_text)
+          print(summary_text)
+          print(f"Baseline summary status: {status}")
           with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
-              output.write(f"status={'success' if ok else 'failure'}\n")
+              output.write(f"status={status}\n")
           PY
 
       - name: Upload baseline logs and JUnit XML
@@ -212,9 +231,49 @@ jobs:
       - name: Mark the baseline successful only if all checks passed
         if: always()
         env:
+          HOKM_OUTCOME: ${{ steps.hokm.outcome }}
+          SERVER_OUTCOME: ${{ steps.server.outcome }}
+          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
+          APK_OUTCOME: ${{ steps.apk.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+          REPORT_OUTCOME: ${{ steps.report.outcome }}
           REPORT_STATUS: ${{ steps.report.outputs.status }}
         run: |
-          if [[ "$REPORT_STATUS" != "success" ]]; then
-            echo "Hokm baseline has one or more failed, missing, or unexecuted checks; see the job summary and artifacts." >&2
+          set -euo pipefail
+          failed=0
+          for item in \
+            "Hokm core tests|${HOKM_OUTCOME:-not run}" \
+            "Server tests|${SERVER_OUTCOME:-not run}" \
+            "Full checkAll|${CHECKS_OUTCOME:-not run}" \
+            "Debug APK|${APK_OUTCOME:-not run}" \
+            "App lint|${LINT_OUTCOME:-not run}" \
+            "Summary step|${REPORT_OUTCOME:-not run}"; do
+            IFS='|' read -r name outcome <<< "$item"
+            printf '%s: %s\n' "$name" "$outcome"
+            if [[ "$outcome" != "success" ]]; then
+              failed=1
+              echo "::error file=.github/workflows/hokm-baseline.yml,line=1::$name: $outcome"
+            fi
+          done
+          status_file="$RUNNER_TEMP/hokm-baseline/baseline-status.txt"
+          if [[ ! -s "$status_file" ]]; then
+            echo "The summary step did not produce baseline-status.txt." >&2
+            failed=1
+          else
+            summary_status="$(tr -d '\r\n' < "$status_file")"
+            printf 'Aggregated JUnit/build status: %s\n' "$summary_status"
+            printf 'GitHub step-output status: %s\n' "${REPORT_STATUS:-missing}"
+            if [[ "$summary_status" != "success" ]]; then
+              failed=1
+              echo "::error file=.github/workflows/hokm-baseline.yml,line=1::Aggregated JUnit/build status: $summary_status; inspect baseline-summary.md and uploaded results."
+            fi
+            if [[ -n "${REPORT_STATUS:-}" && "$REPORT_STATUS" != "$summary_status" ]]; then
+              echo "The step output and saved baseline status disagree." >&2
+              failed=1
+            fi
+          fi
+          if [[ "$failed" -ne 0 ]]; then
+            echo "Hokm baseline failed or is incomplete; see the detailed job summary and uploaded artifacts." >&2
             exit 1
           fi
+          echo "All baseline checks and JUnit results passed."
