@@ -57,15 +57,22 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
+          # No `pipefail`/pipes here: the runner executes this block with `sh`, where `set -o pipefail`
+          # is not available (it aborts with exit code 2 before anything runs).
           script: |
-            set -o pipefail
-            python3 tools/device-check/chess_start_crash.py app/build/outputs/apk/debug/app-debug.apk 2>&1 | tee device-log.txt
+            python3 tools/device-check/chess_start_crash.py app/build/outputs/apk/debug/app-debug.apk > device-log.txt 2>&1
+            rc=$?
+            cat device-log.txt
+            echo "device-check exit code: $rc"
+            exit $rc
 
       # The raw log is behind a blob URL that API-only reviewers cannot fetch, so the interesting
       # lines are re-emitted as annotations (readable via the check-run API) — same trick as ci.yml.
       - name: Surface the device log as annotations
         if: always()
-        run: python3 tools/device-check/report_annotations.py device-log.txt
+        run: |
+          echo "::notice::emulator step outcome: ${{ steps.device.outcome }}"
+          python3 tools/device-check/report_annotations.py device-log.txt || true
 
       - name: Upload screenshots
         if: always()
