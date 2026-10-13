@@ -23,6 +23,7 @@ import re
 import subprocess
 import sys
 import time
+import xml.etree.ElementTree as ET
 
 PKG = "ir.dorehami.app"
 ACTIVITY = f"{PKG}/.MainActivity"
@@ -72,28 +73,68 @@ def alive() -> bool:
     return sh("adb", "shell", "pidof", PKG).stdout.strip() != ""
 
 
-def nodes() -> list[tuple[str, str, tuple[int, int, int, int]]]:
-    """Visible accessibility nodes: (text, content-description, bounds)."""
+BOUNDS = re.compile(r"\[(\d+),(\d+)]\[(\d+),(\d+)]")
+
+
+class Node:
+    """One labelled element: its own bounds and the bounds of the clickable element around it."""
+
+    __slots__ = ("text", "desc", "bounds", "clickable")
+
+    def __init__(self, text: str, desc: str, bounds: tuple[int, int, int, int], clickable):
+        self.text = text
+        self.desc = desc
+        self.bounds = bounds
+        self.clickable = clickable  # bounds of the nearest clickable ancestor, if any
+
+    @property
+    def matches_any(self) -> bool:
+        return bool(self.text or self.desc)
+
+
+def ui_dump() -> tuple[list[Node], str]:
+    """Reads the accessibility tree: labelled nodes plus the raw XML (for diagnostics)."""
     sh("adb", "shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
     xml = sh("adb", "exec-out", "cat", "/sdcard/window_dump.xml").stdout or ""
-    out = []
-    for tag in re.findall(r"<node\b[^>]*>", xml):
-        text = re.search(r'text="([^"]*)"', tag)
-        desc = re.search(r'content-desc="([^"]*)"', tag)
-        bounds = re.search(r'bounds="\[(\d+),(\d+)]\[(\d+),(\d+)]"', tag)
-        if not bounds:
-            continue
-        x1, y1, x2, y2 = (int(v) for v in bounds.groups())
-        out.append((text.group(1) if text else "", desc.group(1) if desc else "", (x1, y1, x2, y2)))
-    return out
+    out: list[Node] = []
+    try:
+        root = ET.fromstring(xml)
+
+        def walk(element, clickable_bounds):
+            m = BOUNDS.match(element.attrib.get("bounds", ""))
+            bounds = tuple(int(v) for v in m.groups()) if m else None
+            inner = bounds if element.attrib.get("clickable") == "true" and bounds else clickable_bounds
+            text = element.attrib.get("text", "")
+            desc = element.attrib.get("content-desc", "")
+            if (text or desc) and bounds:
+                out.append(Node(text, desc, bounds, inner))
+            for child in element:
+                walk(child, inner)
+
+        walk(root, None)
+    except ET.ParseError:
+        # Fall back to a flat scan: good enough to find labels, only the tap target is less exact.
+        for tag in re.findall(r"<node\b[^>]*>", xml):
+            text = re.search(r'text="([^"]*)"', tag)
+            desc = re.search(r'content-desc="([^"]*)"', tag)
+            m = BOUNDS.search(tag)
+            if not m:
+                continue
+            bounds = tuple(int(v) for v in m.groups())
+            out.append(Node(text.group(1) if text else "", desc.group(1) if desc else "", bounds, bounds))
+    return out, xml
+
+
+def nodes() -> list[Node]:
+    return ui_dump()[0]
 
 
 def visible_texts(limit: int = 20) -> list[str]:
-    return [text for text, _, _ in nodes() if text][:limit]
+    return [n.text for n in nodes() if n.text][:limit]
 
 
 def on_text(fragment: str) -> bool:
-    return any(fragment in text or fragment in desc for text, desc, _ in nodes())
+    return any(fragment in n.text or fragment in n.desc for n in nodes())
 
 
 def wait_text(fragment: str, timeout: float = 8.0) -> bool:
@@ -120,13 +161,19 @@ def scroll_down(step_px: int = 500) -> None:
 
 
 def tap_text(fragment: str, *, scroll: bool = False) -> bool:
-    """Taps the first node whose text/description contains [fragment]; one attempt."""
-    for text, desc, (x1, y1, x2, y2) in nodes():
-        if fragment in text or fragment in desc:
+    """Taps the element labelled [fragment] — the clickable around it, not just the label.
+
+    Compose draws a button's text in a child node; tapping the middle of the *label* normally works,
+    but only the clickable parent is guaranteed to receive the press, so that is what we aim at.
+    """
+    for node in nodes():
+        if fragment in node.text or fragment in node.desc:
+            x1, y1, x2, y2 = node.clickable or node.bounds
             if x2 - x1 < 4 or y2 - y1 < 4:
                 continue
             x, y = (x1 + x2) // 2, (y1 + y2) // 2
-            log(f"tap «{fragment}» at ({x},{y}) — node text={text!r}")
+            where = "clickable" if node.clickable else "label"
+            log(f"tap «{fragment}» at ({x},{y}) on {where} bounds=[{x1},{y1}][{x2},{y2}] text={node.text!r}")
             sh("adb", "shell", "input", "tap", str(x), str(y))
             return True
     if scroll:
@@ -150,6 +197,10 @@ def go_to(fragment: str, marker: str, *, tries: int = 4, scroll: bool = False) -
     emit("error", f"«{marker}» never appeared after tapping «{fragment}»")
     failures.append(f"could not reach «{marker}» by tapping «{fragment}»")
     log(f"visible texts: {visible_texts()}")
+    _, xml = ui_dump()
+    print(f"[device-check] ---- UI hierarchy ({len(xml)} chars) ----", flush=True)
+    print(xml[:4000], flush=True)
+    print("[device-check] ---- end of UI hierarchy ----", flush=True)
     return False
 
 
@@ -253,6 +304,7 @@ def main() -> int:
         dump_logs()
         return 1
     log("RESULT: PASS — chess started on the device without a crash")
+    log(f"final screen texts: {visible_texts()}")
     return 0
 
 
