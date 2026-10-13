@@ -249,10 +249,10 @@ private fun HokmRoom(
         if (hapticsOn) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
-    DisposableEffect(Unit) {
+    DisposableEffect(flow, sounds) {
         onDispose {
+            sounds.enabled = false
             flow.leave()
-            scope.cancel()
         }
     }
     val stage by flow.stage
