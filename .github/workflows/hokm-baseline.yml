@@ -1,5 +1,5 @@
 # Full baseline for an explicitly scoped rollout of this workflow.
-# On this Arena session branch, it runs only when this workflow file changes.
+# On this Arena session branch, it runs only when this workflow or its exact approved Hokm lint target changes.
 # Manual dispatch becomes available after the workflow is merged to the repository's default branch.
 # This deliberately does not replace PR CI and never publishes/releases the APK.
 name: Hokm Baseline
@@ -10,6 +10,7 @@ on:
       - arena/05a354c8-dorehami
     paths:
       - .github/workflows/hokm-baseline.yml
+      - games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmEntry.kt
   workflow_dispatch:
 
 permissions:

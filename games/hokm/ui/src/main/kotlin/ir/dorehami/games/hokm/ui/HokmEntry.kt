@@ -658,7 +658,7 @@ private fun HokmHero(playerCount: Int, target: Int) {
                 }
             }
             Spacer(Modifier.width(if (narrow) 2.dp else 8.dp))
-            BoxWithConstraints(Modifier.width(if (narrow) 102.dp else 126.dp).height(175.dp)) {
+            Box(Modifier.width(if (narrow) 102.dp else 126.dp).height(175.dp)) {
                 val cardWidth = if (narrow) 66.dp else 76.dp
                 PlayingCardView(
                     card = Card.parse("7D")!!,
