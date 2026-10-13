@@ -270,7 +270,7 @@ internal fun PantohubGameScreen(
                                     }
                                 }
                             }
-                            if (errorMessage != null) ErrorCard(errorMessage!!, ::openBankAndPause)
+                            if (errorMessage != null) ErrorCard(errorMessage!!, if (PantohubDeveloperTools) ::openBankAndPause else null)
                             Text("پیش از شروع، گوشی را به اجراکننده بده. واژه به‌صورت خودکار به صفحهٔ عمومی نشان داده نمی‌شود.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
@@ -297,7 +297,9 @@ internal fun PantohubGameScreen(
                                             textAlign = TextAlign.Center,
                                         )
                                         Text("بازی سطح یا دسته را خودکار عوض نمی‌کند.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                                        OutlinedButton(onClick = ::openBankAndPause) { Text("مدیریت بانک واژه") }
+                                        if (PantohubDeveloperTools) {
+                                            OutlinedButton(onClick = ::openBankAndPause) { Text("مدیریت بانک واژه") }
+                                        }
                                     } else if (currentTurn?.wordRevealed != true) {
                                         Text("واژه فقط برای اجراکننده است", fontWeight = FontWeight.SemiBold)
                                         Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
@@ -342,7 +344,7 @@ internal fun PantohubGameScreen(
                             if (state.settings.cardsEnabled && state.phase == GamePhase.RUNNING) {
                                 SpecialCardsRow(state, ::dispatch)
                             }
-                            if (errorMessage != null) ErrorCard(errorMessage!!, ::openBankAndPause)
+                            if (errorMessage != null) ErrorCard(errorMessage!!, if (PantohubDeveloperTools) ::openBankAndPause else null)
                             Text("اگر گوشی را از اجراکننده می‌گیری، واژه را بپوشان یا نوبت را متوقف کن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
@@ -513,11 +515,13 @@ private fun SpecialCardsRow(state: GameState, dispatch: (GameAction) -> GameStat
 }
 
 @Composable
-private fun ErrorCard(message: String, onOpenBank: () -> Unit) {
+private fun ErrorCard(message: String, onOpenBank: (() -> Unit)?) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(message, color = MaterialTheme.colorScheme.error)
-            TextButton(onClick = onOpenBank) { Text("رفتن به بانک واژه") }
+            if (onOpenBank != null) {
+                TextButton(onClick = onOpenBank) { Text("رفتن به بانک واژه") }
+            }
         }
     }
 }

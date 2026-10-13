@@ -79,6 +79,8 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
     }
 
     fun openPage(destination: PantoPage) {
+        // Word-bank management exists only in developer builds.
+        if (destination == PantoPage.BANK && !PantohubDeveloperTools) return
         returnPage = page
         page = destination
     }
@@ -134,7 +136,6 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
             storageError = storageError,
             onNewGame = { page = PantoPage.SETUP },
             onContinue = { page = PantoPage.GAME },
-            onHistory = { openPage(PantoPage.HISTORY) },
             onBank = { openPage(PantoPage.BANK) },
             onSettings = { openPage(PantoPage.SETTINGS) },
         )
@@ -186,11 +187,15 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
             onBack = { page = returnPage },
         )
 
-        PantoPage.BANK -> WordBankScreen(
-            repository = repository,
-            onBack = { page = returnPage },
-            onChanged = ::refreshBankSummary,
-        )
+        PantoPage.BANK -> if (PantohubDeveloperTools) {
+            WordBankScreen(
+                repository = repository,
+                onBack = { page = returnPage },
+                onChanged = ::refreshBankSummary,
+            )
+        } else {
+            // Unreachable in public builds: openPage refuses this route.
+        }
 
         PantoPage.SETTINGS -> PantohubSettingsScreen(
             onBack = { page = returnPage },
@@ -208,7 +213,6 @@ private fun PantohubHome(
     storageError: String?,
     onNewGame: () -> Unit,
     onContinue: () -> Unit,
-    onHistory: () -> Unit,
     onBank: () -> Unit,
     onSettings: () -> Unit,
 ) {
@@ -264,53 +268,48 @@ private fun PantohubHome(
                 }
             }
         }
-        Spacer(Modifier.height(16.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("بانک واژهٔ همین دستگاه", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = bankSummary?.let { "${it.playable.toPersianDigits()} واژهٔ فعال و بازبینی‌شده از ${it.total.toPersianDigits()} رکورد" }
-                        ?: "بانک محلی هنوز آماده نیست.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "هدف محصول ۲۰٬۰۰۰ رکورد معتبر است؛ عدد واقعی بانک را اینجا می‌بینی. نسخهٔ فعلی هنوز به آن هدف نرسیده.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { ((bankSummary?.playable ?: 0) / 20_000f).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                Spacer(Modifier.height(4.dp))
-                PantohubButton(
-                    text = "مدیریت / ورود واژه‌ها",
-                    emoji = "📝",
-                    style = PantohubButtonStyle.Accent,
-                    onClick = onBank,
-                    modifier = Modifier.fillMaxWidth(),
-                )
+        if (PantohubDeveloperTools) {
+            Spacer(Modifier.height(16.dp))
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(Modifier.padding(16.dp)) {
+                    Text("بانک واژهٔ همین دستگاه", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        text = bankSummary?.let { "${it.playable.toPersianDigits()} واژهٔ فعال و بازبینی‌شده از ${it.total.toPersianDigits()} رکورد" }
+                            ?: "بانک محلی هنوز آماده نیست.",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    Spacer(Modifier.height(6.dp))
+                    Text(
+                        "هدف محصول ۲۰٬۰۰۰ رکورد معتبر است؛ عدد واقعی بانک را اینجا می‌بینی. نسخهٔ فعلی هنوز به آن هدف نرسیده.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    LinearProgressIndicator(
+                        progress = { ((bankSummary?.playable ?: 0) / 20_000f).coerceIn(0f, 1f) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                    Spacer(Modifier.height(8.dp))
+                    Spacer(Modifier.height(4.dp))
+                    PantohubButton(
+                        text = "مدیریت / ورود واژه‌ها",
+                        emoji = "📝",
+                        style = PantohubButtonStyle.Accent,
+                        onClick = onBank,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
             }
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
             PantohubButton(
-                text = "تاریخچه و آمار",
-                emoji = "📊",
-                style = PantohubButtonStyle.Secondary,
-                onClick = onHistory,
-                modifier = Modifier.weight(1f),
-            )
-            PantohubButton(
                 text = "تنظیمات",
                 emoji = "⚙️",
                 style = PantohubButtonStyle.Secondary,
                 onClick = onSettings,
-                modifier = Modifier.weight(1f),
+                modifier = Modifier.fillMaxWidth(),
             )
         }
     }

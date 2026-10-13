@@ -8,8 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = ROOT / "games/pantohub/ui/src/main/assets/pantohub-words-fa.csv"
-EXPECTED_COUNT = 1_000
-EXPECTED_DIFFICULTY_COUNTS = {"EASY": 400, "MEDIUM": 350, "HARD": 250}
+EXPECTED_COUNT = 2_500
+EXPECTED_DIFFICULTY_COUNTS = {"EASY": 1_000, "MEDIUM": 900, "HARD": 600}
 EXPECTED_CATEGORIES = {
     "animals", "nature", "home", "objects", "food", "jobs", "sports", "actions",
     "emotions", "places", "transport", "cinema", "literature", "idioms", "technology",
@@ -105,7 +105,12 @@ def main() -> None:
             fail(f"unknown phrase type at CSV line {line_number}: {phrase_type!r}")
         if row["validated"].strip().lower() != "true" or row["active"].strip().lower() != "true":
             fail(f"bootstrap record is not active and reviewed at CSV line {line_number}")
-        expected_version = "curated-bootstrap-v1" if line_number <= 101 else "curated-bootstrap-v2"
+        if line_number <= 101:
+            expected_version = "curated-bootstrap-v1"
+        elif line_number <= 1001:
+            expected_version = "curated-bootstrap-v2"
+        else:
+            expected_version = "curated-bootstrap-v3"
         if source_version != expected_version:
             fail(f"unexpected source version at CSV line {line_number}: {source_version!r}")
         expected_id = f"seed-{line_number - 1:03d}"
