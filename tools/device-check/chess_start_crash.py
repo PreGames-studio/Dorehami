@@ -143,7 +143,7 @@ def visible_texts(limit: int = 20) -> list[str]:
 
 
 def on_text(fragment: str) -> bool:
-    return any(fragment in n.text or fragment in n.desc for n in nodes())
+    return find_text(fragment) is not None
 
 
 def wait_text(fragment: str, timeout: float = 8.0) -> bool:
@@ -169,17 +169,32 @@ def scroll_down(step_px: int = 500) -> None:
     sh("adb", "shell", "input", "swipe", str(x), str(int(h * 0.72)), str(x), str(int(h * 0.72) - step_px), "220")
 
 
+def find_text(fragment: str) -> "Node | None":
+    """Finds the labelled node matching [fragment]: an exact label first, a substring second.
+
+    The exact pass matters: on the game list the intro sentence («… حکم، شطرنج و پانتومیم آماده‌اند.»)
+    also contains «شطرنج», and tapping that sentence obviously opens nothing.
+    """
+    found = nodes()
+    for node in found:
+        if node.text == fragment or node.desc == fragment:
+            return node
+    for node in found:
+        if fragment in node.text or fragment in node.desc:
+            return node
+    return None
+
+
 def tap_text(fragment: str, *, scroll: bool = False) -> bool:
     """Taps the element labelled [fragment] — the clickable around it, not just the label.
 
     Compose draws a button's text in a child node; tapping the middle of the *label* normally works,
     but only the clickable parent is guaranteed to receive the press, so that is what we aim at.
     """
-    for node in nodes():
-        if fragment in node.text or fragment in node.desc:
-            x1, y1, x2, y2 = node.clickable or node.bounds
-            if x2 - x1 < 4 or y2 - y1 < 4:
-                continue
+    node = find_text(fragment)
+    if node is not None:
+        x1, y1, x2, y2 = node.clickable or node.bounds
+        if x2 - x1 >= 4 and y2 - y1 >= 4:
             x, y = (x1 + x2) // 2, (y1 + y2) // 2
             where = "clickable" if node.clickable else "label"
             log(f"tap «{fragment}» at ({x},{y}) on {where} bounds=[{x1},{y1}][{x2},{y2}] text={node.text!r}")
