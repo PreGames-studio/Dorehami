@@ -111,6 +111,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import os
+          import re
           from collections import defaultdict
           from pathlib import Path
           import xml.etree.ElementTree as ET
@@ -158,6 +159,41 @@ jobs:
                           f"{case.get('classname', '')}.{case.get('name', '')}: {detail[:400]}"
                       )
 
+          failed_logs = {
+              "Hokm core tests": "hokm-core.log",
+              "Server tests": "server-tests.log",
+              "Full checkAll (no exclusions)": "check-all.log",
+              "Debug APK": "debug-apk.log",
+              "App lint": "app-lint.log",
+          }
+          failure_excerpts = {}
+          log_dir = Path(os.environ["RUNNER_TEMP"]) / "hokm-baseline"
+          for name, filename in failed_logs.items():
+              if labels[name] == "success":
+                  continue
+              log_path = log_dir / filename
+              if not log_path.is_file():
+                  failure_excerpts[name] = f"No captured log file: {filename}"
+                  continue
+              log_lines = log_path.read_text(encoding="utf-8", errors="replace").splitlines()
+              markers = [
+                  index for index, line in enumerate(log_lines)
+                  if line.startswith("FAILURE: Build failed with an exception.")
+              ]
+              if markers:
+                  start = markers[-1]
+                  end = next(
+                      (i for i in range(start + 1, len(log_lines)) if "BUILD FAILED" in log_lines[i]),
+                      min(start + 40, len(log_lines)),
+                  )
+                  excerpt = [line.strip() for line in log_lines[start:end] if line.strip()][:18]
+              else:
+                  excerpt = [
+                      line.strip() for line in log_lines
+                      if re.search(r"(?i)(what went wrong|execution failed|\bfailed\b|error:|exception)", line)
+                  ][-18:]
+              failure_excerpts[name] = " | ".join(excerpt) or "No standard Gradle failure marker; inspect the uploaded log."
+
           total_tests = sum(values[0] for values in modules.values())
           total_failures = sum(values[1] for values in modules.values())
           ok = all(value == "success" for value in labels.values()) and total_failures == 0
@@ -179,6 +215,10 @@ jobs:
           if failures:
               lines += ["", "### Test-result details"]
               lines.extend(f"- {item}" for item in failures[:40])
+          if failure_excerpts:
+              lines += ["", "### Failed Gradle step details"]
+              for name, excerpt in failure_excerpts.items():
+                  lines += [f"#### {name}", "", "```text", excerpt[:6000], "```"]
           lines += ["", "Full logs, JUnit XML and any APK are uploaded as workflow artifacts."]
           if not ok:
               print(
@@ -192,6 +232,12 @@ jobs:
                           f"::error file=.github/workflows/hokm-baseline.yml,line=1::"
                           f"{name}: {outcome}"
                       )
+              for name, excerpt in failure_excerpts.items():
+                  message = excerpt.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(
+                      f"::error file=.github/workflows/hokm-baseline.yml,line=1::"
+                      f"{name} failure detail: {message[:900]}"
+                  )
           summary_text = "\n".join(lines) + "\n"
           report_dir = Path(os.environ["RUNNER_TEMP"]) / "hokm-baseline"
           report_dir.mkdir(parents=True, exist_ok=True)
