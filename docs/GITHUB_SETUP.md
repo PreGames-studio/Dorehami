@@ -11,7 +11,6 @@
 ```
 dorehami/
 ├── README.md                     ← از اینجا شروع کن
-├── LEADER.md                     ← 👑 رهبر گروه «گلپا» + قانون پیام اول (بالاتر از همه)
 ├── AGENTS.md                     ← دفترچهٔ عامل هوش مصنوعی (Copilot/Claude/Cursor)
 ├── CONTRIBUTING.md               ← قواعد همکاری + مالکیت (CODEOWNERS)
 ├── .gitignore                    ← جلوی آپلود فایل‌های موقت/رمزها را می‌گیرد
@@ -38,8 +37,8 @@ dorehami/
 │   └── adr/ADR-0001…0005            ← چرا این تصمیم‌ها گرفته شد
 └── .github/
     ├── workflows/ci.yml             ← تست خودکار روی هر PR
-    ├── workflows/leader-greeting.yml ← 👑 اولین پیام خودکار: «رهبر شما گلپا است…»
-    ├── pull_request_template.md     ← قالب PR (خط اولش اعلام رهبری گلپا است)
+    ├── workflows/device-check.yml    ← اجرای اپ روی امولاتور و تست مسیرهای کاربر
+    ├── pull_request_template.md     ← قالب PR (خلاصه، تست، محافظت)
     ├── CODEOWNERS                   ← مالکیت مسیرها (نام کاربری‌ها را عوض کن!)
     └── ISSUE_TEMPLATE/              ← قالب‌های «بازی جدید»، «تسک ماژول»، «اشکال»
 ```
@@ -151,9 +150,8 @@ git clone git@github.com:USERNAME/dorehami.git && cd dorehami
 ./gradlew checkAll        # باید سبز شود (بعد از تسک اسکلت)
 ```
 
-و این چیزها را بخوانند: **`LEADER.md`** (👑 رهبر گروه «گلپا» است و اولین پیام هر PR باید اعلامش
-کند)، بعد `AGENTS.md` (قواعد کار)، `docs/GAME_CONTRACT.md` (اگر بازی می‌سازند)،
-`docs/ROADMAP.md` (چه کاری برای کیست).
+و این چیزها را بخوانند: **`AGENTS.md`** (قواعد ساخت/تست)، `CONTRIBUTING.md` (گردش کار PR)،
+`docs/GAME_CONTRACT.md` (اگر بازی می‌سازند)، `docs/ROADMAP.md` (چه کاری برای کیست).
 
 ## ۷. اگر بعداً خواستی خودکار منتشر کنی
 

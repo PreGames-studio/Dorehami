@@ -410,7 +410,7 @@ private fun HokmSetupScreen(
                     value = name,
                     onValueChange = { if (it.length <= 14) onName(it) },
                     label = { Text("نام نمایشی") },
-                    placeholder = { Text("مثلاً گلپا") },
+                    placeholder = { Text("مثلاً آرش") },
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
