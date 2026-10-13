@@ -3,7 +3,7 @@
 > 👑 رهبر این گروه **گلپا** است؛ قواعد همکاری و تأیید نهایی مطابق [LEADER.md](../../LEADER.md).
 > **نام کوتاه این سند: «MD حکم» یا «فایل ام‌دی حکم».**
 > راهنمای اجرای عامل: [AGENTS.md اختصاصی حکم](AGENTS.md).
-> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-13** · نسخهٔ سند: **1.17** · مبنای خط‌پایهٔ کد: **`224c2cf`** · HK-002 (`b2b55e6`)، HK-003 (`e69481a`) و HK-004 تکمیل شدند؛ HK-005 روی برنچ ثابت `arena/05a354c8-dorehami` فعال است.
+> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-13** · نسخهٔ سند: **1.18** · مبنای خط‌پایهٔ کد: **`224c2cf`** · HK-002 (`b2b55e6`)، HK-003 (`e69481a`)، HK-004 و HK-005 تکمیل شدند؛ HK-006 روی برنچ ثابت `arena/05a354c8-dorehami` فعال است.
 > این سند برنامهٔ ساخت است، نه اعلام آماده‌بودن قابلیت‌ها یا تضمین محبوبیت سراسری.
 
 ---
@@ -14,18 +14,18 @@
 | موضوع | وضعیت ثبت‌شده |
 |---|---|
 | چشم‌انداز | حکم ایرانیِ خوش‌ساخت، منصفانه، قابل‌اعتماد و راحت؛ مناسب بزرگسالان و سنین بالاتر، بدون قربانی‌کردن گوشی‌های اقتصادی |
-| مرحلهٔ فعلی | **HK-005 — ACTIVE**؛ snapshot نتیجهٔ دست و آمار یک‌باره پیاده‌سازی شده؛ CI کامل پس از push در انتظار است |
-| کار فعال/تصمیم بعدی | فقط HK-005 فعال است؛ کاربر پیشروی مرحله‌به‌مرحله تا مرحلهٔ ۱۰ را مجاز کرده و merge را خودش انجام می‌دهد |
-| پیشنهاد جلسهٔ بعد | دریافت شاهد CI کامل HK-005؛ اگر سبز بود HK-005 تکمیل و HK-006 بررسی شود |
+| مرحلهٔ فعلی | **HK-006 — ACTIVE**؛ اتصال آنلاین باید از آدرس قابل‌ویرایش فعلی lobby استفاده کند و ورودی نامعتبر پیام روشن بدهد |
+| کار فعال/تصمیم بعدی | HK-005 با شاهد full CI سبز تکمیل شد؛ فقط HK-006 فعال است؛ کاربر تا HK-010 پیشروی و merge را خودش انجام می‌دهد |
+| پیشنهاد جلسهٔ بعد | بستن HK-006 با تستی که endpoint به‌روزشده را واقعاً مصرف کند؛ سپس HK-007 بررسی شود |
 | تأیید اجرای HK-001 | دریافت شد: پاسخ صریح کاربر «تایید است» در 2026-10-13 |
 | تأیید پیشروی HK-002 | کاربر در 2026-10-13 گفت تا ۱۰ مرحله پیش برویم و او merge می‌کند؛ مجوز فعلی برای ادامهٔ اجرای گام‌هاست، نه merge/deploy توسط عامل |
 | تأیید زیرمرحلهٔ HK-001.a | اجرا و تشخیص baseline پایان یافت؛ فقط برنچ ثابت `arena/05a354c8-dorehami` |
 | تأیید زیرمرحلهٔ HK-001.b | کاربر گفت «بهترین شکل عمل کن»؛ فقط تبدیل Box داخلی `HokmEntry.kt:661` به `Box` و full rerun مجاز بود |
 | دامنهٔ مجاز/انجام‌شده | اصلاح همان container و path trigger همان فایل، اجرای runner، گزارش؛ بدون dependency change، merge، انتشار یا deploy |
-| وضعیت آزمون نرم‌افزار در این نوبت | آخرین full CI قبلی [run `38418382306`](https://github.com/PreGames-studio/Dorehami/actions/runs/38418382306) روی `20d9ad4` سبز بود (150 تست/0 شکست/9 ماژول و APK موفق)؛ تست-first HK-005 در [run `38458506525`](https://github.com/PreGames-studio/Dorehami/actions/runs/38458506525) با 27/1 عمداً پیش از fix قرمز شد. اجرای `.b` هنوز CI نشده؛ Java محلی حاضر نیست. baseline اولیه در [گزارش HK-001](reports/HK-001-baseline.md) |
+| وضعیت آزمون نرم‌افزار در این نوبت | HK-005 روی `512ad7d`: [CI run `38459748196`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748196) سبز شد: `checkAll` برابر 153 تست/0 شکست/9 ماژول؛ APK job و artifact موفق. [Baseline run `38459748182`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748182) نیز core/server/full checks/APK/app lint را سبز کرد. تست-first قرمز پیش از fix در `38458506525` ثبت شده؛ Java محلی حاضر نیست. baseline اولیه در [گزارش HK-001](reports/HK-001-baseline.md) |
 | قابلیت‌های موجود | کد محلی/ربات، ۲/۳/۴ نفره، Compose، اتاق، Nearby و WebSocket وجود دارد؛ کیفیت انتشار باید با مراحل بعد اثبات شود |
-| مانع فعلی | مانع CI مرحلهٔ HK-004 با run `38418382306` رفع شد؛ آزمون واقعی دستگاه و رندر/تعامل Compose هنوز جداگانه اجرا نشده؛ HK-005 اکنون فعال است |
-| آخرین تحویل | HK-004 `DONE`: run قبلی `38417332260` (server 3/1 و UI result مفقود) با run بعدی `38418382306` روی همان کد UI جایگزین شد؛ 150/0/9، گزارش سبز، server/UI results موجود و APK artifact آپلود شد |
+| مانع فعلی | گیت CI برای HK-005 سبز است؛ دستگاه/رندر Compose جداگانه آزموده نشده؛ در HK-006 هنوز endpoint واقعی/ورودی نامعتبر باید با تست پوشش داده شود |
+| آخرین تحویل | HK-005 `DONE`: snapshot immutable و آمار یک‌باره؛ run `38459748196` برابر 153/0/9 و APK job/artifact سبز، baseline `38459748182` نیز کامل موفق شد |
 
 **قاعدهٔ وضعیت:** `TODO` = برنامه‌ریزی‌شده؛ `ACTIVE` = تأییدشده و در حال اجرا؛ `BLOCKED` = مانع ثبت‌شده؛ `DONE` = معیار پایان با شاهد برآورده شده؛ `DEFERRED` = تعویق آگاهانه با دلیل و تأیید.
 
@@ -484,8 +484,8 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 | HK-002 | DONE | HK-001 | گیت واقعی حکم، نشست، سرور و APK در CI | run `38413611247` روی `b2b55e6`: `checkAll` بدون exclusion، 146 تست/0 شکست/9 ماژول؛ guard نتیجهٔ سرور و UI؛ APK artifact در CI موفق؛ تست گوشی جدا انجام نشده. Ops/Shared/H-ui |
 | HK-003 | DONE | HK-002 | رفع مسیر ربات ساده در دور ناقص | تست پیش از fix در [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) با 2 شکست از 148؛ پس از fix به `winningPlay` در [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) برابر 148/0/9 ماژول و هر دو job موفق. بازی easy و replay در ۲/۳/۴ و trick ناقص ۳/۴ در suite پاس شدند. H-core |
 | HK-004 | DONE | HK-003 | موقعیت نسبی یکسان برای همهٔ بازیکنان | run اولیه `38417332260` در server:test با 3/1 شکست داشت؛ سپس [run `38418382306`](https://github.com/PreGames-studio/Dorehami/actions/runs/38418382306) روی همان کد UI موفق شد: 150/0/9 ماژول، نتایج اجباری server و `games/hokm/ui` حاضر، و job APK موفق. H-ui |
-| HK-005 | ACTIVE | HK-004 | تاریخچهٔ دست قبلی مستقل از دست فعلی | `handResultJson` باید snapshot دست تمام‌شده را serialize کند، نه trump/score جاری؛ مرز شروع دست بعدی، بازپخش و ثبت یک‌بارهٔ آمار regression-test شوند. H-core/H-ui |
-| HK-006 | TODO | HK-005 | استفادهٔ واقعی از آدرس سرور تازه | تغییر آدرس قبل از اتصال در همان صفحه به endpoint جدید برسد؛ ورودی بد خطای روشن بدهد. H-ui |
+| HK-005 | DONE | HK-004 | تاریخچهٔ دست قبلی مستقل از دست فعلی | regression event/publicView/replay و stats؛ [run `38459748196`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748196): 153/0/9، APK موفق؛ baseline `38459748182` نیز کامل سبز. H-core/H-ui |
+| HK-006 | ACTIVE | HK-005 | استفادهٔ واقعی از آدرس سرور تازه | تغییر آدرس قبل از اتصال در همان صفحه به endpoint جدید برسد؛ ورودی بد خطای روشن بدهد. H-ui |
 | HK-007 | TODO | HK-006 | بستن قطعی منابع اتاق | خروج/خطا/cancel اتصال، coroutine، HTTP و صدا را رها نکند؛ آزمون تکرار ورود/خروج. H-ui/Shared با تأیید |
 | HK-008 | TODO | HK-007 | قرارداد مصوب قواعد و واژگان ۲/۳/۴ نفره | مثال‌های امتیاز/مساوی/کُت سه‌نفره تصویب و تست شوند؛ اختلاف README و کد رفع شود. H-core/Docs |
 
@@ -731,7 +731,7 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 **محدودیت/خارج از دامنه:** screenshot/accessibility/device test و merge انجام نشد؛ آزمون رندر واقعی جدا باقی است. خطای گذرای `server:test` در run نخست علت‌یابی قطعی نشد، اما در run بعدی تکرار نشد.
 
 <a id="hk-005-active"></a>
-### HK-005 — snapshot دست قبلی و ثبت یک‌بارهٔ آمار (ACTIVE)
+### HK-005 — snapshot دست قبلی و ثبت یک‌بارهٔ آمار (DONE)
 
 **تشخیص:** `HokmSession.HandResult` فعلاً `hokm` و امتیاز snapshot را نگه نمی‌دارد؛ `handResultJson()` مقدار `hokm` را از متغیر جاری نشست می‌خواند و `startHand()` آن را `null` می‌کند. بنابراین `lastHandResult` پس از شروع دست بعدی با payload رویداد `hand_finished` همسان نمی‌ماند. در UI نیز guard ثبت آمار از `remember(matchKey)` استفاده می‌کند و با بازسازی composition از نو می‌شود.
 
@@ -739,11 +739,13 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 
 **شاهد `.a` پیش از fix:** [CI run `38458506525`](https://github.com/PreGames-studio/Dorehami/actions/runs/38458506525) روی commit `608061d`: `:games:hokm:core:test` برابر **27 تست/1 شکست** شد؛ این run فقط تست regression جدید را افزوده بود و انتظار قرمزی پیش از fix را تأیید می‌کند. annotation نام تست را نشان نداد؛ `checkAll` در 122/1 متوقف شد و نتیجهٔ UI به‌علت توقف زودهنگام مفقود ماند. job ساخت APK سبز بود و artifact آپلود شد. اجرای محلی ممکن نیست چون `java` در محیط حاضر نیست.
 
-**پیاده‌سازی `.b` آمادهٔ گیت:** `HandResult` اکنون `hokm` و `scores` را به‌صورت snapshot مستقل می‌گیرد و `handResultJson()` فقط از همان نتیجه serialize می‌کند؛ محاسبهٔ خالص stats و guard پایان match در فایل جداگانه با دو تست JVM پوشش داده شده و guard Compose از `rememberSaveable(matchKey)` استفاده می‌کند. آزمون محلی اجرا نشد؛ CI پس از push هنوز در انتظار است.
+**پیاده‌سازی `.b`:** `HandResult` اکنون `hokm` و `scores` را به‌صورت snapshot مستقل می‌گیرد و `handResultJson()` فقط از همان نتیجه serialize می‌کند؛ محاسبهٔ خالص stats و guard پایان match در فایل جداگانه با دو تست JVM پوشش داده شده و guard Compose از `rememberSaveable(matchKey)` استفاده می‌کند.
+
+**شاهد سبز پس از fix:** [CI run `38459748196`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748196) روی `512ad7d`: **153 تست، 0 شکست، 9 ماژول**؛ هر دو job `checkAll` و ساخت debug APK سبز و artifact آپلود شد. [Baseline run `38459748182`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748182) نیز core، server، full checks، APK و app lint را کامل سبز کرد. Java در محیط محلی نصب نیست؛ اجراها روی CI واقعی بودند.
 
 **دامنهٔ فایل:** `games/hokm/core/src/main/kotlin/.../HokmSession.kt` و تست تازهٔ core؛ `games/hokm/ui/src/main/kotlin/.../HokmEntry.kt`، helper/test خالص JVM برای آمار، و همین roadmap. هیچ قاعدهٔ امتیازدهی یا API بازی دیگری تغییر نمی‌کند.
 
-**معیار پایان:** همهٔ فیلدهای snapshot دست تمام‌شده (شماره، برنده، امتیاز، نوع، حاکم، حکم، trickها و scores) بعد از آغاز دست بعدی حفظ شوند؛ replay همان snapshot/digest را بازسازی کند؛ چند اثر `finished`/recomposition برای یک `matchKey` فقط یک بار `recordMatch` را اجرا کند؛ `checkAll` با summary کامل و job APK سبز شود.
+**معیار پایان — برآورده شد:** همهٔ فیلدهای snapshot دست تمام‌شده (شماره، برنده، امتیاز، نوع، حاکم، حکم، trickها و scores) بعد از آغاز دست بعدی حفظ شدند؛ replay همان snapshot/digest را بازسازی کرد؛ guard `rememberSaveable(matchKey)` و تست pure JVM مسیر یک‌بار‌نویسی را پوشش دادند؛ `checkAll` با summary کامل و job APK سبز شد.
 
 **ریسک/مرز:** فقط خروجی JSON موجود immutable و درست می‌شود؛ تغییر قواعد/نسخهٔ پروتکل یا ذخیرهٔ دائمی کل تاریخچه پس از خروج از بازی خارج از دامنه است. تغییر Compose-device/render test لازم نیست؛ تست stats در JVM state logic خواهد بود.
 
@@ -842,7 +844,7 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 | 2026-10-13 | HK-003 — DONE | ادامه تا حداکثر ۱۰ مرحله طبق پیام کاربر؛ فقط `games/hokm/core` و تست‌ها | دو تست regression: partial trick سه/چهارنفره و full easy match/replay در ۲/۳/۴ | پیش از fix [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) قرمز بود: core 26/2 و کل 148/2؛ نام تست‌ها از annotationها به دست نیامد. پس از fix `winningPlay`، [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) سبز: 148/0/9 ماژول و هر دو job موفق؛ full easy/replay سبز. local Gradle اجرا نشد چون Java نبود | HK-004 فعال؛ بدون تغییر قانون/ربات pro |
 | 2026-10-13 | HK-004 — DONE | همان برنچ ثابت؛ فقط UI میز حکم | `HokmSeatLayout` و ماتریس همهٔ ۲/۳/۴ نفر و seatها؛ mapper در table/trick/collect/FX/dealing/last trick | run `38417332260` ابتدا server test را 3/1 شکست داد؛ run بعدی [38418382306](https://github.com/PreGames-studio/Dorehami/actions/runs/38418382306) روی همان کد UI سبز شد: 150/0/9 ماژول؛ گزارش به‌خاطر guard نتیجهٔ server و `games/hokm/ui` را داشت؛ APK job/artifact موفق. آزمون رندر/دستگاه انجام نشده و خارج از این گیت است | HK-005؛ کاربر merge را تا مرحلهٔ ۱۰ خودش انجام می‌دهد |
 | 2026-10-13 | HK-005 — ACTIVE | اجازهٔ کاربر برای پیشروی مرحله‌به‌مرحله تا ۱۰؛ فقط برنچ ثابت | تشخیص `handResultJson` و افزودن تست-first `HokmHandHistoryTest` برای مقایسهٔ event/publicView/replay | [run `38458506525`](https://github.com/PreGames-studio/Dorehami/actions/runs/38458506525): `:games:hokm:core:test` برابر 27/1 شد؛ نام مورد شکست در annotation نیست، اما تنها تست تازه همین regression است؛ APK job سبز. local Java موجود نیست | اجرای `.b`: snapshot immutable + ثبت آمار saveable/tested؛ سپس full CI سبز |
-| 2026-10-13 | HK-005 `.b` — ACTIVE | ادامهٔ مجاز تا HK-010؛ فقط برنچ ثابت | snapshot `hokm/scores` در `HandResult`، serialize از همان snapshot، helper آمار، guard `rememberSaveable` و دو تست JVM | کد آمادهٔ push و گیت؛ CI هنوز اجرا نشده و Java محلی نصب نیست | push به شاخهٔ فعلی؛ بررسی full checkAll و APK job، سپس وضعیت را بر اساس شاهد به‌روز کن |
+| 2026-10-13 | HK-005 `.b` — DONE؛ HK-005 — DONE | ادامهٔ مجاز تا HK-010؛ فقط برنچ ثابت | snapshot `hokm/scores` در `HandResult`، serialize از همان snapshot، helper آمار، guard `rememberSaveable` و دو تست JVM | [run `38459748196`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748196) روی `512ad7d`: 153/0/9 و هر دو job سبز؛ baseline `38459748182` core/server/full checks/APK/lint را سبز کرد؛ Java محلی موجود نیست | HK-006: endpoint تازه واقعاً مصرف شود و ورودی نامعتبر خطای روشن داشته باشد؛ بدون merge یا deploy |
 
 ### قالب ثبت هر تحویل
 

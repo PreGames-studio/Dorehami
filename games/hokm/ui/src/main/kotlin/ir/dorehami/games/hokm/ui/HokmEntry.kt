@@ -262,7 +262,10 @@ private fun HokmRoom(
             flow = flow,
             playerCount = playerCount,
             serverUrl = serverUrl,
-            onServerUrl = onServerUrl,
+            onServerUrl = { value ->
+                flow.updateServerUrl(value)
+                onServerUrl(value)
+            },
             onExit = onExit,
             onTap = onTap,
         )
