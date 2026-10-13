@@ -59,7 +59,7 @@ jobs:
               tot += n; bad += fl
 
           # A successful aggregate build must still prove that its critical suites ran.
-          expected = {"server"}
+          expected = {"server", "games/hokm/ui"}
           missing = sorted(module for module in expected if per.get(module, [0, 0, 0])[0] == 0)
           pat = re.compile(r"FAILURE:|What went wrong|^e: |error:|Execution failed|Caused by:|tests? completed|FAILED$|BUILD (SUCCESSFUL|FAILED)")
           hits = [l for l in lines if pat.search(l)]
