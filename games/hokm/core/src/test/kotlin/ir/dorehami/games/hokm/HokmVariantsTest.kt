@@ -148,6 +148,15 @@ class HokmVariantsTest {
                 } else {
                     val w = h.payload.int("winnerTeam")
                     assertTrue(tricks[w] == 7 || (tricks.sum() == 17 && tricks[w] == tricks.max()))
+                    // HK-008 contract: kot needs BOTH losers at zero; hakem-kot needs the hakem at zero.
+                    val others = tricks.filterIndexed { i, t -> i != w }
+                    val hakem = h.payload.int("hakem")
+                    val expected = when {
+                        tricks[hakem] == 0 && hakem != w -> "hakem_kot" to 3
+                        others.all { it == 0 } -> "kot" to 2
+                        else -> "normal" to 1
+                    }
+                    assertEquals(expected, kind to h.payload.int("points"), "seed $seed hand ${h.payload.int("handNumber")}")
                 }
             }
             val scores = e.session.publicView().ints("scores")

@@ -18,10 +18,10 @@ class HokmScoringTest {
 
     @Test
     fun `hand points - normal, kot and hakem kot`() {
-        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, 3, hakemTricks = 7, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
-        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, 6, hakemTricks = 6, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
-        assertEquals(HandWinKind.KOT to 2, HokmRules.handResult(7, 0, hakemTricks = 7, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
-        assertEquals(HandWinKind.HAKEM_KOT to 3, HokmRules.handResult(7, 0, hakemTricks = 0, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, listOf(3), hakemTricks = 7, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.NORMAL to 1, HokmRules.handResult(7, listOf(6), hakemTricks = 6, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.KOT to 2, HokmRules.handResult(7, listOf(0), hakemTricks = 7, hakemLost = false, kotPoints = 2, hakemKotPoints = 3))
+        assertEquals(HandWinKind.HAKEM_KOT to 3, HokmRules.handResult(7, listOf(0), hakemTricks = 0, hakemLost = true, kotPoints = 2, hakemKotPoints = 3))
     }
 
     @Test

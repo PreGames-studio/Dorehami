@@ -483,7 +483,7 @@ abstract class HokmTable(
                         val winner = e.payload["winner"]!!.jsonPrimitive.int
                         pendingCollect = winner
                         pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
-                        feed += "${seats[winner].name} دست را برد"
+                        feed += "${seats[winner].name} ترفند را برد"
                     }
 
                     "hand_finished" -> {
