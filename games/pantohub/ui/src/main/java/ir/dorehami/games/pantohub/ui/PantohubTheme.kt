@@ -1,5 +1,12 @@
 package ir.dorehami.games.pantohub.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.isSystemInDarkTheme
@@ -10,18 +17,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.compositionLocalOf
+import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
 import ir.dorehami.core.uikit.DorehamiPageFrame
+import kotlin.math.PI
+import kotlin.math.sin
+
+/** Whether decorative motion (animated buttons, sparkles) is enabled; set from Pantohub settings. */
+internal val LocalPantohubMotion = compositionLocalOf { true }
 
 /** A bright, playful palette for Pantohub: sunny orange, lively teal, and warm paper tones. */
 @Composable
-internal fun PantohubTheme(content: @Composable () -> Unit) {
+internal fun PantohubTheme(motionEnabled: Boolean = true, content: @Composable () -> Unit) {
     val dark = isSystemInDarkTheme()
     val colors = remember(dark) {
         if (dark) {
@@ -70,7 +86,9 @@ internal fun PantohubTheme(content: @Composable () -> Unit) {
             )
         }
     }
-    MaterialTheme(colorScheme = colors, content = content)
+    CompositionLocalProvider(LocalPantohubMotion provides motionEnabled) {
+        MaterialTheme(colorScheme = colors, content = content)
+    }
 }
 
 @Composable
@@ -120,5 +138,47 @@ internal fun PantohubBackdrop(
                     ),
                 ),
         )
+        PantohubSparkles(modifier = Modifier.fillMaxSize())
+    }
+}
+
+/**
+ * Slow, looping confetti sparkles drifting over the artwork. The loop is seamless (integer speeds),
+ * and the motion is frozen when the user turns animations off in Pantohub settings.
+ */
+@Composable
+private fun PantohubSparkles(modifier: Modifier = Modifier) {
+    val motion = LocalPantohubMotion.current
+    val transition = rememberInfiniteTransition(label = "pantohubSparkles")
+    val animated by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(tween(durationMillis = 16_000, easing = LinearEasing), RepeatMode.Restart),
+        label = "pantohubSparklePhase",
+    )
+    val phase = if (motion) animated else 0f
+    val palette = remember {
+        listOf(
+            Color(0xFFFFFFFF),
+            Color(0xFFFFE08A),
+            Color(0xFFFFB3C7),
+            Color(0xFF9EF0E4),
+        )
+    }
+    Canvas(modifier = modifier) {
+        for (i in 0 until 26) {
+            val baseX = ((i * 53 + 17) % 100) / 100f
+            val baseY = ((i * 29 + 7) % 100) / 100f
+            val speed = 1 + (i % 3)                       // integer speeds keep the loop seamless
+            val y = ((baseY - phase * speed) % 1f + 1f) % 1f
+            val x = baseX + 0.025f * sin(2f * PI.toFloat() * phase * (1 + i % 2) + i)
+            val radius = (1.6f + (i % 4) * 0.9f) * density
+            val alpha = 0.3f + ((i * 7) % 5) / 10f
+            drawCircle(
+                color = palette[i % palette.size].copy(alpha = alpha),
+                radius = radius,
+                center = Offset(x * size.width, y * size.height),
+            )
+        }
     }
 }

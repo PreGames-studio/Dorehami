@@ -11,13 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -44,13 +41,16 @@ private enum class PantoPage { MODE, HOME, SETUP, GAME, HISTORY, BANK, SETTINGS,
 /** Native, offline-first pantomime area attached to the existing Android game picker. */
 @Composable
 fun PantohubScreen(onBack: () -> Unit) {
-    PantohubTheme {
-        PantohubScreenContent(onBack)
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("pantohub-settings", 0) }
+    var motionEnabled by remember { mutableStateOf(preferences.getBoolean("animations", true)) }
+    PantohubTheme(motionEnabled = motionEnabled) {
+        PantohubScreenContent(onBack = onBack, onMotionChange = { motionEnabled = it })
     }
 }
 
 @Composable
-private fun PantohubScreenContent(onBack: () -> Unit) {
+private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val repository = remember { PantohubRepository(context) }
     DisposableEffect(repository) { onDispose { repository.close() } }
@@ -161,7 +161,12 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
             val state = activeGame
             if (state == null) {
                 SimplePantoPage("بازی فعالی نیست", onBack = { page = PantoPage.HOME }) {
-                    Button(onClick = { page = PantoPage.SETUP }) { Text("ساخت بازی جدید") }
+                    PantohubButton(
+                        text = "ساخت بازی جدید",
+                        emoji = "✨",
+                        onClick = { page = PantoPage.SETUP },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             } else {
                 PantohubGameScreen(
@@ -187,7 +192,10 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
             onChanged = ::refreshBankSummary,
         )
 
-        PantoPage.SETTINGS -> PantohubSettingsScreen(onBack = { page = returnPage })
+        PantoPage.SETTINGS -> PantohubSettingsScreen(
+            onBack = { page = returnPage },
+            onMotionChange = onMotionChange,
+        )
     }
 }
 
@@ -234,9 +242,12 @@ private fun PantohubHome(
                 )
                 Spacer(Modifier.height(16.dp))
                 if (activeGame != null && activeGame.phase.name != "FINISHED") {
-                    Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-                        Text("ادامهٔ بازی «${activeGame.name}»")
-                    }
+                    PantohubButton(
+                        text = "ادامهٔ بازی «${activeGame.name}»",
+                        emoji = "▶️",
+                        onClick = onContinue,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "برای حفظ بازی جاری، اول آن را ادامه بده یا با تأیید پایانش بده؛ بعد بازی جدید بساز.",
@@ -244,9 +255,12 @@ private fun PantohubHome(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) {
-                        Text("شروع بازی جدید")
-                    }
+                    PantohubButton(
+                        text = "شروع بازی جدید",
+                        emoji = "🎉",
+                        onClick = onNewGame,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
         }
@@ -272,13 +286,32 @@ private fun PantohubHome(
                     modifier = Modifier.fillMaxWidth(),
                 )
                 Spacer(Modifier.height(8.dp))
-                TextButton(onClick = onBank) { Text("مدیریت / ورود واژه‌ها") }
+                Spacer(Modifier.height(4.dp))
+                PantohubButton(
+                    text = "مدیریت / ورود واژه‌ها",
+                    emoji = "📝",
+                    style = PantohubButtonStyle.Accent,
+                    onClick = onBank,
+                    modifier = Modifier.fillMaxWidth(),
+                )
             }
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = onHistory, modifier = Modifier.weight(1f)) { Text("تاریخچه و آمار") }
-            OutlinedButton(onClick = onSettings, modifier = Modifier.weight(1f)) { Text("تنظیمات") }
+            PantohubButton(
+                text = "تاریخچه و آمار",
+                emoji = "📊",
+                style = PantohubButtonStyle.Secondary,
+                onClick = onHistory,
+                modifier = Modifier.weight(1f),
+            )
+            PantohubButton(
+                text = "تنظیمات",
+                emoji = "⚙️",
+                style = PantohubButtonStyle.Secondary,
+                onClick = onSettings,
+                modifier = Modifier.weight(1f),
+            )
         }
     }
 }
@@ -299,6 +332,7 @@ private fun PantohubModeScreen(onBack: () -> Unit, onGroup: () -> Unit, onSolo: 
             title = "بازی گروهی",
             description = "تیم بساز، واژه را فقط به اجراکننده نشان بده و امتیازها را روی همین گوشی ثبت کن.",
             buttonLabel = "ورود به بازی گروهی",
+            style = PantohubButtonStyle.Primary,
             onClick = onGroup,
         )
         ModeChoiceCard(
@@ -306,6 +340,7 @@ private fun PantohubModeScreen(onBack: () -> Unit, onGroup: () -> Unit, onSolo: 
             title = "بازی تک نفره",
             description = "این حالت به‌زودی طراحی و فعال می‌شود.",
             buttonLabel = "ورود به بازی تک نفره",
+            style = PantohubButtonStyle.Accent,
             onClick = onSolo,
         )
     }
@@ -317,6 +352,7 @@ private fun ModeChoiceCard(
     title: String,
     description: String,
     buttonLabel: String,
+    style: PantohubButtonStyle,
     onClick: () -> Unit,
 ) {
     Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
@@ -325,9 +361,12 @@ private fun ModeChoiceCard(
             Spacer(Modifier.height(8.dp))
             Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
             Spacer(Modifier.height(16.dp))
-            Button(onClick = onClick, modifier = Modifier.fillMaxWidth().height(56.dp)) {
-                Text(buttonLabel, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            }
+            PantohubButton(
+                text = buttonLabel,
+                style = style,
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+            )
         }
     }
 }
@@ -360,7 +399,7 @@ internal fun String.toPersianDigits(): String = map { char ->
 }.joinToString("")
 
 @Composable
-private fun PantohubSettingsScreen(onBack: () -> Unit) {
+private fun PantohubSettingsScreen(onBack: () -> Unit, onMotionChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("pantohub-settings", 0) }
     var soundEnabled by remember { mutableStateOf(preferences.getBoolean("sound", true)) }
@@ -383,6 +422,7 @@ private fun PantohubSettingsScreen(onBack: () -> Unit) {
             onCheckedChange = {
                 animationsEnabled = it
                 preferences.edit().putBoolean("animations", it).apply()
+                onMotionChange(it)
             },
         )
         Card(modifier = Modifier.fillMaxWidth()) {
