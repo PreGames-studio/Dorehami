@@ -3,7 +3,7 @@
 > 👑 رهبر این گروه **گلپا** است؛ قواعد همکاری و تأیید نهایی مطابق [LEADER.md](../../LEADER.md).
 > **نام کوتاه این سند: «MD حکم» یا «فایل ام‌دی حکم».**
 > راهنمای اجرای عامل: [AGENTS.md اختصاصی حکم](AGENTS.md).
-> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-13** · نسخهٔ سند: **1.15** · مبنای خط‌پایهٔ کد: **`224c2cf`** · HK-002 (`b2b55e6`)، HK-003 (`e69481a`) و HK-004 تکمیل شدند؛ HK-005 روی برنچ ثابت `arena/05a354c8-dorehami` فعال است.
+> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-13** · نسخهٔ سند: **1.17** · مبنای خط‌پایهٔ کد: **`224c2cf`** · HK-002 (`b2b55e6`)، HK-003 (`e69481a`) و HK-004 تکمیل شدند؛ HK-005 روی برنچ ثابت `arena/05a354c8-dorehami` فعال است.
 > این سند برنامهٔ ساخت است، نه اعلام آماده‌بودن قابلیت‌ها یا تضمین محبوبیت سراسری.
 
 ---
@@ -14,15 +14,15 @@
 | موضوع | وضعیت ثبت‌شده |
 |---|---|
 | چشم‌انداز | حکم ایرانیِ خوش‌ساخت، منصفانه، قابل‌اعتماد و راحت؛ مناسب بزرگسالان و سنین بالاتر، بدون قربانی‌کردن گوشی‌های اقتصادی |
-| مرحلهٔ فعلی | **HK-005 — ACTIVE**؛ snapshot نتیجهٔ دست قبلی باید پس از شروع دست تازه ثابت بماند و آمار پایان بازی یک‌بار ثبت شود |
+| مرحلهٔ فعلی | **HK-005 — ACTIVE**؛ snapshot نتیجهٔ دست و آمار یک‌باره پیاده‌سازی شده؛ CI کامل پس از push در انتظار است |
 | کار فعال/تصمیم بعدی | فقط HK-005 فعال است؛ کاربر پیشروی مرحله‌به‌مرحله تا مرحلهٔ ۱۰ را مجاز کرده و merge را خودش انجام می‌دهد |
-| پیشنهاد جلسهٔ بعد | تکمیل تست مرز دست/بازپخش و ثبت یک‌بارهٔ آمار؛ پس از گیت سبز، HK-006 بررسی شود |
+| پیشنهاد جلسهٔ بعد | دریافت شاهد CI کامل HK-005؛ اگر سبز بود HK-005 تکمیل و HK-006 بررسی شود |
 | تأیید اجرای HK-001 | دریافت شد: پاسخ صریح کاربر «تایید است» در 2026-10-13 |
 | تأیید پیشروی HK-002 | کاربر در 2026-10-13 گفت تا ۱۰ مرحله پیش برویم و او merge می‌کند؛ مجوز فعلی برای ادامهٔ اجرای گام‌هاست، نه merge/deploy توسط عامل |
 | تأیید زیرمرحلهٔ HK-001.a | اجرا و تشخیص baseline پایان یافت؛ فقط برنچ ثابت `arena/05a354c8-dorehami` |
 | تأیید زیرمرحلهٔ HK-001.b | کاربر گفت «بهترین شکل عمل کن»؛ فقط تبدیل Box داخلی `HokmEntry.kt:661` به `Box` و full rerun مجاز بود |
 | دامنهٔ مجاز/انجام‌شده | اصلاح همان container و path trigger همان فایل، اجرای runner، گزارش؛ بدون dependency change، merge، انتشار یا deploy |
-| وضعیت آزمون نرم‌افزار در این نوبت | [CI run `38418382306`](https://github.com/PreGames-studio/Dorehami/actions/runs/38418382306) روی `20d9ad4`: `checkAll` برابر 150 تست/0 شکست/9 ماژول؛ summary موفق و هر دو job شامل APK سبز؛ نتیجهٔ سرور و UI طبق guard اجباری حاضر بود. baseline اولیه در [گزارش HK-001](reports/HK-001-baseline.md) |
+| وضعیت آزمون نرم‌افزار در این نوبت | آخرین full CI قبلی [run `38418382306`](https://github.com/PreGames-studio/Dorehami/actions/runs/38418382306) روی `20d9ad4` سبز بود (150 تست/0 شکست/9 ماژول و APK موفق)؛ تست-first HK-005 در [run `38458506525`](https://github.com/PreGames-studio/Dorehami/actions/runs/38458506525) با 27/1 عمداً پیش از fix قرمز شد. اجرای `.b` هنوز CI نشده؛ Java محلی حاضر نیست. baseline اولیه در [گزارش HK-001](reports/HK-001-baseline.md) |
 | قابلیت‌های موجود | کد محلی/ربات، ۲/۳/۴ نفره، Compose، اتاق، Nearby و WebSocket وجود دارد؛ کیفیت انتشار باید با مراحل بعد اثبات شود |
 | مانع فعلی | مانع CI مرحلهٔ HK-004 با run `38418382306` رفع شد؛ آزمون واقعی دستگاه و رندر/تعامل Compose هنوز جداگانه اجرا نشده؛ HK-005 اکنون فعال است |
 | آخرین تحویل | HK-004 `DONE`: run قبلی `38417332260` (server 3/1 و UI result مفقود) با run بعدی `38418382306` روی همان کد UI جایگزین شد؛ 150/0/9، گزارش سبز، server/UI results موجود و APK artifact آپلود شد |
@@ -737,6 +737,10 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 
 **تقسیم اجرای همین مرحله:** `.a` افزودن تست regression هسته که payload پایان دست را با `publicView()` پس از شروع دست بعد و replay مقایسه کند؛ این تست باید پیش از fix قرمز شود. `.b` ثبت `hokm`/`scores` داخل snapshot تغییرناپذیر `HandResult` و serialize از همان نتیجه؛ تغییر guard آمار به state قابل‌بازیابی؛ تست JVM برای محاسبه و gate یک‌بارهٔ آمار.
 
+**شاهد `.a` پیش از fix:** [CI run `38458506525`](https://github.com/PreGames-studio/Dorehami/actions/runs/38458506525) روی commit `608061d`: `:games:hokm:core:test` برابر **27 تست/1 شکست** شد؛ این run فقط تست regression جدید را افزوده بود و انتظار قرمزی پیش از fix را تأیید می‌کند. annotation نام تست را نشان نداد؛ `checkAll` در 122/1 متوقف شد و نتیجهٔ UI به‌علت توقف زودهنگام مفقود ماند. job ساخت APK سبز بود و artifact آپلود شد. اجرای محلی ممکن نیست چون `java` در محیط حاضر نیست.
+
+**پیاده‌سازی `.b` آمادهٔ گیت:** `HandResult` اکنون `hokm` و `scores` را به‌صورت snapshot مستقل می‌گیرد و `handResultJson()` فقط از همان نتیجه serialize می‌کند؛ محاسبهٔ خالص stats و guard پایان match در فایل جداگانه با دو تست JVM پوشش داده شده و guard Compose از `rememberSaveable(matchKey)` استفاده می‌کند. آزمون محلی اجرا نشد؛ CI پس از push هنوز در انتظار است.
+
 **دامنهٔ فایل:** `games/hokm/core/src/main/kotlin/.../HokmSession.kt` و تست تازهٔ core؛ `games/hokm/ui/src/main/kotlin/.../HokmEntry.kt`، helper/test خالص JVM برای آمار، و همین roadmap. هیچ قاعدهٔ امتیازدهی یا API بازی دیگری تغییر نمی‌کند.
 
 **معیار پایان:** همهٔ فیلدهای snapshot دست تمام‌شده (شماره، برنده، امتیاز، نوع، حاکم، حکم، trickها و scores) بعد از آغاز دست بعدی حفظ شوند؛ replay همان snapshot/digest را بازسازی کند؛ چند اثر `finished`/recomposition برای یک `matchKey` فقط یک بار `recordMatch` را اجرا کند؛ `checkAll` با summary کامل و job APK سبز شود.
@@ -837,7 +841,8 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 | 2026-10-13 | HK-002.b — DONE؛ HK-002 — DONE | کاربر ادامه تا حداکثر ۱۰ مرحله را مجاز کرد؛ فقط برنچ ثابت و بدون merge | پیکربندی JUnit 5 و پنج تست JVM از gateهای `HokmUiState`؛ guard خلاصه، نتیجهٔ UI را اجباری کرد | [run `38413611247`](https://github.com/PreGames-studio/Dorehami/actions/runs/38413611247) روی `b2b55e6`: 146 تست، صفر شکست، 9 ماژول؛ checkAll 4:16؛ APK job 2:07 و artifact آپلود شد؛ هر دو job success. Gradle محلی به‌علت نبود Java اجرا نشد | آزمون دستگاه مستقل باقی است؛ HK-003 پیشنهاد بعدی؛ merge با کاربر |
 | 2026-10-13 | HK-003 — DONE | ادامه تا حداکثر ۱۰ مرحله طبق پیام کاربر؛ فقط `games/hokm/core` و تست‌ها | دو تست regression: partial trick سه/چهارنفره و full easy match/replay در ۲/۳/۴ | پیش از fix [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) قرمز بود: core 26/2 و کل 148/2؛ نام تست‌ها از annotationها به دست نیامد. پس از fix `winningPlay`، [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) سبز: 148/0/9 ماژول و هر دو job موفق؛ full easy/replay سبز. local Gradle اجرا نشد چون Java نبود | HK-004 فعال؛ بدون تغییر قانون/ربات pro |
 | 2026-10-13 | HK-004 — DONE | همان برنچ ثابت؛ فقط UI میز حکم | `HokmSeatLayout` و ماتریس همهٔ ۲/۳/۴ نفر و seatها؛ mapper در table/trick/collect/FX/dealing/last trick | run `38417332260` ابتدا server test را 3/1 شکست داد؛ run بعدی [38418382306](https://github.com/PreGames-studio/Dorehami/actions/runs/38418382306) روی همان کد UI سبز شد: 150/0/9 ماژول؛ گزارش به‌خاطر guard نتیجهٔ server و `games/hokm/ui` را داشت؛ APK job/artifact موفق. آزمون رندر/دستگاه انجام نشده و خارج از این گیت است | HK-005؛ کاربر merge را تا مرحلهٔ ۱۰ خودش انجام می‌دهد |
-| 2026-10-13 | HK-005 — ACTIVE | اجازهٔ کاربر برای پیشروی مرحله‌به‌مرحله تا ۱۰؛ فقط برنچ ثابت | بررسی نشان داد `handResultJson` حکم/score جاری را به `lastHandResult` می‌چسباند؛ برنامهٔ تست-first و اصلاح snapshot/replay/stats در کارت ثبت شد | پیاده‌سازی و آزمون هنوز انجام نشده؛ محیط محلی `java` ندارد و شاهد باید از CI باشد | تست regression `.a`، سپس fix و گیت سبز `.b`; پس از تکمیل HK-006 |
+| 2026-10-13 | HK-005 — ACTIVE | اجازهٔ کاربر برای پیشروی مرحله‌به‌مرحله تا ۱۰؛ فقط برنچ ثابت | تشخیص `handResultJson` و افزودن تست-first `HokmHandHistoryTest` برای مقایسهٔ event/publicView/replay | [run `38458506525`](https://github.com/PreGames-studio/Dorehami/actions/runs/38458506525): `:games:hokm:core:test` برابر 27/1 شد؛ نام مورد شکست در annotation نیست، اما تنها تست تازه همین regression است؛ APK job سبز. local Java موجود نیست | اجرای `.b`: snapshot immutable + ثبت آمار saveable/tested؛ سپس full CI سبز |
+| 2026-10-13 | HK-005 `.b` — ACTIVE | ادامهٔ مجاز تا HK-010؛ فقط برنچ ثابت | snapshot `hokm/scores` در `HandResult`، serialize از همان snapshot، helper آمار، guard `rememberSaveable` و دو تست JVM | کد آمادهٔ push و گیت؛ CI هنوز اجرا نشده و Java محلی نصب نیست | push به شاخهٔ فعلی؛ بررسی full checkAll و APK job، سپس وضعیت را بر اساس شاهد به‌روز کن |
 
 ### قالب ثبت هر تحویل
 

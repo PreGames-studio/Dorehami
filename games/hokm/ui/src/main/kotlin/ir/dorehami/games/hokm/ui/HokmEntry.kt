@@ -66,7 +66,6 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.dorehami.games.hokm.Card
-import ir.dorehami.games.hokm.HandWinKind
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.ui.room.LobbyScreen
 import ir.dorehami.games.hokm.ui.room.RoomFlow
@@ -100,16 +99,15 @@ fun HokmEntry(onExit: () -> Unit) {
     var stats by remember { mutableStateOf(prefs.stats) }
 
     val onFinished: (HokmUiState) -> Unit = { state ->
-        val kots = state.handHistory.count {
-            (it.kind == HandWinKind.KOT || it.kind == HandWinKind.HAKEM_KOT) && it.winnerTeam == state.myTeam
+        state.matchStatsDelta()?.let { delta ->
+            prefs.recordMatch(
+                won = delta.won,
+                hands = delta.hands,
+                handsWon = delta.handsWon,
+                kots = delta.kots,
+            )
+            stats = prefs.stats
         }
-        prefs.recordMatch(
-            won = state.winnerTeam == state.myTeam,
-            hands = state.handHistory.size,
-            handsWon = state.handHistory.count { it.winnerTeam == state.myTeam },
-            kots = kots,
-        )
-        stats = prefs.stats
     }
 
     when {
@@ -164,9 +162,9 @@ fun HokmEntry(onExit: () -> Unit) {
 /** Fires [onFinished] exactly once per match, when the table reports the game over. */
 @Composable
 private fun RecordWhenFinished(state: HokmUiState, matchKey: Any, onFinished: (HokmUiState) -> Unit) {
-    var recorded by remember(matchKey) { mutableStateOf(false) }
+    var recorded by rememberSaveable(matchKey) { mutableStateOf(false) }
     LaunchedEffect(state.finished) {
-        if (state.finished && !recorded) {
+        if (shouldRecordMatchStats(state.finished, recorded)) {
             recorded = true
             onFinished(state)
         }
