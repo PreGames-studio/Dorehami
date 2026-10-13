@@ -999,3 +999,1503 @@ seed-997,رمزگشایی از نقشه گنج,HARD,humor,PHRASE,true,true,curat
 seed-998,فرار از اتاق آینه‌ای,HARD,humor,PHRASE,true,true,curated-bootstrap-v2
 seed-999,ساختن برج از کارت‌های بازی,HARD,humor,PHRASE,true,true,curated-bootstrap-v2
 seed-1000,نجات مسافران از بالن سرگردان,HARD,humor,PHRASE,true,true,curated-bootstrap-v2
+seed-1001,پنگوئن,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1002,کانگورو,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1003,شترمرغ,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1004,خفاش,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1005,دلفین,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1006,کوسه,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1007,خرچنگ,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1008,عنکبوت,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1009,مورچه,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1010,ملخ,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1011,کرم خاکی,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1012,وزغ,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1013,سوسک,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1014,پاندا,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1015,فوک,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1016,مرغابی,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1017,قو,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1018,لک‌لک,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1019,پرستو,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1020,گنجشک,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1021,پرنده,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1022,ماهی قرمز,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1023,نهنگ,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1024,تگرگ,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1025,طوفان,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1026,شبنم,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1027,بوته,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1028,علف,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1029,نیلوفر,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1030,لاله,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1031,یاس,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1032,نرگس,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1033,بنفشه,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1034,ریحان,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1035,سرو,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1036,کاج,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1037,چنار,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1038,تپه,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1039,گلدان,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1040,جالباسی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1041,آینه قدی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1042,تلویزیون,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1043,رادیو,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1044,پنکه,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1045,کولر,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1046,بخاری,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1047,اجاق گاز,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1048,نمکدان,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1049,فلفل‌پاش,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1050,استکان,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1051,نعلبکی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1052,کاسه,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1053,پارچ,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1054,سینی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1055,جاکفشی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1056,حمام,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1057,دوش,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1058,دستشویی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1059,قفسه کتاب,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1060,گیتار,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1061,عروسک,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1062,تاب,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1063,سرسره,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1064,پازل,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1065,دومینو,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1066,دارچین,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1067,کشمش,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1068,پسته,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1069,فندق,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1070,بیسکویت,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1071,کیک,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1072,کلوچه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1073,حلوا,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1074,خورشت,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1075,آبگوشت,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1076,پلو,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1077,چلوکباب,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1078,بادمجان,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1079,کدو,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1080,کلم,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1081,اسفناج,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1082,نعناع,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1083,تره,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1084,جعفری,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1085,خامه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1086,شکلات,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1087,آدامس,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1088,پفک,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1089,چیپس,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1090,نوشابه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1091,آب معدنی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1092,قهوه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1093,لیموناد,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1094,شربت,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1095,آب پرتقال,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1096,ناخن گرفتن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1097,صورت شستن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1098,کلاه گذاشتن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1099,عینک زدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1100,نقاشی کشیدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1101,چای ریختن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1102,دستمال کاغذی برداشتن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1103,تلفن زدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1104,زنگ در را زدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1105,نامه نوشتن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1106,پاکت باز کردن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1107,تا کردن لباس,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1108,دستکش به دست کردن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1109,بند کفش ورزشی بستن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1110,کتاب‌فروشی,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1111,قنادی,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1112,سوپرمارکت,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1113,گل‌فروشی,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1114,آرایشگاه,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1115,کفاشی,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1116,خیاطی,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1117,درمانگاه,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1118,بوستان,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1119,مزرعه,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1120,پشت‌بام,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1121,حیاط,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1122,راه‌پله,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1123,سالن ورزش,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1124,تالار,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1125,سالن جشن,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1126,دفتر کار,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1127,بازارچه,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1128,پاساژ,EASY,places,PLACE,true,true,curated-bootstrap-v3
+seed-1129,تریلی,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1130,ون,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1131,موتور برقی,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1132,هلیکوپتر,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1133,قایق پدالی,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1134,قطار برقی,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1135,جیپ,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1136,پیکاپ,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1137,ربات,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1138,رایانه,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1139,لپ‌تاپ,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1140,تبلت,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1141,صفحه‌کلید,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1142,ماوس,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1143,چاپگر,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1144,هدفون,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1145,بلندگو,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1146,میکروفون,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1147,بلوتوث,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1148,وای‌فای,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1149,کابل شارژ,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1150,کنترل از راه دور,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1151,آنتن,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1152,ایمیل,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1153,رمز عبور,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1154,کد QR,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1155,نقشه‌یاب,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1156,جی‌پی‌اس,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1157,پهپاد,EASY,technology,WORD,true,true,curated-bootstrap-v3
+seed-1158,دفتر نقاشی,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1159,کلاس ورزش,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1160,زنگ تفریح,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1161,نیمکت,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1162,معلم ورزش,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1163,نمره,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1164,مشق نوشتن,EASY,school,ACTION,true,true,curated-bootstrap-v3
+seed-1165,تکلیف خانه,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1166,املا,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1167,دیکته,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1168,قرائت,EASY,school,ACTION,true,true,curated-bootstrap-v3
+seed-1169,دفترچه یادداشت,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1170,کیف دستی,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1171,گیشه,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1172,کارت شناسایی,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1173,پرواز,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1174,ترمینال,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1175,کوله سفر,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1176,کلاه آفتابی,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1177,عینک آفتابی,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1178,کرم ضدآفتاب,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1179,نقشه شهر,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1180,ساحل شنی,EASY,travel,PLACE,true,true,curated-bootstrap-v3
+seed-1181,کمپ,EASY,travel,PLACE,true,true,curated-bootstrap-v3
+seed-1182,چادر مسافرتی,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1183,پیاده‌روی شهری,EASY,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1184,عکس یادگاری,EASY,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1185,سوغاتی,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1186,کارگردان,EASY,cinema,PERSON,true,true,curated-bootstrap-v3
+seed-1187,صحنه,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1188,دکور,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1189,فیلم کمدی,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1190,فیلم اکشن,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1191,فیلم عاشقانه,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1192,انیمیشن,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1193,سریال,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1194,تئاتر,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1195,پرده سینما,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1196,پاپ‌کورن,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1197,صندلی سینما,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1198,سالن تماشا,EASY,cinema,PLACE,true,true,curated-bootstrap-v3
+seed-1199,بلیت سینما,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1200,داستان کوتاه,EASY,literature,WORD,true,true,curated-bootstrap-v3
+seed-1201,رمان,EASY,literature,WORD,true,true,curated-bootstrap-v3
+seed-1202,ترانه,EASY,literature,WORD,true,true,curated-bootstrap-v3
+seed-1203,افسانه,EASY,literature,WORD,true,true,curated-bootstrap-v3
+seed-1204,کتاب صوتی,EASY,literature,WORD,true,true,curated-bootstrap-v3
+seed-1205,شوخی با دوستان,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1206,قلقلک دادن,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1207,کله‌پا شدن,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1208,پریدن از ترس,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1209,افتادن روی پوست موز,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1210,حرکت خنده‌دار با دست,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1211,تقلید صدای حیوانات,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1212,قصه گفتن,EASY,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1213,عید فطر,EASY,culture,WORD,true,true,curated-bootstrap-v3
+seed-1214,ماه رمضان,EASY,culture,WORD,true,true,curated-bootstrap-v3
+seed-1215,سحری خوردن,EASY,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1216,هدیه عید,EASY,culture,WORD,true,true,curated-bootstrap-v3
+seed-1217,کرسی,EASY,culture,WORD,true,true,curated-bootstrap-v3
+seed-1218,رقص محلی,EASY,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1219,حوض خانه,EASY,culture,WORD,true,true,curated-bootstrap-v3
+seed-1220,خوش‌آمد گفتن,EASY,places,PHRASE,true,true,curated-bootstrap-v3
+seed-1221,خداحافظی گرم,EASY,school,PHRASE,true,true,curated-bootstrap-v3
+seed-1222,شب بخیر گفتن,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1223,نفس عمیق کشیدن,EASY,actions,PHRASE,true,true,curated-bootstrap-v3
+seed-1224,جشن تولد دوست,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1225,رقص دسته‌جمعی,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1226,کیک و شمع,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1227,آشتی کردن,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1228,کلاه از سر برداشتن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1229,بالش پف کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1230,بالا پریدن از شادی,EASY,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1231,گل بوییدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1232,پرتاب سنگ به آب,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1233,شیرجه زدن,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1234,فریاد زدن از دور,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1235,با دست اشاره کردن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1236,چشمک زدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1237,زل زدن به کسی,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1238,گوش دادن با دقت,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1239,خاراندن سر,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1240,زدن به پیشانی,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1241,دست به کمر ایستادن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1242,آب‌پاش کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1243,سوار تاب شدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1244,دنبال کسی دویدن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1245,تماشای نمایش عروسکی,EASY,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-1246,قاشق به دست نشستن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1247,کاغذ را مچاله کردن,EASY,school,ACTION,true,true,curated-bootstrap-v3
+seed-1248,دفتر را ورق زدن,EASY,school,ACTION,true,true,curated-bootstrap-v3
+seed-1249,شال را دور گردن پیچیدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1250,گلدان را جابه‌جا کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1251,کاسه را شستن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1252,دندان‌ها را مسواک کشیدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1253,آسمان را نگاه کردن,EASY,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1254,قصاب,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1255,بقال,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1256,کتاب‌فروش,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1257,دربان,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1258,منشی,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1259,کفاش,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1260,گل‌فروش,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1261,سلمانی,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1262,مربی,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1263,پرستار بچه,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1264,نگهبان,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1265,سرایدار,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1266,دلقک,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1267,رقاص,EASY,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1268,شنا,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1269,شوت زدن,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1270,زمین بازی,EASY,sports,PLACE,true,true,curated-bootstrap-v3
+seed-1271,بازی طناب‌کشی,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1272,کلاه ایمنی بستن,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1273,شادی,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1274,غم,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1275,خشم,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1276,ترس,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1277,امید,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1278,شوق,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1279,آرامش,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1280,هیجان,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1281,عشق,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1282,مهربانی,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1283,کنجکاو,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1284,قاب عکس,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1285,شمع,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1286,آینه کوچک,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1287,گیره لباس,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1288,چسب,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1289,فندک,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1290,کبریت,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1291,چاقو,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1292,زنجیر,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1293,قلاب,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1294,بالشت,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1295,گونی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1296,عصا,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1297,کلاه ایمنی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1298,چتر آفتابی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1299,کاغذ رنگی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1300,کارتن,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1301,کیسه زباله,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1302,پارو,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1303,ظرف یخ,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1304,زنگوله,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1305,دستبند,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1306,گوشواره,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1307,حلقه,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1308,گردنبند,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1309,سنجاق سر,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1310,بلوک چوبی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1311,مکعب چوبی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1312,ذره‌بین,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1313,کلید برق,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1314,لامپ,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1315,پریز برق,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1316,تابلو,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1317,ستاره کاغذی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1318,بستن کمربند ایمنی,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1319,گره کفش زدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1320,دوش گرفتن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1321,گرد گرفتن کتاب,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1322,آب‌تنی کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1323,آرایش کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1324,عطر زدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1325,موی سر را خشک کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1326,نوشیدن چای داغ با فوت,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1327,هم زدن سوپ,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1328,ترکاندن بادکنک,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1329,درِ کمد را بستن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1330,کفش به پا کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1331,عینک را پاک کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1332,بیدار شدن با زنگ,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1333,جارو زدن حیاط,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1334,پنجره را باز کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1335,با دستمال باد زدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1336,قرار گذاشتن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1337,آدرس پرسیدن,EASY,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1338,در صف ایستادن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1339,بلیت خریدن,EASY,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1340,پیاده‌روی در باران,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1341,کیف را روی دوش انداختن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1342,درِ ماشین را بستن,EASY,transport,ACTION,true,true,curated-bootstrap-v3
+seed-1343,کمک کردن به کسی,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1344,عذرخواهی کردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1345,قول دادن,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1346,بازی لی‌لی با سنگ‌های رنگی,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1347,کشیدن خط صاف با خط‌کش و مداد,EASY,school,ACTION,true,true,curated-bootstrap-v3
+seed-1348,خاموش کردن شمع‌های تولد با یک فوت,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1349,زنبور عسل,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1350,قناری,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1351,اسب سفید,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1352,خوک,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1353,برکه,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1354,رعد,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1355,برق,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1356,جوانه,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1357,گل آفتابگردان,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1358,نخل,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1359,علف هرز,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1360,خوشه انگور,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1361,آناناس,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1362,گلابی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1363,آلو,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1364,خربزه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1365,طالبی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1366,فلفل دلمه‌ای,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1367,گل کلم,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1368,کاکائو,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1369,کیک تولد,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1370,نان بربری,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1371,نان سنگک,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1372,لواش,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1373,قاشق چای‌خوری,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1374,لیوان شیشه‌ای,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1375,پیش‌دستی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1376,قوری,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1377,آب‌میوه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1378,آش رشته,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1379,ماست و خیار,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1380,ترشی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1381,بادام زمینی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1382,انجیر,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1383,زیتون,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1384,پشمک,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1385,آب نبات چوبی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1386,آشپزخانه,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1387,راهرو,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1388,انباری,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1389,کمد لباس,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1390,پرده پنجره,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1391,مبل راحتی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1392,میز تحریر,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1393,تاب باغچه,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1394,گلدان گل,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1395,جاروبرقی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1396,اتو,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1397,ماشین لباسشویی,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1398,پریز,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1399,کلید برق اتاق,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1400,قفل در,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1401,دستگیره,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1402,زنگ در,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1403,آیفون,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1404,پشت‌بام خانه,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1405,ساختمان بلند,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1406,آپارتمان,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1407,ویلا,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1408,آسانسور,EASY,home,WORD,true,true,curated-bootstrap-v3
+seed-1409,پارکینگ,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1410,باغچه,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1411,زمین بازی کودکان,EASY,home,PLACE,true,true,curated-bootstrap-v3
+seed-1412,ساعت دیواری,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1413,تقویم,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1414,شماره تلفن,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1415,پیامک,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1416,ایستگاه اتوبوس,EASY,daily_life,PLACE,true,true,curated-bootstrap-v3
+seed-1417,کارت عابربانک,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1418,لیست خرید,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1419,سبد میوه,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1420,کیسه پلاستیکی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1421,خمیر دندان,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1422,ساپورت,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1423,دمپایی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1424,کلاه بافتنی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1425,کاپشن,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1426,بارانی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1427,عینک مطالعه,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1428,روغن‌کش,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1429,توری ظرفشویی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1430,سطل آشغال,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1431,تاب‌خوردن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1432,لی‌لی کردن,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1433,بالا و پایین پریدن,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1434,تنفس عمیق,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1435,دویدن در جا,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1436,کش دادن بدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1437,پای برهنه راه رفتن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1438,نشستن روی زمین,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1439,بلند شدن از جا,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1440,چرخیدن دور خود,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1441,جست زدن از روی طناب,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1442,گره زدن بند کفش,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1443,چشم بستن و حدس زدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1444,دست زدن ریتمیک,EASY,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1445,لبخند زدن,EASY,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1446,اخم کردن,EASY,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1447,پلک زدن پی‌درپی,EASY,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1448,آه کشیدن,EASY,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1449,کف زدن برای شعر,EASY,literature,ACTION,true,true,curated-bootstrap-v3
+seed-1450,قهقهه زدن,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1451,جیغ زدن از شوخی,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1452,راه رفتن مثل ربات,EASY,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1453,بی‌خیال بودن,EASY,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1454,دوست داشتنی,EASY,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1455,به امید دیدار,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1456,خانه دوست,EASY,home,PHRASE,true,true,curated-bootstrap-v3
+seed-1457,سفر تابستانی,EASY,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-1458,شب سرد زمستان,EASY,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1459,قایق کاغذی در جوی,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1460,ورزش صبحگاهی در پارک,EASY,sports,PHRASE,true,true,curated-bootstrap-v3
+seed-1461,نان تازه و سبزی,EASY,food,PHRASE,true,true,curated-bootstrap-v3
+seed-1462,باران تابستانی,EASY,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1463,مهمانی تولد بچه‌ها,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1464,تماشای ماه کامل,EASY,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1465,بازی دایره‌ای,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1466,کتاب قصه‌های شب,EASY,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-1467,جشن برف‌بازی,EASY,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-1468,شماره گرفتن از تلفن عمومی,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1469,باز کردن در گاراژ با کلید,EASY,home,ACTION,true,true,curated-bootstrap-v3
+seed-1470,بالا و پایین رفتن از تاب بلند,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1471,سه‌چرخه‌سواری در پارک شلوغ,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1472,دستمال را دور انگشت پیچیدن,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1473,گذاشتن کلاه روی سر کودک,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1474,بازی کوتاه و بلند کردن دست‌ها,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1475,شیرین کردن چای با عسل,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1476,داد زدن شعار ورزشی,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1477,باز کردن کیسه شکر با قیچی,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1478,خنک کردن بستنی روی یخ,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1479,خوابیدن زیر سایه درخت توت,EASY,nature,ACTION,true,true,curated-bootstrap-v3
+seed-1480,زنجیر کردن دوچرخه به تیر چراغ,EASY,transport,ACTION,true,true,curated-bootstrap-v3
+seed-1481,بیرون کشیدن نعلبکی از کمد,EASY,home,ACTION,true,true,curated-bootstrap-v3
+seed-1482,آبیاری گلدان‌های آپارتمان,EASY,home,ACTION,true,true,curated-bootstrap-v3
+seed-1483,ورزش ساحلی,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1484,زمین خاکی,EASY,sports,PLACE,true,true,curated-bootstrap-v3
+seed-1485,قلاب ماهی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1486,بادبزن,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1487,کلاه بافت,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1488,جعبه کفش,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1489,شیشه‌ی عطر,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1490,بطری خالی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1491,ماهی‌تابه,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1492,ماژیک وایت‌برد,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1493,گچ‌تخته,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1494,کتاب ریاضی,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1495,کره زمین,EASY,school,WORD,true,true,curated-bootstrap-v3
+seed-1496,سیاره,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1497,گرمای تابستان,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1498,سرمای زمستان,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1499,چاله آب,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1500,سنگ‌ریزه,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1501,علف‌زار,EASY,nature,PLACE,true,true,curated-bootstrap-v3
+seed-1502,آبشار کوچک,EASY,nature,PLACE,true,true,curated-bootstrap-v3
+seed-1503,چراغ راهنما,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1504,فرمان ماشین,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1505,پیاده‌رو,EASY,transport,PLACE,true,true,curated-bootstrap-v3
+seed-1506,پارک جنگلی,EASY,travel,PLACE,true,true,curated-bootstrap-v3
+seed-1507,خیابان اصلی,EASY,travel,PLACE,true,true,curated-bootstrap-v3
+seed-1508,تابلوی راهنما,EASY,travel,WORD,true,true,curated-bootstrap-v3
+seed-1509,جاده خاکی,EASY,travel,PLACE,true,true,curated-bootstrap-v3
+seed-1510,فیلم بلند,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1511,فیلم کوتاه,EASY,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1512,کراوات,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1513,پیراهن چهارخانه,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1514,شلوار جین,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1515,کفش ورزشی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1516,بند کفش,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1517,دکمه پیراهن,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1518,زیپ کیف,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1519,ساعت زنگ‌دار,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1520,صف نانوایی,EASY,daily_life,PLACE,true,true,curated-bootstrap-v3
+seed-1521,لانه پرنده,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1522,تخم‌مرغ نیم‌پز,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1523,آب‌پز,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1524,خورشت قیمه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1525,کباب کوبیده,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1526,جوجه کباب,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1527,سوپ جو,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1528,گوجه‌فرنگی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1529,خیار شور,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1530,خیار تازه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1531,ریحان تازه,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1532,کیک شکلاتی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1533,تقلید صدای اسب در دشت,EASY,animals,ACTION,true,true,curated-bootstrap-v3
+seed-1534,جاروکشی اتاق‌های بزرگ,EASY,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-1535,درست کردن تخت خواب بزرگ,EASY,home,ACTION,true,true,curated-bootstrap-v3
+seed-1536,کنترل کردن کولر در روز گرم,EASY,home,ACTION,true,true,curated-bootstrap-v3
+seed-1537,جوشاندن آب برای چای,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1538,نمک‌پاشی روی خیار,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1539,شکستن تخم‌مرغ در ماهی‌تابه,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1540,ریختن شربت روی یخ,EASY,food,ACTION,true,true,curated-bootstrap-v3
+seed-1541,خوش‌گذرانی در پایان هفته,EASY,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-1542,خط خطی کردن دفتر,EASY,idioms,ACTION,true,true,curated-bootstrap-v3
+seed-1543,گذاشتن سیب‌زمینی در خاک,EASY,nature,ACTION,true,true,curated-bootstrap-v3
+seed-1544,قایم کردن کلید در گلدان,EASY,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1545,پرتاب تاس روی میز چوبی,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1546,کلاه‌لبه‌دار,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1547,گوش‌ماهی,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1548,گل‌خشک,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1549,علف‌خرس,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1550,ماهی‌گیری با توری,EASY,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1551,گرد و غبار,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1552,قطره باران,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1553,برف‌پاک‌کن,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1554,کیف‌پول چرمی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1555,ساعت شنی,EASY,objects,WORD,true,true,curated-bootstrap-v3
+seed-1556,بادکنک هلیومی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1557,توپ تنیس,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1558,توپ بسکتبال,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1559,توپ والیبال,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1560,راکت پینگ‌پنگ,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1561,کلاه ایمنی دوچرخه,EASY,sports,WORD,true,true,curated-bootstrap-v3
+seed-1562,پوشک بچه,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1563,شیشه شیر,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1564,عروسک پارچه‌ای,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1565,ماشین بازی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1566,خرس عروسکی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1567,کاموا,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1568,کلاه سربازی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1569,قاشق مربا خوری,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1570,کاسه سالاد,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1571,آب گرم,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1572,ابر سفید,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1573,آسمان آبی,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1574,نسیم خنک,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1575,خورشید غروب,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1576,کنار دریا,EASY,nature,PLACE,true,true,curated-bootstrap-v3
+seed-1577,پاییز طلایی,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1578,روز برفی,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1579,دوچرخه بچه‌ها,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1580,کشتی تفریحی,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1581,قایق موتوری,EASY,transport,WORD,true,true,curated-bootstrap-v3
+seed-1582,هواپیمای کاغذی,EASY,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1583,گربه بازیگوش,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1584,سگ نگهبان,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1585,جوجه اردک,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1586,بچه گربه,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1587,بچه گوسفند,EASY,animals,WORD,true,true,curated-bootstrap-v3
+seed-1588,گل‌برگ,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1589,ریشه درخت,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1590,برگ پاییزی,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1591,ساقه گل,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1592,شاخه درخت,EASY,nature,WORD,true,true,curated-bootstrap-v3
+seed-1593,ساندویچ,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1594,همبرگر,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1595,پیتزا,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1596,پاستا,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1597,سوسیس,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1598,کیک خامه‌ای,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1599,کلوچه گردویی,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1600,چای شیرین,EASY,food,WORD,true,true,curated-bootstrap-v3
+seed-1601,هشت‌پا,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1602,ستاره‌دریایی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1603,سمندر,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1604,اختاپوس,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1605,خرس قطبی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1606,کیوی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1607,اسب آبی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1608,کرگدن,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1609,عقرب,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1610,پروانه ابریشم,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1611,اژدها,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1612,شیر دریایی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1613,گردباد,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1614,زلزله,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1615,آتشفشان,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1616,یخچال طبیعی,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1617,کویر,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1618,نارون,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1619,بید مجنون,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1620,صنوبر,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1621,پرتگاه,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1622,غار,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1623,قطب شمال,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1624,بهمن,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1625,سیل,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1626,ژاله,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1627,ضبط صوت,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1628,تنور,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1629,هاون,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1630,پله برقی,MEDIUM,places,WORD,true,true,curated-bootstrap-v3
+seed-1631,پشه‌بند,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1632,پیانو,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1633,ساز دهنی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1634,تخته نرد,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1635,ورق بازی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1636,زعفران,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1637,گلاب,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1638,زیره,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1639,باقلوا,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1640,زولبیا,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1641,بامیه,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1642,قرمه‌سبزی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1643,کوکو سبزی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1644,دلمه,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1645,فسنجان,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1646,بروکلی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1647,ترب,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1648,شلغم,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1649,تربچه,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1650,شوید,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1651,نسکافه,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1652,آب هویج,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1653,کفش‌ها را واکس زدن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1654,کراوات بستن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1655,خمیر کردن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1656,تکه‌تکه کردن سبزی,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1657,سرخ کردن سیب‌زمینی,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1658,بوی غذا را حس کردن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1659,به مهمان تعارف کردن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1660,دکمه دوختن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1661,بافتنی بافتن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1662,روی صندلی تاب خوردن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1663,مطب,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1664,کلینیک,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1665,گلخانه,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1666,کارخانه,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1667,کارگاه,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1668,زیرزمین,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1669,ایوان,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1670,اتاق کنفرانس,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1671,حجره,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1672,سرای,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1673,قهوه‌خانه,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1674,چایخانه,MEDIUM,places,PLACE,true,true,curated-bootstrap-v3
+seed-1675,اسکوتر برقی,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1676,لیموزین,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1677,تله‌کابین,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1678,قطار سریع‌السیر,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1679,کشتی بادبانی,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1680,ترن هوایی,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1681,کالسکه اسبی,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1682,ماشین مسابقه,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-1683,اسکنر,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1684,دوربین فیلم‌برداری,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1685,پاوربانک,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1686,ساعت هوشمند,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1687,ماهواره,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1688,پیام‌رسان,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1689,نرم‌افزار,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1690,پست الکترونیکی,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-1691,پرگار,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1692,گونیا,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1693,نقاله,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1694,بوم نقاشی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1695,صف صبحگاهی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1696,اردوی مدرسه,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1697,امتحان نهایی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1698,المپیاد,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1699,کنکور,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1700,کتاب تاریخ,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1701,کتاب جغرافیا,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1702,کتاب علوم,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1703,حساب ذهنی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1704,جدول ضرب,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-1705,انشا نوشتن,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-1706,خط خوش,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-1707,ویزا,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-1708,فرود,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-1709,کنترل پاسپورت,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-1710,راهنمای گردشگری,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-1711,هتل ستاره‌دار,MEDIUM,travel,PLACE,true,true,curated-bootstrap-v3
+seed-1712,تور گردشگری,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-1713,گردشگری روستایی,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-1714,تخته کلاپت,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1715,فیلم‌بردار,MEDIUM,cinema,PERSON,true,true,curated-bootstrap-v3
+seed-1716,نقش اول,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1717,دوبله,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1718,تیتراژ,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1719,گریم,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1720,جلوه‌های ویژه,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1721,فیلم علمی تخیلی,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1722,مستند,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1723,نمایش خیابانی,MEDIUM,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-1724,اجرای تئاتر,MEDIUM,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-1725,جشنواره فیلم,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1726,عینک سه‌بعدی,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-1727,شعر کلاسیک,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1728,غزل,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1729,رباعی,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1730,حکایت,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1731,طنز,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1732,مقاله,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1733,زندگینامه,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1734,نمایشنامه,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1735,دیالوگ,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1736,قافیه,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1737,نقل قول,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1738,نامه عاشقانه,MEDIUM,literature,WORD,true,true,curated-bootstrap-v3
+seed-1739,رفتار دلقکی,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1740,خرامیدن مثل طاووس,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1741,ادای بزرگ‌ها را درآوردن,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1742,نوحه‌خوانی,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1743,مداحی,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1744,کتاب دعا,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1745,عید قربان,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1746,افطاری دادن,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1747,نماز عید,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1748,شعر گفتن در مهمانی,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1749,کوزه‌گری,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1750,گلیم‌بافی,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1751,چای دبش,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1752,ساز محلی,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1753,دستمال‌بافی,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1754,معماری ایرانی,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1755,بادگیر,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1756,قنات,MEDIUM,culture,WORD,true,true,curated-bootstrap-v3
+seed-1757,پا را به اندازه گلیم خود دراز کن,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1758,کار را به کاردان بسپار,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1759,مهمان حبیب خداست,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1760,حرف حساب جواب ندارد,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1761,اول خویش بعد درویش,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1762,دوستی خاله خرسه,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1763,سگ زرد برادر شغال است,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1764,عجله کار شیطان است,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1765,پشت هر ابری آفتابی است,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1766,هر کس آن درو کند که کشت,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1767,نخود هر آش بودن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1768,زبان به کام گرفتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1769,دل به دل راه دارد,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1770,گوش به زنگ بودن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1771,چشم به راه بودن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1772,سر از پا نشناختن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1773,سر به راه شدن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1774,از جان گذشتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1775,دل شیر داشتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1776,رنگ به رنگ شدن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1777,زبان نیش‌دار,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1778,دست دست کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1779,گوشه چشم نشان دادن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1780,جا خوش کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1781,لب‌تر کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1782,سرو زبان,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1783,دست به دست شدن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1784,شکستن یخ‌ها,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1785,عروسی سنتی,MEDIUM,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-1786,مهمان ناخوانده,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1787,تعارف‌های بی‌پایان,MEDIUM,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-1788,قایق پارو زدن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1789,خرید در بازار شلوغ,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1790,پشت به پشت دادن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1791,نفس حبس کردن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1792,خسته شدن از باربری,MEDIUM,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-1793,درخت را تکان دادن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1794,شکستن شیشه با توپ,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1795,پرواز با بالن,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1796,پا به فرار گذاشتن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1797,گیج شدن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1798,پاورچین راه رفتن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1799,یواشکی وارد شدن,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1800,نیشخند زدن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1801,پوشیدن کفش برعکس,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1802,بالای سکو رفتن,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1803,خمیازه نمایشی کشیدن,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1804,پیدا کردن دوچرخه گم‌شده,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1805,رد گم کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1806,سفره دل باز کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1807,پیچ‌وخم جاده را پیدا کردن,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1808,ساز را کوک کردن,MEDIUM,objects,ACTION,true,true,curated-bootstrap-v3
+seed-1809,نقاشی را قاب کردن,MEDIUM,home,ACTION,true,true,curated-bootstrap-v3
+seed-1810,ماهی‌گیری با قلاب,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1811,کیسه آرد را برداشتن,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-1812,خمیر را ورز دادن,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-1813,شب را به صبح رساندن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1814,پیاده شدن از اسب,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1815,آهنگساز,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1816,مترجم,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1817,خبرنگار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1818,گزارشگر,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1819,عکاس خبری,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1820,حسابدار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1821,بازرس,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1822,مهندس,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1823,معمار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1824,جوشکار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1825,عطار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1826,دلال,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1827,شیشه‌بر,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1828,کاشی‌کار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1829,داور مسابقه,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1830,کاپیتان کشتی,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1831,کارآگاه,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1832,جادوگر,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1833,کوهنورد,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1834,غواص,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1835,کاسب,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1836,موسیقی‌دان,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1837,گوینده رادیو,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1838,مجری تلویزیون,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1839,شعبده‌باز,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-1840,دو صد متر,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-1841,ورزش هوازی,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-1842,یوگا,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-1843,کشتی‌گیری,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1844,پرش ارتفاع,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1845,پرش طول,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1846,رکورد زدن,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1847,دروازه‌بانی,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1848,ضربه سر زدن,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1849,پاس کاری,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1850,دریبل زدن,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1851,کاپیتان تیم,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-1852,تور والیبال,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-1853,اسکیت روی یخ,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1854,پنالتی زدن,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1855,کورس دو,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1856,گرفتن توپ با یک دست,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1857,سقوط از اسب,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1858,حیرت,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1859,شرم,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1860,ناامیدی,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1861,حسادت,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1862,اندوه,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1863,دلهره,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1864,شگفتی,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1865,افسوس,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1866,دلتنگی,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1867,اشتیاق,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1868,قدردانی,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1869,صبر,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1870,شجاعت,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1871,بخشش,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1872,حیا,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1873,غرور,MEDIUM,emotions,WORD,true,true,curated-bootstrap-v3
+seed-1874,جعبه موسیقی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1875,شمعدان,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1876,قیچی باغبانی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1877,کاتر,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1878,سوهان,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1879,ترازوی آشپزخانه,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1880,ویلچر,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1881,کلاه گیس,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1882,عینک شنا,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1883,پاپیون,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1884,تور ماهیگیری,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1885,النگو,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1886,چرخ خیاطی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1887,دماسنج,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-1888,پیاز خرد کردن,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-1889,گوشت را چرخ کردن,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-1890,تنور روشن کردن,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-1891,گیوه پوشیدن,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1892,ساعت را تنظیم کردن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1893,گیاه را هرس کردن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1894,بالا کشیدن کرکره,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1895,چاق کردن آتش,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1896,نقشه کشیدن,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-1897,کاغذ کادو کردن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1898,گل‌کاری کردن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1899,رقابت دوستانه,MEDIUM,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-1900,حرف دل زدن,MEDIUM,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-1901,تا تنور داغ است نان را بچسبان,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1902,شیر پاک‌خورده را مگس نمی‌زند,MEDIUM,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-1903,آب زیر کاه,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1904,گشتن دنبال عینک در حالی که روی سرت است,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-1905,ساختن قلعه شنی با سطل و بیلچه کوچک,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1906,تعارف کردن میوه به مهمان‌های ناآشنا,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1907,پرواز دادن بادبادک در روز بادی,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-1908,گذر از خیابان شلوغ با کمک راهنما,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1909,قرار ملاقات در ایستگاه قطار با ساعت دقیق,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1910,دویدن زیر باران برای نرسیدن به کلاس,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1911,پرتاب حلقه به میله‌های رنگی,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1912,پرواز کبوتر از میان جمعیت,MEDIUM,animals,ACTION,true,true,curated-bootstrap-v3
+seed-1913,شمردن ستاره‌ها تا خوابم ببرد,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1914,نشستن در سکوت کنار پنجره بارانی,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-1915,زیر چتر دونفره ایستادن با دوستان,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1916,نشان دادن راه به گردشگر گم‌شده,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1917,راه افتادن در صف بلیت قطار,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-1918,جمع کردن برگ‌های پاییزی در کیسه,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-1919,کاشت نهال در باغچه کنار خانه,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-1920,قفل کردن دفتر خاطرات بعد از نوشتن,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-1921,حرکت دادن گوشت روی تفت‌بند داغ,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-1922,راهنمایی کردن ماشین در پارکینگ تنگ,MEDIUM,transport,ACTION,true,true,curated-bootstrap-v3
+seed-1923,تماشای نمایش عروسکی با دهان باز,MEDIUM,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-1924,نشستن روی صندلی راحتی و خواندن کتاب شعر,MEDIUM,literature,ACTION,true,true,curated-bootstrap-v3
+seed-1925,روشن کردن چراغ‌های جشن در کوچه تاریک,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-1926,خریدن هدیه برای پدربزرگ و پیدا کردن جای خوب,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1927,بازی بادکنک با تمام اعضای گروه,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-1928,خواندن نامه‌ای قدیمی و خنده‌دار,MEDIUM,literature,ACTION,true,true,curated-bootstrap-v3
+seed-1929,دوختن دکمه روی لباس کار مدرسه,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-1930,با یک سنگ دو نشان زدن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1931,در را به روی کسی باز گذاشتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1932,دل کسی را به دست آوردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1933,بر سر دو راهی ماندن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1934,چشم‌بندی زدن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1935,نیمه‌شب قصه گفتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1936,توی ذوق کسی زدن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1937,آب را گل‌آلود کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-1938,یک کاسه آش برای همسایه,MEDIUM,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-1939,ابر سیاه روی کوه,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1940,آسمان پر از ستاره‌های ریز,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1941,چای داغ در روز برفی,MEDIUM,food,PHRASE,true,true,curated-bootstrap-v3
+seed-1942,حوض پر از ماهی‌های قرمز,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1943,هوای پاک بعد از بارش,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1944,رقص شعله‌های آتش,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1945,دریا آرام و کشتی در حرکت,MEDIUM,transport,PHRASE,true,true,curated-bootstrap-v3
+seed-1946,رنگین‌کمان بعد از باران بهاری,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-1947,پیچ‌وتاب مسیر کوهستانی,MEDIUM,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-1948,خواب در قطار با صدای چرخ‌ها,MEDIUM,transport,PHRASE,true,true,curated-bootstrap-v3
+seed-1949,گنجشک‌های شیطون روی سیم برق,MEDIUM,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-1950,جوجه‌تیغی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1951,یوزپلنگ,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1952,کفتار,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1953,اسب دریایی,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1954,بوقلمون,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1955,زاغ,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1956,پلیکان,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1957,فلامینگو,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1958,شاهین,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1959,ماکیان,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1960,شامپانزه,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1961,گوریل,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1962,قاطر,MEDIUM,animals,WORD,true,true,curated-bootstrap-v3
+seed-1963,جنگل بارانی,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1964,دره,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1965,قله,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1966,شن‌زار,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1967,کولاک,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1968,بلوط,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1969,کاکتوس,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1970,خزه,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-1971,نارگیل,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1972,گریپ‌فروت,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1973,شلیل,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1974,کدو حلوایی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1975,کلم بروکلی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1976,چغندر,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1977,ترخون,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1978,آش دوغ,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1979,دلمه برگ مو,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1980,سالاد شیرازی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1981,کشک,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1982,کیک میوه‌ای,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1983,کلوچه نارگیلی,MEDIUM,food,WORD,true,true,curated-bootstrap-v3
+seed-1984,فرش دستباف,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1985,صندلی گهواره‌ای,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1986,سماور برقی,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1987,آبگرمکن,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1988,کلون در,MEDIUM,home,WORD,true,true,curated-bootstrap-v3
+seed-1989,کلبه چوبی,MEDIUM,home,PLACE,true,true,curated-bootstrap-v3
+seed-1990,خانه ییلاقی,MEDIUM,home,PLACE,true,true,curated-bootstrap-v3
+seed-1991,پله‌های مارپیچ,MEDIUM,home,PLACE,true,true,curated-bootstrap-v3
+seed-1992,دفتر تلفن,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1993,نوبت دکتر,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1994,بیمه,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1995,دوربین عکاسی,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1996,چرخ گوشت,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1997,دیگ بخار,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1998,جاروی برقی کوچک,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-1999,لنگ زدن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2000,سلام نظامی دادن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2001,تعظیم کردن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2002,کرنش کردن,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2003,خم شدن برای برداشتن سکه,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2004,پرش از روی جوی آب,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2005,زیر لب خندیدن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2006,شانه بالا انداختن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2007,ابرو بالا انداختن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2008,دهان باز ماندن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2009,گریه از خنده,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2010,قرائت شعر با حالت,MEDIUM,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2011,قصه تعریف کردن با حرکات دست,MEDIUM,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2012,نقاشی کردن با پا,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2013,ترسیدن از صدای قورباغه,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2014,پرسیدن معمای سخت,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2015,گفتن جوک بی‌سر و ته,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2016,نمایش یک خرس خواب‌آلود,MEDIUM,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2017,دست بر قضا,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2018,به هوا رفتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2019,سرسری گرفتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2020,کیش و مات کردن,MEDIUM,sports,IDIOM,true,true,curated-bootstrap-v3
+seed-2021,شیرین‌زبانی کردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2022,کلاه سرش گذاشتن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2023,جوش آوردن,MEDIUM,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2024,کوچه باغ‌های پر گل,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2025,بازار شلوغ و رنگارنگ,MEDIUM,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-2026,شاخه‌های بید در باد,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2027,پرنده‌های مهاجر,MEDIUM,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-2028,بازی جرئت یا حقیقت در کنار آتش,MEDIUM,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-2029,رفتن به مهمانی با کفش‌های پاشنه‌بلند,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2030,شنا کردن در دریای آرام صبحگاهی,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2031,تماشای ماه از پشت پنجره کوچک,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2032,پخش کردن نان سنگک داغ در محله,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-2033,باز کردن چمدان بعد از سفر طولانی,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2034,چیدن گل‌ها از شاخه‌های بلند,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2035,پوشیدن لباس محلی برای جشن,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2036,بالا کشیدن پرچم در صبح عید,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2037,مهمانی شام زیر ستاره‌ها,MEDIUM,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-2038,آرزوی یک روز بارانی,MEDIUM,emotions,PHRASE,true,true,curated-bootstrap-v3
+seed-2039,راهنمایی مسافر در ایستگاه شلوغ,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2040,چیدن میوه‌های رسیده از درخت بلند,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-2041,راه رفتن روی پل چوبی در باد,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2042,نشستن کنار رودخانه و ماهی گرفتن,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2043,بازی آنلاین با دوستان دور,MEDIUM,technology,ACTION,true,true,curated-bootstrap-v3
+seed-2044,نصب برنامه روی تبلت,MEDIUM,technology,ACTION,true,true,curated-bootstrap-v3
+seed-2045,باز کردن جعبه ابزار قدیمی,MEDIUM,objects,ACTION,true,true,curated-bootstrap-v3
+seed-2046,گرم کردن موتور ماشین در صبح سرد,MEDIUM,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2047,قاب کردن عکس خانوادگی,MEDIUM,home,ACTION,true,true,curated-bootstrap-v3
+seed-2048,خیس شدن زیر باران شدید و خندیدن,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2049,آماده کردن بساط سفره صبحانه,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-2050,درست کردن بستنی خانگی در یخچال,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-2051,تزیین کیک با خامه و توت‌فرنگی,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-2052,کشیدن ماهی از تور,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2053,پیچاندن نخ دور قرقره,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2054,کندن علف‌های هرز از باغچه,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2055,سوار شدن بر اسب و دویدن در دشت,MEDIUM,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2056,نگهداری از گربه بیمار در خانه,MEDIUM,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2057,پرورش دادن ماهی قرمز در تنگ شیشه‌ای,MEDIUM,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2058,حرکت دادن دست به شکل موج,MEDIUM,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2059,بازی دوز با دکمه‌ها روی میز,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2060,پرتاب کردن حلقه روی گردن شیشه‌ای,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2061,تیز کردن چاقو با سنگ,MEDIUM,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2062,برش زدن کیک بزرگ در جشن,MEDIUM,food,ACTION,true,true,curated-bootstrap-v3
+seed-2063,ساختن قلعه شن بزرگ با آب,MEDIUM,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2064,کندن زمین برای کاشتن سیب‌زمینی,MEDIUM,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2065,دعوت کردن همسایه‌ها به افطار,MEDIUM,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2066,ساختن عروسک کاغذی با دست,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-2067,برپایی چادر در کنار رودخانه,MEDIUM,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2068,تقسیم کار بین اعضای گروه,MEDIUM,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-2069,سرباز بازی در صف صبحگاهی,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-2070,باد زدن آتش با بادبزن,MEDIUM,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2071,بزرگ شدن درخت نارنج در حیاط,MEDIUM,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2072,قاب کردن پیام‌های دوستانه,MEDIUM,technology,ACTION,true,true,curated-bootstrap-v3
+seed-2073,گرد و غبار گرفتن از کتاب‌های قدیمی,MEDIUM,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2074,ترانه‌سرا,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2075,نقاش دیواری,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2076,سفالگر,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2077,برق‌کار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2078,باغبان شهرداری,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2079,کارشناس فنی,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2080,پزشک دندان,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2081,داروساز,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2082,ناخدا,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2083,ماهی‌گیر,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2084,چوپان,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2085,شکارچی,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2086,گچ‌کار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2087,رنگ‌کار,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2088,پیک موتوری,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2089,تاجر فرش,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2090,آبدارچی,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2091,بازیکن والیبال,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-2092,بازیکن بسکتبال,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-2093,سوارکار,MEDIUM,sports,WORD,true,true,curated-bootstrap-v3
+seed-2094,دوی مانع,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2095,مسابقه قایق‌رانی,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2096,ضربه کرنر,MEDIUM,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2097,کیف چرمی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2098,کاسه سفالی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2099,ترازوی دستی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2100,سکه قدیمی,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2101,قاب آیینه,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2102,انبر,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2103,ارّه,MEDIUM,objects,WORD,true,true,curated-bootstrap-v3
+seed-2104,کتاب ادبیات,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-2105,پروژه گروهی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-2106,ارائه کلاسی,MEDIUM,school,ACTION,true,true,curated-bootstrap-v3
+seed-2107,آزمایش شیمی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-2108,نقشه جغرافیایی,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-2109,اسکلت بدن,MEDIUM,school,WORD,true,true,curated-bootstrap-v3
+seed-2110,منظومه شمسی,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2111,کهکشان,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2112,کرات,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2113,فضانورد,MEDIUM,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2114,ماهواره مصنوعی,MEDIUM,technology,WORD,true,true,curated-bootstrap-v3
+seed-2115,قطب جنوب,MEDIUM,nature,PLACE,true,true,curated-bootstrap-v3
+seed-2116,ابر طوفانی,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2117,کلوخ,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2118,گل رس,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2119,باتلاق,MEDIUM,nature,PLACE,true,true,curated-bootstrap-v3
+seed-2120,مرداب,MEDIUM,nature,PLACE,true,true,curated-bootstrap-v3
+seed-2121,چشم‌انداز,MEDIUM,nature,WORD,true,true,curated-bootstrap-v3
+seed-2122,شیشه‌پاک‌کن,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2123,ترمز دستی,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2124,صندلی کودک ماشین,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2125,کاپوت ماشین,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2126,باک بنزین,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2127,پنچری,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2128,دوچرخه کوهستان,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2129,موتور کراس,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2130,تونل,MEDIUM,transport,PLACE,true,true,curated-bootstrap-v3
+seed-2131,پل معلق,MEDIUM,transport,PLACE,true,true,curated-bootstrap-v3
+seed-2132,خط راه‌آهن,MEDIUM,transport,PLACE,true,true,curated-bootstrap-v3
+seed-2133,قایق بادبانی,MEDIUM,transport,WORD,true,true,curated-bootstrap-v3
+seed-2134,موزه تاریخ,MEDIUM,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2135,آرامگاه,MEDIUM,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2136,کویر لوت,MEDIUM,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2137,کوهستان البرز,MEDIUM,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2138,ساحل خزر,MEDIUM,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2139,پلیس راهنمایی,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-2140,گذرنامه قدیمی,MEDIUM,travel,WORD,true,true,curated-bootstrap-v3
+seed-2141,نمایشگاه کتاب,MEDIUM,cinema,PLACE,true,true,curated-bootstrap-v3
+seed-2142,فیلم‌نامه,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2143,کلکسیون عکس,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2144,صحنه پایانی,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2145,قاب دوربین,MEDIUM,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2146,کت و شلوار مجلسی,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-2147,دامن چین‌دار,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-2148,تشک بیمارستان,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-2149,ویلچر بچه‌ها,MEDIUM,daily_life,WORD,true,true,curated-bootstrap-v3
+seed-2150,پیشخوان داروخانه,MEDIUM,daily_life,PLACE,true,true,curated-bootstrap-v3
+seed-2151,خرگوش دریایی,HARD,animals,WORD,true,true,curated-bootstrap-v3
+seed-2152,قالی بافتن,HARD,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2153,معدن,HARD,places,PLACE,true,true,curated-bootstrap-v3
+seed-2154,زورخانه,HARD,places,PLACE,true,true,curated-bootstrap-v3
+seed-2155,آمفی‌تئاتر,HARD,places,PLACE,true,true,curated-bootstrap-v3
+seed-2156,کاروانسرا,HARD,places,PLACE,true,true,curated-bootstrap-v3
+seed-2157,پرینتر سه‌بعدی,HARD,technology,WORD,true,true,curated-bootstrap-v3
+seed-2158,هدست واقعیت مجازی,HARD,technology,WORD,true,true,curated-bootstrap-v3
+seed-2159,فیلم‌برداری با پهپاد,HARD,technology,ACTION,true,true,curated-bootstrap-v3
+seed-2160,تدوین,HARD,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2161,صداگذاری,HARD,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2162,صحنه تعقیب و گریز,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2163,مثنوی,HARD,literature,WORD,true,true,curated-bootstrap-v3
+seed-2164,قصیده,HARD,literature,WORD,true,true,curated-bootstrap-v3
+seed-2165,ردیف,HARD,literature,WORD,true,true,curated-bootstrap-v3
+seed-2166,تشبیه,HARD,literature,WORD,true,true,curated-bootstrap-v3
+seed-2167,استعاره,HARD,literature,WORD,true,true,curated-bootstrap-v3
+seed-2168,کنایه,HARD,literature,WORD,true,true,curated-bootstrap-v3
+seed-2169,کاشی‌کاری,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2170,خاتم‌کاری,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2171,چو بینی نابینا و چاه است، اگر خاموش بنشینی گناه است,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2172,چاه مکن بهر کسی اول خود افتی,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2173,کار نیکو کردن از پرکردن است,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2174,هر که آمد عمارتی نو ساخت,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2175,زبان سرخ سرسبز می‌دهد بر باد,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2176,خر بیار و باقلا بار کن,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2177,پا روی دم کسی گذاشتن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2178,کفش کسی را پوشیدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2179,از گل نازک‌تر به او نگفتن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2180,پر در آوردن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2181,قدم زدن روی طناب,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2182,از روی ستاره‌ها فال گرفتن,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2183,زمین‌شناس,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2184,ستاره‌شناس,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2185,فیزیوتراپیست,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2186,روانشناس,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2187,نقال,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2188,شنای پروانه,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2189,چرخ‌زدن روی تخته موج,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2190,حلقه زدن ژیمناستیک,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2191,حسرت,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2192,نفرت,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2193,همدلی,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2194,وفاداری,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2195,بی‌تفاوتی,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2196,تواضع,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2197,وقار,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2198,نجابت,HARD,emotions,WORD,true,true,curated-bootstrap-v3
+seed-2199,نان لواش پختن,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2200,عاقبت به خیر شدن,HARD,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-2201,آب که از سر گذشت چه یک وجب چه صد وجب,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2202,کم‌گوی و گزیده‌گوی چون دُر,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2203,خانه از پای بست ویران است,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2204,عاقبت گرگ‌زاده گرگ شود,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2205,مشک آن است که خود ببوید نه آنکه عطار بگوید,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2206,دشمن دانا بهتر از نادان دوست,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2207,هر کسی را بهر کاری ساختند,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2208,عاقل را اشارت کافی است,HARD,culture,PROVERB,true,true,curated-bootstrap-v3
+seed-2209,پیدا کردن کلید در کیفی پر از خرت‌وپرت,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2210,تعمیر ساعت قدیمی با پیچ‌گوشتی کوچک,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2211,رد شدن از پل باریک با کیسه خرید سنگین,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2212,چیدن میز شام برای ده نفر با بشقاب‌های رنگی,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2213,بازی فوتبال در زمین گل‌آلود بعد از باران,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2214,تماشای ستاره‌ها از پشت بام در شب سرد,HARD,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2215,صبح زود به ایستگاه اتوبوس رسیدن با چمدان بزرگ,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2216,بالا رفتن از نردبان لرزان برای برداشتن توپ,HARD,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2217,پختن ماهی روی آتش در کنار رودخانه,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2218,آتش‌بازی شب عید با احتیاط,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2219,قطار سواری شبانه در مسیر کوهستانی,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2220,نقاشی یک منظره زمستانی با رنگ‌های سرد,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2221,ماهیگیری در رودخانه‌ای پر از سنگ,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2222,داربست کشیدن برای نقاشی سقف,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2223,راه رفتن روی سنگ‌های لغزنده کنار آبشار,HARD,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2224,تقسیم کیک بین ده نفر بدون خرد شدن,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2225,آشپزی غذای سنتی با دستور قدیمی,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2226,فرش بافی با دست در روستای کوچک,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2227,بازی شطرنج زنده در حیاط مدرسه,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2228,آماده کردن بار قایق برای سفر دریایی,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2229,یافتن گنجشک زخمی و پرستاری از او,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2230,دوشیدن بز در صبح زود,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2231,آواز خواندن در جمع با صدای لرزان,HARD,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2232,کشیدن نقشه گنج در کاغذ قدیمی,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2233,نواختن ساز در حالی که پاها را تکان می‌دهی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2234,دویدن از کوه پایین در کنار رودخانه,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2235,سرکشی به کندوی زنبورها با لباس محافظ,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2236,تهیه چای دم کشیدن با سماور قدیمی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2237,مرتب کردن قفسه کتاب بر اساس رنگ جلد,HARD,home,ACTION,true,true,curated-bootstrap-v3
+seed-2238,بالا بردن بادبان کشتی در باد شدید,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2239,تعمیر دوچرخه بعد از پنچری در جاده خاکی,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2240,سیم‌کشی ساده لامپ اتاق با نظارت بزرگ‌تر,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2241,دوز کفش کهنه در کارگاه کوچک,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2242,مسافرت با کاروان شتر در کویر,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2243,برگزاری مسابقه قصه‌گویی در کتابخانه,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2244,عرق‌ریزان بالا کشیدن سطل آب از چاه,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2245,ساختن کاغذ دستی از الیاف گیاه,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2246,پیدا کردن سوزن در کاه,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2247,گرفتن سرنخ ماجرا از گوشه‌ای ناپیدا,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2248,سر از لاک خود بیرون آوردن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2249,پشت پرده ماجرا را کشف کردن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2250,کارد به استخوان رسیدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2251,زیر پای کسی را جارو زدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2252,روی آب راه رفتن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2253,به گوش دیوار هم گفتن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2254,دماغ کسی را سوزاندن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2255,از کیسه خلیفه بخشیدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2256,سوهان روح بودن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2257,پرواز به سوی آرزوهای دور,HARD,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-2258,قصه‌ای که هیچ‌وقت تمام نمی‌شود,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2259,جنگ آب و آتش در دل,HARD,idioms,PHRASE,true,true,curated-bootstrap-v3
+seed-2260,کاشتن درخت برای نسل بعد,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2261,سفر به شهر ناشناخته با نقشه کاغذی,HARD,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-2262,آینه‌ای که حقیقت را نشان می‌دهد,HARD,objects,PHRASE,true,true,curated-bootstrap-v3
+seed-2263,ساز و آوازی در دل شب,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2264,سکوت پر از حرف‌های نگفته,HARD,emotions,PHRASE,true,true,curated-bootstrap-v3
+seed-2265,پل‌های قدیمی شهر را حفظ کردن,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2266,نبرد با غول‌های قصه,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2267,شکار ماهی طلایی در رود,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2268,زمزمه باد در کوچه‌های باریک,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2269,خواب زمستانی خرس‌ها,HARD,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-2270,مسافران سفر دریایی شب,HARD,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-2271,ستاره دنباله‌دار در آسمان,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2272,اختراع ماشین پرنده در قصه,HARD,technology,PHRASE,true,true,curated-bootstrap-v3
+seed-2273,نامه‌ای که هرگز پست نشد,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2274,فرش‌بافی تا صبح,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2275,نقاشی دیواری در کوچه‌های قدیمی,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2276,آتش‌نشانی در جنگل خشک,HARD,jobs,PHRASE,true,true,curated-bootstrap-v3
+seed-2277,پیدا کردن مروارید در صدف,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2278,پنگوئن امپراتور,HARD,animals,WORD,true,true,curated-bootstrap-v3
+seed-2279,نمایش دادن یک شخصیت تاریخی,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2280,ساختن پل معلق از نی و نخ در حیاط مدرسه,HARD,school,PHRASE,true,true,curated-bootstrap-v3
+seed-2281,نشان دادن جشن ده‌روزه یک روستا,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2282,نواختن ترانه قدیمی با سه‌تار بدون نت,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2283,کشف یک سرنخ پنهان در کتابخانه قدیمی,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2284,تقلید صدای باد میان درختان بلند,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2285,پیدا کردن راه خروج از یک هزارتوی آینه,HARD,humor,PHRASE,true,true,curated-bootstrap-v3
+seed-2286,شکار گنج در کویر با نقشه‌ای پاره,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2287,پیاده‌روی شبانه در شهر خالی از آدم,HARD,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-2288,گره کراوات را در عروسی درست بستن,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2289,بازی لی‌لی روی زمین یخ‌زده,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2290,عبور از رودخانه با پای برهنه و کیسه سنگین,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2291,چیدن کتاب‌ها روی قفسه به ترتیب الفبا,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2292,مرتب کردن نخ‌های رنگی برای گلیم,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2293,ترمیم کاشی‌های شکسته حوض,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2294,پیدا کردن جهت قبله با ساعت و نقشه,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2295,ساختن موسیقی با لیوان‌های آب,HARD,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2296,نمایش یک کارگر معدن در روز سخت,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2297,کشیدن قایق روی ماسه تا ساحل,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2298,فریاد زدن در دره برای شنیدن پژواک,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2299,گلاب‌گیری از گل‌های محمدی در بهار,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2300,جمع کردن محصول پیاز در مزرعه,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2301,پرواز دادن کبوتر نامه‌بر,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2302,تغییر دادن مسیر رودخانه با سنگ,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2303,شکستن یخ رودخانه با پا,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2304,آتش روشن کردن در جنگل بدون خطر,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2305,کشیدن تصویر خانه با قلم‌موی باریک,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2306,بالا رفتن از کوه با کفش‌های سنگین,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2307,پخت نان در تنور گلی,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2308,ساختن قاب با چوب و میخ,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2309,یافتن نشانی خانه در شهر ناآشنا,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2310,آموزش دادن پرنده به سلام کردن,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2311,پیدا کردن گنج در خرابه,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2312,مدیریت زمان امتحان با ساعت شنی,HARD,school,PHRASE,true,true,curated-bootstrap-v3
+seed-2313,نگه داشتن تعادل روی توپ بزرگ,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2314,فرار از ریزش برف در دامنه کوه,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2315,اجرای نمایش خیمه‌شب‌بازی با عروسک‌های چوبی,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2316,پختن شله‌زرد برای مراسم,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2317,نصب تور ماهیگیری روی قایق,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2318,تعریف داستان ماجرایی در جنگل,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2319,ترجمه شعر به زبان دیگر,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2320,تمرین خط نستعلیق با قلم نی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2321,تماشای ستاره دنباله‌دار با تلسکوپ,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2322,پختن کته با برنج شمال,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2323,ساختن جعبه موسیقی با دست,HARD,objects,ACTION,true,true,curated-bootstrap-v3
+seed-2324,عروسک‌ساز,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2325,کفاش دوره‌گرد,HARD,jobs,WORD,true,true,curated-bootstrap-v3
+seed-2326,تیراندازی با کمان,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2327,پرش با چتر,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2328,بازی گل‌به‌خودی,HARD,sports,IDIOM,true,true,curated-bootstrap-v3
+seed-2329,ماشین تحریر,HARD,objects,WORD,true,true,curated-bootstrap-v3
+seed-2330,خورشید گرفتگی,HARD,nature,WORD,true,true,curated-bootstrap-v3
+seed-2331,ماه گرفتگی,HARD,nature,WORD,true,true,curated-bootstrap-v3
+seed-2332,گدازه,HARD,nature,WORD,true,true,curated-bootstrap-v3
+seed-2333,مخروط آتشفشانی,HARD,nature,WORD,true,true,curated-bootstrap-v3
+seed-2334,کابین اسکی,HARD,transport,WORD,true,true,curated-bootstrap-v3
+seed-2335,بازار بزرگ تبریز,HARD,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2336,جنگل هیرکانی,HARD,travel,PLACE,true,true,curated-bootstrap-v3
+seed-2337,بازیگر نقش مکمل,HARD,cinema,PERSON,true,true,curated-bootstrap-v3
+seed-2338,جایزه اسکار,HARD,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2339,مزرعه‌ی پرورش ماهی,HARD,animals,PLACE,true,true,curated-bootstrap-v3
+seed-2340,کاک یزدی,HARD,food,WORD,true,true,curated-bootstrap-v3
+seed-2341,ارکستر سمفونیک,HARD,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2342,اپرای کوتاه,HARD,cinema,WORD,true,true,curated-bootstrap-v3
+seed-2343,رقص باله روی نوک پا,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2344,نواختن ویولن با آرشه,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2345,نواختن سنتور با دو مضراب,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2346,نواختن فلوت چوبی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2347,نمایش موسیقی بی‌صدا,HARD,cinema,PHRASE,true,true,curated-bootstrap-v3
+seed-2348,آوازخوانی با حرکات اغراق‌آمیز,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2349,شعرخوانی کنار چراغ نفتی,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2350,بازیگری در نقش پادشاه پیر,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2351,اجرای تعزیه روی سکوی خاکی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2352,نمایش یک صحنه از شاهنامه,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2353,نقاشی قهوه‌خانه‌ای با رنگ طبیعی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2354,تماشای نقالی در شب زمستان,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2355,کشیدن خط نستعلیق با مرکب,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2356,ساختن ماکت شهر با چوب بالسا,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2357,گره زدن روسری به شیوه محلی,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2358,بافتن شال پشمی در زمستان بلند,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2359,پختن شیرینی سنتی با قالب چوبی,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2360,فرار کردن از طوفان شن در کویر,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2361,گم شدن در جنگل مه‌آلود,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2362,بازی بوکس سایه با دست و پا,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2363,شیرجه زدن از سکوی بلند,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2364,تعادل روی یک پا با چشم بسته,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2365,دویدن با کیسه‌ای پر از سیب,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2366,پرش از روی ده صندلی کنار هم,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2367,گلف زدن در زمین ناهموار,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2368,بالا رفتن از دیواره سنگ‌نوردی,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2369,دوچرخه‌سواری در سراشیبی تند,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2370,زیر آب ماندن برای شمردن ماهی‌ها,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2371,نگهداری از پرنده زخمی در قفس کوچک,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2372,پاک کردن پر پرنده با دقت,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2373,خواب زمستانی یک خرس قصه‌ای,HARD,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-2374,حمل کردن سبد میوه روی سر,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2375,پوشاندن سقف کاهگلی با گل,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2376,سنگ‌تراشی یک مجسمه کوچک,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2377,خمیرگیری برای سفال,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2378,کار با دستگاه خیاطی پدال‌دار,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2379,دوخت پیراهن محلی با نخ‌های رنگی,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2380,شستن فرش بزرگ در حوض,HARD,home,ACTION,true,true,curated-bootstrap-v3
+seed-2381,بالا بردن قفسه‌های سنگین,HARD,home,ACTION,true,true,curated-bootstrap-v3
+seed-2382,ساختن میز ناهارخوری با دست,HARD,home,ACTION,true,true,curated-bootstrap-v3
+seed-2383,گذاشتن ترانه روی گرامافون قدیمی,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2384,هم زدن گل‌های شیرین در حلوا,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2385,تزیین سفره عقد با سکه,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2386,کشیدن قاب آینه با گل‌های ریز,HARD,objects,ACTION,true,true,curated-bootstrap-v3
+seed-2387,تاباندن نور آفتاب بر آب,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2388,فرستادن نامه با کبوتر قدیمی,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2389,نقاشی کردن نقشه گنج بر روی دیوار,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2390,فهمیدن معنای جمله با حرکت لب,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2391,گفتن شعر بدون کلمه,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2392,ساختن شعر با هم‌قافیه‌های سخت,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2393,برگزاری جلسه سخنرانی در کتابخانه,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2394,صحبت کردن با دست و ابرو,HARD,emotions,PHRASE,true,true,curated-bootstrap-v3
+seed-2395,فهمیدن منظور دوست بدون حرف زدن,HARD,emotions,PHRASE,true,true,curated-bootstrap-v3
+seed-2396,تبدیل ترس به شجاعت در یک لحظه,HARD,emotions,PHRASE,true,true,curated-bootstrap-v3
+seed-2397,سر و ته یک کرباس,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2398,کاه را کوه کردن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2399,شیشه عمر کسی را شکستن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2400,ستاره‌بخت کسی درخشیدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2401,به پای کسی نیفتادن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2402,عقل کل بودن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2403,در قفس طلا بودن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2404,ریش‌گرو گذاشتن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2405,دور زدن موانع مسیر,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2406,گذر از مرز دو کشور با ویزا,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2407,کشیدن نوار صدا در استودیو,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2408,دوبله کردن کارتون با صدای خنده,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2409,بازی نقش شخص بی‌زبان,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2410,مکث طولانی قبل از خبر بزرگ,HARD,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2411,کفش کهنه را ترمیم کردن,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2412,نشان دادن نقشه ستاره‌ها در شب,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2413,پیدا کردن جهت باد با بادنما,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2414,خواندن نقشه کوهستان,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2415,فهمیدن زبان پرنده‌ها,HARD,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-2416,ایجاد پژواک در غار تاریک,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2417,بالا بردن سطل از چاه عمیق,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2418,باز کردن گره سیم‌های در هم,HARD,objects,ACTION,true,true,curated-bootstrap-v3
+seed-2419,کیش دادن در بازی شطرنج,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2420,رفتن روی طناب سیرکی,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2421,پرش در حلقه آتشین سیرک,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2422,شعبده‌بازی با کبوتر و کلاه,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2423,بالا انداختن سه توپ,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2424,گیج شدن در هزارتوی باغ,HARD,actions,PHRASE,true,true,curated-bootstrap-v3
+seed-2425,پیدا کردن ستاره شمالی با نقشه کهنه,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2426,ساختن قایق با پوست درخت و طناب,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2427,سرکشی به کندوی زنبور در فصل گل,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2428,تماشای کوچ پرندگان در پاییز,HARD,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-2429,پیدا کردن مروارید در ته دریا,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2430,ترسیم نقشه گنج با رنگ‌های خاکی,HARD,literature,ACTION,true,true,curated-bootstrap-v3
+seed-2431,باز کردن کیسه‌ای پر از سکه‌های قدیمی,HARD,objects,ACTION,true,true,curated-bootstrap-v3
+seed-2432,نشان دادن عبور قطار از تونل,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2433,نشان دادن بازی با سگ شکاری,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2434,آرام کردن اسب سرکش,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2435,شرح دادن صحنه طوفان در دریا با حرکات,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2436,بازسازی یک نقاشی مشهور با حرکات بدن,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2437,ساختن تندیس با خاک رس,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2438,بازی ستاره‌شناسی با تلسکوپ کوچک,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2439,یافتن راه در مزرعه ذرت انبوه,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2440,نشان دادن غرق شدن کشتی در توفان,HARD,transport,PHRASE,true,true,curated-bootstrap-v3
+seed-2441,راه رفتن روی لبه پشت‌بام با احتیاط,HARD,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2442,شناسایی پرنده از روی صدایش,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2443,گشتن در خرابه‌های قدیمی به دنبال گنج,HARD,literature,PHRASE,true,true,curated-bootstrap-v3
+seed-2444,گذر از رودخانه با پل سنگی,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2445,تصویرکشی از ماه با قلم زغالی,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2446,کشیدن صدای رعد با دهان,HARD,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2447,بالا کشیدن پرچم روی قله,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2448,توضیح دادن مسیر با نقشه دستی,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2449,تقلید از سخنرانی یک رئیس,HARD,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2450,تماشای زمین از بالای بادکنک,HARD,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-2451,تقسیم کردن کیک بین دوازده دوست,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2452,گفتن معمای بی‌جواب در مهمانی,HARD,humor,ACTION,true,true,curated-bootstrap-v3
+seed-2453,ساختن لانه پرنده از شاخه و کاه,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2454,آسیاب کردن گندم در آسیاب آبی,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2455,نواختن زنگ در کلیسای کوچک,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2456,پیدا کردن ماهی در دریاچه یخ‌زده,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2457,بالا گرفتن بادبادک از کوه بلند,HARD,actions,ACTION,true,true,curated-bootstrap-v3
+seed-2458,خواندن سوره‌ای کوتاه در مراسم,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2459,نشان دادن رفتار پادشاه در مجلس,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2460,چیدن کتاب‌ها در کتابخانه با برچسب,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2461,دوختن پرچم کوچک با نخ قرمز,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2462,حمل کردن آب با دو سطل در دو سو,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2463,آبیاری درخت‌های نوجوان در کوهپایه,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2464,بالا رفتن از ترازوی آشپزی,HARD,food,ACTION,true,true,curated-bootstrap-v3
+seed-2465,نشان دادن رقص باران در جشن,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2466,خیزش موج بلند در ساحل,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2467,نواختن دیرهنگام بوق کشتی,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2468,بیرون آوردن ماهی از تور با دقت,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2469,ماجرای بچه گربه‌ای که گم شد,HARD,animals,PHRASE,true,true,curated-bootstrap-v3
+seed-2470,شبیه سازی رفتن به ماه,HARD,technology,PHRASE,true,true,curated-bootstrap-v3
+seed-2471,کار تیمی برای ساختن برج گلی,HARD,sports,PHRASE,true,true,curated-bootstrap-v3
+seed-2472,کشیدن پشم به چشم کسی,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2473,ماهی بی‌آب شدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2474,جان به لب رسیدن,HARD,idioms,IDIOM,true,true,curated-bootstrap-v3
+seed-2475,زیر آفتاب سوزان تا آخر راه رفتن,HARD,travel,PHRASE,true,true,curated-bootstrap-v3
+seed-2476,ساختن کاروان فانوس‌ها برای شب عید,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2477,جمع کردن زباله‌های ساحل در روز پاکسازی,HARD,nature,ACTION,true,true,curated-bootstrap-v3
+seed-2478,سوار شدن بر الاغ و بالا رفتن از کوه,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2479,راهنمایی کردن کودکان گم‌شده در بازار,HARD,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-2480,زدن بخیه روی پاره‌ی کیف کوهنوردی,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2481,مقایسه دو ماشین قدیمی و جدید با حرکات دست,HARD,transport,ACTION,true,true,curated-bootstrap-v3
+seed-2482,بازی کشتی با پای برهنه روی شن,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2483,خواندن ترانه‌های دهه‌های گذشته با دست و پا,HARD,emotions,ACTION,true,true,curated-bootstrap-v3
+seed-2484,پریدن از روی کیسه‌های بزرگ آرد,HARD,sports,ACTION,true,true,curated-bootstrap-v3
+seed-2485,پایین آوردن بار از روی گاری چوبی,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2486,رساندن پیام مهم در شلوغی جشن,HARD,daily_life,PHRASE,true,true,curated-bootstrap-v3
+seed-2487,شنیدن صدای موج در شب تاریک,HARD,nature,PHRASE,true,true,curated-bootstrap-v3
+seed-2488,مهار کردن اسب در روز باد,HARD,animals,ACTION,true,true,curated-bootstrap-v3
+seed-2489,ساختن قلعه با کتاب‌های بزرگ کتابخانه,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2490,حمل کردن سبد پر از تخم‌مرغ بدون شکستن,HARD,daily_life,ACTION,true,true,curated-bootstrap-v3
+seed-2491,نواختن کمانچه در کنار رودخانه,HARD,culture,ACTION,true,true,curated-bootstrap-v3
+seed-2492,ساختن صندلی کوچک چوبی برای نوه,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2493,پیدا کردن اسم روی کاغذ مچاله شده,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2494,گرفتن نیم‌رخ بی‌حرکت مثل مجسمه,HARD,cinema,ACTION,true,true,curated-bootstrap-v3
+seed-2495,نشان دادن نبرد سواران در دشت,HARD,culture,PHRASE,true,true,curated-bootstrap-v3
+seed-2496,روشن کردن فانوس در جاده‌ای پیچ‌در‌پیچ,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2497,کشیدن دیوار گلی با دست و گل,HARD,jobs,ACTION,true,true,curated-bootstrap-v3
+seed-2498,پیچاندن مسیر راه با نقشه کاغذی,HARD,travel,ACTION,true,true,curated-bootstrap-v3
+seed-2499,کار با میکروسکوپ در آزمایشگاه,HARD,school,ACTION,true,true,curated-bootstrap-v3
+seed-2500,سوار شدن بر کشتی در توفان دریا,HARD,transport,PHRASE,true,true,curated-bootstrap-v3

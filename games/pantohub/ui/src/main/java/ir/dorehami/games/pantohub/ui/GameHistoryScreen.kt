@@ -89,6 +89,7 @@ internal fun GameHistoryScreen(repository: PantohubRepository, onBack: () -> Uni
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
             HistoryTab.entries.forEach { item ->
                 FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Lavender),
                     selected = tab == item,
                     onClick = { tab = item },
                     label = { Text(when (item) {
@@ -102,6 +103,7 @@ internal fun GameHistoryScreen(repository: PantohubRepository, onBack: () -> Uni
         if (tab == HistoryTab.MATCHES) {
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                 OutlinedTextField(
+                    colors = pantohubFieldColors(PantohubTint.Mint),
                     value = query,
                     onValueChange = { query = it },
                     label = { Text("جست‌وجوی نام بازی یا تیم") },

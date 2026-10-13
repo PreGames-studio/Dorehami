@@ -4,6 +4,9 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -15,10 +18,10 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
-import androidx.compose.material3.Checkbox
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.ModalBottomSheet
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
@@ -51,6 +54,8 @@ import ir.dorehami.games.pantohub.ui.data.PantohubRepository
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
+import org.json.JSONArray
+import org.json.JSONObject
 import java.util.UUID
 
 private data class TeamDraft(
@@ -58,6 +63,35 @@ private data class TeamDraft(
     val playersText: String,
     val colorArgb: Int,
 )
+
+private const val SETUP_PREFS = "pantohub-setup"
+
+/** Restores the last team drafts saved on this device; falls back to the two default teams. */
+private fun loadTeamDrafts(prefs: android.content.SharedPreferences): List<TeamDraft> {
+    val defaults = listOf(
+        TeamDraft("تیم ۱", "بازیکن ۱", 0xffd94f52.toInt()),
+        TeamDraft("تیم ۲", "بازیکن ۱", 0xff3777c8.toInt()),
+    )
+    val raw = prefs.getString("teams", null) ?: return defaults
+    return runCatching {
+        val array = JSONArray(raw)
+        List(array.length()) { index ->
+            val item = array.getJSONObject(index)
+            TeamDraft(item.getString("name"), item.getString("players"), item.getInt("color"))
+        }
+    }.getOrNull()?.takeIf { it.size >= 2 } ?: defaults
+}
+
+private fun encodeTeamDrafts(teams: List<TeamDraft>): String = JSONArray().apply {
+    teams.forEach { draft ->
+        put(
+            JSONObject()
+                .put("name", draft.name)
+                .put("players", draft.playersText)
+                .put("color", draft.colorArgb),
+        )
+    }
+}.toString()
 
 private val teamColors = listOf(
     0xffd94f52.toInt(),
@@ -80,33 +114,66 @@ internal fun GameSetupScreen(
     val context = LocalContext.current
     val scope = rememberCoroutineScope()
     val preferences = remember { context.getSharedPreferences("pantohub-settings", 0) }
-    val teams = remember {
-        mutableStateListOf(
-            TeamDraft("تیم ۱", "بازیکن ۱", teamColors[0]),
-            TeamDraft("تیم ۲", "بازیکن ۱", teamColors[1]),
-        )
-    }
-    var gameName by remember { mutableStateOf("پانتومیم") }
-    var roundsPerTeam by remember { mutableStateOf(3) }
-    var turnSeconds by remember { mutableStateOf(60) }
-    var finalRoundSeconds by remember { mutableStateOf(60) }
-    var finalRoundMultiplier by remember { mutableStateOf(2) }
-    var easyPoints by remember { mutableStateOf(1) }
-    var mediumPoints by remember { mutableStateOf(2) }
-    var hardPoints by remember { mutableStateOf(3) }
-    var skipPenalty by remember { mutableStateOf(0) }
-    var maxSkips by remember { mutableStateOf(3) }
-    var allowSkip by remember { mutableStateOf(true) }
-    var cardsEnabled by remember { mutableStateOf(false) }
-    var finalRoundEnabled by remember { mutableStateOf(true) }
-    var individualStatsEnabled by remember { mutableStateOf(true) }
+    // Every choice is kept on this device, so the next game starts from the same setup.
+    val setupPrefs = remember { context.getSharedPreferences(SETUP_PREFS, 0) }
+    val teams = remember { mutableStateListOf<TeamDraft>().apply { addAll(loadTeamDrafts(setupPrefs)) } }
+    var gameName by remember { mutableStateOf(setupPrefs.getString("gameName", null) ?: "پانتومیم") }
+    var roundsPerTeam by remember { mutableStateOf(setupPrefs.getInt("roundsPerTeam", 3)) }
+    var turnSeconds by remember { mutableStateOf(setupPrefs.getInt("turnSeconds", 60)) }
+    var finalRoundSeconds by remember { mutableStateOf(setupPrefs.getInt("finalRoundSeconds", 60)) }
+    var finalRoundMultiplier by remember { mutableStateOf(setupPrefs.getInt("finalRoundMultiplier", 2)) }
+    var easyPoints by remember { mutableStateOf(setupPrefs.getInt("easyPoints", 1)) }
+    var mediumPoints by remember { mutableStateOf(setupPrefs.getInt("mediumPoints", 2)) }
+    var hardPoints by remember { mutableStateOf(setupPrefs.getInt("hardPoints", 3)) }
+    var skipPenalty by remember { mutableStateOf(setupPrefs.getInt("skipPenalty", 0)) }
+    var maxSkips by remember { mutableStateOf(setupPrefs.getInt("maxSkips", 3)) }
+    var allowSkip by remember { mutableStateOf(setupPrefs.getBoolean("allowSkip", true)) }
+    var cardsEnabled by remember { mutableStateOf(setupPrefs.getBoolean("cardsEnabled", false)) }
+    var finalRoundEnabled by remember { mutableStateOf(setupPrefs.getBoolean("finalRoundEnabled", true)) }
+    var individualStatsEnabled by remember { mutableStateOf(setupPrefs.getBoolean("individualStatsEnabled", true)) }
+    // Sound and motion are device-wide settings shared with the Settings page, so they keep their existing store.
     var soundEnabled by remember { mutableStateOf(preferences.getBoolean("sound", true)) }
     var animationsEnabled by remember { mutableStateOf(preferences.getBoolean("animations", true)) }
-    var difficulties by remember { mutableStateOf(Difficulty.entries.toSet()) }
-    var categories by remember { mutableStateOf(emptySet<String>()) }
+    var difficulties by remember {
+        mutableStateOf(
+            setupPrefs.getStringSet("difficulties", null)
+                ?.mapNotNull { name -> Difficulty.entries.firstOrNull { it.name == name } }
+                ?.toSet()
+                ?.takeIf { it.isNotEmpty() }
+                ?: Difficulty.entries.toSet(),
+        )
+    }
+    var categories by remember { mutableStateOf(setupPrefs.getStringSet("categories", null)?.toSet() ?: emptySet()) }
     var availableCategories by remember { mutableStateOf(emptyList<String>()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var creating by remember { mutableStateOf(false) }
+    var showEdits by remember { mutableStateOf(false) }
+
+    LaunchedEffect(
+        gameName, roundsPerTeam, turnSeconds, finalRoundSeconds, finalRoundMultiplier,
+        easyPoints, mediumPoints, hardPoints, skipPenalty, maxSkips, allowSkip, cardsEnabled,
+        finalRoundEnabled, individualStatsEnabled, difficulties, categories, teams.toList(),
+    ) {
+        setupPrefs.edit()
+            .putString("gameName", gameName)
+            .putInt("roundsPerTeam", roundsPerTeam)
+            .putInt("turnSeconds", turnSeconds)
+            .putInt("finalRoundSeconds", finalRoundSeconds)
+            .putInt("finalRoundMultiplier", finalRoundMultiplier)
+            .putInt("easyPoints", easyPoints)
+            .putInt("mediumPoints", mediumPoints)
+            .putInt("hardPoints", hardPoints)
+            .putInt("skipPenalty", skipPenalty)
+            .putInt("maxSkips", maxSkips)
+            .putBoolean("allowSkip", allowSkip)
+            .putBoolean("cardsEnabled", cardsEnabled)
+            .putBoolean("finalRoundEnabled", finalRoundEnabled)
+            .putBoolean("individualStatsEnabled", individualStatsEnabled)
+            .putStringSet("difficulties", difficulties.map { it.name }.toSet())
+            .putStringSet("categories", categories.toSet())
+            .putString("teams", encodeTeamDrafts(teams.toList()))
+            .apply()
+    }
 
     LaunchedEffect(Unit) {
         availableCategories = runCatching { withContext(Dispatchers.IO) { repository.listCategories() } }.getOrDefault(emptyList())
@@ -119,6 +186,7 @@ internal fun GameSetupScreen(
     PantohubPageFrame("آماده‌سازی بازی", onBack) {
         Text("نام بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
+            colors = pantohubFieldColors(PantohubTint.Mint),
             value = gameName,
             onValueChange = { gameName = it; errorMessage = null },
             label = { Text("مثلاً دورهمی جمعه") },
@@ -164,6 +232,7 @@ internal fun GameSetupScreen(
                         }
                     }
                     OutlinedTextField(
+                        colors = pantohubFieldColors(PantohubTint.Peach),
                         value = draft.name,
                         onValueChange = { value -> editTeam(index) { it.copy(name = value) }; errorMessage = null },
                         label = { Text("نام تیم") },
@@ -171,6 +240,7 @@ internal fun GameSetupScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
+                        colors = pantohubFieldColors(PantohubTint.Lavender),
                         value = draft.playersText,
                         onValueChange = { value -> editTeam(index) { it.copy(playersText = value) }; errorMessage = null },
                         label = { Text("نام بازیکنان (با ویرگول جدا کن)") },
@@ -196,77 +266,124 @@ internal fun GameSetupScreen(
             }
         }
 
-        SectionTitle("زمان و تعداد دورها")
-        SettingChoiceRow(
-            title = "زمان هر نوبت",
-            values = listOf(30, 60, 90, 120),
-            selected = turnSeconds,
-            suffix = "ثانیه",
-            onSelect = { turnSeconds = it },
-        )
-        SettingStepper("نوبت هر تیم", roundsPerTeam, 1, 20, "دور") { roundsPerTeam = it }
-
-        SectionTitle("دشواری و موضوع")
-        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-            Difficulty.entries.forEach { difficulty ->
-                FilterChip(
-                    selected = difficulty in difficulties,
-                    onClick = {
-                        difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
-                        errorMessage = null
-                    },
-                    label = { Text(difficulty.labelFa) },
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
+            Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text("تنظیمات این بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                Text(
+                    "هر نوبت ${turnSeconds.toString().toPersianDigits()} ثانیه · ${roundsPerTeam.toString().toPersianDigits()} دور برای هر تیم · ${difficulties.size.toString().toPersianDigits()} سطح دشواری",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                PantohubButton(
+                    text = "ویرایشات بازی",
+                    emoji = "🛠️",
+                    style = PantohubButtonStyle.Secondary,
+                    onClick = { showEdits = true },
+                    modifier = Modifier.fillMaxWidth(),
                 )
             }
         }
-        if (availableCategories.isEmpty()) {
-            Text("هنوز دستهٔ تأییدشده‌ای در بانک نیست.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-        } else {
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                FilterChip(
-                    selected = categories.isEmpty(),
-                    onClick = { categories = emptySet() },
-                    label = { Text("همه") },
+
+        if (showEdits) {
+            ModalBottomSheet(onDismissRequest = { showEdits = false }) {
+                Column(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .verticalScroll(rememberScrollState())
+                        .padding(horizontal = 16.dp)
+                        .padding(bottom = 24.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("ویرایشات بازی", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                    Text(
+                        "این تنظیمات روی همین گوشی ذخیره می‌شوند و دفعهٔ بعد هم همین‌ها نمایش داده می‌شوند.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                SectionTitle("زمان و تعداد دورها")
+                SettingChoiceRow(
+                    title = "زمان هر نوبت",
+                    values = listOf(30, 60, 90, 120),
+                    selected = turnSeconds,
+                    suffix = "ثانیه",
+                    onSelect = { turnSeconds = it },
                 )
-            }
-            availableCategories.chunked(2).forEach { row ->
+                SettingStepper("نوبت هر تیم", roundsPerTeam, 1, 20, "دور") { roundsPerTeam = it }
+
+                SectionTitle("دشواری و موضوع")
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                    row.forEach { category ->
+                    Difficulty.entries.forEach { difficulty ->
                         FilterChip(
-                            selected = category in categories,
+                            colors = pantohubChipColors(PantohubTint.Mint),
+                            selected = difficulty in difficulties,
                             onClick = {
-                                categories = if (category in categories) categories - category else categories + category
+                                difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
+                                errorMessage = null
                             },
-                            label = { Text(WordCategories.labelFa(category)) },
-                            modifier = Modifier.weight(1f),
+                            label = { Text(difficulty.labelFa) },
                         )
                     }
-                    if (row.size == 1) Spacer(Modifier.weight(1f))
+                }
+                if (availableCategories.isEmpty()) {
+                    Text("هنوز دستهٔ تأییدشده‌ای در بانک نیست.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                        FilterChip(
+                            colors = pantohubChipColors(PantohubTint.Mint),
+                            selected = categories.isEmpty(),
+                            onClick = { categories = emptySet() },
+                            label = { Text("همه") },
+                        )
+                    }
+                    availableCategories.chunked(2).forEach { row ->
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            row.forEach { category ->
+                                FilterChip(
+                                    colors = pantohubChipColors(PantohubTint.Mint),
+                                    selected = category in categories,
+                                    onClick = {
+                                        categories = if (category in categories) categories - category else categories + category
+                                    },
+                                    label = { Text(WordCategories.labelFa(category)) },
+                                    modifier = Modifier.weight(1f),
+                                )
+                            }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        }
+                    }
+                    Text("اگر «همه» انتخاب باشد، همهٔ دسته‌های معتبر و فعال مجازند.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                }
+
+                SectionTitle("امتیازدهی")
+                SettingStepper("آسان", easyPoints, 1, 10, "امتیاز") { easyPoints = it }
+                SettingStepper("متوسط", mediumPoints, 1, 10, "امتیاز") { mediumPoints = it }
+                SettingStepper("سخت", hardPoints, 1, 10, "امتیاز") { hardPoints = it }
+                PreferenceToggleRow("امکان رد کردن واژه", "رد کردن می‌تواند جریمه داشته باشد.", allowSkip) { allowSkip = it }
+                if (allowSkip) {
+                    SettingStepper("جریمهٔ رد کردن", skipPenalty, 0, 5, "امتیاز") { skipPenalty = it }
+                    SettingStepper("سقف رد در هر نوبت", maxSkips, 0, 20, "بار") { maxSkips = it }
+                }
+
+                SectionTitle("قوانین اختیاری")
+                PreferenceToggleRow("کارت‌های ویژه", "هر تیم در هر بازی از هر کارت فقط یک‌بار می‌تواند استفاده کند.", cardsEnabled) { cardsEnabled = it }
+                PreferenceToggleRow("دور پایانی برای تیم‌های مساوی", "پس از دورهای اصلی، تیم‌های هم‌امتیاز یک نوبت اضافه با ضریب ویژه می‌گیرند.", finalRoundEnabled) { finalRoundEnabled = it }
+                if (finalRoundEnabled) {
+                    SettingChoiceRow("زمان دور پایانی", listOf(30, 60, 90, 120), finalRoundSeconds, "ثانیه") { finalRoundSeconds = it }
+                    SettingStepper("ضریب امتیاز دور پایانی", finalRoundMultiplier, 1, 10, "برابر") { finalRoundMultiplier = it }
+                }
+                PreferenceToggleRow("ثبت آمار فردی", "نام اجراکننده و رویدادهای هر نوبت در تاریخچه ذخیره می‌شود.", individualStatsEnabled) { individualStatsEnabled = it }
+                PreferenceToggleRow("صدای پاسخ درست", "قابل خاموش‌کردن از تنظیمات.", soundEnabled) { soundEnabled = it }
+                PreferenceToggleRow("انیمیشن رابط", "حرکت‌ها سبک هستند و می‌توانی خاموششان کنی.", animationsEnabled) { animationsEnabled = it }
+
+                    PantohubButton(
+                        text = "تأیید ویرایشات",
+                        emoji = "✅",
+                        onClick = { showEdits = false },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             }
-            Text("اگر «همه» انتخاب باشد، همهٔ دسته‌های معتبر و فعال مجازند.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-
-        SectionTitle("امتیازدهی")
-        SettingStepper("آسان", easyPoints, 1, 10, "امتیاز") { easyPoints = it }
-        SettingStepper("متوسط", mediumPoints, 1, 10, "امتیاز") { mediumPoints = it }
-        SettingStepper("سخت", hardPoints, 1, 10, "امتیاز") { hardPoints = it }
-        PreferenceToggleRow("امکان رد کردن واژه", "رد کردن می‌تواند جریمه داشته باشد.", allowSkip) { allowSkip = it }
-        if (allowSkip) {
-            SettingStepper("جریمهٔ رد کردن", skipPenalty, 0, 5, "امتیاز") { skipPenalty = it }
-            SettingStepper("سقف رد در هر نوبت", maxSkips, 0, 20, "بار") { maxSkips = it }
-        }
-
-        SectionTitle("قوانین اختیاری")
-        PreferenceToggleRow("کارت‌های ویژه", "هر تیم در هر بازی از هر کارت فقط یک‌بار می‌تواند استفاده کند.", cardsEnabled) { cardsEnabled = it }
-        PreferenceToggleRow("دور پایانی برای تیم‌های مساوی", "پس از دورهای اصلی، تیم‌های هم‌امتیاز یک نوبت اضافه با ضریب ویژه می‌گیرند.", finalRoundEnabled) { finalRoundEnabled = it }
-        if (finalRoundEnabled) {
-            SettingChoiceRow("زمان دور پایانی", listOf(30, 60, 90, 120), finalRoundSeconds, "ثانیه") { finalRoundSeconds = it }
-            SettingStepper("ضریب امتیاز دور پایانی", finalRoundMultiplier, 1, 10, "برابر") { finalRoundMultiplier = it }
-        }
-        PreferenceToggleRow("ثبت آمار فردی", "نام اجراکننده و رویدادهای هر نوبت در تاریخچه ذخیره می‌شود.", individualStatsEnabled) { individualStatsEnabled = it }
-        PreferenceToggleRow("صدای پاسخ درست", "قابل خاموش‌کردن از تنظیمات.", soundEnabled) { soundEnabled = it }
-        PreferenceToggleRow("انیمیشن رابط", "حرکت‌ها سبک هستند و می‌توانی خاموششان کنی.", animationsEnabled) { animationsEnabled = it }
 
         errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
         Button(
@@ -381,6 +498,7 @@ private fun SettingChoiceRow(
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
             values.forEach { value ->
                 FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Mint),
                     selected = selected == value,
                     onClick = { onSelect(value) },
                     label = { Text("${value.toString().toPersianDigits()} $suffix") },
@@ -424,7 +542,7 @@ internal fun PreferenceToggleRow(
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(colors = pantohubSwitchColors(), checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

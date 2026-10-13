@@ -1,0 +1,156 @@
+آشپزخانه|E|ho|L
+راهرو|E|ho|L
+انباری|E|ho|L
+پله‌برقی|E|ho|L
+کمد لباس|E|ho|W
+قفسه کتاب|E|ho|W
+آینه قدی|E|ho|W
+پرده پنجره|E|ho|W
+ملحفه|E|ho|W
+پتو|E|ho|W
+بالش|E|ho|W
+فرش دستباف|M|ho|W
+مبل راحتی|E|ho|W
+میز تحریر|E|ho|W
+صندلی گهواره‌ای|M|ho|W
+تاب باغچه|E|ho|W
+گلدان گل|E|ho|W
+جاروبرقی|E|ho|W
+اتو|E|ho|W
+ماشین لباسشویی|E|ho|W
+یخچال|E|ho|W
+سماور برقی|M|ho|W
+آبگرمکن|M|ho|W
+کولر|E|ho|W
+بخاری|E|ho|W
+پنکه|E|ho|W
+پریز|E|ho|W
+کلید برق اتاق|E|ho|W
+قفل در|E|ho|W
+دستگیره|E|ho|W
+کلون در|M|ho|W
+زنگ در|E|ho|W
+آیفون|E|ho|W
+پشت‌بام خانه|E|ho|L
+ساختمان بلند|E|ho|L
+آپارتمان|E|ho|L
+ویلا|E|ho|L
+کلبه چوبی|M|ho|L
+خانه ییلاقی|M|ho|L
+پله‌های مارپیچ|M|ho|L
+آسانسور|E|ho|W
+پارکینگ|E|ho|L
+باغچه|E|ho|L
+استخر|E|ho|L
+زمین بازی کودکان|E|ho|L
+کیف پول|E|daily_life|W
+ساعت دیواری|E|daily_life|W
+تقویم|E|daily_life|W
+دفتر تلفن|M|daily_life|W
+شماره تلفن|E|daily_life|W
+پیامک|E|daily_life|W
+ایستگاه اتوبوس|E|daily_life|L
+نوبت دکتر|M|daily_life|W
+بیمه|M|daily_life|W
+کارت عابربانک|E|daily_life|W
+رسید خرید|E|daily_life|W
+لیست خرید|E|daily_life|W
+سبد میوه|E|daily_life|W
+کیسه پلاستیکی|E|daily_life|W
+صابون|E|daily_life|W
+شامپو|E|daily_life|W
+خمیر دندان|E|daily_life|W
+حوله|E|daily_life|W
+ساپورت|E|daily_life|W
+جوراب|E|daily_life|W
+دستکش|E|daily_life|W
+شال گردن|E|daily_life|W
+دمپایی|E|daily_life|W
+کلاه بافتنی|E|daily_life|W
+کاپشن|E|daily_life|W
+بارانی|E|daily_life|W
+کیف مدرسه|E|daily_life|W
+ساعت مچی|E|daily_life|W
+دوربین عکاسی|M|daily_life|W
+عینک مطالعه|E|daily_life|W
+چرخ گوشت|M|daily_life|W
+روغن‌کش|E|daily_life|W
+دیگ بخار|M|daily_life|W
+قابلمه|E|daily_life|W
+توری ظرفشویی|E|daily_life|W
+سطل آشغال|E|daily_life|W
+جاروی برقی کوچک|M|daily_life|W
+تاب‌خوردن|E|daily_life|A
+دست زدن|E|daily_life|A
+سوت زدن|E|daily_life|A
+خمیازه کشیدن|E|daily_life|A
+عطسه کردن|E|daily_life|A
+سرفه کردن|E|daily_life|A
+لنگ زدن|M|daily_life|A
+لی‌لی کردن|E|sp|A
+بالا و پایین پریدن|E|sp|A
+دست تکان دادن|E|daily_life|A
+سلام نظامی دادن|M|daily_life|A
+تعظیم کردن|M|daily_life|A
+کرنش کردن|M|cu|A
+تنفس عمیق|E|daily_life|W
+دویدن در جا|E|sp|A
+کش دادن بدن|E|daily_life|A
+پای برهنه راه رفتن|E|daily_life|A
+نشستن روی زمین|E|daily_life|A
+بلند شدن از جا|E|daily_life|A
+خم شدن برای برداشتن سکه|M|daily_life|A
+چرخیدن دور خود|E|daily_life|A
+جست زدن از روی طناب|E|sp|A
+پرش از روی جوی آب|M|sp|A
+گره زدن بند کفش|E|daily_life|A
+چشم بستن و حدس زدن|E|daily_life|A
+دست زدن ریتمیک|E|em|A
+زیر لب خندیدن|M|em|A
+شانه بالا انداختن|M|em|A
+ابرو بالا انداختن|M|em|A
+دهان باز ماندن|M|em|A
+لبخند زدن|E|em|A
+اخم کردن|E|em|A
+گریه از خنده|M|em|A
+پلک زدن پی‌درپی|E|em|A
+آه کشیدن|E|em|A
+کف زدن برای شعر|E|li|A
+قرائت شعر با حالت|M|li|A
+قصه تعریف کردن با حرکات دست|M|li|A
+نمایش دادن یک شخصیت تاریخی|H|li|A
+نقاشی کردن با پا|M|hu|A
+قهقهه زدن|E|hu|A
+ترسیدن از صدای قورباغه|M|hu|A
+جیغ زدن از شوخی|E|hu|A
+پرسیدن معمای سخت|M|hu|A
+گفتن جوک بی‌سر و ته|M|hu|A
+راه رفتن مثل ربات|E|hu|A
+نمایش یک خرس خواب‌آلود|M|hu|A
+زیرآب کسی را زدن|H|id|I
+دست بر قضا|M|id|I
+بی‌خیال بودن|E|id|I
+به هوا رفتن|M|id|I
+سرسری گرفتن|M|id|I
+کیش و مات کردن|M|sp|I
+شیرین‌زبانی کردن|M|id|I
+کلاه سرش گذاشتن|M|id|I
+جوش آوردن|M|id|I
+دوست داشتنی|E|em|W
+به امید دیدار|E|daily_life|P
+خانه دوست|E|ho|P
+سفر تابستانی|E|tv|P
+شب سرد زمستان|E|na|P
+کوچه باغ‌های پر گل|M|na|P
+بازار شلوغ و رنگارنگ|M|tv|P
+قایق کاغذی در جوی|E|daily_life|P
+ورزش صبحگاهی در پارک|E|sp|P
+نان تازه و سبزی|E|fo|P
+شاخه‌های بید در باد|M|na|P
+پرنده‌های مهاجر|M|an|P
+باران تابستانی|E|na|P
+مهمانی تولد بچه‌ها|E|daily_life|P
+تماشای ماه کامل|E|na|P
+بازی دایره‌ای|E|daily_life|P
+کتاب قصه‌های شب|E|li|P
+جشن برف‌بازی|E|daily_life|P

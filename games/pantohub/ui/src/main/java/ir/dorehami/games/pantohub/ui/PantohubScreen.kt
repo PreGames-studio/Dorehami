@@ -11,13 +11,10 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
-import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
@@ -39,35 +36,31 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class PantoPage { HOME, SETUP, GAME, HISTORY, BANK, SETTINGS }
+private enum class PantoPage { MODE, HOME, SETUP, GAME, HISTORY, SETTINGS, SOLO }
 
 /** Native, offline-first pantomime area attached to the existing Android game picker. */
 @Composable
 fun PantohubScreen(onBack: () -> Unit) {
-    PantohubTheme {
-        PantohubScreenContent(onBack)
+    val context = LocalContext.current
+    val preferences = remember { context.getSharedPreferences("pantohub-settings", 0) }
+    var motionEnabled by remember { mutableStateOf(preferences.getBoolean("animations", true)) }
+    PantohubTheme(motionEnabled = motionEnabled) {
+        PantohubScreenContent(onBack = onBack, onMotionChange = { motionEnabled = it })
     }
 }
 
 @Composable
-private fun PantohubScreenContent(onBack: () -> Unit) {
+private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val repository = remember { PantohubRepository(context) }
     DisposableEffect(repository) { onDispose { repository.close() } }
     val scope = rememberCoroutineScope()
-    var page by remember { mutableStateOf(PantoPage.HOME) }
-    var returnPage by remember { mutableStateOf(PantoPage.HOME) }
+    var page by remember { mutableStateOf(PantoPage.MODE) }
+    var returnPage by remember { mutableStateOf(PantoPage.MODE) }
     var activeGame by remember { mutableStateOf<GameState?>(null) }
     var bankSummary by remember { mutableStateOf<WordBankSummary?>(null) }
     var loading by remember { mutableStateOf(true) }
     var storageError by remember { mutableStateOf<String?>(null) }
-
-    fun refreshBankSummary() {
-        scope.launch {
-            val result = runCatching { withContext(Dispatchers.IO) { repository.bankSummary() } }
-            result.onSuccess { bankSummary = it }.onFailure { storageError = "بانک واژه بارگذاری نشد؛ فضای ذخیره‌سازی را بررسی کن." }
-        }
-    }
 
     fun persistGame(state: GameState) {
         activeGame = state
@@ -83,11 +76,11 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
         page = destination
     }
 
-    BackHandler(enabled = page != PantoPage.HOME) {
-        page = if (page == PantoPage.BANK || page == PantoPage.HISTORY || page == PantoPage.SETTINGS) {
-            returnPage
-        } else {
-            PantoPage.HOME
+    BackHandler(enabled = page != PantoPage.MODE) {
+        page = when (page) {
+            PantoPage.HISTORY, PantoPage.SETTINGS -> returnPage
+            PantoPage.HOME, PantoPage.SOLO -> PantoPage.MODE
+            else -> PantoPage.HOME
         }
     }
 
@@ -118,16 +111,21 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
     }
 
     when (page) {
-        PantoPage.HOME -> PantohubHome(
+        PantoPage.MODE -> PantohubModeScreen(
             onBack = onBack,
+            onGroup = { page = PantoPage.HOME },
+            onSolo = { page = PantoPage.SOLO },
+        )
+
+        PantoPage.SOLO -> PantohubSoloScreen(onBack = { page = PantoPage.MODE })
+
+        PantoPage.HOME -> PantohubHome(
+            onBack = { page = PantoPage.MODE },
             loading = loading,
             activeGame = activeGame,
-            bankSummary = bankSummary,
             storageError = storageError,
             onNewGame = { page = PantoPage.SETUP },
             onContinue = { page = PantoPage.GAME },
-            onHistory = { openPage(PantoPage.HISTORY) },
-            onBank = { openPage(PantoPage.BANK) },
             onSettings = { openPage(PantoPage.SETTINGS) },
         )
 
@@ -153,7 +151,12 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
             val state = activeGame
             if (state == null) {
                 SimplePantoPage("بازی فعالی نیست", onBack = { page = PantoPage.HOME }) {
-                    Button(onClick = { page = PantoPage.SETUP }) { Text("ساخت بازی جدید") }
+                    PantohubButton(
+                        text = "ساخت بازی جدید",
+                        emoji = "✨",
+                        onClick = { page = PantoPage.SETUP },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
             } else {
                 PantohubGameScreen(
@@ -161,7 +164,6 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
                     repository = repository,
                     storageError = storageError,
                     onStateChange = ::persistGame,
-                    onOpenBank = { openPage(PantoPage.BANK) },
                     onBack = { page = PantoPage.HOME },
                     onReturnHome = { page = PantoPage.HOME },
                 )
@@ -173,13 +175,10 @@ private fun PantohubScreenContent(onBack: () -> Unit) {
             onBack = { page = returnPage },
         )
 
-        PantoPage.BANK -> WordBankScreen(
-            repository = repository,
+        PantoPage.SETTINGS -> PantohubSettingsScreen(
             onBack = { page = returnPage },
-            onChanged = ::refreshBankSummary,
+            onMotionChange = onMotionChange,
         )
-
-        PantoPage.SETTINGS -> PantohubSettingsScreen(onBack = { page = returnPage })
     }
 }
 
@@ -188,15 +187,12 @@ private fun PantohubHome(
     onBack: () -> Unit,
     loading: Boolean,
     activeGame: GameState?,
-    bankSummary: WordBankSummary?,
     storageError: String?,
     onNewGame: () -> Unit,
     onContinue: () -> Unit,
-    onHistory: () -> Unit,
-    onBank: () -> Unit,
     onSettings: () -> Unit,
 ) {
-    PantohubPageFrame(title = "پانتومیم", onBack = onBack) {
+    PantohubPageFrame(title = "بازی گروهی", onBack = onBack, imageRes = R.drawable.pantohub_bg_party) {
         if (loading) {
             Text("در حال آماده‌سازی بازی و بانک محلی…", style = MaterialTheme.typography.bodyLarge)
             Spacer(Modifier.height(12.dp))
@@ -226,9 +222,12 @@ private fun PantohubHome(
                 )
                 Spacer(Modifier.height(16.dp))
                 if (activeGame != null && activeGame.phase.name != "FINISHED") {
-                    Button(onClick = onContinue, modifier = Modifier.fillMaxWidth()) {
-                        Text("ادامهٔ بازی «${activeGame.name}»")
-                    }
+                    PantohubButton(
+                        text = "ادامهٔ بازی «${activeGame.name}»",
+                        emoji = "▶️",
+                        onClick = onContinue,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                     Spacer(Modifier.height(8.dp))
                     Text(
                         "برای حفظ بازی جاری، اول آن را ادامه بده یا با تأیید پایانش بده؛ بعد بازی جدید بساز.",
@@ -236,41 +235,95 @@ private fun PantohubHome(
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 } else {
-                    Button(onClick = onNewGame, modifier = Modifier.fillMaxWidth()) {
-                        Text("شروع بازی جدید")
-                    }
+                    PantohubButton(
+                        text = "شروع بازی جدید",
+                        emoji = "🎉",
+                        onClick = onNewGame,
+                        modifier = Modifier.fillMaxWidth(),
+                    )
                 }
-            }
-        }
-        Spacer(Modifier.height(16.dp))
-        Card(modifier = Modifier.fillMaxWidth()) {
-            Column(Modifier.padding(16.dp)) {
-                Text("بانک واژهٔ همین دستگاه", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    text = bankSummary?.let { "${it.playable.toPersianDigits()} واژهٔ فعال و بازبینی‌شده از ${it.total.toPersianDigits()} رکورد" }
-                        ?: "بانک محلی هنوز آماده نیست.",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                Spacer(Modifier.height(6.dp))
-                Text(
-                    "هدف محصول ۲۰٬۰۰۰ رکورد معتبر است؛ عدد واقعی بانک را اینجا می‌بینی. نسخهٔ فعلی هنوز به آن هدف نرسیده.",
-                    style = MaterialTheme.typography.bodySmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                Spacer(Modifier.height(8.dp))
-                LinearProgressIndicator(
-                    progress = { ((bankSummary?.playable ?: 0) / 20_000f).coerceIn(0f, 1f) },
-                    modifier = Modifier.fillMaxWidth(),
-                )
-                Spacer(Modifier.height(8.dp))
-                TextButton(onClick = onBank) { Text("مدیریت / ورود واژه‌ها") }
             }
         }
         Spacer(Modifier.height(12.dp))
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-            OutlinedButton(onClick = onHistory, modifier = Modifier.weight(1f)) { Text("تاریخچه و آمار") }
-            OutlinedButton(onClick = onSettings, modifier = Modifier.weight(1f)) { Text("تنظیمات") }
+            PantohubButton(
+                text = "تنظیمات",
+                emoji = "⚙️",
+                style = PantohubButtonStyle.Secondary,
+                onClick = onSettings,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PantohubModeScreen(onBack: () -> Unit, onGroup: () -> Unit, onSolo: () -> Unit) {
+    PantohubPageFrame(title = "پانتومیم", onBack = onBack, imageRes = R.drawable.pantohub_bg_stage) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Text(
+                text = "بازی پانتومیم را چطور می‌خواهی اجرا کنی؟",
+                modifier = Modifier.padding(20.dp),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        ModeChoiceCard(
+            emoji = "👥",
+            title = "بازی گروهی",
+            description = "تیم بساز، واژه را فقط به اجراکننده نشان بده و امتیازها را روی همین گوشی ثبت کن.",
+            buttonLabel = "ورود به بازی گروهی",
+            style = PantohubButtonStyle.Primary,
+            onClick = onGroup,
+        )
+        ModeChoiceCard(
+            emoji = "🧑",
+            title = "بازی تک نفره",
+            description = "این حالت به‌زودی طراحی و فعال می‌شود.",
+            buttonLabel = "ورود به بازی تک نفره",
+            style = PantohubButtonStyle.Accent,
+            onClick = onSolo,
+        )
+    }
+}
+
+@Composable
+private fun ModeChoiceCard(
+    emoji: String,
+    title: String,
+    description: String,
+    buttonLabel: String,
+    style: PantohubButtonStyle,
+    onClick: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+        Column(Modifier.padding(20.dp)) {
+            Text("$emoji  $title", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            Spacer(Modifier.height(8.dp))
+            Text(description, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Spacer(Modifier.height(16.dp))
+            PantohubButton(
+                text = buttonLabel,
+                style = style,
+                onClick = onClick,
+                modifier = Modifier.fillMaxWidth(),
+            )
+        }
+    }
+}
+
+@Composable
+private fun PantohubSoloScreen(onBack: () -> Unit) {
+    PantohubPageFrame(title = "بازی تک نفره", onBack = onBack, imageRes = R.drawable.pantohub_bg_stage) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Column(Modifier.padding(20.dp)) {
+                Text("🧑  بازی تک نفره", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Spacer(Modifier.height(8.dp))
+                Text(
+                    "این بخش هنوز طراحی نشده است. بعداً با هم قوانین و صفحه‌های آن را طراحی و اضافه می‌کنیم.",
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
     }
 }
@@ -287,7 +340,7 @@ internal fun String.toPersianDigits(): String = map { char ->
 }.joinToString("")
 
 @Composable
-private fun PantohubSettingsScreen(onBack: () -> Unit) {
+private fun PantohubSettingsScreen(onBack: () -> Unit, onMotionChange: (Boolean) -> Unit) {
     val context = LocalContext.current
     val preferences = remember { context.getSharedPreferences("pantohub-settings", 0) }
     var soundEnabled by remember { mutableStateOf(preferences.getBoolean("sound", true)) }
@@ -310,6 +363,7 @@ private fun PantohubSettingsScreen(onBack: () -> Unit) {
             onCheckedChange = {
                 animationsEnabled = it
                 preferences.edit().putBoolean("animations", it).apply()
+                onMotionChange(it)
             },
         )
         Card(modifier = Modifier.fillMaxWidth()) {
