@@ -81,8 +81,25 @@ def nodes() -> list[tuple[str, str, tuple[int, int, int, int]]]:
     return out
 
 
-def tap_text(fragment: str, *, required: bool = True, tries: int = 3) -> bool:
-    """Taps the first node whose text/description contains [fragment]."""
+def screen_size() -> tuple[int, int]:
+    out = sh("adb", "shell", "wm", "size").stdout
+    m = re.search(r"(\d+)x(\d+)", out)
+    return (int(m.group(1)), int(m.group(2))) if m else (1080, 1920)
+
+
+def scroll_down(step_px: int = 500) -> None:
+    """Swipes up in the middle of the screen, which scrolls a Compose column down."""
+    w, h = screen_size()
+    x = w // 2
+    sh("adb", "shell", "input", "swipe", str(x), str(int(h * 0.72)), str(x), str(int(h * 0.72) - step_px), "220")
+
+
+def tap_text(fragment: str, *, required: bool = True, tries: int = 4, scroll: bool = True) -> bool:
+    """Taps the first node whose text/description contains [fragment].
+
+    A long Compose screen (the chess setup is one) only exposes *visible* nodes to uiautomator, so
+    each retry scrolls down a little and dumps again — the same thing a user does with a finger.
+    """
     for attempt in range(tries):
         for text, desc, (x1, y1, x2, y2) in nodes():
             if fragment in text or fragment in desc:
@@ -93,6 +110,9 @@ def tap_text(fragment: str, *, required: bool = True, tries: int = 3) -> bool:
                 sh("adb", "shell", "input", "tap", str(x), str(y))
                 return True
         if attempt < tries - 1:
+            if scroll:
+                log(f"«{fragment}» not visible yet — scrolling down")
+                scroll_down()
             time.sleep(1.0)
     message = f"could not find «{fragment}» on screen"
     emit("error", message)
@@ -168,6 +188,17 @@ def main() -> int:
     step("02-chess-setup", lambda: tap_text("شطرنج"))
     # Level / colour defaults are exactly what a user gets when they just press the big button.
     step("03-chess-board", lambda: tap_text("شروع بازی با ربات"), settle=8.0)
+
+    # The board is up when its own chrome is: the action bar under the 3D view.
+    if alive():
+        texts = [t for t, _, _ in nodes()]
+        on_board = any(any(k in t for k in ("تسلیم", "برگرداندن", "مساوی", "نمای پیش‌فرض")) for t in texts)
+        if on_board:
+            log(f"board chrome found: {[t for t in texts if t][:8]}")
+        else:
+            emit("error", "board chrome not found — the game screen may not have opened")
+            failures.append("board chrome not found after pressing the start button")
+            log(f"visible texts: {[t for t in texts if t][:20]}")
 
     time.sleep(1.0)
     if not alive():
