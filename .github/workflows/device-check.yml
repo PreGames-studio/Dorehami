@@ -1,0 +1,88 @@
+# Device check — runs the app on a real emulator and walks into the chess game.
+#
+# Plain JVM tests (checkAll) never touch GLSurfaceView, EGL config choices or SoundPool, so a
+# crash that only happens on a device slips through them. This workflow installs the debug APK on
+# an emulator and reproduces the user path "chess → شروع بازی با ربات".
+name: Device check
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/device-check.yml"
+      - "tools/device-check/**"
+      - "games/chess/**"
+
+permissions:
+  contents: read
+
+jobs:
+  chess-on-device:
+    name: Chess bot game on an emulator
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Install and drive the app on the emulator
+        id: device
+        continue-on-error: true
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: |
+            set -o pipefail
+            python3 tools/device-check/chess_start_crash.py app/build/outputs/apk/debug/app-debug.apk 2>&1 | tee device-log.txt
+
+      # The raw log is behind a blob URL that API-only reviewers cannot fetch, so the interesting
+      # lines are re-emitted as annotations (readable via the check-run API) — same trick as ci.yml.
+      - name: Surface the device log as annotations
+        if: always()
+        run: python3 tools/device-check/report_annotations.py device-log.txt
+
+      - name: Upload screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: device-screenshots
+          path: device-shots/*.png
+          if-no-files-found: warn
+          retention-days: 14
+
+      - name: Report
+        if: always()
+        run: |
+          if [ "${{ steps.device.outcome }}" = "success" ]; then
+            echo "## 📱 Chess on a device ✅" >> "$GITHUB_STEP_SUMMARY"
+            echo "بازی شطرنج روی امولاتور باز شد و زنده ماند (اسکرین‌شات‌ها در Artifacts)." >> "$GITHUB_STEP_SUMMARY"
+          else
+            echo "## 📱 Chess on a device ❌" >> "$GITHUB_STEP_SUMMARY"
+            echo "روی امولاتور کرش شد — لاگ کامل در بخش Log همین اجرا (گام «Install and drive the app»)." >> "$GITHUB_STEP_SUMMARY"
+          fi
