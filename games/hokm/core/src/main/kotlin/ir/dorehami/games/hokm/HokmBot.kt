@@ -71,7 +71,11 @@ object HokmBot {
         val hokm = requireNotNull(view.hokm)
         if (view.trick.isEmpty()) return legal.maxByOrNull { if (it.suit == hokm) it.rank.value - 20 else it.rank.value } ?: legal.first()
         // Follow: take the trick with the cheapest winner if one exists, otherwise dump the lowest.
-        val winners = legal.filter { c -> HokmRules.trickWinner(view.trick + Play(view.seat, c), hokm, view.players) == view.seat }
+        val winners = legal.filter { card ->
+            // `winningPlay` is valid before the trick is complete; `trickWinner` is not.
+            val afterPlay = view.trick + Play(view.seat, card)
+            HokmRules.winningPlay(afterPlay, hokm).seat == view.seat
+        }
         return winners.minByOrNull { if (it.suit == hokm) it.rank.value + 20 else it.rank.value }
             ?: legal.minByOrNull { if (it.suit == hokm) it.rank.value + 20 else it.rank.value }
             ?: legal.first()
