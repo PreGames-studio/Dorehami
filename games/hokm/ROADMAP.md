@@ -3,7 +3,7 @@
 > 👑 رهبر این گروه **گلپا** است؛ قواعد همکاری و تأیید نهایی مطابق [LEADER.md](../../LEADER.md).
 > **نام کوتاه این سند: «MD حکم» یا «فایل ام‌دی حکم».**
 > راهنمای اجرای عامل: [AGENTS.md اختصاصی حکم](AGENTS.md).
-> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-13** · نسخهٔ سند: **1.13** · مبنای خط‌پایهٔ کد: **`224c2cf`** · HK-002 از **`1a13260`** آغاز و در **`b2b55e6`** تکمیل شد؛ HK-003 روی برنچ ثابت `arena/05a354c8-dorehami` فعال است.
+> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-13** · نسخهٔ سند: **1.14** · مبنای خط‌پایهٔ کد: **`224c2cf`** · HK-002 در **`b2b55e6`** و HK-003 در **`e69481a`** تکمیل شدند؛ HK-004 روی برنچ ثابت `arena/05a354c8-dorehami` فعال است.
 > این سند برنامهٔ ساخت است، نه اعلام آماده‌بودن قابلیت‌ها یا تضمین محبوبیت سراسری.
 
 ---
@@ -14,9 +14,9 @@
 | موضوع | وضعیت ثبت‌شده |
 |---|---|
 | چشم‌انداز | حکم ایرانیِ خوش‌ساخت، منصفانه، قابل‌اعتماد و راحت؛ مناسب بزرگسالان و سنین بالاتر، بدون قربانی‌کردن گوشی‌های اقتصادی |
-| مرحلهٔ فعلی | **HK-003 — ACTIVE**؛ تست پیش از اصلاح در CI خطای `:games:hokm:core:test` را بازتولید کرد؛ اصلاح حداقلی اکنون منتظر rerun سبز است |
-| کار فعال/تصمیم بعدی | فقط HK-003 فعال است؛ کاربر ادامه تا حداکثر ۱۰ مرحله را مجاز کرده؛ merge با خود کاربر است |
-| پیشنهاد جلسهٔ بعد | تأیید رگرسیون و تکمیل بازی easy در ۲/۳/۴ نفر در CI؛ سپس جمع‌بندی HK-003 |
+| مرحلهٔ فعلی | **HK-004 — ACTIVE**؛ چیدمان صندلی‌ها نسبت به `mySeat` یکپارچه می‌شود؛ تست ماتریس ۲/۳/۴ نفر و همهٔ صندلی‌ها افزوده شده و CI پس از fix در انتظار است |
+| کار فعال/تصمیم بعدی | فقط HK-004 فعال است؛ کاربر ادامه تا حداکثر ۱۰ مرحله را مجاز کرده؛ merge با خود کاربر است |
+| پیشنهاد جلسهٔ بعد | اجرای CI برای mapper، چیدمان میز، trick/FX/جمع‌آوری و دست قبلی؛ سپس ثبت شواهد و بستن HK-004 |
 | تأیید اجرای HK-001 | دریافت شد: پاسخ صریح کاربر «تایید است» در 2026-10-13 |
 | تأیید پیشروی HK-002 | کاربر در 2026-10-13 گفت تا ۱۰ مرحله پیش برویم و او merge می‌کند؛ مجوز فعلی برای ادامهٔ اجرای گام‌هاست، نه merge/deploy توسط عامل |
 | تأیید زیرمرحلهٔ HK-001.a | اجرا و تشخیص baseline پایان یافت؛ فقط برنچ ثابت `arena/05a354c8-dorehami` |
@@ -24,8 +24,8 @@
 | دامنهٔ مجاز/انجام‌شده | اصلاح همان container و path trigger همان فایل، اجرای runner، گزارش؛ بدون dependency change، merge، انتشار یا deploy |
 | وضعیت آزمون نرم‌افزار در این نوبت | [run موفق `38407327112`](https://github.com/PreGames-studio/Dorehami/actions/runs/38407327112) روی commit `224c2cf`: همهٔ گیت‌های واقعی و final gate success؛ JUnit summary/log/APK در artifactها؛ [گزارش](reports/HK-001-baseline.md) |
 | قابلیت‌های موجود | کد محلی/ربات، ۲/۳/۴ نفره، Compose، اتاق، Nearby و WebSocket وجود دارد؛ کیفیت انتشار باید با مراحل بعد اثبات شود |
-| مانع فعلی | HK-003: تست پیش از اصلاح قرمز شد؛ اصلاح `winningPlay` در worktree است و CI سبز پس از اصلاح در انتظار است |
-| آخرین تحویل | HK-003 در [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) با 2 شکست از 148 تست در `:games:hokm:core:test` قرمز شد؛ APK job سبز؛ تشخیص از JUnit/منبع و annotation‌ها |
+| مانع فعلی | HK-004: تغییر mapper player-relative در worktree است؛ runner CI سبز برای گیت نهایی در انتظار است |
+| آخرین تحویل | HK-003 در [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) سبز شد: 148 تست/0 شکست/9 ماژول؛ هر دو job `checkAll` و APK موفق. پیش از fix، run `38415035724` عمداً قرمز بود (2 شکست) |
 
 **قاعدهٔ وضعیت:** `TODO` = برنامه‌ریزی‌شده؛ `ACTIVE` = تأییدشده و در حال اجرا؛ `BLOCKED` = مانع ثبت‌شده؛ `DONE` = معیار پایان با شاهد برآورده شده؛ `DEFERRED` = تعویق آگاهانه با دلیل و تأیید.
 
@@ -121,7 +121,7 @@
 
 | شناسه | مشاهدهٔ مشخص | اقدام و شاهد لازم |
 |---|---|---|
-| R-01 | `playCardEasy` برای دور ناقص از `trickWinner` استفاده می‌کرد؛ آن تابع تعداد کامل کارت را `require` می‌کند | در HK-003 با run `38415035724` و دو تست core شکست بازتولید شد؛ fix به `winningPlay` اعمال شده و تأیید CI سبز پس از fix pending است |
+| R-01 | `playCardEasy` برای دور ناقص از `trickWinner` استفاده می‌کرد؛ آن تابع تعداد کامل کارت را `require` می‌کند | با `winningPlay` رفع شد؛ پیش از fix در run `38415035724` دو شکست core و پس از fix در [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) صفر شکست از 148 تست ثبت شد |
 | R-02 | چند بخش میز، جهت فیزیکی را بر پایهٔ صندلی صفر تعیین می‌کنند، نه صندلی خود مهمان | ماتریس همهٔ `mySeat`ها، کارت‌ها و افکت‌ها در HK-004 |
 | R-03 | `handResultJson` خال حکم و امتیاز را از وضعیت جاری می‌خواند، نه همهٔ داده‌های دست خاتمه‌یافته | آزمون مرز دست بعدی، تاریخچه و بازپخش در HK-005 |
 | R-04 | `RoomFlow` در `remember` آدرس اولیه را نگه می‌دارد، ولی فیلد آدرس لابی قابل تغییر است | آزمون اینکه اتصال بعدی واقعاً از آدرس تازه استفاده می‌کند در HK-006 |
@@ -482,8 +482,8 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 |---|---|---|---|---|
 | HK-001 | DONE | ندارد | [گزارش خط پایه و شواهد](reports/HK-001-baseline.md)؛ گیت‌های کامل HK-001 و artifactهای baseline | run `38407327112` روی `224c2cf`؛ core/server/checkAll/APK/app lint و final gate success؛ آزمون دستگاه جداگانه/اجرا‌نشده؛ HK-002 نیازمند تأیید مستقل. Docs/QA |
 | HK-002 | DONE | HK-001 | گیت واقعی حکم، نشست، سرور و APK در CI | run `38413611247` روی `b2b55e6`: `checkAll` بدون exclusion، 146 تست/0 شکست/9 ماژول؛ guard نتیجهٔ سرور و UI؛ APK artifact در CI موفق؛ تست گوشی جدا انجام نشده. Ops/Shared/H-ui |
-| HK-003 | ACTIVE | HK-002 | رفع مسیر ربات ساده در دور ناقص | تست `HokmEasyBotTest` پیش از fix CI را در `:games:hokm:core:test` قرمز کرد: 2 شکست/148 تست؛ مقایسهٔ برنده اکنون به `winningPlay` تغییر یافته؛ منتظر سبزشدن همان تست‌ها و easy match کامل ۲/۳/۴ نفر. H-core |
-| HK-004 | TODO | HK-003 | موقعیت نسبی یکسان برای همهٔ بازیکنان | ماتریس تمام صندلی‌ها؛ خود بازیکن پایین و هیچ صندلی تکراری/غایب نباشد؛ جمع‌کردن/FX/دست قبل هم درست. H-ui |
+| HK-003 | DONE | HK-002 | رفع مسیر ربات ساده در دور ناقص | تست پیش از fix در [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) با 2 شکست از 148؛ پس از fix به `winningPlay` در [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) برابر 148/0/9 ماژول و هر دو job موفق. بازی easy و replay در ۲/۳/۴ و trick ناقص ۳/۴ در suite پاس شدند. H-core |
+| HK-004 | ACTIVE | HK-003 | موقعیت نسبی یکسان برای همهٔ بازیکنان | mapper player-relative در `HokmSeatLayout` به صندلی‌ها، trick، collect، FX، dealing و previous trick وصل شد؛ تست ماتریس ۲/۳/۴ و همهٔ `mySeat` اضافه شد؛ CI pending. H-ui |
 | HK-005 | TODO | HK-004 | تاریخچهٔ دست قبلی مستقل از دست فعلی | خال/حاکم/امتیاز نتیجه بعد از شروع دست جدید تغییر نکند؛ replay و آمار یک‌باره آزموده شوند. H-core/H-ui |
 | HK-006 | TODO | HK-005 | استفادهٔ واقعی از آدرس سرور تازه | تغییر آدرس قبل از اتصال در همان صفحه به endpoint جدید برسد؛ ورودی بد خطای روشن بدهد. H-ui |
 | HK-007 | TODO | HK-006 | بستن قطعی منابع اتاق | خروج/خطا/cancel اتصال، coroutine، HTTP و صدا را رها نکند؛ آزمون تکرار ورود/خروج. H-ui/Shared با تأیید |
@@ -663,7 +663,7 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 - این توضیح با مخزن فعلی همخوان نبود: `server/src/main` و `server/src/test` وجود دارند و چهار annotation از نوع `@Test` در دو فایل تست سرور دیده می‌شود. اجرای فعلی `.a` نیز نتیجهٔ سرور را اجباری کرد.
 - baseline کامل `38407327112` بدون exclusionها موفق بود؛ در اجرای جدید `.a`، job `checkAll` واقعی **۴:۳۰** طول کشید و موفق شد.
 - **پیش از `.a`**، گزارش JUnit شرط `good = ok and not bad` داشت و صفر نتیجه را الزاماً fail نمی‌کرد؛ اکنون وجود XML، نتیجهٔ `server` و نبود failure شرط سبزشدن است.
-- در زمان آماده‌سازی، `games/hokm/ui` تست نداشت. نمونهٔ شطرنج JUnit 5 برای منطق JVM لایهٔ UI بود، نه Compose render/device interaction؛ `.b` اکنون همین دامنهٔ محدود را برای `HokmUiState` پیاده کرده و CI آن هنوز pending است.
+- در زمان آماده‌سازی، `games/hokm/ui` تست نداشت. نمونهٔ شطرنج JUnit 5 برای منطق JVM لایهٔ UI بود، نه Compose render/device interaction؛ `.b` همین دامنهٔ محدود را برای `HokmUiState` پیاده کرد و در run `38413611247` سبز شد.
 
 **زیرمرحله‌ها و وضعیت اجرای فعلی:**
 
@@ -690,26 +690,43 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 
 **خارج از دامنه:** تغییر قواعد بازی/سرور، Compose screenshot/Espresso/Robolectric، تست روی گوشی، branch protection، workflow dispatch (که قبلاً مجوزش رد شده)، merge به `main`، انتشار APK یا deploy. برای گرفتن شاهد GitHub Actions از trigger عادی push، هر push فقط با تأیید صریح و فقط به `arena/05a354c8-dorehami` خواهد بود.
 
-**پایان مرحله:** HK-002.a و HK-002.b طبق runهای فوق تکمیل شدند و parent `HK-002 = DONE` است. HK-003 اکنون با مجوز ادامهٔ چندمرحله‌ای فعال شده؛ دستگاه/Compose render و merge با کاربر باقی می‌مانند.
+**پایان مرحله:** HK-002.a و HK-002.b طبق runهای فوق تکمیل شدند و parent `HK-002 = DONE` است. پس از آن HK-003 نیز با runهای قرمز/سبز مستندشده به DONE رسید؛ اکنون HK-004 فعال است. آزمون دستگاه/Compose render و merge با کاربر باقی می‌مانند.
 
 <a id="hk-003-active"></a>
-### HK-003 — مسیر ربات easy در دور ناقص (ACTIVE)
+### HK-003 — مسیر ربات easy در دور ناقص (DONE)
 
 **دامنه:** فقط `games/hokm/core` و تست‌های آن؛ رفع یک استثنای ربات easy، بدون تغییر قواعد، امتیازدهی یا ربات pro.
 
 **تشخیص ایستا:** `HokmBot.playCardEasy` برای ارزیابی هر کارت پیشنهادی `HokmRules.trickWinner(...)` را فراخوانی می‌کرد؛ این تابع `trick.size == players` را الزام می‌کند، درحالی‌که trick در نوبت بازیکن هنوز ناقص است. `HokmRules.winningPlay` صریحاً دور ناقص را پشتیبانی می‌کند.
 
-**شاهد شکست پیش از fix:** تست‌های `HokmEasyBotTest` به commit `2e64d29` اضافه شدند و کد تولیدی دست‌نخورده ماند. [CI run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) قرمز شد: `:games:hokm:core:test` با 26 تست/2 شکست؛ کل checkAll برابر 148/2. annotationهای Actions نام هر تست را نشان ندادند؛ بنابراین فقط شکست ماژول و تعداد ثبت می‌شود، نه نام/stack هر مورد. APK job همان run سبز بود.
+**شاهد قرمز پیش از fix:** تست‌های `HokmEasyBotTest` به commit `2e64d29` اضافه شدند و کد تولیدی دست‌نخورده ماند. [CI run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) قرمز شد: `:games:hokm:core:test` با 26 تست/2 شکست؛ کل checkAll برابر 148/2. annotationهای Actions نام هر تست را نشان ندادند؛ بنابراین فقط شکست ماژول و تعداد ثبت می‌شود، نه نام/stack هر مورد. APK job همان run سبز بود.
 
-**تغییر محدود در worktree:** در `HokmBot.kt`، بعد از افزودن کارت، `winningPlay` برای تعیین برندهٔ فعلی فراخوانی می‌شود؛ `trickWinner` مخصوص دور کامل دست‌نخورده مانده است. تغییر هنوز در CI بعد از fix اجرا نشده است.
+**اصلاح و شاهد سبز:** در commit `e69481a`، `HokmBot.kt` پس از افزودن کارت از `winningPlay` برای برندهٔ جاری استفاده می‌کند؛ `trickWinner` مخصوص دور کامل دست‌نخورده مانده است. [CI run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) روی همین commit موفق شد: **148 تست، صفر شکست، 9 ماژول**؛ `checkAll` در 5:08 و job ساخت debug APK در 2:02 موفق بودند. دو تست جدیدِ partial trick سه/چهارنفره و بازی/replay کامل easy در ۲/۳/۴ همگی در suite سبز اجرا شدند.
 
-**معیار پایان:**
+**معیار پایان — برآورده شد:**
 
-- تست partial trick برای ۳ و ۴ نفر سبز شود؛
-- full match با `BOT_EASY` در ۲/۳/۴ نفر به `FINISHED` برسد، حداقل یک hand را تمام کند و replay digest ثابت بماند؛
-- `checkAll` کامل و job ساخت APK در CI سبز شوند؛ آزمون ناموفق پیش از fix و موفق پس از fix در این گزارش باقی بماند.
+- تست partial trick برای ۳ و ۴ نفر سبز است؛
+- full match با `BOT_EASY` در ۲/۳/۴ نفر به `FINISHED` می‌رسد، حداقل یک hand را تمام می‌کند و replay digest ثابت می‌ماند؛
+- `checkAll` کامل و job ساخت APK در CI سبز شدند؛ شاهد قرمز پیش از fix و سبز پس از fix هر دو در بالا ثبت شدند.
 
-**خارج از دامنه:** تغییر استراتژی ربات pro/easy فراتر از crash، تغییر قوانین، RNG، UI، Nearby یا رفتار شبکه؛ اصلاح فقط پس از شاهد قرمز انجام می‌شود.
+**محدودیت/مرز:** Gradle محلی اجرا نشد چون محیط محلی `java` ندارد؛ شاهد آزمون، CI واقعی GitHub Actions است. job، debug APK معمول CI را ساخت؛ انتشار release APK یا deploy انجام نشد.
+
+**خارج از دامنه:** تغییر استراتژی ربات pro/easy فراتر از رفع استثنا، تغییر قوانین، RNG، UI، Nearby یا رفتار شبکه.
+
+<a id="hk-004-active"></a>
+### HK-004 — چیدمان صندلی‌های میز نسبت به بازیکن محلی (ACTIVE)
+
+**دامنه:** فقط `games/hokm/ui`; جهت صندلی‌ها و مسیرهای بصری مرتبط. قانون و هویت منطقی صندلی‌ها تغییر نمی‌کنند.
+
+**تشخیص ایستا:** جایگاه `SeatWithBubble` و `OpponentHand` در `HokmScreen` و جهت‌های کارت در `TrickArea`, `FxOverlay` و `LastTrickOverlay` مستقیماً seatهای منطقی ۰/۱/۲/۳ را به مختصات صفحه وصل می‌کردند. وقتی `mySeat != 0`، صندلی local در پایین بود ولی جای صندلی‌های دیگر می‌چرخید/تکرار می‌شد و میز با کارت/اثر هم‌خوان نمی‌ماند.
+
+**تغییر در worktree:** `HokmSeatLayout` یک mapper خالص برای `relativePosition`, `seatAtOffset` و جهت صندلی ارائه می‌دهد. چیدمان ۲/۳/۴ نفره، trick/collection، FX، dealing animation و دست قبلی از همان mapper استفاده می‌کنند؛ `SeatWithBubble` نیز همچنان با هویت منطقی درست نام/sticker را می‌گیرد.
+
+**تست افزوده‌شده:** `HokmSeatLayoutTest` برای هر تعداد ۲/۳/۴ و هر `mySeat`، یکتایی/کامل‌بودن جایگاه‌ها، پایین‌ماندن بازیکن محلی و چرخش جهت هر صندلی را بررسی می‌کند. این تست pure JVM است و render واقعی Compose را ادعا نمی‌کند.
+
+**معیار پایان:** CI سبز؛ ماتریس تمام صندلی‌ها بدون جایگاه تکراری/مفقود؛ trick، جمع‌آوری، FX، deal و previous trick همگی از جهت‌های همان mapper استفاده کنند. CI پس از fix هنوز pending است.
+
+**خارج از دامنه:** redesign بصری، تغییر قوانین/شناسهٔ seat، screenshot/accessibility/device test و merge. آزمون رندر دستگاهی جدا باقی می‌ماند.
 
 <a id="workflow"></a>
 ## ۱۳. قرارداد هر جلسه: پیشنهاد، تأیید، اجرا، شاهد
@@ -803,7 +820,8 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 | 2026-10-13 | آماده‌سازی کارت HK-002 — فقط طرح | اجازهٔ بررسی و پیشنهاد مرحله؛ بدون اجازهٔ پیاده‌سازی | بررسی workflow، تست‌های server، JUnit reporter و الگوی JUnit 5 شطرنج؛ پیشنهاد `.a` برای CI و `.b` برای UI state به roadmap افزوده شد | هیچ کد/workflow/dependency تغییر یا تستی اجرا نشد؛ HK-002 همچنان `TODO` و بدون کار فعال است | درخواست تأیید جداگانه برای HK-002.a؛ `.b` بعداً جداگانه پیشنهاد شود |
 | 2026-10-13 | HK-002.a — DONE | کاربر اجازهٔ پیشروی تا ۱۰ مرحله داد؛ اجرا فقط در شاخهٔ ثابت | CI عادی `checkAll` بدون exclusion؛ JUnit summary fail-closed؛ نتیجهٔ `server` الزامی؛ job APK حفظ شد | [run `38412557724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38412557724) روی `8da9f80`: 141 تست، 0 شکست، 8 ماژول؛ checkAll job 4:30 و APK job 1:52؛ دو job سبز. Fixtureهای synthetic برای missing/zero/failing results و `pipefail` درست fail شدند | `.b` در حال اجرا؛ branch protection/device test مستقل؛ merge با کاربر |
 | 2026-10-13 | HK-002.b — DONE؛ HK-002 — DONE | کاربر ادامه تا حداکثر ۱۰ مرحله را مجاز کرد؛ فقط برنچ ثابت و بدون merge | پیکربندی JUnit 5 و پنج تست JVM از gateهای `HokmUiState`؛ guard خلاصه، نتیجهٔ UI را اجباری کرد | [run `38413611247`](https://github.com/PreGames-studio/Dorehami/actions/runs/38413611247) روی `b2b55e6`: 146 تست، صفر شکست، 9 ماژول؛ checkAll 4:16؛ APK job 2:07 و artifact آپلود شد؛ هر دو job success. Gradle محلی به‌علت نبود Java اجرا نشد | آزمون دستگاه مستقل باقی است؛ HK-003 پیشنهاد بعدی؛ merge با کاربر |
-| 2026-10-13 | HK-003 — ACTIVE | ادامه تا حداکثر ۱۰ مرحله طبق پیام کاربر؛ فقط `games/hokm/core` و تست‌ها | دو تست تازه: partial trick سه/چهارنفره و full easy match/replay در ۲/۳/۴؛ CI پیش از fix قرمز شد | [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724): `:games:hokm:core:test` failed, 26 tests/2 failures؛ کل 148/2؛ annotation گفت `There were failing tests`. log نام تست‌های شکست‌خورده را منتشر نکرد؛ کد منبع pre-fix، علت را `trickWinner` require دور کامل نشان می‌دهد. APK job سبز. اصلاح `winningPlay` اکنون در worktree؛ CI پس از fix pending | اجرای همان suiteها پس از fix و عبور هر سه تعداد بازیکن؛ بدون تغییر قانون/ربات pro |
+| 2026-10-13 | HK-003 — DONE | ادامه تا حداکثر ۱۰ مرحله طبق پیام کاربر؛ فقط `games/hokm/core` و تست‌ها | دو تست regression: partial trick سه/چهارنفره و full easy match/replay در ۲/۳/۴ | پیش از fix [run `38415035724`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415035724) قرمز بود: core 26/2 و کل 148/2؛ نام تست‌ها از annotationها به دست نیامد. پس از fix `winningPlay`، [run `38415824789`](https://github.com/PreGames-studio/Dorehami/actions/runs/38415824789) سبز: 148/0/9 ماژول و هر دو job موفق؛ full easy/replay سبز. local Gradle اجرا نشد چون Java نبود | HK-004 فعال؛ بدون تغییر قانون/ربات pro |
+| 2026-10-13 | HK-004 — ACTIVE | همان برنچ ثابت؛ دامنه فقط UI میز حکم | `HokmSeatLayout` و ماتریس تست برای ۲/۳/۴ نفر و هر صندلی؛ table, trick/collect, FX, dealing و last trick از mapper استفاده می‌کنند | تغییر و تست فعلاً در worktree؛ CI پس از fix pending؛ Compose render/device test اجرا نشده | `git diff --check`، CI کامل و در صورت موفقیت ثبت HK-004 به‌عنوان DONE؛ بدون merge/deploy |
 
 ### قالب ثبت هر تحویل
 
