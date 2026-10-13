@@ -27,8 +27,14 @@ SHOTS = os.environ.get("SHOT_DIR", "device-shots")
 failures: list[str] = []
 
 
-def sh(*args: str, timeout: int = 120) -> subprocess.CompletedProcess:
-    return subprocess.run(list(args), capture_output=True, text=True, timeout=timeout)
+def sh(*args: str, timeout: int = 120, binary: bool = False) -> subprocess.CompletedProcess:
+    """Runs one adb command. [binary] = do not decode stdout (screencap returns a PNG)."""
+    return subprocess.run(
+        list(args),
+        capture_output=True,
+        timeout=timeout,
+        **({} if binary else {"text": True, "errors": "replace"}),
+    )
 
 
 def log(msg: str) -> None:
@@ -36,10 +42,13 @@ def log(msg: str) -> None:
 
 
 def screenshot(name: str) -> None:
-    os.makedirs(SHOTS, exist_ok=True)
-    path = os.path.join(SHOTS, f"{name}.png")
-    with open(path, "wb") as fh:
-        fh.write(sh("adb", "exec-out", "screencap", "-p").stdout.encode("utf-8", "surrogateescape"))
+    """Saves a PNG of the current screen; never fatal (screenshots are a review aid)."""
+    try:
+        os.makedirs(SHOTS, exist_ok=True)
+        with open(os.path.join(SHOTS, f"{name}.png"), "wb") as fh:
+            fh.write(sh("adb", "exec-out", "screencap", "-p", binary=True).stdout)
+    except Exception as exc:  # noqa: BLE001 — a failed screenshot must not fail the run
+        log(f"screenshot «{name}» failed: {exc!r}")
 
 
 def alive() -> bool:
@@ -48,7 +57,7 @@ def alive() -> bool:
 
 def nodes() -> list[tuple[str, str, tuple[int, int, int, int]]]:
     sh("adb", "shell", "uiautomator", "dump", "/sdcard/window_dump.xml")
-    xml = sh("adb", "exec-out", "cat", "/sdcard/window_dump.xml").stdout
+    xml = sh("adb", "exec-out", "cat", "/sdcard/window_dump.xml").stdout or ""
     out = []
     for tag in re.findall(r"<node\b[^>]*>", xml):
         text = re.search(r'text="([^"]*)"', tag)
