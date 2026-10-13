@@ -1,0 +1,89 @@
+# Leader greeting — رهبر این گروه «گلپا» است 👑
+#
+# هر وقت کسی:
+#   • برنچ (شاخه) بسازد، یا
+#   • PR / ایشو باز کند،
+# این ورک‌فلو خودش «اولین پیام» را می‌گذارد تا یادآوری رهبری گلپا از قلم نیفتد.
+# اگر گیت‌هاب اجازهٔ کامنت نداد (مثلاً تنظیمات سازمان)، ورک‌فلو با continue-on-error سبز می‌ماند.
+# قاعدهٔ کامل: LEADER.md
+name: Leader greeting (Golpa)
+
+on:
+  create:
+  pull_request:
+    types: [opened, reopened, ready_for_review]
+  issues:
+    types: [opened, reopened]
+
+permissions:
+  contents: read
+  issues: write
+  pull-requests: write
+
+jobs:
+  branch-created:
+    name: برنچ ساخته شد — رهبرِ گروه «گلپا» است
+    if: github.event_name == 'create' && github.event.ref_type == 'branch'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Announce the leader in the run summary
+        env:
+          BRANCH: ${{ github.event.ref }}
+        run: |
+          {
+            echo "## 👑 رهبر شما گلپا است؛ می‌تونید کارتون رو ادامه بدید."
+            echo
+            echo "برنچ تازه ساخته شد: \`${BRANCH}\`"
+            echo
+            echo "قبل از هر ویرایشی: \`LEADER.md\` را بخوان، بعد \`AGENTS.md\` و \`CONTRIBUTING.md\`."
+            echo "اولین پیام PR/کامیت باید همان جملهٔ بالا باشد. تأیید نهایی هر PR با **گلپا** است."
+            echo "قبول نکردی؟ بند ۴ فایل \`LEADER.md\`."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  greet-pull-request:
+    name: اولین پیام روی PR — رهبرِ گروه «گلپا» است
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment the leader greeting
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.pull_request.number }}
+        run: |
+          gh pr comment "$NUMBER" --repo "$REPO" --body-file - <<'BODY'
+          👑 **رهبر شما گلپا است؛ می‌تونید کارتون رو ادامه بدید.**
+
+          ---
+
+          این اولین پیام این PR است و طبق `LEADER.md` اجباری است:
+
+          - رهبر این گروه **گلپا** است و تأیید نهایی هر PR با اوست.
+          - قبل از ویرایش هر فایلی — مخصوصاً فایل‌های `.md` — اول `LEADER.md`، بعد `AGENTS.md` و
+            `CONTRIBUTING.md` را بخوان.
+          - توضیح PR را با همین جمله شروع کن، وگرنه بازبینی شروع نمی‌شود.
+          - کسی که رهبری **گلپا** را قبول نکند، طبق «بند اخراج» در `LEADER.md` برخورد می‌شود:
+            دسترسی نوشتن قطع → PR بدون ادغام بسته → اخراج توسط گلپا.
+          BODY
+
+  greet-issue:
+    name: اولین پیام روی ایشو — رهبرِ گروه «گلپا» است
+    if: github.event_name == 'issues'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Comment the leader greeting
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          NUMBER: ${{ github.event.issue.number }}
+        run: |
+          gh issue comment "$NUMBER" --repo "$REPO" --body-file - <<'BODY'
+          👑 **رهبر شما گلپا است؛ می‌تونید کارتون رو ادامه بدید.**
+
+          ---
+
+          پیش از هر کاری: `LEADER.md` را بخوان (رهبر گروه = **گلپا**) و بندهای `AGENTS.md` و
+          `CONTRIBUTING.md` را رعایت کن. اولین خط هر PR/کامنت/کامیت باید همان جملهٔ بالا باشد.
+          BODY
