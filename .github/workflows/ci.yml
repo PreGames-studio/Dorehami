@@ -1,4 +1,4 @@
-# CI — every JVM test in the repo (`checkAll`) plus the debug APK, so a green PR is installable.
+# CI — every module's check tasks (`checkAll`) plus the debug APK, so a green PR is installable.
 # Want just an APK for a branch? Run the `Debug APK` workflow from the Actions tab.
 name: CI
 
@@ -10,7 +10,7 @@ on:
 
 jobs:
   tests:
-    name: checkAll (all JVM tests)
+    name: checkAll (all module checks)
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -26,15 +26,11 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      # Two exclusions, both about scope rather than correctness:
-      #  * `-x lint` — on Android modules `check` also runs lint (slow, a separate concern).
-      #  * `-x :server:test` — `:server` has no sources yet and its classpath pulls in the
-      #    placeholder modules of M3/M5/M6 (`core/session`, `transport/api`, `games:hokm:core`),
-      #    which still have no plugin, so it cannot resolve. Drop this line when those land.
-      - name: Run every module's tests
+      # Do not exclude lint or any module's tests: `checkAll` is the full repository gate.
+      - name: Run every module's checks
         run: |
           set -o pipefail
-          ./gradlew checkAll -x lint -x :server:test --stacktrace 2>&1 | tee tests.log
+          ./gradlew checkAll --stacktrace 2>&1 | tee tests.log
 
       # The runner's log lives behind a blob URL that API-only environments often cannot fetch, so
       # the interesting lines are also published as annotations and in the job summary.
@@ -42,7 +38,7 @@ jobs:
         if: always()
         run: |
           python3 - <<'PY'
-          import glob, os, re
+          import glob, os, re, sys
           import xml.etree.ElementTree as ET
 
           txt = open("tests.log", errors="replace").read() if os.path.exists("tests.log") else ""
@@ -61,12 +57,18 @@ jobs:
               acc = per.setdefault(f.split("/build/")[0], [0, 0, 0])
               acc[0] += n; acc[1] += fl; acc[2] += sk
               tot += n; bad += fl
+
+          # A successful aggregate build must still prove that its critical suites ran.
+          expected = {"server", "games/hokm/ui"}
+          missing = sorted(module for module in expected if per.get(module, [0, 0, 0])[0] == 0)
           pat = re.compile(r"FAILURE:|What went wrong|^e: |error:|Execution failed|Caused by:|tests? completed|FAILED$|BUILD (SUCCESSFUL|FAILED)")
           hits = [l for l in lines if pat.search(l)]
           report = (hits or lines)[-8:]
-          good = ok and not bad
+          good = ok and tot > 0 and not bad and not missing
           head = (f"checkAll: {tot} tests, {bad} failing, {len(per)} module(s) with results"
                   if tot else "checkAll: no test results were written")
+          if missing:
+              head += "; missing expected results: " + ", ".join(missing)
           with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as f:
               f.write("## " + ("✅ " if good else "❌ ") + head + "\n\n")
               if per:
@@ -77,10 +79,11 @@ jobs:
               f.write("\n```\n" + "\n".join(report) + "\n```\n")
           level = "notice" if good else "error"
           print(f"::{level} file=tests.log,line=1::{head}")
-          if not ok or bad:
+          if not good:
               for l in report:
                   safe = l.replace("%", "%25").replace("\r", "")[:280]
                   print(f"::error file=tests.log,line=1::{safe}")
+              sys.exit(1)
           PY
 
   build-apk:

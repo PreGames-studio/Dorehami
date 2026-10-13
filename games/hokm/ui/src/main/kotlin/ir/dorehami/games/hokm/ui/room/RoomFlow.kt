@@ -63,6 +63,9 @@ class RoomFlow(
 ) {
     private val _stage = mutableStateOf<RoomStage>(RoomStage.Choose)
     val stage: State<RoomStage> get() = _stage
+    private val serverAddress = OnlineServerAddress(serverUrl)
+    private val _serverAddressError = mutableStateOf<String?>(null)
+    val serverAddressError: State<String?> get() = _serverAddressError
 
     private val me = PlayerInfo(PlayerId("p_" + randomCode(8).lowercase()), playerName.ifBlank { "مهمان" })
     private val options = buildJsonObject { put(HokmSession.Options.TARGET_POINTS, targetPoints) }
@@ -134,6 +137,12 @@ class RoomFlow(
 
     // ------------------------------------------------------------------ Online
 
+    /** The next create/join/random action reads the latest value typed in the lobby. */
+    fun updateServerUrl(value: String) {
+        serverAddress.update(value)
+        _serverAddressError.value = null
+    }
+
     fun createOnline() = online("در حال ساخت اتاق…") { api, token ->
         api.createRoom(token, HokmModule.ID, playerCount, options, "اتاق ${me.displayName}").code
     }
@@ -152,10 +161,16 @@ class RoomFlow(
     }
 
     private fun online(message: String, resolveRoom: suspend (OnlineApi, String) -> String) = scope.launch {
+        val baseUrl = serverAddress.validatedBaseUrl()
+        if (baseUrl == null) {
+            _serverAddressError.value = OnlineServerAddress.INVALID_ADDRESS_MESSAGE_FA
+            return@launch
+        }
+        _serverAddressError.value = null
         _stage.value = RoomStage.Connecting(message)
         try {
             val http = HttpClient { install(WebSockets) }.also { this@RoomFlow.http = it }
-            val api = OnlineApi(http, serverUrl)
+            val api = OnlineApi(http, baseUrl)
             val login = api.guestLogin(me.displayName)
             val code = resolveRoom(api, login.token)
             val t = WebSocketTransport(http, api.roomSocketUrl(code, login.token), scope, localPeer = login.player.id.value).also { ws = it }

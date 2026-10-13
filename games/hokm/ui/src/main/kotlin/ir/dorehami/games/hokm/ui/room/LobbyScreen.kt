@@ -179,6 +179,7 @@ private fun OnlineChoose(
     onTap: () -> Unit,
 ) {
     var code by rememberSaveable { mutableStateOf("") }
+    val addressError by flow.serverAddressError
     HokmGlassPanel(Modifier.fillMaxWidth(), contentPadding = 19.dp) {
         HokmPill("بازی از راه دور", icon = "◎", color = HokmPalette.mint)
         Spacer(Modifier.height(10.dp))
@@ -241,9 +242,14 @@ private fun OnlineChoose(
             onValueChange = onServerUrl,
             label = { Text("آدرس سرور بازی") },
             singleLine = true,
+            isError = addressError != null,
             modifier = Modifier.fillMaxWidth(),
             colors = roomFieldColors(),
         )
+        addressError?.let { error ->
+            Spacer(Modifier.height(5.dp))
+            Text(error, color = HokmPalette.coral, fontSize = 12.sp, lineHeight = 18.sp, textAlign = TextAlign.Center)
+        }
         Spacer(Modifier.height(5.dp))
         Text("برای سرور شخصی، راهنمای نصب در docs/DEPLOY.md است.", color = HokmPalette.muted, fontSize = 10.sp)
     }

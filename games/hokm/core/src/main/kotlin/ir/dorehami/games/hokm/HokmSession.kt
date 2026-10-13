@@ -108,6 +108,8 @@ class HokmSession(private val config: GameConfig) : GameSession {
         val kind: HandWinKind,
         val hakem: Int,
         val tricks: List<Int>,
+        val hokm: Suit?,
+        val scores: List<Int>,
     )
 
     init {
@@ -389,7 +391,16 @@ class HokmSession(private val config: GameConfig) : GameSession {
             if (leaders.size == 1) leaders.first() else null
         }
         if (winnerTeam == null) {
-            return HandResult(handNumber, null, 0, HandWinKind.VOID, hakem, tricksWon.toList())
+            return HandResult(
+                handNumber,
+                null,
+                0,
+                HandWinKind.VOID,
+                hakem,
+                tricksWon.toList(),
+                hokm,
+                scores.toList(),
+            )
         }
         val losers = tricksWon.indices.filter { it != winnerTeam }
         val (kind, points) = HokmRules.handResult(
@@ -401,7 +412,16 @@ class HokmSession(private val config: GameConfig) : GameSession {
             hakemKotPoints = hakemKotPoints,
         )
         scores[winnerTeam] += points
-        return HandResult(handNumber, winnerTeam, points, kind, hakem, tricksWon.toList())
+        return HandResult(
+            handNumber,
+            winnerTeam,
+            points,
+            kind,
+            hakem,
+            tricksWon.toList(),
+            hokm,
+            scores.toList(),
+        )
     }
 
     private fun reject(code: String, messageFa: String) = ApplyResult.Rejected(code, messageFa)
@@ -479,9 +499,9 @@ class HokmSession(private val config: GameConfig) : GameSession {
         put("points", r.points)
         put("kind", r.kind.id)
         put("hakem", r.hakem)
-        put("hokm", hokm?.id)
+        put("hokm", r.hokm?.id)
         put("tricks", intArray(r.tricks.toIntArray()))
-        put("scores", intArray(scores))
+        put("scores", intArray(r.scores.toIntArray()))
     }
 
     override fun result(): MatchResult? {

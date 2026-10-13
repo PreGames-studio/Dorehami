@@ -166,7 +166,11 @@ fun HokmScreen(
             TableBackground()
 
             // ---- top: score bar, feed, and the seat(s) facing me
-            val topSeat = when (state.playerCount) { 4 -> 2; 2 -> 1; else -> null }
+            val topSeat = when (state.playerCount) {
+                4 -> HokmSeatLayout.seatAtOffset(state.mySeat, 2, state.playerCount)
+                2 -> HokmSeatLayout.seatAtOffset(state.mySeat, 1, state.playerCount)
+                else -> null
+            }
             Column(
                 Modifier
                     .align(Alignment.TopCenter)
@@ -196,17 +200,19 @@ fun HokmScreen(
                     Spacer(Modifier.height(6.dp))
                     OpponentHand(count = state.handCounts.getOrElse(topSeat) { 0 }, rotation = 180f, horizontal = true)
                 } else {
-                    // three players: the two opponents sit at the upper corners
+                    // Three players: relative offset 2 is upper-left, offset 1 upper-right.
+                    val leftSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 2, state.playerCount)
+                    val rightSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 1, state.playerCount)
                     Row(Modifier.fillMaxWidth().padding(top = 4.dp), horizontalArrangement = Arrangement.SpaceBetween) {
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            SeatWithBubble(state, 2)
+                            SeatWithBubble(state, leftSeat)
                             Spacer(Modifier.height(6.dp))
-                            OpponentHand(count = state.handCounts.getOrElse(2) { 0 }, rotation = 150f, horizontal = true)
+                            OpponentHand(count = state.handCounts.getOrElse(leftSeat) { 0 }, rotation = 150f, horizontal = true)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                            SeatWithBubble(state, 1)
+                            SeatWithBubble(state, rightSeat)
                             Spacer(Modifier.height(6.dp))
-                            OpponentHand(count = state.handCounts.getOrElse(1) { 0 }, rotation = 210f, horizontal = true)
+                            OpponentHand(count = state.handCounts.getOrElse(rightSeat) { 0 }, rotation = 210f, horizontal = true)
                         }
                     }
                 }
@@ -214,15 +220,17 @@ fun HokmScreen(
 
             // ---- side opponents (four players only)
             if (state.playerCount == 4) {
+                val rightSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 1, state.playerCount)
+                val leftSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 3, state.playerCount)
                 Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    SeatWithBubble(state, 1)
+                    SeatWithBubble(state, rightSeat)
                     Spacer(Modifier.height(6.dp))
-                    OpponentHand(count = state.handCounts.getOrElse(1) { 0 }, rotation = 270f, horizontal = false)
+                    OpponentHand(count = state.handCounts.getOrElse(rightSeat) { 0 }, rotation = 270f, horizontal = false)
                 }
                 Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                    SeatWithBubble(state, 3)
+                    SeatWithBubble(state, leftSeat)
                     Spacer(Modifier.height(6.dp))
-                    OpponentHand(count = state.handCounts.getOrElse(3) { 0 }, rotation = 90f, horizontal = false)
+                    OpponentHand(count = state.handCounts.getOrElse(leftSeat) { 0 }, rotation = 90f, horizontal = false)
                 }
             }
 
@@ -320,7 +328,7 @@ fun HokmScreen(
             state.introShown?.let { shown ->
                 HakemDrawOverlay(state, shown, Modifier.align(Alignment.Center))
             }
-            if (state.dealing) DealingOverlay(Modifier.align(Alignment.Center))
+            if (state.dealing) DealingOverlay(state, Modifier.align(Alignment.Center))
 
             FxOverlay(state, tableCardWidth = tableCardW, modifier = Modifier.fillMaxSize())
 
@@ -582,21 +590,14 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val cw = maxWidth
         val ch = maxHeight
-        // Physical direction of each seat around the table, per player count.
-        fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
-            2 -> if (seat == 0) 0f to 1f else 0f to -1f
-            3 -> when (seat) { 0 -> 0f to 1f; 1 -> 0.8f to -0.7f; else -> -0.8f to -0.7f }
-            else -> when (seat) { 0 -> 0f to 1f; 1 -> 1f to 0f; 2 -> 0f to -1f; else -> -1f to 0f }
-        }
-
         fun slot(seat: Int): Pair<Dp, Dp> {
-            val d = dir(seat)
-            return cw * 0.26f * d.first to ch * 0.22f * d.second
+            val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
+            return cw * 0.26f * direction.x to ch * 0.22f * direction.y
         }
 
         fun origin(seat: Int): Pair<Dp, Dp> {
-            val d = dir(seat)
-            return cw * 0.9f * d.first to ch * 1.4f * d.second
+            val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
+            return cw * 0.9f * direction.x to ch * 1.4f * direction.y
         }
 
         val collectTo = state.collectingTo
@@ -884,17 +885,20 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
 }
 
 @Composable
-private fun DealingOverlay(modifier: Modifier = Modifier) {
+private fun DealingOverlay(state: HokmUiState, modifier: Modifier = Modifier) {
     val t = rememberInfiniteTransition(label = "deal")
     val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(700, easing = LinearEasing)), label = "p")
     Box(modifier.size(220.dp), contentAlignment = Alignment.Center) {
         // deck
         repeat(4) { i -> CardBackView(width = 56.dp, elevation = 2.dp, modifier = Modifier.offset(y = (-i).dp)) }
-        // a card flying out to each seat in turn
-        val dir = ((phase * 4).toInt() % 4)
-        val f = (phase * 4) % 1f
-        val dx = when (dir) { 1 -> 90f; 3 -> -90f; else -> 0f } * f
-        val dy = when (dir) { 0 -> 90f; 2 -> -90f; else -> 0f } * f
+        // Fly one card toward each real seat in turn, keeping the local player at the bottom.
+        val step = phase * state.playerCount
+        val relativeSeat = step.toInt() % state.playerCount
+        val seat = HokmSeatLayout.seatAtOffset(state.mySeat, relativeSeat, state.playerCount)
+        val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
+        val f = step % 1f
+        val dx = 90f * direction.x * f
+        val dy = 90f * direction.y * f
         CardBackView(width = 56.dp, elevation = 6.dp, modifier = Modifier.offset(dx.dp, dy.dp).alpha(1f - f * 0.8f))
         Text(
             "در حال پخش کارت‌ها…",
@@ -1209,16 +1213,11 @@ private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier
     BoxWithConstraints(modifier) {
         val cw = maxWidth
         val ch = maxHeight
-        fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
-            2 -> if (seat == 0) 0f to 1f else 0f to -1f
-            3 -> when (seat) { 0 -> 0f to 1f; 1 -> 0.8f to -0.7f; else -> -0.8f to -0.7f }
-            else -> when (seat) { 0 -> 0f to 1f; 1 -> 1f to 0f; 2 -> 0f to -1f; else -> -1f to 0f }
-        }
         state.fx.forEach { fx ->
             key(fx.stamp) {
                 val centre = if (fx.seat < 0) 0.5f to 0.45f else {
-                    val d = dir(fx.seat)
-                    (0.5f + 0.26f * d.first) to (0.45f + 0.18f * d.second)
+                    val direction = HokmSeatLayout.direction(fx.seat, state.mySeat, state.playerCount)
+                    (0.5f + 0.26f * direction.x) to (0.45f + 0.18f * direction.y)
                 }
                 when (fx.kind) {
                     FxKind.CUT -> Burst(
@@ -1395,17 +1394,12 @@ private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () ->
             )
             Spacer(Modifier.height(7.dp))
             Box(Modifier.size(cardWidth * 4.2f, cardWidth * 4.6f), contentAlignment = Alignment.Center) {
-                fun dir(seat: Int): Pair<Float, Float> = when (state.playerCount) {
-                    2 -> if (seat == 0) 0f to 1f else 0f to -1f
-                    3 -> when (seat) { 0 -> 0f to 1f; 1 -> 0.8f to -0.7f; else -> -0.8f to -0.7f }
-                    else -> when (seat) { 0 -> 0f to 1f; 1 -> 1f to 0f; 2 -> 0f to -1f; else -> -1f to 0f }
-                }
                 state.lastTrick.forEach { play ->
-                    val d = dir(play.seat)
+                    val direction = HokmSeatLayout.direction(play.seat, state.mySeat, state.playerCount)
                     val win = play.seat == state.lastTrickWinner
                     Box(
                         Modifier
-                            .offset(x = cardWidth * 1.3f * d.first, y = cardWidth * 1.45f * d.second)
+                            .offset(x = cardWidth * 1.3f * direction.x, y = cardWidth * 1.45f * direction.y)
                             .then(if (win) Modifier.border(3.dp, Table.turnGlow, RoundedCornerShape(cardWidth * 0.09f)) else Modifier),
                     ) {
                         PlayingCardView(play.card, width = cardWidth, elevation = if (win) 10.dp else 4.dp)
