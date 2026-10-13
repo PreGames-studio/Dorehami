@@ -3,7 +3,7 @@
 > 👑 رهبر این گروه **گلپا** است؛ قواعد همکاری مطابق [LEADER.md](../../../LEADER.md).
 > تاریخ بررسی: **2026-10-13**، منطقهٔ زمانی گزارش: Asia/Tehran.
 > [نقشهٔ راه حکم](../ROADMAP.md) · [راهنمای عامل حکم](../AGENTS.md)
-> **وضعیت مرحله: ACTIVE — زیرمرحلهٔ HK-001.a برای اجرای baseline کامل روی runner ابری آغاز شده است؛ تا دریافت نتایج آن، این مرحله هنوز DONE نیست.**
+> **وضعیت: HK-001.a = DONE از حیث اجرای baseline و تشخیص؛ HK-001 = BLOCKED, نه سبز.** runner واقعی نشان داد `checkAll` در `:games:hokm:ui:lintDebug` به خطای `UnusedBoxWithConstraintsScope` در `HokmEntry.kt:661` می‌رسد. اصلاح کد خارج از دامنه و در انتظار تأیید جداگانه است.
 
 ## ۱. خلاصهٔ قابل تصمیم‌گیری
 
@@ -15,11 +15,13 @@
 6. اجرای محلی تست حکم، پیش از پیکربندی پروژه، در دریافت Gradle با خطای TLS متوقف شد؛ دریافت archive از GitHub نیز در مقصد release-assets شکست خورد.
 7. کاربر تأیید HK-001 را داد و سپس خواست مراحل با برنچ تازه ادامه یابد. **به علت ثابت‌بودن برنچ Arena، شاخهٔ دیگری ایجاد نمی‌شود**؛ تمام تغییرها فقط روی `arena/05a354c8-dorehami` هستند. پس از شواهد اصلاح‌شده، مرحلهٔ والد جمع‌بندی می‌شود؛ HK-002 خودکار آغاز نمی‌شود.
 8. اولین اجرای full baseline روی [run `38401546325`](https://github.com/PreGames-studio/Dorehami/actions/runs/38401546325) برای commit `564ca5b` شروع شد: action API برای گام‌های حکم، سرور، `checkAll`، APK و lint conclusion سبز نشان می‌داد، اما آن‌ها `continue-on-error` بودند؛ gate خراب بود و outcome واقعی هیچ‌کدام را جداگانه ثبت نکرد. job به‌دلیل `fi` اضافه در gate fail شد. بنابراین نتیجهٔ واقعی آن گام‌ها در run اول نامعلوم است.
-9. اجرای اصلاح‌شده روی [run `38403237601`](https://github.com/PreGames-studio/Dorehami/actions/runs/38403237601)، commit `e08bd50`: outcome واقعی حکم، سرور، APK و lint موفق؛ `checkAll` ناموفق. خلاصهٔ runner: **۲۰ JUnit XML، ۱۱۹ تست، صفر assertion failure/error**؛ بنابراین گیت را شکست یک check غیرتستی داخل `checkAll` می‌داند، نه تست قرمز. علت/task دقیق از annotationها معلوم نشد؛ برای اجرای بعد excerpt از `check-all.log` به summary/annotation افزوده می‌شود.
+9. اجرای اصلاح‌شده روی [run `38403237601`](https://github.com/PreGames-studio/Dorehami/actions/runs/38403237601)، commit `e08bd50`: outcome واقعی حکم، سرور، APK و lint موفق؛ `checkAll` ناموفق. خلاصهٔ runner: **۲۰ JUnit XML، ۱۱۹ تست، صفر assertion failure/error**؛ علت هنوز روشن نبود.
+10. [اجرای سوم `38404495408`](https://github.com/PreGames-studio/Dorehami/actions/runs/38404495408) روی `2a12b4c` علت را مشخص کرد: task `:games:hokm:ui:lintDebug` با `UnusedBoxWithConstraintsScope` در `HokmEntry.kt:661` شکست دارد (۱ error، ۱۷ warning، ۴ hint). حکم/سرور/APK و `:app:lint` صریح موفق شدند؛ ۲۰ XML/۱۱۹ تست/۰ failure/error. اجرای تشخیصی HK-001.a کامل است، اما والد HK-001 تا اصلاح مصوب و اجرای سبز **BLOCKED** می‌ماند.
+11. CI معمول همان commit، [run `38404495547`](https://github.com/PreGames-studio/Dorehami/actions/runs/38404495547)، `success` است؛ CI معمول `-x lint -x :server:test` اجرا می‌کند و به‌هیچ‌وجه شکست baseline کامل را خنثی نمی‌کند.
 
-### اقدام فعال — HK-001.a
+### نتیجهٔ HK-001.a — DONE (اجرای baseline و علت‌یابی)
 
-commitهای `8f0520a`, `564ca5b` و `e08bd50` فقط روی برنچ ثابت push شدند. dispatch دستی به‌ترتیب 404 (workflow هنوز در default branch نبود) و 403 (محدودیت مجوز integration) داد؛ trigger محدود push خودکار اجرا شد. run نخست gate Bash را به‌خاطر `fi` اضافه شکست داد؛ syntax با `bash -n` بازتولید و اصلاح شد. outcome گام‌های `continue-on-error` در آن run نامعلوم ماند، هرچند action conclusion آن‌ها سبز بود. run دوم gate را درست اجرا کرد و مشخص کرد `checkAll` واقعاً outcome شکست دارد، با اینکه حکم/سرور/APK/lint موفق و ۱۱۹ تست از ۲۰ XML بدون شکست بودند. artifact logs/JUnit بارگذاری شدند اما میزبان دانلود ZIP/log از sandbox قابل دسترسی نبود؛ علت دقیق checkAll هنوز معلوم نیست. workflow برای ارسال excerpt خطا به annotation/summary تقویت می‌شود و run سوم لازم است. **این‌ها نتیجهٔ workflow هستند، نه آزمون دستی روی گوشی.** شاخهٔ دیگر، merge، انتشار APK یا deploy تولیدی انجام نمی‌شود.
+commitهای `8f0520a`, `564ca5b`, `e08bd50` و `2a12b4c` فقط روی برنچ ثابت push شدند. dispatch دستی به‌ترتیب 404 (workflow هنوز در default branch نبود) و 403 (محدودیت مجوز integration) داد؛ trigger محدود push سه run خودکار را آغاز کرد. run نخست خطای syntax در gate (`fi` اضافه) داشت؛ با `bash -n` بازتولید و رفع شد. run دوم outcome `checkAll` را failure نشان داد؛ اجرای سوم excerpt از log را منتشر کرد و علت را مشخص ساخت: `:games:hokm:ui:lintDebug`، خط `HokmEntry.kt:661`، `UnusedBoxWithConstraintsScope` (۱ error، ۱۷ warning، ۴ hint). در run سوم تست حکم/سرور، APK و app lint موفق و JUnit برابر ۲۰ XML/۱۱۹ تست/۰ شکست بود. بنابراین اجرای تشخیصی کامل و ثبت‌شده است، اما HK-001 والد به‌علت lint error هنوز `BLOCKED` است. هیچ تغییر Kotlin، build، dependency، branch اصلی، merge یا انتشار انجام نشده و آزمون دستی روی گوشی هم اجرا نشده است.
 
 ## ۲. دامنه و منشأ داده‌ها
 
@@ -29,12 +31,14 @@ commitهای `8f0520a`, `564ca5b` و `e08bd50` فقط روی برنچ ثابت p
 | برنچ کاری | `arena/05a354c8-dorehami`؛ تعویض نشد |
 | commit مبنا برای کد بازی | `19115ea56bb358eb602c5434a21a2d1291b95a91` |
 | commit اول مستندات/workflow | `8f0520a001c8a3f13cb18abb4125b0a8522ac370`؛ push شد |
-| commit اجرای baseline اول | `564ca5ba3c7bdc3382188654f16a5cab52c251ea`؛ فقط workflow/گزارش عوض شد، Kotlin و تنظیمات build تغییر نکردند |
+| commit اجرای baseline اول | `564ca5ba3c7bdc3382188654f16a5cab52c251ea`؛ فقط workflow/گزارش، بدون تغییر Kotlin/build |
+| commit outcome واقعی | `e08bd502f5c2bea3c26b998bc5f6d117521a6620`؛ gate پایانی اصلاح شد؛ کد بازی تغییر نکرد |
+| commit تشخیص lint | `2a12b4c8023d1b586c7635dc93d25eadfd82afd8`؛ فقط استخراج/annotation diagnostics و گزارش؛ کد بازی تغییر نکرد |
 | عنوان commit مبنا | `Merge pull request #9 from PreGames-studio/arena/18d1c9f6-dorehami` |
 | تغییرهای موجود ابتدای نوبت | `AGENTS.md`، `docs/ROADMAP.md`، `games/hokm/README.md` و دو سند جدید `games/hokm/AGENTS.md` و `games/hokm/ROADMAP.md`؛ همگی مستندات نوبت قبل |
 | فایل‌های تازهٔ این نوبت | workflow مستقل `.github/workflows/hokm-baseline.yml` و این گزارش؛ trigger آن فقط با تغییر همین workflow در برنچ ثابت اجرا می‌شود |
 | کد و تنظیمات نسبت به مبنا | بدون تغییر؛ بنابراین شواهد CI آن commit برای کد مبنا مرتبط‌اند، نه شاهد اجرای تازه در sandbox |
-| عملیات خارجی | commitهای `8f0520a`, `564ca5b`, `e08bd50` فقط به همان برنچ push شدند؛ run `38401546325` خطای syntax در gate داشت؛ run `38403237601` گیت را درست اجرا کرد اما `checkAll` fail شد؛ artifactهای XML/log و APK هر دو run بارگذاری شدند. dispatch دستی 404/403؛ PR/merge/release انجام نشد؛ diagnostic excerpt و run سوم لازم است |
+| عملیات خارجی | commitهای `8f0520a`, `564ca5b`, `e08bd50`, `2a12b4c` فقط به برنچ ثابت push شدند؛ run `38404495408` علت lint در `HokmEntry.kt:661` مشخص کرد. سه run artifact گزارش/JUnit و APK بارگذاری کردند. dispatch دستی 404/403؛ PR/merge/release انجام نشد؛ اصلاح lint در انتظار تأیید است |
 
 **چهار نوع شاهد از هم جدا هستند:** خواندن کد، اجرای دستور در این محیط، نتیجهٔ قبلی CI روی همان commit، و آزمون واقعی دستگاه. این گزارش آن‌ها را به جای یکدیگر جا نمی‌زند.
 
@@ -228,7 +232,28 @@ Artifactهای اجرای دوم، با انقضای اعلام‌شدهٔ `2026
 - [خلاصه، لاگ Gradle و JUnit XMLها](https://github.com/PreGames-studio/Dorehami/actions/runs/38403237601/artifacts/11815519697) — ID `11815519697`, 30,918 bytes; digest API: `sha256:fdbb67282c594bf5e16bd434c8032125d5527c02807fda83218f8fa3e195bd48`.
 - [debug APK](https://github.com/PreGames-studio/Dorehami/actions/runs/38403237601/artifacts/11815739589) — ID `11815739589`, 17,773,024 bytes; digest API: `sha256:b0b6dca8218a2acb8b5e982ee5297b3486e47d9f528e88574d356cd0b6d79525`.
 
-برای اجرای بعدی، workflow از همان `check-all.log` بخش کوتاه `FAILURE / What went wrong` را به summary و API annotation می‌فرستد؛ علت task و هر خطای غیرتستی باید از آن استخراج شود پیش از هر تصمیم دربارهٔ تغییر محصول یا build.
+### اجرای سوم و علت نهایی — commit `2a12b4c`
+
+| گیت/مدرک | نتیجهٔ واقعی در run `38404495408` |
+|---|---|
+| workflow/job | [Hokm Baseline](https://github.com/PreGames-studio/Dorehami/actions/runs/38404495408) · [job `115320424519`](https://github.com/PreGames-studio/Dorehami/actions/runs/38404495408/job/115320424519) · commit `2a12b4c8023d1b586c7635dc93d25eadfd82afd8` · پایان `13:30:14Z` · **کل job: failure** |
+| تست حکم | outcome `success` |
+| تست سرور واقعی Ktor | outcome `success` |
+| `:app:assembleDebug` | outcome `success`؛ APK artifact ساخته/بارگذاری شد |
+| `:app:lint` | outcome `success` |
+| `./gradlew checkAll` بدون exclusion | outcome `failure`؛ annotation واقعی علت را ثبت کرد: task `:games:hokm:ui:lintDebug` fail شده است |
+| JUnit | ۲۰ XML، ۱۱۹ تست، صفر failure/error؛ رد شدن checkAll از تست‌های assertion نیست |
+| خلاصه و uploadها | موفق؛ XMLها، log شامل `check-all.log` و APK بارگذاری شدند |
+| final gate | به‌درستی failure داد چون outcome واقعی `checkAll` برابر failure بود؛ دیگر خطای syntax در gate وجود نداشت |
+
+**علت دقیق lint در `checkAll`:** `UnusedBoxWithConstraintsScope` در `games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmEntry.kt:661`. گزارش Gradle از **۱ error، ۱۷ warning و ۴ hint** می‌گوید. در همان فایل، محدودهٔ 661 یک `BoxWithConstraints` فرزند است که scope constraints را استفاده نمی‌کند؛ container بیرونی در خط 610 از `maxWidth` استفاده می‌کند. این نتیجه توضیح می‌دهد چرا `:app:lint` جداگانه سبز است، ولی `checkAll` که verificationهای ماژول را می‌گیرد سبز نمی‌شود.
+
+این خطای کد در baseline فقط ثبت شد؛ **هیچ تغییری در Kotlin، baseline lint، Gradle taskها یا exclusionها اعمال نشد**. candidate اصلاح حداقلی برای مرحلهٔ مصوب بعدی، تغییر همان container داخلی از `BoxWithConstraints` به `Box` است؛ تغییر باید جداگانه تأیید، سپس lint task و full baseline دوباره اجرا شود.
+
+Artifactهای اجرای سوم (انقضای اعلام‌شده `2026-10-27`):
+
+- [گزارش، summary، log و JUnit XMLها](https://github.com/PreGames-studio/Dorehami/actions/runs/38404495408/artifacts/11819325974) — ID `11819325974`, 31,900 bytes; digest API `sha256:c741850e83b9243aa2ac326f11bfba67c081bbd621943d0627a032c9d81620e3`.
+- [debug APK](https://github.com/PreGames-studio/Dorehami/actions/runs/38404495408/artifacts/11818611767) — ID `11818611767`, 17,773,024 bytes; digest API `sha256:45e2354f29a909144ad3f451695000805397a7f962e991c152bdf2fde19dfb6f`.
 
 ### متادیتای artifact APK
 
@@ -332,7 +357,7 @@ gh api repos/PreGames-studio/Dorehami/actions/runs/38384340382/artifacts
 | B-06 | annotation CI از مهاجرت `ubuntu-latest` به Ubuntu 26 از 2026-10-19 خبر می‌دهد | بازتولیدپذیری runner، P2 | تصویر runner و ابزارها در بررسی CI آگاهانه انتخاب/ثبت شوند؛ ارتقای بی‌بررسی نه |
 | B-07 | آزمون اختصاصی UI حکم فعلاً وجود ندارد | پوشش کیفیت، P1/P2 | HK-002 و HK-013؛ هیچ ادعای تست‌شدن ظاهر/سنین بالاتر از CI کنونی نشود |
 | B-08 | gate نهایی workflow baseline در اجرای اول به‌خاطر `fi` اضافه syntax error داشت | خطای ابزار baseline، P1، **رفع شد** | با `bash -n` بازتولید؛ `fi` حذف شد؛ اجرای دوم gate را درست اجرا کرد و outcome واقعی را ثبت کرد |
-| B-09 | `checkAll` در run دوم outcome failure داد، در حالی‌که ۱۱۹ تست/۲۰ XML صفر failure/error دارند | شکست task غیرتستی یا سایر checkها، P1؛ علت دقیق نامشخص | workflow excerpt را از `check-all.log` به annotation/summary بیفزاید و run سوم را بگیرد؛ پس از علت‌یابی تصمیم جداگانه، نه تغییر بی‌اجازهٔ کد محصول |
+| B-09 | `checkAll` در `:games:hokm:ui:lintDebug`، `UnusedBoxWithConstraintsScope` در `HokmEntry.kt:661` دارد؛ ۱ lint error، ۱۷ warning و ۴ hint | blocker کد/کیفیت، P1؛ tests ۱۱۹/۰ failure | نام task در run سوم ثبت شد؛ HK-001.a پایان یافت. برای رفع محدود، تأیید جداگانهٔ کاربر بگیر، container داخلی را بررسی/اصلاح و full baseline را بدون exclusion دوباره اجرا کن. baseline lint یا حذف task برای سبزکردن مصنوعی ممنوع |
 
 R-01 تا R-09 نقشهٔ راه همچنان یافته‌های خواندن کد هستند؛ در این نوبت هیچ‌کدام با اجرای تست محلی بازتولید یا رفع نشده‌اند.
 
@@ -340,8 +365,9 @@ R-01 تا R-09 نقشهٔ راه همچنان یافته‌های خواندن �
 
 دو مسیر معتبر وجود دارد:
 
-1. **مسیر فعال:** run اول (`38401546325`) به‌خاطر syntax gate fail شد و اصلاح گردید. run دوم (`38403237601`) gate درست کار کرد: حکم/سرور/APK/lint موفق، ولی `checkAll` outcome failure با ۲۰ XML/۱۱۹ تست/۰ assertion failure داد. لاگ raw از sandbox دانلودپذیر نیست؛ برای run بعدی استخراج `What went wrong` از log داخلی و ارسال به annotation/summary به workflow افزوده می‌شود. علت را ثبت و گزارش کن؛ merge لازم نیست.
-2. اگر runner ابری/گزارش‌دهی بعد از diagnostic اصلاح‌شده باز هم کار نکند، محیط توسعهٔ دارای JDK کامل 17، SDK واقعی API 37 و دسترسی به مخازن رسمی فراهم شود؛ سپس دستورهای زیر روی همین مبنا اجرا و XML/خروجی‌ها بررسی شوند.
+1. **نتیجهٔ runner:** سه run کامل شدند. run اول خطای gate workflow داشت؛ دوم نشان داد `checkAll` قرمز است؛ سوم خطای واقعی `UnusedBoxWithConstraintsScope` را در `HokmEntry.kt:661` مشخص کرد. معیار اجرایی/تشخیصی HK-001.a تکمیل است، اما خود HK-001 به دلیل این lint error `BLOCKED` می‌ماند.
+2. **پیشنهاد مرحلهٔ بعد (نیازمند تأیید کاربر):** فقط Box داخلی خط 661 را، چون scope constraints را استفاده نمی‌کند، به `Box` تبدیل کن؛ سپس `:games:hokm:ui:lintDebug`، `checkAll` بدون استثنا، آزمون‌ها، APK و lint صریح را دوباره اجرا و شواهد را ثبت کن. baseline lint، حذف task یا تغییر unrelated انجام نشود. اگر این تغییر تأیید نشد، کد دست‌نخورده بماند و blocker مستند شود.
+3. آزمون دستگاه/صدای/عملکرد هنوز اجرا نشده و در این stage claim نمی‌شود؛ هیچ merge یا release لازم/انجام‌شده نیست.
 
 ```bash
 # پیش‌نیاز: JDK کامل 17، Android SDK صحیح، مخازن رسمی در دسترس
@@ -363,13 +389,13 @@ R-01 تا R-09 نقشهٔ راه همچنان یافته‌های خواندن �
 - [x] CI موفق و artifact قبلی به همان commit تطبیق داده شدند؛ استثناها پنهان نشدند.
 - [x] سناریوهای پایهٔ دستگاه تعریف شدند؛ اجرای آن‌ها ادعا نشد.
 - [x] هیچ کد بازی، تنظیم build یا dependency تغییر نکرد؛ workflow مستقل روی trigger محدود آماده و در runner واقعی اجرا شد.
-- [x] commitهای `8f0520a`, `564ca5b` و `e08bd50` فقط روی برنچ ثابت Arena push شدند؛ path-trigger هر دو اجرای baseline را آغاز کرد.
-- [x] اجرای نخست gate syntax error داشت؛ علت با `bash -n` بازتولید و `fi` اضافه حذف شد.
-- [x] اجرای دوم outcome واقعی را ثبت کرد: حکم/سرور/APK/lint موفق؛ `checkAll` شکست؛ ۲۰ JUnit XML، ۱۱۹ تست و صفر assertion failure/error.
-- [x] خلاصهٔ/API annotation/artifact metadata ثبت شد؛ task دقیق checkAll از log قابل دانلود در این sandbox نبود.
-- [ ] workflow برای چاپ excerpt تشخیصی `check-all.log` و اسناد به‌روز شده روی branch ثابت commit/push شود.
-- [ ] run سوم task/علت شکست `checkAll` را روشن کند و نتیجهٔ کامل، به‌خصوص build/checkAll بدون استثنا، ثبت شود.
-- [ ] `HK-001` پس از گیت نهایی موفق یا ثبت علت blocker به‌صورت شواهد کامل جمع‌بندی شود؛ HK-002 خودکار آغاز نشود.
+- [x] commitهای `8f0520a`, `564ca5b`, `e08bd50` و `2a12b4c` فقط به branch ثابت Arena push شدند؛ workflow path-filter سه بار روی runner واقعی اجرا شد.
+- [x] خطای syntax gate در run اول با `bash -n` بازتولید و اصلاح شد؛ run دوم outcome واقعی stepها را ثبت کرد.
+- [x] run سوم علت checkAll را با annotation و artifact ثبت کرد: `:games:hokm:ui:lintDebug` → `UnusedBoxWithConstraintsScope` در `HokmEntry.kt:661`; ۱ error/۱۷ warning/۴ hint.
+- [x] تست حکم/سرور، APK، lint صریح app و JUnit (۲۰ XML/۱۱۹ تست/۰ failure) در run سوم ثبت شدند؛ artifactها و digest API در این گزارش‌اند.
+- [x] زیرمرحلهٔ اجرای/تشخیص HK-001.a کامل شد؛ نتیجهٔ خود baseline سبز نیست.
+- [ ] تأیید کاربر برای اصلاح حداقلی lint یا تصمیم آگاهانه برای defer/block.
+- [ ] در صورت تصویب اصلاح، full baseline بدون exclusion دوباره اجرا و `HK-001` فقط پس از شواهد کافی جمع‌بندی شود؛ HK-002 خودکار آغاز نشود.
 - [ ] آزمون دستی/عملکرد/صدا روی دستگاه، هرجا در دسترس شد، شاهد مستقل داشته باشد.
 
-**نتیجهٔ جاری:** `HK-001` هنوز `BLOCKED` و `HK-001.a` فعال است. اجرای دوم `38403237601` اجرای درست workflow را ثابت کرد، نه پاس‌شدن baseline: تست حکم، سرور، APK و lint پاس شدند، ولی `checkAll` failure بود؛ شمار JUnit ۱۱۹/۰ خطا، پس احتمالاً شکست در task غیرتستی و علتش هنوز نامشخص است. اصلاح بعدی فقط diagnostics همان workflow است؛ کد بازی/dependency/build دست نخورده می‌ماند تا علت واقعی ثبت شود. هیچ مرحلهٔ محصولی/گرافیکی آغاز نشده است.
+**نتیجهٔ جاری:** `HK-001.a = DONE` از حیث اجرای baseline و علت‌یابی؛ `HK-001 = BLOCKED` چون `checkAll` در `:games:hokm:ui:lintDebug` با خطای lint واقعی شکست می‌خورد. outcome تست حکم/سرور، APK و lint صریح app موفق بود؛ ۱۱۹ تست در ۲۰ JUnit XML شکست نداشت. هیچ کد بازی/dependency/build تغییر نکرده است. پیشنهاد بعدی فقط یک اصلاح محدود در Box داخلی خط 661 و اجرای دوبارهٔ همهٔ گیت‌هاست، و **در انتظار تأیید کاربر** می‌ماند. HK-002، merge، release و آزمون دستگاه شروع نشده‌اند.
