@@ -1,0 +1,68 @@
+# APK contents — builds the debug APK and lists which `ir.dorehami.*` classes are inside it.
+#
+# Packaging bugs (a game's rules module quietly missing from the APK) only show up on a device as
+# `NoClassDefFoundError`; this job catches them in a couple of minutes, without an emulator.
+name: APK contents
+
+on:
+  workflow_dispatch:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/apk-contents.yml"
+      - "tools/device-check/inspect_apk.py"
+      - "**/build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/libs.versions.toml"
+
+permissions:
+  contents: read
+  checks: write
+
+jobs:
+  inspect:
+    name: Which classes are in the APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build the debug APK
+        run: ./gradlew :app:assembleDebug --stacktrace
+
+      - name: List the classes inside the APK
+        id: inspect
+        continue-on-error: true
+        run: |
+          python3 tools/device-check/inspect_apk.py app/build/outputs/apk/debug/app-debug.apk apk-contents.txt | tee -a "$GITHUB_STEP_SUMMARY"
+
+      # Readable through the API even when the workflow log is not downloadable.
+      - name: Publish the report
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          python3 - <<'PY'
+          import pathlib, sys
+          path = pathlib.Path("apk-contents.txt")
+          if not path.exists():
+              path.write_text("(the inspector did not run)", encoding="utf-8")
+          PY
+          python3 tools/device-check/publish_report.py apk-contents.txt "${{ github.sha }}"
+          python3 tools/device-check/report_annotations.py apk-contents.txt || true
+
+      - name: Fail when a required class is missing
+        if: steps.inspect.outcome != 'success'
+        run: |
+          echo "::error::some required classes are missing from the APK — see the check-run output"
+          exit 1
