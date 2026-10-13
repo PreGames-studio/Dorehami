@@ -85,7 +85,6 @@ internal fun PantohubGameScreen(
     repository: PantohubRepository,
     storageError: String?,
     onStateChange: (GameState) -> Unit,
-    onOpenBank: () -> Unit,
     onBack: () -> Unit,
     onReturnHome: () -> Unit,
 ) {
@@ -124,14 +123,6 @@ internal fun PantohubGameScreen(
         onBack()
     }
 
-    fun openBankAndPause() {
-        val current = latestState
-        if (current.phase == GamePhase.RUNNING) {
-            dispatch(GameAction.PauseTurn(current.version, gameMoment()))
-        }
-        onOpenBank()
-    }
-
     BackHandler(enabled = true) { leaveAndPause() }
 
     LaunchedEffect(state.id) {
@@ -154,7 +145,7 @@ internal fun PantohubGameScreen(
         scope.launch {
             val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
             if (selection.isFailure) {
-                errorMessage = "بانک واژه باز نشد؛ فضای ذخیره‌سازی یا اطلاعات بانک را بررسی کن."
+                errorMessage = "واژه بارگذاری نشد؛ فضای ذخیره‌سازی را بررسی کن."
                 return@launch
             }
             when (val pick = selection.getOrThrow()) {
@@ -170,7 +161,7 @@ internal fun PantohubGameScreen(
         scope.launch {
             val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
             if (selection.isFailure) {
-                errorMessage = "بانک واژه باز نشد؛ پاسخ این واژه هنوز ثبت نشده است."
+                errorMessage = "واژه بارگذاری نشد؛ پاسخ این واژه هنوز ثبت نشده است."
                 return@launch
             }
             val pick = selection.getOrThrow()
@@ -270,7 +261,7 @@ internal fun PantohubGameScreen(
                                     }
                                 }
                             }
-                            if (errorMessage != null) ErrorCard(errorMessage!!, if (PantohubDeveloperTools) ::openBankAndPause else null)
+                            if (errorMessage != null) ErrorCard(errorMessage!!)
                             Text("پیش از شروع، گوشی را به اجراکننده بده. واژه به‌صورت خودکار به صفحهٔ عمومی نشان داده نمی‌شود.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
@@ -297,9 +288,6 @@ internal fun PantohubGameScreen(
                                             textAlign = TextAlign.Center,
                                         )
                                         Text("بازی سطح یا دسته را خودکار عوض نمی‌کند.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
-                                        if (PantohubDeveloperTools) {
-                                            OutlinedButton(onClick = ::openBankAndPause) { Text("مدیریت بانک واژه") }
-                                        }
                                     } else if (currentTurn?.wordRevealed != true) {
                                         Text("واژه فقط برای اجراکننده است", fontWeight = FontWeight.SemiBold)
                                         Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
@@ -344,7 +332,7 @@ internal fun PantohubGameScreen(
                             if (state.settings.cardsEnabled && state.phase == GamePhase.RUNNING) {
                                 SpecialCardsRow(state, ::dispatch)
                             }
-                            if (errorMessage != null) ErrorCard(errorMessage!!, if (PantohubDeveloperTools) ::openBankAndPause else null)
+                            if (errorMessage != null) ErrorCard(errorMessage!!)
                             Text("اگر گوشی را از اجراکننده می‌گیری، واژه را بپوشان یا نوبت را متوقف کن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                         }
 
@@ -515,13 +503,10 @@ private fun SpecialCardsRow(state: GameState, dispatch: (GameAction) -> GameStat
 }
 
 @Composable
-private fun ErrorCard(message: String, onOpenBank: (() -> Unit)?) {
+private fun ErrorCard(message: String) {
     Card(modifier = Modifier.fillMaxWidth()) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(message, color = MaterialTheme.colorScheme.error)
-            if (onOpenBank != null) {
-                TextButton(onClick = onOpenBank) { Text("رفتن به بانک واژه") }
-            }
         }
     }
 }

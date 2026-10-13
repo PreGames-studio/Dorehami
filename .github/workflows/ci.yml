@@ -77,25 +77,9 @@ jobs:
           path: build.log
           if-no-files-found: warn
 
-      # Public APK: word-bank tools are compiled out. Developer APK: same code with the developer flag on.
-      - name: Build developer APK (word-bank tools enabled)
-        run: |
-          set -o pipefail
-          mkdir -p dist
-          cp app/build/outputs/apk/debug/app-debug.apk dist/dorehami-debug-public.apk
-          ./gradlew :app:assembleDebug -Pdorehami.pantohubDeveloperTools=true --stacktrace 2>&1 | tee build-developer.log
-          cp app/build/outputs/apk/debug/app-debug.apk dist/dorehami-debug-developer.apk
-
-      - name: Upload public APK artifact
+      - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
           name: dorehami-debug-apk
-          path: dist/dorehami-debug-public.apk
-          if-no-files-found: error
-
-      - name: Upload developer APK artifact
-        uses: actions/upload-artifact@v4
-        with:
-          name: dorehami-developer-apk
-          path: dist/dorehami-debug-developer.apk
+          path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error

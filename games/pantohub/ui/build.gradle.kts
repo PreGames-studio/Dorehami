@@ -9,16 +9,10 @@ android {
 
     defaultConfig {
         minSdk = providers.gradleProperty("dorehami.minSdk").get().toInt()
-        // Word-bank management is for the developer only. Enabled with -Pdorehami.pantohubDeveloperTools=true.
-        val developerTools = providers.gradleProperty("dorehami.pantohubDeveloperTools").orNull
-            ?.trim()
-            ?.equals("true", ignoreCase = true) ?: false
-        buildConfigField("boolean", "PANTOHUB_DEVELOPER_TOOLS", developerTools.toString())
     }
 
     buildFeatures {
         compose = true
-        buildConfig = true
     }
 
     compileOptions {

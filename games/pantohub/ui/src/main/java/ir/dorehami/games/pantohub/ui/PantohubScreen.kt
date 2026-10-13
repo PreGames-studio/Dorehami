@@ -36,7 +36,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class PantoPage { MODE, HOME, SETUP, GAME, HISTORY, BANK, SETTINGS, SOLO }
+private enum class PantoPage { MODE, HOME, SETUP, GAME, HISTORY, SETTINGS, SOLO }
 
 /** Native, offline-first pantomime area attached to the existing Android game picker. */
 @Composable
@@ -62,13 +62,6 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
     var loading by remember { mutableStateOf(true) }
     var storageError by remember { mutableStateOf<String?>(null) }
 
-    fun refreshBankSummary() {
-        scope.launch {
-            val result = runCatching { withContext(Dispatchers.IO) { repository.bankSummary() } }
-            result.onSuccess { bankSummary = it }.onFailure { storageError = "بانک واژه بارگذاری نشد؛ فضای ذخیره‌سازی را بررسی کن." }
-        }
-    }
-
     fun persistGame(state: GameState) {
         activeGame = state
         scope.launch {
@@ -79,15 +72,13 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
     }
 
     fun openPage(destination: PantoPage) {
-        // Word-bank management exists only in developer builds.
-        if (destination == PantoPage.BANK && !PantohubDeveloperTools) return
         returnPage = page
         page = destination
     }
 
     BackHandler(enabled = page != PantoPage.MODE) {
         page = when (page) {
-            PantoPage.BANK, PantoPage.HISTORY, PantoPage.SETTINGS -> returnPage
+            PantoPage.HISTORY, PantoPage.SETTINGS -> returnPage
             PantoPage.HOME, PantoPage.SOLO -> PantoPage.MODE
             else -> PantoPage.HOME
         }
@@ -132,11 +123,9 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
             onBack = { page = PantoPage.MODE },
             loading = loading,
             activeGame = activeGame,
-            bankSummary = bankSummary,
             storageError = storageError,
             onNewGame = { page = PantoPage.SETUP },
             onContinue = { page = PantoPage.GAME },
-            onBank = { openPage(PantoPage.BANK) },
             onSettings = { openPage(PantoPage.SETTINGS) },
         )
 
@@ -175,7 +164,6 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
                     repository = repository,
                     storageError = storageError,
                     onStateChange = ::persistGame,
-                    onOpenBank = { openPage(PantoPage.BANK) },
                     onBack = { page = PantoPage.HOME },
                     onReturnHome = { page = PantoPage.HOME },
                 )
@@ -186,16 +174,6 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
             repository = repository,
             onBack = { page = returnPage },
         )
-
-        PantoPage.BANK -> if (PantohubDeveloperTools) {
-            WordBankScreen(
-                repository = repository,
-                onBack = { page = returnPage },
-                onChanged = ::refreshBankSummary,
-            )
-        } else {
-            // Unreachable in public builds: openPage refuses this route.
-        }
 
         PantoPage.SETTINGS -> PantohubSettingsScreen(
             onBack = { page = returnPage },
@@ -209,11 +187,9 @@ private fun PantohubHome(
     onBack: () -> Unit,
     loading: Boolean,
     activeGame: GameState?,
-    bankSummary: WordBankSummary?,
     storageError: String?,
     onNewGame: () -> Unit,
     onContinue: () -> Unit,
-    onBank: () -> Unit,
     onSettings: () -> Unit,
 ) {
     PantohubPageFrame(title = "بازی گروهی", onBack = onBack, imageRes = R.drawable.pantohub_bg_party) {
@@ -263,40 +239,6 @@ private fun PantohubHome(
                         text = "شروع بازی جدید",
                         emoji = "🎉",
                         onClick = onNewGame,
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                }
-            }
-        }
-        if (PantohubDeveloperTools) {
-            Spacer(Modifier.height(16.dp))
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(Modifier.padding(16.dp)) {
-                    Text("بانک واژهٔ همین دستگاه", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        text = bankSummary?.let { "${it.playable.toPersianDigits()} واژهٔ فعال و بازبینی‌شده از ${it.total.toPersianDigits()} رکورد" }
-                            ?: "بانک محلی هنوز آماده نیست.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
-                    Spacer(Modifier.height(6.dp))
-                    Text(
-                        "هدف محصول ۲۰٬۰۰۰ رکورد معتبر است؛ عدد واقعی بانک را اینجا می‌بینی. نسخهٔ فعلی هنوز به آن هدف نرسیده.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    LinearProgressIndicator(
-                        progress = { ((bankSummary?.playable ?: 0) / 20_000f).coerceIn(0f, 1f) },
-                        modifier = Modifier.fillMaxWidth(),
-                    )
-                    Spacer(Modifier.height(8.dp))
-                    Spacer(Modifier.height(4.dp))
-                    PantohubButton(
-                        text = "مدیریت / ورود واژه‌ها",
-                        emoji = "📝",
-                        style = PantohubButtonStyle.Accent,
-                        onClick = onBank,
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }

@@ -175,9 +175,3 @@ internal fun pantohubSwitchColors() =
         uncheckedTrackColor = Color(0xFFFFD27A),
         uncheckedBorderColor = Color(0xFFB07A00),
     )
-
-/**
- * True only in developer builds. Public builds never show word-bank management
- * (the set is controlled by the `dorehami.pantohubDeveloperTools` Gradle property).
- */
-internal val PantohubDeveloperTools: Boolean = BuildConfig.PANTOHUB_DEVELOPER_TOOLS
