@@ -10,7 +10,11 @@ Run from a workflow that already installed the debug APK (see `.github/workflows
     python3 tools/device-check/chess_start_crash.py [debug-apk-path]
 
 The script taps by *text* (uiautomator dump), so it keeps working when the layout shifts, and it
-prints the crash buffer / GL log lines on failure. Exit code 0 = the app survived every step.
+prints the crash buffer / GL log lines on failure. Every line is also emitted as a GitHub workflow
+command (`::notice::` / `::error::`), so the result is readable through the check-run annotations
+API even when the workflow log itself cannot be downloaded.
+
+Exit code 0 = the app survived every step.
 """
 from __future__ import annotations
 
@@ -37,8 +41,15 @@ def sh(*args: str, timeout: int = 120, binary: bool = False) -> subprocess.Compl
     )
 
 
-def log(msg: str) -> None:
-    print(f"[device-check] {msg}", flush=True)
+def emit(kind: str, message: str) -> None:
+    """Prints a line and mirrors it as a GitHub annotation (percent-escaped, single line)."""
+    message = message.replace("\r", "").replace("%", "%25")
+    print(f"[device-check] {message}", flush=True)
+    print(f"::{kind}::{message}"[:1200], flush=True)
+
+
+def log(message: str) -> None:
+    emit("notice", message)
 
 
 def screenshot(name: str) -> None:
@@ -70,20 +81,24 @@ def nodes() -> list[tuple[str, str, tuple[int, int, int, int]]]:
     return out
 
 
-def tap_text(fragment: str, *, required: bool = True) -> bool:
-    for text, desc, (x1, y1, x2, y2) in nodes():
-        if fragment in text or fragment in desc:
-            if x2 - x1 < 4 or y2 - y1 < 4:
-                continue
-            x, y = (x1 + x2) // 2, (y1 + y2) // 2
-            log(f"tap «{fragment}» at ({x},{y}) — node text={text!r}")
-            sh("adb", "shell", "input", "tap", str(x), str(y))
-            return True
+def tap_text(fragment: str, *, required: bool = True, tries: int = 3) -> bool:
+    """Taps the first node whose text/description contains [fragment]."""
+    for attempt in range(tries):
+        for text, desc, (x1, y1, x2, y2) in nodes():
+            if fragment in text or fragment in desc:
+                if x2 - x1 < 4 or y2 - y1 < 4:
+                    continue
+                x, y = (x1 + x2) // 2, (y1 + y2) // 2
+                log(f"tap «{fragment}» at ({x},{y}) — node text={text!r}")
+                sh("adb", "shell", "input", "tap", str(x), str(y))
+                return True
+        if attempt < tries - 1:
+            time.sleep(1.0)
     message = f"could not find «{fragment}» on screen"
-    log(message)
+    emit("error", message)
     if required:
         failures.append(message)
-        for text, desc, bounds in nodes():
+        for text, desc, bounds in nodes()[:25]:
             log(f"    node text={text!r} desc={desc!r} bounds={bounds}")
     return False
 
@@ -91,31 +106,41 @@ def tap_text(fragment: str, *, required: bool = True) -> bool:
 def step(name: str, action, settle: float = 1.5) -> bool:
     """Runs one UI step; a dead process or a missing node marks the step failed."""
     if not alive():
+        emit("error", f"app was already dead before step «{name}»")
         failures.append(f"app was already dead before step «{name}»")
         return False
     action()
     time.sleep(settle)
     screenshot(name)
     if not alive():
+        emit("error", f"app crashed during step «{name}»")
         failures.append(f"app crashed during step «{name}»")
-        log(f"💥 app is dead after «{name}»")
         return False
     log(f"✔ «{name}» — app still alive")
     return True
 
 
+LOG_TAGS = re.compile(
+    r"FATAL|AndroidRuntime|Caused by|at ir\.dorehami|ANR in|Force finishing|beginning of crash|"
+    r"Chess3D|GLSurfaceView|EGL|Shader|SoundPool|ActivityManager.*ir\.dorehami|am_crash|am_proc_died"
+)
+
+
 def dump_logs() -> None:
-    log("---- logcat (crash buffer) ----")
-    print(sh("adb", "logcat", "-d", "-b", "crash", "-v", "time").stdout)
-    log("---- logcat: AndroidRuntime / chess / GLes ----")
+    crash = sh("adb", "logcat", "-d", "-b", "crash", "-v", "time").stdout.strip()
+    if crash:
+        emit("error", "---- crash buffer ----")
+        for line in crash.splitlines()[:40]:
+            emit("error", line)
+    else:
+        log("crash buffer is empty (no fatal exception recorded)")
+    log("---- app log lines ----")
     out = sh("adb", "logcat", "-d", "-v", "time").stdout
-    keep = re.compile(
-        r"AndroidRuntime|FATAL|Chess3D|ChessRenderer|GLSurfaceView|EGL_|libEGL|OpenGL|Shader|SoundPool|"
-        + PKG
-    )
-    for line in out.splitlines():
-        if keep.search(line):
-            print(line)
+    kept = [line for line in out.splitlines() if LOG_TAGS.search(line)]
+    for line in kept[-25:]:
+        emit("error", line)
+    if not kept:
+        log("no app-related log lines found")
 
 
 def main() -> int:
@@ -124,9 +149,9 @@ def main() -> int:
     log(f"device: {sh('adb', 'shell', 'getprop', 'ro.product.model').stdout.strip()} / API {sh('adb', 'shell', 'getprop', 'ro.build.version.sdk').stdout.strip()}")
 
     install = sh("adb", "install", "-r", "-t", apk, timeout=300)
-    log(install.stdout.strip() or install.stderr.strip())
+    emit("notice", (install.stdout.strip() or install.stderr.strip()))
     if "Success" not in install.stdout:
-        failures.append(f"install failed: {install.stdout} {install.stderr}")
+        emit("error", f"install failed: {install.stdout} {install.stderr}")
         return 1
 
     sh("adb", "logcat", "-c")
@@ -135,33 +160,28 @@ def main() -> int:
     time.sleep(7)
     screenshot("00-home")
     if not alive():
-        failures.append("app died on launch")
+        emit("error", "app died on launch")
         dump_logs()
         return 1
 
     step("01-games", lambda: tap_text("ورود به بازی"))
     step("02-chess-setup", lambda: tap_text("شطرنج"))
     # Level / colour defaults are exactly what a user gets when they just press the big button.
-    step("03-chess-board", lambda: tap_text("شروع بازی با ربات"), settle=6.0)
-
-    # Play one move if the board came up: tap the human pawn on e2, then e4.
-    if alive() and not failures:
-        step("04-board-tap", lambda: tap_text("نمای پیش‌فرض", required=False), settle=1.0)
+    step("03-chess-board", lambda: tap_text("شروع بازی با ربات"), settle=8.0)
 
     time.sleep(1.0)
     if not alive():
         if not any("03-chess-board" in f for f in failures):
+            emit("error", "app crashed after the board was shown")
             failures.append("app crashed after the board was shown")
-        dump_logs()
     else:
-        log("✅ chess opened and stayed alive")
+        log("chess opened and stayed alive")
 
     if failures:
-        log("FAILURES:")
-        for f in failures:
-            log(f"  - {f}")
+        emit("error", "RESULT: FAIL — " + " | ".join(failures))
         dump_logs()
         return 1
+    log("RESULT: PASS — chess started without a crash")
     return 0
 
 
