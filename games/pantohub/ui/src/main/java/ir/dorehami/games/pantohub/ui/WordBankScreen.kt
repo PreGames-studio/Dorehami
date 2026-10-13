@@ -157,6 +157,7 @@ internal fun WordBankScreen(
             )
         }
         OutlinedTextField(
+            colors = pantohubFieldColors(PantohubTint.Mint),
             value = query,
             onValueChange = { query = it; pageOffset = 0 },
             label = { Text("جست‌وجوی واژه یا عبارت") },
@@ -177,6 +178,7 @@ internal fun WordBankScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                     row.forEach { item ->
                         FilterChip(
+                            colors = pantohubChipColors(PantohubTint.Peach),
                             selected = category == item,
                             onClick = { category = if (category == item) null else item; pageOffset = 0 },
                             label = { Text(WordCategories.labelFa(item)) },
@@ -389,6 +391,7 @@ private fun WordEditDialog(
                     }
                 }
                 OutlinedTextField(
+                    colors = pantohubFieldColors(PantohubTint.Peach),
                     value = category,
                     onValueChange = { category = it },
                     label = { Text("شناسهٔ دسته (مثلاً animals)") },

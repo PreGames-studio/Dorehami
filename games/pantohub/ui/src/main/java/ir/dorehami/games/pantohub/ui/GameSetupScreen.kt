@@ -119,6 +119,7 @@ internal fun GameSetupScreen(
     PantohubPageFrame("آماده‌سازی بازی", onBack) {
         Text("نام بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
+            colors = pantohubFieldColors(PantohubTint.Mint),
             value = gameName,
             onValueChange = { gameName = it; errorMessage = null },
             label = { Text("مثلاً دورهمی جمعه") },
@@ -164,6 +165,7 @@ internal fun GameSetupScreen(
                         }
                     }
                     OutlinedTextField(
+                        colors = pantohubFieldColors(PantohubTint.Peach),
                         value = draft.name,
                         onValueChange = { value -> editTeam(index) { it.copy(name = value) }; errorMessage = null },
                         label = { Text("نام تیم") },
@@ -171,6 +173,7 @@ internal fun GameSetupScreen(
                         modifier = Modifier.fillMaxWidth(),
                     )
                     OutlinedTextField(
+                        colors = pantohubFieldColors(PantohubTint.Lavender),
                         value = draft.playersText,
                         onValueChange = { value -> editTeam(index) { it.copy(playersText = value) }; errorMessage = null },
                         label = { Text("نام بازیکنان (با ویرگول جدا کن)") },
@@ -210,6 +213,7 @@ internal fun GameSetupScreen(
         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
             Difficulty.entries.forEach { difficulty ->
                 FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Mint),
                     selected = difficulty in difficulties,
                     onClick = {
                         difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
@@ -224,6 +228,7 @@ internal fun GameSetupScreen(
         } else {
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                 FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Mint),
                     selected = categories.isEmpty(),
                     onClick = { categories = emptySet() },
                     label = { Text("همه") },
@@ -233,6 +238,7 @@ internal fun GameSetupScreen(
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                     row.forEach { category ->
                         FilterChip(
+                            colors = pantohubChipColors(PantohubTint.Mint),
                             selected = category in categories,
                             onClick = {
                                 categories = if (category in categories) categories - category else categories + category
@@ -381,6 +387,7 @@ private fun SettingChoiceRow(
         Row(horizontalArrangement = Arrangement.spacedBy(4.dp), modifier = Modifier.fillMaxWidth()) {
             values.forEach { value ->
                 FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Mint),
                     selected = selected == value,
                     onClick = { onSelect(value) },
                     label = { Text("${value.toString().toPersianDigits()} $suffix") },
@@ -424,7 +431,7 @@ internal fun PreferenceToggleRow(
             Text(title, fontWeight = FontWeight.SemiBold)
             Text(subtitle, style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
-        Switch(checked = checked, onCheckedChange = onCheckedChange)
+        Switch(colors = pantohubSwitchColors(), checked = checked, onCheckedChange = onCheckedChange)
     }
 }
 

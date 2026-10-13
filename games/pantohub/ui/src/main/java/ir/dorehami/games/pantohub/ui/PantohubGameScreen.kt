@@ -500,6 +500,7 @@ private fun SpecialCardsRow(state: GameState, dispatch: (GameAction) -> GameStat
         Row(modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()), horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             SpecialCard.entries.forEach { card ->
                 FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Butter),
                     selected = card in state.currentTurn!!.activeCards,
                     enabled = card !in used,
                     onClick = { dispatch(GameAction.UseCard(state.version, card, gameMoment())) },

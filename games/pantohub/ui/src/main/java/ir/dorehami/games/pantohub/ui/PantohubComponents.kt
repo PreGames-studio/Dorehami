@@ -16,7 +16,11 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
+import androidx.compose.material3.FilterChipDefaults
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextFieldDefaults
+import androidx.compose.material3.SwitchDefaults
+import androidx.compose.material3.TextFieldColors
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -118,3 +122,56 @@ internal fun PantohubButton(
         }
     }
 }
+
+/**
+ * Cheerful tints for form fields and chips. Each pair has a soft container (so text stays readable)
+ * and a deeper accent for borders, labels and the selected state.
+ */
+enum class PantohubTint(val container: Color, val accent: Color) {
+    Mint(container = Color(0xFFE3F8EE), accent = Color(0xFF0E7C5F)),
+    Peach(container = Color(0xFFFFEBDD), accent = Color(0xFFC4511D)),
+    Lavender(container = Color(0xFFEEE7FF), accent = Color(0xFF6A3FB5)),
+    Butter(container = Color(0xFFFFF6CF), accent = Color(0xFF8A6100)),
+}
+
+/** Colors for `OutlinedTextField`: a tinted box instead of the default gray. */
+@Composable
+internal fun pantohubFieldColors(tint: PantohubTint = PantohubTint.Mint): TextFieldColors {
+    val onSurface = MaterialTheme.colorScheme.onSurface
+    return OutlinedTextFieldDefaults.colors(
+        focusedTextColor = onSurface,
+        unfocusedTextColor = onSurface,
+        focusedContainerColor = tint.container,
+        unfocusedContainerColor = tint.container,
+        disabledContainerColor = tint.container.copy(alpha = 0.6f),
+        focusedBorderColor = tint.accent,
+        unfocusedBorderColor = tint.accent.copy(alpha = 0.45f),
+        focusedLabelColor = tint.accent,
+        unfocusedLabelColor = tint.accent.copy(alpha = 0.85f),
+        cursorColor = tint.accent,
+    )
+}
+
+/** Colors for `FilterChip`: tinted when idle, solid accent when selected. */
+@Composable
+internal fun pantohubChipColors(tint: PantohubTint = PantohubTint.Mint) =
+    FilterChipDefaults.filterChipColors(
+        containerColor = tint.container,
+        labelColor = tint.accent,
+        selectedContainerColor = tint.accent,
+        selectedLabelColor = Color(0xFFFFFFFF),
+        selectedLeadingIconColor = Color(0xFFFFFFFF),
+        selectedTrailingIconColor = Color(0xFFFFFFFF),
+    )
+
+/** Colors for `Switch`: teal when on, warm butter track when off (no gray). */
+@Composable
+internal fun pantohubSwitchColors() =
+    SwitchDefaults.colors(
+        checkedThumbColor = Color(0xFFFFFFFF),
+        checkedTrackColor = Color(0xFF0E8F87),
+        checkedBorderColor = Color.Transparent,
+        uncheckedThumbColor = Color(0xFFFFFFFF),
+        uncheckedTrackColor = Color(0xFFFFD27A),
+        uncheckedBorderColor = Color(0xFFB07A00),
+    )

@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
@@ -28,9 +29,49 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import ir.dorehami.core.uikit.DorehamiPageFrame
 import kotlin.math.PI
 import kotlin.math.sin
+
+/** Vazirmatn (OFL): a clean Persian/Latin typeface bundled in res/font. */
+private val PantohubFontFamily = FontFamily(
+    Font(R.font.vazirmatn_regular, FontWeight.Normal),
+    Font(R.font.vazirmatn_medium, FontWeight.Medium),
+    Font(R.font.vazirmatn_bold, FontWeight.Bold),
+)
+
+/** Material type scale with Vazirmatn and about 15% larger sizes, so text is comfortable to read. */
+private fun persianTypography(scale: Float): Typography {
+    fun TextStyle.fa() = copy(
+        fontFamily = PantohubFontFamily,
+        fontSize = if (fontSize.isSpecified) fontSize * scale else fontSize,
+        lineHeight = if (lineHeight.isSpecified) lineHeight * scale else lineHeight,
+    )
+    val base = Typography()
+    return Typography(
+        displayLarge = base.displayLarge.fa(),
+        displayMedium = base.displayMedium.fa(),
+        displaySmall = base.displaySmall.fa(),
+        headlineLarge = base.headlineLarge.fa(),
+        headlineMedium = base.headlineMedium.fa(),
+        headlineSmall = base.headlineSmall.fa(),
+        titleLarge = base.titleLarge.fa(),
+        titleMedium = base.titleMedium.fa(),
+        titleSmall = base.titleSmall.fa(),
+        bodyLarge = base.bodyLarge.fa(),
+        bodyMedium = base.bodyMedium.fa(),
+        bodySmall = base.bodySmall.fa(),
+        labelLarge = base.labelLarge.fa(),
+        labelMedium = base.labelMedium.fa(),
+        labelSmall = base.labelSmall.fa(),
+    )
+}
+
+private val PantohubTypography: Typography = persianTypography(scale = 1.15f)
 
 /** Whether decorative motion (animated buttons, sparkles) is enabled; set from Pantohub settings. */
 internal val LocalPantohubMotion = compositionLocalOf { true }
@@ -87,7 +128,7 @@ internal fun PantohubTheme(motionEnabled: Boolean = true, content: @Composable (
         }
     }
     CompositionLocalProvider(LocalPantohubMotion provides motionEnabled) {
-        MaterialTheme(colorScheme = colors, content = content)
+        MaterialTheme(colorScheme = colors, typography = PantohubTypography, content = content)
     }
 }
 
