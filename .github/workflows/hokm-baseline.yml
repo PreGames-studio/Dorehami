@@ -1,0 +1,213 @@
+# Full, opt-in baseline for the Hokm roadmap (including the current server tests and lint).
+# This deliberately does not replace the normal PR CI and never publishes/releases the APK.
+name: Hokm Baseline
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: hokm-baseline-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  baseline:
+    name: Full build and test baseline
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Record environment
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/hokm-baseline"
+          {
+            printf 'UTC: '
+            date -u --iso-8601=seconds
+            printf 'Commit: '
+            git rev-parse HEAD
+            printf 'Branch/ref: %s\n' "$GITHUB_REF"
+            printf 'Runner: %s / %s\n' "${ImageOS:-unknown}" "${ImageVersion:-unknown}"
+            uname -a
+            java -version 2>&1
+            ./gradlew --version --no-daemon
+            sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+            printf 'ANDROID_HOME/ANDROID_SDK_ROOT: %s\n' "${sdk:-not set}"
+            if [[ -n "$sdk" && -d "$sdk/platforms" ]]; then
+              printf 'Installed Android SDK platforms:\n'
+              find "$sdk/platforms" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort
+            fi
+          } | tee "$RUNNER_TEMP/hokm-baseline/environment.txt"
+
+      - name: Test Hokm core
+        id: hokm
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :games:hokm:core:test --no-daemon --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/hokm-baseline/hokm-core.log"
+
+      - name: Test server, including real Ktor tests
+        id: server
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :server:test --no-daemon --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/hokm-baseline/server-tests.log"
+
+      - name: Run every module check without exclusions
+        id: checks
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew checkAll --no-daemon --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/hokm-baseline/check-all.log"
+
+      - name: Build debug APK
+        id: apk
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --no-daemon --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/hokm-baseline/debug-apk.log"
+
+      - name: Run app lint explicitly
+        id: lint
+        continue-on-error: true
+        run: |
+          set -o pipefail
+          ./gradlew :app:lint --no-daemon --stacktrace 2>&1 \
+            | tee "$RUNNER_TEMP/hokm-baseline/app-lint.log"
+
+      - name: Summarize build and JUnit results
+        id: report
+        if: always()
+        env:
+          HOKM_OUTCOME: ${{ steps.hokm.outcome }}
+          SERVER_OUTCOME: ${{ steps.server.outcome }}
+          CHECKS_OUTCOME: ${{ steps.checks.outcome }}
+          APK_OUTCOME: ${{ steps.apk.outcome }}
+          LINT_OUTCOME: ${{ steps.lint.outcome }}
+        run: |
+          python3 - <<'PY'
+          import os
+          from collections import defaultdict
+          from pathlib import Path
+          import xml.etree.ElementTree as ET
+
+          labels = {
+              "Hokm core tests": os.environ.get("HOKM_OUTCOME", "not run"),
+              "Server tests": os.environ.get("SERVER_OUTCOME", "not run"),
+              "Full checkAll (no exclusions)": os.environ.get("CHECKS_OUTCOME", "not run"),
+              "Debug APK": os.environ.get("APK_OUTCOME", "not run"),
+              "App lint": os.environ.get("LINT_OUTCOME", "not run"),
+          }
+          modules = defaultdict(lambda: [0, 0, 0])
+          failures = []
+          result_files = 0
+          for path in sorted(Path(".").glob("**/build/test-results/**/*.xml")):
+              try:
+                  root = ET.parse(path).getroot()
+              except (ET.ParseError, OSError) as error:
+                  failures.append(f"Malformed result XML {path}: {error}")
+                  continue
+              suites = [root] if root.tag == "testsuite" else list(root.iter("testsuite"))
+              if not suites:
+                  continue
+              result_files += 1
+              parts = path.parts
+              try:
+                  build_index = parts.index("build")
+                  module = "/".join(parts[:build_index]) or "."
+              except ValueError:
+                  module = str(path.parent)
+              # Gradle's TEST-*.xml files have a single testsuite root. Avoid
+              # double-counting if a report happens to contain nested suites.
+              suite = suites[0]
+              totals = modules[module]
+              totals[0] += int(suite.get("tests", "0"))
+              totals[1] += int(suite.get("failures", "0")) + int(suite.get("errors", "0"))
+              totals[2] += int(suite.get("skipped", "0"))
+              for case in suite.iter("testcase"):
+                  failure = case.find("failure")
+                  if failure is None:
+                      failure = case.find("error")
+                  if failure is not None:
+                      detail = failure.get("message", "") or (failure.text or "").strip()
+                      failures.append(
+                          f"{case.get('classname', '')}.{case.get('name', '')}: {detail[:400]}"
+                      )
+
+          total_tests = sum(values[0] for values in modules.values())
+          total_failures = sum(values[1] for values in modules.values())
+          ok = all(value == "success" for value in labels.values()) and total_failures == 0
+          if not result_files:
+              ok = False
+              failures.append("No Gradle JUnit XML result files were produced.")
+
+          lines = ["## Hokm baseline results", "", "| Check | Result |", "|---|---|"]
+          lines.extend(f"| {name} | `{outcome}` |" for name, outcome in labels.items())
+          lines += ["", f"JUnit XML files: **{result_files}**", ""]
+          if modules:
+              lines += ["| Module | Tests | Failures/errors | Skipped |", "|---|---:|---:|---:|"]
+              for name in sorted(modules):
+                  count, failed, skipped = modules[name]
+                  lines.append(f"| `{name}` | {count} | {failed} | {skipped} |")
+              lines += ["", f"Total: **{total_tests} tests**, **{total_failures} failures/errors**."]
+          else:
+              lines.append("No test-module totals were available.")
+          if failures:
+              lines += ["", "### Test-result details"]
+              lines.extend(f"- {item}" for item in failures[:40])
+          lines += ["", "Full logs, JUnit XML and any APK are uploaded as workflow artifacts."]
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("\n".join(lines) + "\n")
+          print("\n".join(lines))
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as output:
+              output.write(f"status={'success' if ok else 'failure'}\n")
+          PY
+
+      - name: Upload baseline logs and JUnit XML
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hokm-baseline-reports-${{ github.run_id }}
+          path: |
+            ${{ runner.temp }}/hokm-baseline
+            **/build/test-results/**/*.xml
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 4
+
+      - name: Upload debug APK (if the build succeeded)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: hokm-baseline-debug-apk-${{ github.run_id }}
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: warn
+          retention-days: 14
+          compression-level: 0
+
+      - name: Mark the baseline successful only if all checks passed
+        if: always()
+        env:
+          REPORT_STATUS: ${{ steps.report.outputs.status }}
+        run: |
+          if [[ "$REPORT_STATUS" != "success" ]]; then
+            echo "Hokm baseline has one or more failed, missing, or unexecuted checks; see the job summary and artifacts." >&2
+            exit 1
+          fi
