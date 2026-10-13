@@ -1,8 +1,15 @@
-# Full, opt-in baseline for the Hokm roadmap (including the current server tests and lint).
-# This deliberately does not replace the normal PR CI and never publishes/releases the APK.
+# Full baseline for an explicitly scoped rollout of this workflow.
+# On this Arena session branch, it runs only when this workflow file changes.
+# Manual dispatch becomes available after the workflow is merged to the repository's default branch.
+# This deliberately does not replace PR CI and never publishes/releases the APK.
 name: Hokm Baseline
 
 on:
+  push:
+    branches:
+      - arena/05a354c8-dorehami
+    paths:
+      - .github/workflows/hokm-baseline.yml
   workflow_dispatch:
 
 permissions:
