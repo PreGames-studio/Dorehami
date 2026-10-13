@@ -69,6 +69,15 @@ def screenshot(name: str) -> None:
         log(f"screenshot «{name}» failed: {exc!r}")
 
 
+def press(x: int, y: int, hold_ms: int = 120) -> None:
+    """Presses a point.
+
+    `input tap` is a zero-length touch, which Compose occasionally drops; a `swipe` between the same
+    two points with a short duration is a real press-and-release and is far more reliable.
+    """
+    sh("adb", "shell", "input", "swipe", str(x), str(y), str(x), str(y), str(hold_ms))
+
+
 def alive() -> bool:
     return sh("adb", "shell", "pidof", PKG).stdout.strip() != ""
 
@@ -174,7 +183,7 @@ def tap_text(fragment: str, *, scroll: bool = False) -> bool:
             x, y = (x1 + x2) // 2, (y1 + y2) // 2
             where = "clickable" if node.clickable else "label"
             log(f"tap «{fragment}» at ({x},{y}) on {where} bounds=[{x1},{y1}][{x2},{y2}] text={node.text!r}")
-            sh("adb", "shell", "input", "tap", str(x), str(y))
+            press(x, y)
             return True
     if scroll:
         log(f"«{fragment}» is not visible — scrolling down")
@@ -199,7 +208,9 @@ def go_to(fragment: str, marker: str, *, tries: int = 4, scroll: bool = False) -
     log(f"visible texts: {visible_texts()}")
     _, xml = ui_dump()
     print(f"[device-check] ---- UI hierarchy ({len(xml)} chars) ----", flush=True)
-    print(xml[:4000], flush=True)
+    chunk = 1200
+    for i in range(0, min(len(xml), 18_000), chunk):
+        print("[device-check] " + xml[i:i + chunk], flush=True)
     print("[device-check] ---- end of UI hierarchy ----", flush=True)
     return False
 
