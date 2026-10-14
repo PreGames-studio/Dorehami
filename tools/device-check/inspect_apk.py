@@ -21,15 +21,19 @@ import zipfile
 REQUIRED = {
     "core/gamesdk": "Lir/dorehami/gamesdk/GameEngine;",
     "core/protocol": "Lir/dorehami/protocol/PlayerId;",
-    "core/session": "Lir/dorehami/session/SessionController;",
-    "core/uikit": "Lir/dorehami/uikit/FaDigits;",
+    "core/session": "Lir/dorehami/session/SessionClient;",
+    "core/uikit (FaDigits)": "Lir/dorehami/uikit/FaDigitsKt;",
+    "core/uikit (page frame)": "Lir/dorehami/core/uikit/DorehamiPageFrameKt;",
     "chess rules (ChessModule)": "Lir/dorehami/games/chess/ChessModule;",
     "chess rules (Board)": "Lir/dorehami/games/chess/Board;",
     "chess rules (ChessBot)": "Lir/dorehami/games/chess/ChessBot;",
+    "chess rules (ChessSession)": "Lir/dorehami/games/chess/ChessSession;",
     "chess ui": "Lir/dorehami/games/chess/ui/ChessScreenKt;",
     "hokm rules (HokmModule)": "Lir/dorehami/games/hokm/HokmModule;",
+    "hokm rules (HokmSession)": "Lir/dorehami/games/hokm/HokmSession;",
     "hokm ui": "Lir/dorehami/games/hokm/ui/HokmScreenKt;",
-    "pantohub rules": "Lir/dorehami/games/pantohub/PantohubEngine;",
+    "pantohub rules (engine)": "Lir/dorehami/games/pantohub/PantohubEngine;",
+    "pantohub rules (bank)": "Lir/dorehami/games/pantohub/WordBankRules;",
     "pantohub ui": "Lir/dorehami/games/pantohub/ui/PantohubScreenKt;",
 }
 
