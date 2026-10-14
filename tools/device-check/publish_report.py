@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
-"""Publishes the device log as the output of a check run, so it can be read through the REST API.
+"""Publishes a build/device log as the output of a check run, so it can be read through the REST API.
 
 Workflow logs are served from a blob URL that API-only environments cannot download, and a step can
 only attach a handful of annotations, so the whole log goes into a fresh check run whose `output`
 field is retrievable:
 
-    gh api repos/<owner>/<repo>/commits/<sha>/check-runs \
-      --jq '.[] | select(.name == "device log") | .output.summary'
+    gh api repos/<owner>/<repo>/commits/<sha>/check-runs \\
+      --jq '.[] | select(.name == "<title>") | .output.summary'
 
-Usage: publish_report.py <log-file> [head-sha]
+Usage: publish_report.py <log-file> [head-sha] [title]
 """
 from __future__ import annotations
 
@@ -18,32 +18,33 @@ import subprocess
 import sys
 
 SUMMARY_LIMIT = 60_000
-TITLE = "Device log (chess start)"
+DEFAULT_TITLE = "Device log (chess start)"
 
 
 def main() -> int:
     log_path = sys.argv[1] if len(sys.argv) > 1 else "device-log.txt"
     sha = sys.argv[2] if len(sys.argv) > 2 else os.environ.get("GITHUB_SHA", "")
+    title = sys.argv[3] if len(sys.argv) > 3 else DEFAULT_TITLE
     repo = os.environ.get("GITHUB_REPOSITORY", "")
     if not repo or not sha:
         print("::warning::GITHUB_REPOSITORY/GITHUB_SHA not set — skipping the report")
         return 0
 
     try:
-        text = open(log_path, errors="replace").read()
+        summary = open(log_path, errors="replace").read()
     except FileNotFoundError:
-        text = "(no device log was written)"
+        summary = "(no report was written)"
 
-    head = text[: SUMMARY_LIMIT // 2]
-    tail = text[-(SUMMARY_LIMIT - len(head)):]
-    summary = head + ("\n... (trimmed) ...\n" if len(text) > SUMMARY_LIMIT else "") + tail if len(text) > SUMMARY_LIMIT else text
+    if len(summary) > SUMMARY_LIMIT:
+        half = SUMMARY_LIMIT // 2
+        summary = summary[:half] + "\n... (trimmed) ...\n" + summary[-half:]
 
     payload = {
-        "name": "device log",
+        "name": title,
         "head_sha": sha,
         "status": "completed",
         "conclusion": "neutral",
-        "output": {"title": TITLE, "summary": summary},
+        "output": {"title": title, "summary": summary},
     }
     proc = subprocess.run(
         ["gh", "api", "--method", "POST", f"/repos/{repo}/check-runs", "--input", "-"],
@@ -52,7 +53,7 @@ def main() -> int:
     )
     print(proc.stdout.decode(errors="replace").strip())
     if proc.returncode != 0:
-        print("::warning::could not publish the device log check run: " + proc.stderr.decode(errors="replace").strip())
+        print("::warning::could not publish the report: " + proc.stderr.decode(errors="replace").strip())
     return 0
 
 

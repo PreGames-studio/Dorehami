@@ -81,7 +81,7 @@ jobs:
         if: always()
         env:
           GH_TOKEN: ${{ github.token }}
-        run: python3 tools/device-check/publish_report.py device-log.txt "${{ github.sha }}"
+        run: python3 tools/device-check/publish_report.py device-log.txt "${{ github.sha }}" "Device log (chess start)"
 
       - name: Upload screenshots
         if: always()

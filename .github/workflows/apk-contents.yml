@@ -40,6 +40,19 @@ jobs:
       - name: Build the debug APK
         run: ./gradlew :app:assembleDebug --stacktrace
 
+      # Every `games/<game>/core` module is called `core`; identical jar/coordinates make Android
+      # packaging drop one of them. Print both, so a regression is obvious.
+      - name: Show the jars and the debug runtime classpath
+        if: always()
+        run: |
+          {
+            echo "== built jars =="
+            ls -l core/*/build/libs/*.jar games/*/core/build/libs/*.jar 2>/dev/null || echo "(no jars)"
+            echo
+            echo "== games/* project dependencies on the app runtime classpath =="
+            ./gradlew -q :app:dependencies --configuration debugRuntimeClasspath 2>/dev/null | grep -E "project :(games|core|transport)" || true
+          } | tee jars-and-classpath.txt
+
       - name: List the classes inside the APK
         id: inspect
         continue-on-error: true
@@ -58,7 +71,8 @@ jobs:
           if not path.exists():
               path.write_text("(the inspector did not run)", encoding="utf-8")
           PY
-          python3 tools/device-check/publish_report.py apk-contents.txt "${{ github.sha }}"
+          cat jars-and-classpath.txt >> apk-contents.txt
+          python3 tools/device-check/publish_report.py apk-contents.txt "${{ github.sha }}" "APK contents report"
           python3 tools/device-check/report_annotations.py apk-contents.txt || true
 
       - name: Fail when a required class is missing
