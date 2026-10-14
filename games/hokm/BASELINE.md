@@ -372,9 +372,16 @@ adb shell screencap -p /sdcard/hokm-$STEP.png && adb pull /sdcard/hokm-$STEP.png
 
 ## ۱۰. شاهد اجرا
 
-* **محلی (runner کمکی `tools/jvm-check`، kotlinc 2.4.21 + jdk4py):**
-  * suite کامل jvm-check (ماژول‌های خالص: protocol/gamesdk/hokm-core/transport/testkit/session/server): **۶۳ تست / ۰ شکست** — این suite ماژول `games/hokm/ui` را شامل نمی‌شود.
-  * زیرمجموعهٔ UI (کامپایل دوم با `HokmUiModel`, `HokmSeatLayout`, `HokmMatchStats`, `HokmPacing`, `HokmSave`, `HokmBaselineScenario`, `HokmA11y`): **۶۶ تست / ۰ شکست** که ۲۰ تست آن تازه است (۱۰ `HokmBaselineScenarioTest` + ۱۰ `HokmA11yTest`؛ پیش از این مرحله ۴۶ بود).
+* **محلی (runner کمکی `tools/jvm-check`، kotlinc 2.4.21 + jdk4py):** **۱۲۹ تست / ۰ شکست**.
+  * در همین مرحله `tools/jvm-check/run.sh` گسترش یافت تا لایهٔ **خالص** `games/hokm/ui` را هم
+    بگیرد (`HokmUiModel`, `HokmSeatLayout`, `HokmMatchStats`, `HokmPacing`, `HokmSave`,
+    `HokmA11y`, `HokmBaselineScenario` + `FaDigits` و ۸ فایل تست، با `-Xfriend-paths` برای
+    `internal`ها). پیش از این stage آن suite **۶۳ تست** بود و ماژول UI را نمی‌دید؛ اکنون
+    ۶۳ + ۶۶ = **۱۲۹**. ۲۰ تستِ ۶۶ تای UI تازه است (۱۰ سناریو + ۱۰ برچسب دسترسی).
+  * فهرست فایل‌های UI در run.sh **صریح** است نه grep-محور، با دلیلِ ثبت‌شده در خود اسکریپت:
+    `HokmLocalMatch.kt`/`HokmSessionMatch.kt` هیچ `import androidx.*` ندارند ولی از `HokmTable`
+    (Compose) ارث می‌برند و `HokmSounds.kt` به `R.raw` تولیدی ارجاع می‌دهد — یعنی «خالص بودن»
+    با grep قابل تصمیم نیست. مرجع نهایی همان `./gradlew checkAll` است.
 * **CI:** نتیجهٔ `checkAll` و `Build debug APK` برای commit این مرحله در
   [ROADMAP.md](ROADMAP.md) ثبت می‌شود؛ کامپایل واقعی فایل‌های Compose (`HokmScreen.kt`) فقط در
   CI انجام می‌شود چون این محیط Compose ندارد.
