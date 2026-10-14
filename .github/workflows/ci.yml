@@ -154,6 +154,29 @@ jobs:
           path: build.log
           if-no-files-found: warn
 
+      # A game's rules module can compile and still be missing from the APK (two modules called
+      # `core` used to share one jar name, so Android packaging dropped one) — which only shows up
+      # on a device, as `NoClassDefFoundError`, the moment that game starts. Check it here instead.
+      - name: Check that every game module is inside the APK
+        id: apk-contents
+        continue-on-error: true
+        run: |
+          python3 tools/device-check/inspect_apk.py app/build/outputs/apk/debug/app-debug.apk apk-contents.txt && rc=0 || rc=$?
+          python3 tools/device-check/report_annotations.py apk-contents.txt || true
+          {
+            echo "## 📦 Classes inside the debug APK"
+            echo '```'
+            sed -n '/== required classes/,/^$/p' apk-contents.txt
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
+
+      - name: Fail when a required class is missing
+        if: steps.apk-contents.outputs.exit-code != '0'
+        run: |
+          echo "::error::a required class is missing from the APK — see the step above"
+          exit 1
+
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4
         with:
