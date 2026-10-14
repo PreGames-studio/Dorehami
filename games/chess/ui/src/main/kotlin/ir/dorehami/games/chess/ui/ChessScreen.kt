@@ -152,15 +152,18 @@ fun ChessScreen(
 
             Box(Modifier.weight(1f)) {
                 AndroidView(factory = { board }, modifier = Modifier.fillMaxSize())
-                Row(
-                    Modifier
-                        .align(Alignment.BottomStart)
-                        .padding(10.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    GhostButton("↔ چرخش صفحه", onFlip)
-                    GhostButton("نمای پیش‌فرض", { board.resetView() })
-                }
+            }
+
+            // Keep Compose controls outside the translucent SurfaceView bounds so they remain
+            // above the GL surface on devices that require its overlay composition mode.
+            Row(
+                Modifier
+                    .fillMaxWidth()
+                    .padding(horizontal = 10.dp, vertical = 3.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                GhostButton("↔ چرخش صفحه", onFlip, Modifier.weight(1f))
+                GhostButton("نمای پیش‌فرض", { board.resetView() }, Modifier.weight(1f))
             }
 
             PlayerRow(state.bottom, state)
@@ -184,7 +187,7 @@ fun ChessScreen(
                     textAlign = TextAlign.Center,
                     modifier = Modifier
                         .clip(RoundedCornerShape(14.dp))
-                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.96f))
+                        .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f))
                         .border(1.dp, MaterialTheme.colorScheme.outline, RoundedCornerShape(18.dp))
                         .padding(horizontal = 18.dp, vertical = 10.dp),
                 )
@@ -263,7 +266,7 @@ private fun TopBar(mode: ChessMode, thinking: Boolean, onExit: () -> Unit, onMov
             fontSize = chessSp(10),
             modifier = Modifier
                 .clip(RoundedCornerShape(10.dp))
-                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.78f))
                 .padding(horizontal = 8.dp, vertical = 4.dp),
         )
         TextButton(onClick = onMoves) { Text("حرکت‌ها", color = MaterialTheme.colorScheme.primary, fontSize = chessSp(13)) }
@@ -282,7 +285,10 @@ private fun PlayerRow(card: ChessPlayerCard, state: ChessUiState) {
             .fillMaxWidth()
             .padding(horizontal = 10.dp, vertical = 3.dp)
             .clip(RoundedCornerShape(20.dp))
-            .background(if (myTurn) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+            .background(
+                (if (myTurn) MaterialTheme.colorScheme.secondaryContainer else MaterialTheme.colorScheme.surface)
+                    .copy(alpha = 0.84f),
+            )
             .border(1.dp, if (myTurn) MaterialTheme.colorScheme.secondary.copy(alpha = 0.68f) else MaterialTheme.colorScheme.outline.copy(alpha = 0.55f), RoundedCornerShape(20.dp))
             .padding(horizontal = 10.dp, vertical = 6.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -323,11 +329,12 @@ private fun PlayerRow(card: ChessPlayerCard, state: ChessUiState) {
 }
 
 @Composable
-private fun GhostButton(label: String, onClick: () -> Unit) {
+private fun GhostButton(label: String, onClick: () -> Unit, modifier: Modifier = Modifier) {
     ChessTonalButton(
         text = label,
         onClick = onClick,
-        minHeight = 44,
+        modifier = modifier,
+        minHeight = 40,
         tone = ChessButtonTone.Neutral,
     )
 }
@@ -339,7 +346,8 @@ private fun ActionBar(state: ChessUiState, onUndo: () -> Unit, onResign: () -> U
     Column(
         Modifier
             .fillMaxWidth()
-            .background(MaterialTheme.colorScheme.surface)
+            .clip(RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
+            .background(MaterialTheme.colorScheme.surface.copy(alpha = 0.88f))
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f), RoundedCornerShape(topStart = 22.dp, topEnd = 22.dp))
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalArrangement = Arrangement.spacedBy(6.dp),

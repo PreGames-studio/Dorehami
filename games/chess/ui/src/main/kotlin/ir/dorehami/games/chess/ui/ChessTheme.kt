@@ -205,9 +205,9 @@ internal fun ChessBackdrop(
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            colors.background.copy(alpha = if (dark) 0.58f else 0.60f),
-                            colors.background.copy(alpha = if (dark) 0.48f else 0.52f),
-                            colors.background.copy(alpha = if (dark) 0.72f else 0.70f),
+                            colors.background.copy(alpha = if (dark) 0.45f else 0.18f),
+                            colors.background.copy(alpha = if (dark) 0.34f else 0.12f),
+                            colors.background.copy(alpha = if (dark) 0.58f else 0.32f),
                         ),
                     ),
                 ),
@@ -321,7 +321,7 @@ internal fun ChessTonalButton(
 ) {
     val scheme = MaterialTheme.colorScheme
     val (container, content) = when (tone) {
-        ChessButtonTone.Neutral -> scheme.surfaceVariant to scheme.onSurfaceVariant
+        ChessButtonTone.Neutral -> scheme.surfaceVariant.copy(alpha = 0.76f) to scheme.onSurfaceVariant
         ChessButtonTone.Primary -> scheme.primaryContainer to scheme.onPrimaryContainer
         ChessButtonTone.Secondary -> scheme.secondaryContainer to scheme.onSecondaryContainer
         ChessButtonTone.Accent -> scheme.tertiaryContainer to scheme.onTertiaryContainer
