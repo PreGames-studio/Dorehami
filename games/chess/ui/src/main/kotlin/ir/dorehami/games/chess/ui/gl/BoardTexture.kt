@@ -11,11 +11,11 @@ import android.graphics.Shader
 import android.graphics.Typeface
 
 /**
- * Paints the board top (Pantohub-inspired butter/teal squares + a warm inlaid frame) into a
+ * Paints the selected material frame and a high-contrast black-and-white playing surface into a
  * power-of-two bitmap. Row 0 of the bitmap is black's back rank side (z = −4.6), like a diagram
  * seen by white. Labels on the far half are rotated 180° so each player reads the near ones.
  *
- * The wood grain uses a tiny fixed-seed generator: the board looks identical on every launch.
+ * Procedural grain and frame ornament use a fixed-seed generator, so finishes are repeatable.
  */
 internal object BoardTexture {
     const val SIZE = 1024
@@ -30,7 +30,7 @@ internal object BoardTexture {
         val frame = SIZE * FRAME_FRACTION
         val sq = (SIZE - 2 * frame) / 8f
 
-        // Warm, fruitwood-like frame with restrained grain.
+        // The frame finish changes materially while the playing squares remain monochrome.
         val framePaint = Paint(Paint.ANTI_ALIAS_FLAG)
         framePaint.shader = LinearGradient(
             0f,
@@ -42,28 +42,30 @@ internal object BoardTexture {
             Shader.TileMode.CLAMP,
         )
         c.drawRect(0f, 0f, SIZE.toFloat(), SIZE.toFloat(), framePaint)
+        val (lines, strength) = when (palette.boardStyle) {
+            ir.dorehami.games.chess.ui.ChessBoardStyle.METAL -> 300 to 0.10f
+            ir.dorehami.games.chess.ui.ChessBoardStyle.WOOD -> 220 to 0.22f
+            ir.dorehami.games.chess.ui.ChessBoardStyle.LUXURY -> 120 to 0.12f
+            ir.dorehami.games.chess.ui.ChessBoardStyle.TRADITIONAL -> 170 to 0.17f
+            ir.dorehami.games.chess.ui.ChessBoardStyle.PAPER -> 360 to 0.08f
+        }
         grain(
             c, rng, 0f, 0f, SIZE.toFloat(), SIZE.toFloat(), horizontal = true,
-            base = rgb(palette.frameGrain), lines = 220, strength = 0.22f,
+            base = rgb(palette.frameGrain), lines = lines, strength = strength,
         )
+        drawFrameFinish(c, palette, frame)
 
-        // Butter and teal squares are the chess-specific use of Pantohub's warm palette.
+        // Every set uses the requested black-and-white chess-square pattern.
+        val squarePaint = Paint(Paint.ANTI_ALIAS_FLAG)
         for (rank in 0 until 8) for (file in 0 until 8) {
             val left = frame + file * sq
             val top = frame + (7 - rank) * sq
             val dark = (file + rank) % 2 == 0
-            val base = rgb(if (dark) palette.darkSquare else palette.lightSquare)
-            val p = Paint()
-            val tint = rng.nextFloat() * 0.06f - 0.03f
-            p.color = Color.rgb(shade(base[0], tint), shade(base[1], tint), shade(base[2], tint))
-            c.drawRect(left, top, left + sq, top + sq, p)
-            grain(
-                c, rng, left, top, sq, sq, horizontal = (file + rank) % 2 == 1,
-                base = base, lines = 26, strength = if (dark) 0.30f else 0.20f,
-            )
+            squarePaint.color = if (dark) palette.darkSquare else palette.lightSquare
+            c.drawRect(left, top, left + sq, top + sq, squarePaint)
         }
 
-        // Thin Pantohub brass inlay around the playing area.
+        // Thin material-appropriate inlay around the playing area.
         val inlay = Paint(Paint.ANTI_ALIAS_FLAG)
         inlay.style = Paint.Style.STROKE
         inlay.strokeWidth = SIZE / 300f
@@ -102,11 +104,102 @@ internal object BoardTexture {
         return bmp
     }
 
+    private fun drawFrameFinish(c: Canvas, palette: ChessBoardPalette, frame: Float) {
+        val insetPaint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            style = Paint.Style.STROKE
+            strokeWidth = SIZE / 900f
+        }
+        val outer = frame * 0.12f
+        val inner = frame * 0.86f
+        val studCenters = listOf(
+            android.graphics.PointF(frame / 2f, frame / 2f),
+            android.graphics.PointF(SIZE - frame / 2f, frame / 2f),
+            android.graphics.PointF(frame / 2f, SIZE - frame / 2f),
+            android.graphics.PointF(SIZE - frame / 2f, SIZE - frame / 2f),
+        )
+        when (palette.boardStyle) {
+            ir.dorehami.games.chess.ui.ChessBoardStyle.METAL -> {
+                insetPaint.color = Color.argb(100, 255, 255, 255)
+                c.drawRect(outer, outer, SIZE - outer, SIZE - outer, insetPaint)
+                insetPaint.color = Color.argb(95, 34, 40, 45)
+                c.drawRect(inner, inner, SIZE - inner, SIZE - inner, insetPaint)
+                val screw = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette.coordinates }
+                studCenters.forEach { center ->
+                    c.drawCircle(center.x, center.y, frame * 0.055f, screw)
+                    c.drawLine(center.x - frame * 0.028f, center.y, center.x + frame * 0.028f, center.y, insetPaint)
+                }
+            }
+            ir.dorehami.games.chess.ui.ChessBoardStyle.WOOD -> {
+                insetPaint.color = Color.argb(105, Color.red(palette.trim), Color.green(palette.trim), Color.blue(palette.trim))
+                c.drawRect(outer, outer, SIZE - outer, SIZE - outer, insetPaint)
+                insetPaint.color = Color.argb(75, Color.red(palette.frameGrain), Color.green(palette.frameGrain), Color.blue(palette.frameGrain))
+                c.drawRect(inner, inner, SIZE - inner, SIZE - inner, insetPaint)
+            }
+            ir.dorehami.games.chess.ui.ChessBoardStyle.LUXURY -> {
+                insetPaint.color = palette.trim
+                insetPaint.strokeWidth = SIZE / 430f
+                c.drawRect(outer, outer, SIZE - outer, SIZE - outer, insetPaint)
+                insetPaint.strokeWidth = SIZE / 900f
+                c.drawRect(inner, inner, SIZE - inner, SIZE - inner, insetPaint)
+                val medallion = Paint(Paint.ANTI_ALIAS_FLAG).apply { color = palette.trim }
+                studCenters.forEach { center ->
+                    c.drawCircle(center.x, center.y, frame * 0.11f, medallion)
+                    medallion.color = palette.frameEnd
+                    c.drawCircle(center.x, center.y, frame * 0.055f, medallion)
+                    medallion.color = palette.trim
+                }
+            }
+            ir.dorehami.games.chess.ui.ChessBoardStyle.TRADITIONAL -> {
+                insetPaint.color = Color.argb(185, Color.red(palette.trim), Color.green(palette.trim), Color.blue(palette.trim))
+                insetPaint.strokeWidth = SIZE / 520f
+                c.drawRect(outer, outer, SIZE - outer, SIZE - outer, insetPaint)
+                insetPaint.strokeWidth = SIZE / 950f
+                c.drawRect(inner, inner, SIZE - inner, SIZE - inner, insetPaint)
+                studCenters.forEach { center -> drawPersianRosette(c, center.x, center.y, frame * 0.17f, palette.trim) }
+            }
+            ir.dorehami.games.chess.ui.ChessBoardStyle.PAPER -> {
+                insetPaint.color = Color.argb(120, Color.red(palette.trim), Color.green(palette.trim), Color.blue(palette.trim))
+                insetPaint.strokeWidth = SIZE / 700f
+                c.drawRect(outer, outer, SIZE - outer, SIZE - outer, insetPaint)
+                insetPaint.strokeWidth = SIZE / 1200f
+                c.drawRect(inner, inner, SIZE - inner, SIZE - inner, insetPaint)
+                val crop = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+                    color = palette.coordinates
+                    strokeWidth = SIZE / 950f
+                }
+                studCenters.forEach { center ->
+                    val d = frame * 0.09f
+                    c.drawLine(center.x - d, center.y, center.x + d, center.y, crop)
+                    c.drawLine(center.x, center.y - d, center.x, center.y + d, crop)
+                }
+            }
+        }
+    }
+
+    private fun drawPersianRosette(c: Canvas, x: Float, y: Float, radius: Float, color: Int) {
+        val path = Path().apply {
+            moveTo(x, y - radius)
+            lineTo(x + radius * 0.36f, y - radius * 0.36f)
+            lineTo(x + radius, y)
+            lineTo(x + radius * 0.36f, y + radius * 0.36f)
+            lineTo(x, y + radius)
+            lineTo(x - radius * 0.36f, y + radius * 0.36f)
+            lineTo(x - radius, y)
+            lineTo(x - radius * 0.36f, y - radius * 0.36f)
+            close()
+        }
+        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            this.color = color
+            style = Paint.Style.STROKE
+            strokeWidth = SIZE / 700f
+        }
+        c.drawPath(path, paint)
+        c.drawCircle(x, y, radius * 0.26f, paint)
+    }
+
     private fun rgb(color: Int) = intArrayOf(Color.red(color), Color.green(color), Color.blue(color))
 
-    private fun shade(v: Int, t: Float): Int = (v * (1f + t)).toInt().coerceIn(0, 255)
-
-    /** Wavy translucent streaks imitating wood grain inside the given rectangle. */
+    /** Fine, fixed-seed surface strokes tuned by the selected material finish. */
     private fun grain(
         c: Canvas, rng: Lcg, left: Float, top: Float, w: Float, h: Float,
         horizontal: Boolean, base: IntArray, lines: Int, strength: Float,

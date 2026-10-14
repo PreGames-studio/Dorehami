@@ -320,8 +320,8 @@ internal class ChessRenderer(
             for (i in 0..2) emissive[i] *= 0.22f * glow
             drawMesh(
                 vp, mesh, model, color,
-                spec = if (p.white) 0.32f else 0.55f,
-                shininess = if (p.white) 28f else 56f,
+                spec = if (p.white) palette.lightPieceSpecular else palette.darkPieceSpecular,
+                shininess = if (p.white) palette.lightPieceShininess else palette.darkPieceShininess,
                 ao = 0.35f, alpha = p.alpha, mirror = mirror, cull = true, emissive = emissive,
             )
         }
