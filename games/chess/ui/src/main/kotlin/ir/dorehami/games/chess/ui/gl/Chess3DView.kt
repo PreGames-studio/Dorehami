@@ -2,6 +2,7 @@ package ir.dorehami.games.chess.ui.gl
 
 import android.annotation.SuppressLint
 import android.content.Context
+import android.graphics.PixelFormat
 import android.opengl.GLSurfaceView
 import android.os.Handler
 import android.os.Looper
@@ -34,14 +35,27 @@ class Chess3DView(context: Context) : GLSurfaceView(context) {
         onPicked = { sq -> main.post { onSquareTap?.invoke(sq) } },
     )
     private var lastScene: BoardScene? = null
+    private var lastPalette: ChessBoardPalette? = null
     private var whiteSide = true
 
     init {
         setEGLContextClientVersion(2)
         setEGLConfigChooser(ConfigChooser())
+        holder.setFormat(PixelFormat.TRANSLUCENT)
+        // The GL buffer must composite over the Compose backdrop instead of becoming an opaque
+        // SurfaceView-sized rectangle. The UI controls are kept outside the board bounds.
+        setZOrderOnTop(true)
         preserveEGLContextOnPause = true
         setRenderer(renderer)
         renderMode = RENDERMODE_WHEN_DIRTY
+    }
+
+    /** Updates table, frame and pieces without changing the position or move animation. */
+    internal fun setPalette(palette: ChessBoardPalette) {
+        if (palette == lastPalette) return
+        lastPalette = palette
+        queueEvent { renderer.setPalette(palette) }
+        requestRender()
     }
 
     /** Shows [scene]; animates the move in it once per `positionId`. */
@@ -125,9 +139,13 @@ class Chess3DView(context: Context) : GLSurfaceView(context) {
     private class ConfigChooser : EGLConfigChooser {
         override fun chooseConfig(egl: EGL10, display: EGLDisplay): EGLConfig {
             val attempts = listOf(
-                intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 24, EGL10.EGL_STENCIL_SIZE, 8, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_SAMPLE_BUFFERS, 1, EGL10.EGL_SAMPLES, 4, EGL10.EGL_NONE),
+                // Alpha is required so transparent GL pixels reveal the Compose backdrop.
+                intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_ALPHA_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 24, EGL10.EGL_STENCIL_SIZE, 8, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_SAMPLE_BUFFERS, 1, EGL10.EGL_SAMPLES, 4, EGL10.EGL_NONE),
+                intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_ALPHA_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 24, EGL10.EGL_STENCIL_SIZE, 8, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_NONE),
+                intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_ALPHA_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 16, EGL10.EGL_STENCIL_SIZE, 8, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_NONE),
+                intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_ALPHA_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 16, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_NONE),
+                // Keep a compatibility fallback for older GPUs that do not expose an RGBA config.
                 intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 24, EGL10.EGL_STENCIL_SIZE, 8, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_NONE),
-                intArrayOf(EGL10.EGL_RED_SIZE, 8, EGL10.EGL_GREEN_SIZE, 8, EGL10.EGL_BLUE_SIZE, 8, EGL10.EGL_DEPTH_SIZE, 16, EGL10.EGL_STENCIL_SIZE, 8, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_NONE),
                 intArrayOf(EGL10.EGL_DEPTH_SIZE, 16, EGL10.EGL_RENDERABLE_TYPE, EGL_OPENGL_ES2_BIT, EGL10.EGL_NONE),
             )
             for (spec in attempts) {
@@ -135,8 +153,13 @@ class Chess3DView(context: Context) : GLSurfaceView(context) {
                 if (!egl.eglChooseConfig(display, spec, null, 0, count) || count[0] <= 0) continue
                 val configs = arrayOfNulls<EGLConfig>(count[0])
                 if (!egl.eglChooseConfig(display, spec, configs, count[0], count)) continue
-                // Prefer an exact RGB888 match (some drivers list larger/odd formats first).
+                // Prefer RGBA8888 (some drivers list opaque or larger formats first).
                 val pick = configs.firstOrNull { c ->
+                    c != null && attr(egl, display, c, EGL10.EGL_RED_SIZE) == 8 &&
+                        attr(egl, display, c, EGL10.EGL_GREEN_SIZE) == 8 &&
+                        attr(egl, display, c, EGL10.EGL_BLUE_SIZE) == 8 &&
+                        attr(egl, display, c, EGL10.EGL_ALPHA_SIZE) >= 8
+                } ?: configs.firstOrNull { c ->
                     c != null && attr(egl, display, c, EGL10.EGL_RED_SIZE) == 8 &&
                         attr(egl, display, c, EGL10.EGL_GREEN_SIZE) == 8 &&
                         attr(egl, display, c, EGL10.EGL_BLUE_SIZE) == 8
