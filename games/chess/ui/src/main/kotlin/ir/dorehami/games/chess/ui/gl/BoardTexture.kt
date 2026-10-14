@@ -11,7 +11,7 @@ import android.graphics.Shader
 import android.graphics.Typeface
 
 /**
- * Paints the board top (inlaid maple/walnut squares + walnut frame with coordinates) into a
+ * Paints the board top (Pantohub-inspired butter/teal squares + a warm inlaid frame) into a
  * power-of-two bitmap. Row 0 of the bitmap is black's back rank side (z = −4.6), like a diagram
  * seen by white. Labels on the far half are rotated 180° so each player reads the near ones.
  *
@@ -23,46 +23,57 @@ internal object BoardTexture {
     /** Board half size incl. frame is 4.6; the playing area is ±4. */
     private const val FRAME_FRACTION = 0.6f / 9.2f
 
-    private val LIGHT = intArrayOf(0xEC, 0xCF, 0xA2)
-    private val DARK = intArrayOf(0x8E, 0x5B, 0x35)
-
-    fun create(): Bitmap {
+    fun create(palette: ChessBoardPalette): Bitmap {
         val bmp = Bitmap.createBitmap(SIZE, SIZE, Bitmap.Config.ARGB_8888)
         val c = Canvas(bmp)
         val rng = Lcg(20251010L)
         val frame = SIZE * FRAME_FRACTION
         val sq = (SIZE - 2 * frame) / 8f
 
-        // Frame: dark walnut with long grain.
+        // Warm, fruitwood-like frame with restrained grain.
         val framePaint = Paint(Paint.ANTI_ALIAS_FLAG)
-        framePaint.shader = LinearGradient(0f, 0f, SIZE.toFloat(), SIZE.toFloat(), Color.rgb(0x4A, 0x2A, 0x17), Color.rgb(0x2E, 0x18, 0x0C), Shader.TileMode.CLAMP)
+        framePaint.shader = LinearGradient(
+            0f,
+            0f,
+            SIZE.toFloat(),
+            SIZE.toFloat(),
+            palette.frameStart,
+            palette.frameEnd,
+            Shader.TileMode.CLAMP,
+        )
         c.drawRect(0f, 0f, SIZE.toFloat(), SIZE.toFloat(), framePaint)
-        grain(c, rng, 0f, 0f, SIZE.toFloat(), SIZE.toFloat(), horizontal = true, base = intArrayOf(0x3A, 0x20, 0x10), lines = 220, strength = 0.22f)
+        grain(
+            c, rng, 0f, 0f, SIZE.toFloat(), SIZE.toFloat(), horizontal = true,
+            base = rgb(palette.frameGrain), lines = 220, strength = 0.22f,
+        )
 
-        // Squares.
+        // Butter and teal squares are the chess-specific use of Pantohub's warm palette.
         for (rank in 0 until 8) for (file in 0 until 8) {
             val left = frame + file * sq
             val top = frame + (7 - rank) * sq
             val dark = (file + rank) % 2 == 0
-            val base = if (dark) DARK else LIGHT
+            val base = rgb(if (dark) palette.darkSquare else palette.lightSquare)
             val p = Paint()
             val tint = rng.nextFloat() * 0.06f - 0.03f
             p.color = Color.rgb(shade(base[0], tint), shade(base[1], tint), shade(base[2], tint))
             c.drawRect(left, top, left + sq, top + sq, p)
-            grain(c, rng, left, top, sq, sq, horizontal = (file + rank) % 2 == 1, base = base, lines = 26, strength = if (dark) 0.30f else 0.20f)
+            grain(
+                c, rng, left, top, sq, sq, horizontal = (file + rank) % 2 == 1,
+                base = base, lines = 26, strength = if (dark) 0.30f else 0.20f,
+            )
         }
 
-        // Thin brass inlay around the playing area.
+        // Thin Pantohub brass inlay around the playing area.
         val inlay = Paint(Paint.ANTI_ALIAS_FLAG)
         inlay.style = Paint.Style.STROKE
         inlay.strokeWidth = SIZE / 300f
-        inlay.color = Color.rgb(0xC9, 0x9A, 0x4B)
+        inlay.color = palette.trim
         val o = frame - inlay.strokeWidth * 1.6f
         c.drawRect(o, o, SIZE - o, SIZE - o, inlay)
 
         // Coordinates.
         val text = Paint(Paint.ANTI_ALIAS_FLAG)
-        text.color = Color.rgb(0xE6, 0xC2, 0x86)
+        text.color = palette.coordinates
         text.textSize = frame * 0.52f
         text.typeface = Typeface.create(Typeface.SERIF, Typeface.BOLD)
         text.textAlign = Paint.Align.CENTER
@@ -90,6 +101,8 @@ internal object BoardTexture {
         c.drawRect(0f, 0f, SIZE.toFloat(), SIZE.toFloat(), vignette)
         return bmp
     }
+
+    private fun rgb(color: Int) = intArrayOf(Color.red(color), Color.green(color), Color.blue(color))
 
     private fun shade(v: Int, t: Float): Int = (v * (1f + t)).toInt().coerceIn(0, 255)
 

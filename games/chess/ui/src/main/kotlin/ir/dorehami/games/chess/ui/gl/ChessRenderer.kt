@@ -31,6 +31,18 @@ internal class ChessRenderer(
 
     val camera = OrbitCamera()
 
+    private var palette = ChessBoardPalette.Light
+    private var surfaceCreated = false
+    private val tableRgb = FloatArray(3)
+    private val frameRgb = FloatArray(3)
+    private val lightPieceRgb = FloatArray(3)
+    private val darkPieceRgb = FloatArray(3)
+    private val selectedRgb = FloatArray(3)
+
+    init {
+        updatePaletteColors()
+    }
+
     // ----------------------------------------------------------------- scene state (GL thread)
     private var scene = BoardScene(IntArray(64))
     private var anim: MoveAnim? = null
@@ -40,6 +52,18 @@ internal class ChessRenderer(
     private var selectLift = 0f
     private var lastFrameMs = 0L
     private var instances: List<Inst> = emptyList()
+
+    /** Applies a theme on the GL thread; move state and the game rules are unaffected. */
+    fun setPalette(value: ChessBoardPalette) {
+        if (palette == value) return
+        palette = value
+        updatePaletteColors()
+        if (surfaceCreated) {
+            applyClearColor()
+            updateBoardTexture()
+        }
+        requestRender()
+    }
 
     /** Animation of the camera side switch etc. is driven by [OrbitCamera.step]. */
     fun setScene(s: BoardScene) {
@@ -89,12 +113,15 @@ internal class ChessRenderer(
         val h = OrbitCamera.BOARD_HALF
         boardTopVbo = floatVbo(floatArrayOf(-h, 0f, -h, h, 0f, -h, h, 0f, h, -h, 0f, -h, h, 0f, h, -h, 0f, h))
         quadVbo = floatVbo(floatArrayOf(-1f, -1f, 1f, -1f, 1f, 1f, -1f, -1f, 1f, 1f, -1f, 1f))
+        boardTexture = 0
+        updatePaletteColors()
         boardTexture = createBoardTexture()
+        surfaceCreated = true
 
         val bits = IntArray(1)
         GLES20.glGetIntegerv(GLES20.GL_STENCIL_BITS, bits, 0)
         hasStencil = bits[0] > 0
-        GLES20.glClearColor(BG[0], BG[1], BG[2], 1f)
+        applyClearColor()
         GLES20.glClearStencil(0)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
         GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
@@ -149,14 +176,14 @@ internal class ChessRenderer(
         // (2) Table + drop shadow of the board.
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
         GLES20.glEnable(GLES20.GL_BLEND)
-        drawFlat(vp, 0f, -0.345f, 0f, 22f, 22f, SHAPE_TABLE, TABLE[0], TABLE[1], TABLE[2], 1f)
+        drawFlat(vp, 0f, -0.345f, 0f, 22f, 22f, SHAPE_TABLE, tableRgb[0], tableRgb[1], tableRgb[2], 1f)
         drawFlat(vp, 0.45f, -0.343f, 0.35f, 5.5f, 5.5f, SHAPE_SOFT_RECT, 0f, 0f, 0f, 0.62f)
         if (hasStencil) GLES20.glDisable(GLES20.GL_STENCIL_TEST)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
         GLES20.glDisable(GLES20.GL_BLEND)
 
         // (3) Board block and lacquered top.
-        drawMesh(vp, boardBlock!!, IDENTITY, WALNUT, spec = 0.25f, shininess = 30f, ao = 0f, alpha = 1f, mirror = false, cull = true)
+        drawMesh(vp, boardBlock!!, IDENTITY, frameRgb, spec = 0.25f, shininess = 30f, ao = 0f, alpha = 1f, mirror = false, cull = true)
         if (hasStencil) GLES20.glEnable(GLES20.GL_BLEND)
         drawBoardTop(vp, if (hasStencil) 0.86f else 1f)
 
@@ -287,9 +314,10 @@ internal class ChessRenderer(
             if (mirror && p.ghost) continue
             val mesh = pieceMeshes[p.type] ?: continue
             Mat4.trs(model, p.x, p.y, p.z, p.yaw, p.scale, p.scale, p.scale)
-            val color = if (p.white) IVORY else EBONY
+            val color = if (p.white) lightPieceRgb else darkPieceRgb
             val glow = p.glow
-            emissive[0] = 0.10f * glow; emissive[1] = 0.20f * glow; emissive[2] = 0.03f * glow
+            selectedRgb.copyInto(emissive)
+            for (i in 0..2) emissive[i] *= 0.22f * glow
             drawMesh(
                 vp, mesh, model, color,
                 spec = if (p.white) 0.32f else 0.55f,
@@ -351,19 +379,22 @@ internal class ChessRenderer(
     private fun drawHighlights(vp: FloatArray, now: Long) {
         val s = scene
         val half = 0.5f
-        if (s.lastFrom >= 0) squareFlat(vp, s.lastFrom, half, SHAPE_SQUARE, 1f, 0.78f, 0.25f, 0.32f)
-        if (s.lastTo >= 0) squareFlat(vp, s.lastTo, half, SHAPE_SQUARE, 1f, 0.78f, 0.25f, 0.42f)
+        if (s.lastFrom >= 0) squareFlatColor(vp, s.lastFrom, half, SHAPE_SQUARE, palette.lastMove, 0.32f)
+        if (s.lastTo >= 0) squareFlatColor(vp, s.lastTo, half, SHAPE_SQUARE, palette.lastMove, 0.42f)
         if (s.checkSquare >= 0) {
             val k = 0.75f + 0.25f * sin(now / 1000f * 6f)
-            squareFlat(vp, s.checkSquare, 0.78f, SHAPE_GLOW, 1f, 0.12f, 0.05f, 0.9f * k)
+            squareFlatColor(vp, s.checkSquare, 0.78f, SHAPE_GLOW, palette.check, 0.9f * k)
         }
-        if (s.selected >= 0) squareFlat(vp, s.selected, half, SHAPE_SQUARE, 0.45f, 0.90f, 0.30f, 0.55f)
-        for (sq in s.quietTargets) squareFlat(vp, sq, half, SHAPE_DOT, 0.18f, 0.62f, 0.22f, 0.75f)
-        for (sq in s.captureTargets) squareFlat(vp, sq, half, SHAPE_RING, 0.92f, 0.28f, 0.16f, 0.85f)
+        if (s.selected >= 0) squareFlatColor(vp, s.selected, half, SHAPE_SQUARE, palette.selected, 0.55f)
+        for (sq in s.quietTargets) squareFlatColor(vp, sq, half, SHAPE_DOT, palette.quietMove, 0.75f)
+        for (sq in s.captureTargets) squareFlatColor(vp, sq, half, SHAPE_RING, palette.capture, 0.85f)
     }
 
-    private fun squareFlat(vp: FloatArray, sq: Int, half: Float, shape: Float, r: Float, g: Float, b: Float, a: Float) {
-        drawFlat(vp, BoardScene.squareX(sq), 0.008f, BoardScene.squareZ(sq), half, half, shape, r, g, b, a)
+    private fun squareFlatColor(vp: FloatArray, sq: Int, half: Float, shape: Float, color: Int, alpha: Float) {
+        drawFlat(
+            vp, BoardScene.squareX(sq), 0.008f, BoardScene.squareZ(sq), half, half, shape,
+            red(color), green(color), blue(color), alpha,
+        )
     }
 
     private fun drawFlat(
@@ -461,23 +492,58 @@ internal class ChessRenderer(
     private fun createBoardTexture(): Int {
         val ids = IntArray(1)
         GLES20.glGenTextures(1, ids, 0)
-        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, ids[0])
-        val bmp = BoardTexture.create()
+        val texture = ids[0]
+        uploadBoardTexture(texture, configure = true)
+        return texture
+    }
+
+    private fun updateBoardTexture() {
+        if (boardTexture != 0) uploadBoardTexture(boardTexture, configure = false)
+    }
+
+    private fun uploadBoardTexture(texture: Int, configure: Boolean) {
+        GLES20.glBindTexture(GLES20.GL_TEXTURE_2D, texture)
+        val bmp = BoardTexture.create(palette)
         GLUtils.texImage2D(GLES20.GL_TEXTURE_2D, 0, bmp, 0)
         bmp.recycle()
         GLES20.glGenerateMipmap(GLES20.GL_TEXTURE_2D)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
-        GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
-        val ext = GLES20.glGetString(GLES20.GL_EXTENSIONS) ?: ""
-        if ("GL_EXT_texture_filter_anisotropic" in ext) {
-            val maxAniso = FloatArray(1)
-            GLES20.glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, maxAniso, 0)
-            GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, min(8f, maxAniso[0]))
+        if (configure) {
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MIN_FILTER, GLES20.GL_LINEAR_MIPMAP_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_MAG_FILTER, GLES20.GL_LINEAR)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_S, GLES20.GL_CLAMP_TO_EDGE)
+            GLES20.glTexParameteri(GLES20.GL_TEXTURE_2D, GLES20.GL_TEXTURE_WRAP_T, GLES20.GL_CLAMP_TO_EDGE)
+            val ext = GLES20.glGetString(GLES20.GL_EXTENSIONS) ?: ""
+            if ("GL_EXT_texture_filter_anisotropic" in ext) {
+                val maxAniso = FloatArray(1)
+                GLES20.glGetFloatv(GL_MAX_TEXTURE_MAX_ANISOTROPY_EXT, maxAniso, 0)
+                GLES20.glTexParameterf(GLES20.GL_TEXTURE_2D, GL_TEXTURE_MAX_ANISOTROPY_EXT, min(8f, maxAniso[0]))
+            }
         }
-        return ids[0]
     }
+
+    private fun updatePaletteColors() {
+        fillRgb(tableRgb, palette.tableColor)
+        fillRgb(frameRgb, palette.frameStart)
+        fillRgb(lightPieceRgb, palette.lightPiece)
+        fillRgb(darkPieceRgb, palette.darkPiece)
+        fillRgb(selectedRgb, palette.selected)
+    }
+
+    private fun applyClearColor() {
+        GLES20.glClearColor(
+            red(palette.clearColor), green(palette.clearColor), blue(palette.clearColor), 1f,
+        )
+    }
+
+    private fun fillRgb(target: FloatArray, color: Int) {
+        target[0] = red(color)
+        target[1] = green(color)
+        target[2] = blue(color)
+    }
+
+    private fun red(color: Int) = ((color ushr 16) and 0xFF) / 255f
+    private fun green(color: Int) = ((color ushr 8) and 0xFF) / 255f
+    private fun blue(color: Int) = (color and 0xFF) / 255f
 
     /** Compiled program with cached attribute/uniform locations. */
     private class Program(vs: String, fs: String) {
@@ -584,11 +650,6 @@ internal class ChessRenderer(
             val l = sqrt(it[0] * it[0] + it[1] * it[1] + it[2] * it[2])
             floatArrayOf(it[0] / l, it[1] / l, it[2] / l)
         }
-        private val IVORY = floatArrayOf(0.93f, 0.88f, 0.78f)
-        private val EBONY = floatArrayOf(0.13f, 0.11f, 0.10f)
-        private val WALNUT = floatArrayOf(0.30f, 0.17f, 0.09f)
-        private val BG = floatArrayOf(0.070f, 0.064f, 0.060f)
-        private val TABLE = floatArrayOf(0.30f, 0.22f, 0.15f)
         private val IDENTITY = Mat4.identity()
     }
 }

@@ -34,6 +34,7 @@ class Chess3DView(context: Context) : GLSurfaceView(context) {
         onPicked = { sq -> main.post { onSquareTap?.invoke(sq) } },
     )
     private var lastScene: BoardScene? = null
+    private var lastPalette: ChessBoardPalette? = null
     private var whiteSide = true
 
     init {
@@ -42,6 +43,14 @@ class Chess3DView(context: Context) : GLSurfaceView(context) {
         preserveEGLContextOnPause = true
         setRenderer(renderer)
         renderMode = RENDERMODE_WHEN_DIRTY
+    }
+
+    /** Updates table, frame and pieces without changing the position or move animation. */
+    internal fun setPalette(palette: ChessBoardPalette) {
+        if (palette == lastPalette) return
+        lastPalette = palette
+        queueEvent { renderer.setPalette(palette) }
+        requestRender()
     }
 
     /** Shows [scene]; animates the move in it once per `positionId`. */
