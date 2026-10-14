@@ -5,14 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import ir.dorehami.gamesdk.ApplyResult
 import ir.dorehami.gamesdk.Emission
 import ir.dorehami.gamesdk.GameAction
-import ir.dorehami.gamesdk.Phase
 import ir.dorehami.gamesdk.view
 import ir.dorehami.games.hokm.Card
 import ir.dorehami.games.hokm.HandPhase
 import ir.dorehami.games.hokm.HandWinKind
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.HokmRules
-import ir.dorehami.games.hokm.HokmSession
 import ir.dorehami.games.hokm.Play
 import ir.dorehami.games.hokm.Suit
 import ir.dorehami.uikit.toFa
@@ -24,132 +22,11 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-/** A player as drawn on the table. */
-data class SeatInfo(val seat: Int, val name: String, val isBot: Boolean)
+/** The table's model types live in [HokmUiModel.kt] (pure Kotlin, JVM-testable). */
 
-/** Result of the last finished hand, as the UI needs it. */
-data class HandSummary(
-    val handNumber: Int,
-    /** `null` for a void three-player hand. */
-    val winnerTeam: Int?,
-    val points: Int,
-    val kind: HandWinKind,
-    val hakem: Int,
-    val tricks: List<Int>,
-    val hokm: Suit? = null,
-)
-
-/** A sticker shown in a bubble over a seat. */
-data class Sticker(val id: String, val emoji: String, val captionFa: String)
-
-/** All stickers available in the tray; ids are what travels over the wire later. */
-object Stickers {
-    val all = listOf(
-        Sticker("clap", "👏", "آفرین!"),
-        Sticker("laugh", "😂", "خنده‌دار بود"),
-        Sticker("cool", "😎", "حرفه‌ای"),
-        Sticker("angry", "😤", "اَه!"),
-        Sticker("think", "🤔", "صبر کن…"),
-        Sticker("fire", "🔥", "ترکوندی"),
-        Sticker("crown", "👑", "حاکم منم"),
-        Sticker("heart", "❤️", "دمت گرم"),
-        Sticker("cry", "😭", "باختیم…"),
-        Sticker("fast", "⏱️", "زود باش!"),
-        Sticker("tea", "🍵", "یه چایی بزنیم"),
-        Sticker("gg", "🤝", "بازی خوبی بود"),
-    )
-
-    fun byId(id: String): Sticker? = all.firstOrNull { it.id == id }
-}
-
-/** A sticker currently visible over [seat]; [stamp] makes repeated identical stickers re-animate. */
-data class SeatSticker(val seat: Int, val sticker: Sticker, val stamp: Long)
-
-/** Something transient to say on the table (feed line / banner). */
-data class Banner(val title: String, val subtitle: String? = null, val big: Boolean = false)
-
-/** One-shot visual effects the screen renders on top of the table. */
-enum class FxKind {
-    /** A trump was thrown on a non-trump lead ("بریدن"): golden flash + sparks at that seat's slot. */
-    CUT,
-    /** Trick swept: a small sparkle at the winner. */
-    TRICK_WIN,
-    /** Kot / hakem kot: a big burst in the middle. */
-    KOT,
-    /** Match won by my side: confetti. */
-    CONFETTI,
-}
-
-data class TableFx(val kind: FxKind, val seat: Int, val stamp: Long)
-
-/**
- * Everything the screen draws. Built **only** from the human player's `privateView()` plus the
- * UI-side animation bookkeeping — the screen never touches the session.
- */
-data class HokmUiState(
-    val seats: List<SeatInfo> = emptyList(),
-    val playerCount: Int = 4,
-    val mySeat: Int = 0,
-    val phase: Phase = Phase.PLAYING,
-    val handPhase: HandPhase = HandPhase.CHOOSING_HOKM,
-    val handNumber: Int = 1,
-    val hakem: Int = 0,
-    val hokm: Suit? = null,
-    val turn: Int = 0,
-    val trickNumber: Int = 0,
-    val tricksWon: List<Int> = listOf(0, 0),
-    val scores: List<Int> = listOf(0, 0),
-    val targetPoints: Int = 7,
-    val handCounts: List<Int> = listOf(0, 0, 0, 0),
-    val myHand: List<Card> = emptyList(),
-    val legalCards: Set<Card> = emptySet(),
-    /** Two-player: the stock card shown to me while I decide keep/pass. */
-    val revealed: Card? = null,
-    /** Two-player: how many cards I must burn right now (0 = not my burn turn). */
-    val discardCount: Int = 0,
-    val stockCount: Int = 0,
-    /** Cards I have tapped so far while burning. */
-    val selectedForDiscard: Set<Card> = emptySet(),
-    val stickers: List<SeatSticker> = emptyList(),
-    /** Cards on the table right now (kept visible for a moment after a trick closes). */
-    val tableCards: List<Play> = emptyList(),
-    /** Seat that is sweeping the current trick, while the collect animation runs. */
-    val collectingTo: Int? = null,
-    val lastHand: HandSummary? = null,
-    val banner: Banner? = null,
-    val hakemDraw: List<Play> = emptyList(),
-    /** How many of [hakemDraw] are face-up during the opening animation (`null` = intro finished). */
-    val introShown: Int? = null,
-    val dealing: Boolean = false,
-    val error: String? = null,
-    val finished: Boolean = false,
-    val winnerTeam: Int? = null,
-    val feed: List<String> = emptyList(),
-    val fx: List<TableFx> = emptyList(),
-    /** Every finished hand so far (score sheet). */
-    val handHistory: List<HandSummary> = emptyList(),
-    val lastTrick: List<Play> = emptyList(),
-    val lastTrickWinner: Int? = null,
-    /** Wall-clock deadline for the current human move in rooms (0 = no timer). */
-    val turnDeadlineMs: Long = 0L,
-    val turnSeconds: Int = 0,
-    /** Short label of the game mode shown in the score bar ("ربات", "بلوتوث", "آنلاین"). */
-    val modeLabel: String = "",
-) {
-    val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
-    fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
-    private val calm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
-    val isMyTurn: Boolean get() = calm && handPhase == HandPhase.PLAYING && turn == mySeat
-    val iChooseHokm: Boolean get() = calm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
-    val iDiscard: Boolean get() = calm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
-    val iDraw: Boolean get() = calm && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
-    val isTeamGame: Boolean get() = playerCount == 4
-}
 
 /**
  * The table's state machine: turns the private view + emissions into [HokmUiState] with the pacing
@@ -487,7 +364,11 @@ abstract class HokmTable(
                     }
 
                     "hand_finished" -> {
-                        val summary = parseHand(e.payload)
+                        val summary = HokmUiMapper.handSummary(e.payload)
+                        if (summary == null) {
+                            feed += "نتیجهٔ دست خوانده نشد"
+                            continue
+                        }
                         val myTeam = HokmRules.teamOf(mySeat, playerCount)
                         val mine = summary.winnerTeam == myTeam
                         val we = if (playerCount == 4) "بردیم" else "بردی"
@@ -576,53 +457,16 @@ abstract class HokmTable(
 
     // ------------------------------------------------------------------ view → state
 
-    /** Re-reads the human's private view. The screen never sees anything beyond this. */
+    /**
+     * Re-reads the human's private view through the typed [HokmUiMapper] boundary. Incomplete or
+     * inconsistent views are refused (the table keeps its previous state) and stale views are
+     * ignored by [HokmUiMapper.merge]. The screen never sees anything beyond this.
+     */
     protected fun refresh() {
         val v = privateView() ?: return
-        val old = _state.value
-        val tricks = v["tricksWon"]!!.jsonArray.map { it.jsonPrimitive.int }
-        val scores = v["scores"]!!.jsonArray.map { it.jsonPrimitive.int }
-        val finished = v["phase"]!!.jsonPrimitive.content == Phase.FINISHED.name
-        _state.value = old.copy(
-            phase = if (finished) Phase.FINISHED else Phase.PLAYING,
-            handPhase = HandPhase.entries.firstOrNull { it.id == v["handPhase"]!!.jsonPrimitive.content } ?: HandPhase.CHOOSING_HOKM,
-            handNumber = v["handNumber"]!!.jsonPrimitive.int,
-            hakem = v["hakem"]!!.jsonPrimitive.int,
-            hokm = v["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
-            turn = v["turn"]!!.jsonPrimitive.int,
-            trickNumber = v["trickNumber"]!!.jsonPrimitive.int,
-            tricksWon = tricks,
-            scores = scores,
-            targetPoints = v["targetPoints"]!!.jsonPrimitive.int,
-            handCounts = v["handCounts"]!!.jsonArray.map { it.jsonPrimitive.int },
-            myHand = v["hand"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! },
-            legalCards = v["legalCards"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! }.toSet(),
-            revealed = v[HokmSession.Keys.REVEALED]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Card.parse(it) },
-            discardCount = v[HokmSession.Keys.DISCARD_COUNT]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-            stockCount = v["stockCount"]!!.jsonPrimitive.int,
-            hakemDraw = v["hakemDraw"]!!.jsonArray.map { p ->
-                val o = p.jsonObject
-                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
-            },
-            lastHand = v["lastHandResult"]?.let { parseHand(it.jsonObject) },
-            lastTrick = (v["lastTrick"] as? JsonObject)?.get("cards")?.jsonArray?.map { p ->
-                val o = p.jsonObject
-                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
-            } ?: emptyList(),
-            lastTrickWinner = (v["lastTrick"] as? JsonObject)?.get("winner")?.jsonPrimitive?.int,
-            finished = finished,
-            winnerTeam = if (finished) scores.indexOf(scores.max()) else null,
-            selectedForDiscard = if (v["handPhase"]!!.jsonPrimitive.content == HandPhase.DISCARDING.id) old.selectedForDiscard else emptySet(),
-        )
+        when (val mapped = HokmUiMapper.map(v)) {
+            is MappedView.Rejected -> setError(mapped.messageFa)
+            is MappedView.Valid -> _state.value = HokmUiMapper.merge(_state.value, mapped.snapshot)
+        }
     }
-
-    private fun parseHand(o: JsonObject) = HandSummary(
-        handNumber = o["handNumber"]!!.jsonPrimitive.int,
-        winnerTeam = o["winnerTeam"]!!.jsonPrimitive.content.toIntOrNull(),
-        points = o["points"]!!.jsonPrimitive.int,
-        kind = HandWinKind.entries.first { it.id == o["kind"]!!.jsonPrimitive.content },
-        hakem = o["hakem"]!!.jsonPrimitive.int,
-        tricks = o["tricks"]!!.jsonArray.map { it.jsonPrimitive.int },
-        hokm = o["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
-    )
 }
