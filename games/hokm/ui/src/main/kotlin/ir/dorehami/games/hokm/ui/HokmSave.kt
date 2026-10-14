@@ -26,8 +26,8 @@ object HokmSave {
         data class Failed(val messageFa: String) : Load()
     }
 
-    /** Serialises the engine's current record for storage. */
-    fun save(engine: GameEngine): String = MatchRecordCodec.encode(engine.record()).toString()
+    /** Serialises a match record (the engine's, or one just restored) for storage. */
+    fun save(record: MatchRecord): String = MatchRecordCodec.encode(record).toString()
 
     /**
      * Restores a saved match. Never throws: corrupt text, a newer save schema, a tampered

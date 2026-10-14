@@ -68,7 +68,7 @@ class HokmSaveTest {
         playOne(e, seatWithMove(e))
         playOne(e, seatWithMove(e))
 
-        val loaded = HokmSave.load(HokmSave.save(e))
+        val loaded = HokmSave.load(HokmSave.save(e.record()))
         assertIs<HokmSave.Load.Restored>(loaded, "a valid save must restore")
 
         // Same engine state — the player sees the same hand, turn and phase.
@@ -89,7 +89,7 @@ class HokmSaveTest {
     @Test
     fun `a save taken before any move restores the same deal`() {
         val e = engine(seed = 1234L)
-        val loaded = HokmSave.load(HokmSave.save(e))
+        val loaded = HokmSave.load(HokmSave.save(e.record()))
         assertIs<HokmSave.Load.Restored>(loaded)
         assertEquals(1234L, loaded.record.seed)
         assertEquals(
@@ -106,7 +106,7 @@ class HokmSaveTest {
         while (e.session.result() == null && guard++ < 2000) playOne(e, seatWithMove(e))
         assertTrue(e.session.result() != null, "the scripted game must finish")
 
-        val loaded = HokmSave.load(HokmSave.save(e))
+        val loaded = HokmSave.load(HokmSave.save(e.record()))
         assertIs<HokmSave.Load.Restored>(loaded)
         assertEquals(e.session.result(), loaded.engine.session.result(), "the result survives the save")
     }
@@ -121,7 +121,7 @@ class HokmSaveTest {
 
     @Test
     fun `a save from a newer schema fails safely`() {
-        val newer = HokmSave.save(engine()).replace("\"schema\":1", "\"schema\":9")
+        val newer = HokmSave.save(engine().record()).replace("\"schema\":1", "\"schema\":9")
         val failed = assertIs<HokmSave.Load.Failed>(HokmSave.load(newer))
         assertTrue(failed.messageFa.isNotBlank(), "the player gets a Persian safe error")
     }
@@ -130,7 +130,7 @@ class HokmSaveTest {
     fun `a tampered action log fails safely instead of restoring a wrong table`() {
         val e = engine()
         playOne(e, seatWithMove(e))
-        val tampered = HokmSave.save(e).replace("choose_hokm", "choose_hokmX")
+        val tampered = HokmSave.save(e.record()).replace("choose_hokm", "choose_hokmX")
         assertIs<HokmSave.Load.Failed>(HokmSave.load(tampered), "a logged action that no longer applies must not restore")
         assertIs<HokmSave.Load.Failed>(HokmSave.load("{broken"))
     }
@@ -139,7 +139,7 @@ class HokmSaveTest {
     fun `a save whose digest no longer matches is refused`() {
         val e = engine()
         playOne(e, seatWithMove(e))
-        val decoded = assertIs<RecordDecode.Decoded>(MatchRecordCodec.decode(HokmSave.save(e)))
+        val decoded = assertIs<RecordDecode.Decoded>(MatchRecordCodec.decode(HokmSave.save(e.record())))
         val rewritten = decoded.record.copy(digest = "0000")
         val failed = assertIs<HokmSave.Load.Failed>(HokmSave.load(MatchRecordCodec.encode(rewritten).toString()))
         assertTrue(failed.messageFa.isNotBlank())
