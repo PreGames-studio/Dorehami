@@ -16,9 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.cos
 import kotlin.math.sin
@@ -95,13 +93,14 @@ import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-/** Table palette: tournament-green baize, walnut rim, brass accents. */
+/** Table palette: the locked GX-01 "Emerald Royale" direction (see HokmArtDirection). */
 private object Table {
-    val feltLight = Color(0xFF2F8A4E)
-    val feltDark = Color(0xFF0F3D22)
-    val rimLight = Color(0xFF8B5A2B)
-    val rimDark = Color(0xFF3E2410)
-    val brass = Color(0xFFD9B55A)
+    val feltLight = Color(HokmArtDirection.FELT_SPOTLIGHT)
+    val feltDark = Color(HokmArtDirection.FELT)
+    val rimLight = Color(HokmArtDirection.BRASS_LIGHT)
+    val rimDark = Color(0xFF6E5212)
+    val brass = Color(HokmArtDirection.BRASS_LIGHT)
+    val turquoise = Color(HokmArtDirection.TURQUOISE)
     val chip = Color(0x99000000)
     val turnGlow = Color(0xFFFFE082)
     val ours = Color(0xFF64B5F6)
@@ -444,50 +443,48 @@ fun HokmScreen(
 
 // --------------------------------------------------------------------------------------- felt
 
-/** Photographic baize + walnut rim, with a soft vignette and the brass medallion painted on top. */
+/**
+ * The table itself, drawn with vectors (GX-01 "Emerald Royale", HK-015 sample): brass rim with
+ * girih-lite diamond ticks and turquoise inlays, emerald felt with one focused spotlight in the
+ * centre (from direction B) that never darkens the card area, and the brass medallion rings.
+ * Vector instead of the old photograph: crisp at every size and the spotlight stays centred.
+ */
 @Composable
 private fun TableBackground() {
-    Image(
-        painter = painterResource(R.drawable.hokm_table),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
-    )
-    Canvas(Modifier.fillMaxSize()) {
-        drawRect(
-            Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)),
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.75f,
-            ),
-        )
-        val c = Offset(size.width / 2f, size.height * 0.45f)
-        drawCircle(Table.brass.copy(alpha = 0.14f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
-        drawCircle(Table.brass.copy(alpha = 0.09f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
-    }
-}
-
-/** Vector fallback of the table (not used by default). */
-@Suppress("unused")
-@Composable
-private fun FeltBackground() {
     Canvas(Modifier.fillMaxSize()) {
         val rim = 14.dp.toPx()
-        // walnut rim
+        // brass rim
         drawRect(Brush.verticalGradient(listOf(Table.rimLight, Table.rimDark)))
-        // baize
+        // girih-lite: tiny diamond ticks along the rim band
+        val tick = 5.dp.toPx()
+        val tickStep = 22.dp.toPx()
+        var tx = tickStep / 2f
+        while (tx < size.width) {
+            listOf(rim / 2f, size.height - rim / 2f).forEach { ty ->
+                val p = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(tx, ty - tick / 2f)
+                    lineTo(tx + tick / 2f, ty)
+                    lineTo(tx, ty + tick / 2f)
+                    lineTo(tx - tick / 2f, ty)
+                    close()
+                }
+                drawPath(p, Color.Black.copy(alpha = 0.22f), style = Stroke(1.2f))
+            }
+            tx += tickStep
+        }
+        // emerald felt with the focused centre spotlight
         val inner = androidx.compose.ui.geometry.Rect(rim, rim, size.width - rim, size.height - rim)
         drawRoundRect(
             brush = Brush.radialGradient(
-                colors = listOf(Table.feltLight, Table.feltDark),
+                colors = listOf(Table.feltLight, Table.feltDark, Color(HokmArtDirection.FELT_EDGE)),
                 center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.7f,
+                radius = size.height * 0.72f,
             ),
             topLeft = inner.topLeft,
             size = inner.size,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.12f),
         )
-        // brass inlay line
+        // brass inlay line + turquoise inlay stones on the inner rim
         drawRoundRect(
             color = Table.brass.copy(alpha = 0.55f),
             topLeft = Offset(inner.left + 6.dp.toPx(), inner.top + 6.dp.toPx()),
@@ -495,6 +492,13 @@ private fun FeltBackground() {
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.11f),
             style = Stroke(1.5.dp.toPx()),
         )
+        val stoneR = 3.dp.toPx()
+        val stoneY = listOf(inner.top + rim * 0.7f, inner.bottom - rim * 0.7f)
+        var sx = inner.left + 34.dp.toPx()
+        while (sx < inner.right - 20.dp.toPx()) {
+            stoneY.forEach { sy -> drawCircle(Table.turquoise.copy(alpha = 0.85f), stoneR, Offset(sx, sy)) }
+            sx += 68.dp.toPx()
+        }
         // felt grain: very faint diagonal hatch
         val step = 7.dp.toPx()
         var x = -size.height
@@ -823,11 +827,33 @@ private fun ScoreBar(
 @Composable
 private fun HokmBadge(state: HokmUiState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            // GX-01: the trump lives in a brass medallion with a turquoise stone once chosen.
             val hokm = state.hokm
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(Table.rimLight, Table.rimDark)))
+                    .border(1.dp, Table.brass, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (hokm != null) {
+                    SuitIcon(hokm, 19.dp, onDark = true)
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 2.dp)
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(Table.turquoise),
+                    )
+                } else {
+                    Text("؟", color = Color.White.copy(alpha = 0.85f), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
             if (hokm != null) {
-                SuitIcon(hokm, 18.dp, onDark = true)
                 Text(hokm.titleFa, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             } else {
                 Text("—", color = Color.White, fontSize = 13.sp)
