@@ -37,6 +37,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -55,11 +56,58 @@ import kotlinx.coroutines.cancel
  */
 @Composable
 fun ChessEntry(onExit: () -> Unit) {
-    ChessTheme { ChessEntryContent(onExit) }
+    val context = LocalContext.current
+    val preferences = remember(context) { context.getSharedPreferences("chess-ui-settings", 0) }
+    var animationsEnabled by rememberSaveable {
+        mutableStateOf(preferences.getBoolean("animationsEnabled", true))
+    }
+    var boardStyle by rememberSaveable {
+        mutableStateOf(
+            preferences.getString("boardStyle", null)
+                ?.let { name -> ChessBoardStyle.values().firstOrNull { it.name == name } }
+                ?: ChessBoardStyle.WOOD,
+        )
+    }
+    var pieceStyle by rememberSaveable {
+        mutableStateOf(
+            preferences.getString("pieceStyle", null)
+                ?.let { name -> ChessPieceStyle.values().firstOrNull { it.name == name } }
+                ?: ChessPieceStyle.CLASSIC,
+        )
+    }
+
+    ChessTheme(motionEnabled = animationsEnabled) {
+        ChessEntryContent(
+            onExit = onExit,
+            boardStyle = boardStyle,
+            onBoardStyle = { value ->
+                boardStyle = value
+                preferences.edit().putString("boardStyle", value.name).apply()
+            },
+            pieceStyle = pieceStyle,
+            onPieceStyle = { value ->
+                pieceStyle = value
+                preferences.edit().putString("pieceStyle", value.name).apply()
+            },
+            animationsEnabled = animationsEnabled,
+            onAnimationsEnabled = { value ->
+                animationsEnabled = value
+                preferences.edit().putBoolean("animationsEnabled", value).apply()
+            },
+        )
+    }
 }
 
 @Composable
-private fun ChessEntryContent(onExit: () -> Unit) {
+private fun ChessEntryContent(
+    onExit: () -> Unit,
+    boardStyle: ChessBoardStyle,
+    onBoardStyle: (ChessBoardStyle) -> Unit,
+    pieceStyle: ChessPieceStyle,
+    onPieceStyle: (ChessPieceStyle) -> Unit,
+    animationsEnabled: Boolean,
+    onAnimationsEnabled: (Boolean) -> Unit,
+) {
     var started by rememberSaveable { mutableStateOf(false) }
     var name by rememberSaveable { mutableStateOf("") }
     var level by rememberSaveable { mutableStateOf(2) }
@@ -83,6 +131,12 @@ private fun ChessEntryContent(onExit: () -> Unit) {
             onAutoRotate = { autoRotate = it },
             soundOn = soundOn,
             onSound = { soundOn = it },
+            boardStyle = boardStyle,
+            onBoardStyle = onBoardStyle,
+            pieceStyle = pieceStyle,
+            onPieceStyle = onPieceStyle,
+            animationsEnabled = animationsEnabled,
+            onAnimationsEnabled = onAnimationsEnabled,
             onStart = { started = true },
             onBack = onExit,
         )
@@ -95,6 +149,8 @@ private fun ChessEntryContent(onExit: () -> Unit) {
             mode = if (passAndPlay) ChessMode.PASS_AND_PLAY else ChessMode.VS_BOT,
             autoRotate = autoRotate,
             soundOn = soundOn,
+            boardStyle = boardStyle,
+            pieceStyle = pieceStyle,
             onPlayAgain = { matchKey++ },
             onExit = { started = false },
         )
@@ -110,6 +166,8 @@ private fun ChessMatchHost(
     mode: ChessMode,
     autoRotate: Boolean,
     soundOn: Boolean,
+    boardStyle: ChessBoardStyle,
+    pieceStyle: ChessPieceStyle,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
 ) {
@@ -150,6 +208,8 @@ private fun ChessMatchHost(
         onClearNote = match::clearNote,
         onPlayAgain = onPlayAgain,
         onExit = onExit,
+        boardStyle = boardStyle,
+        pieceStyle = pieceStyle,
     )
 }
 
@@ -167,6 +227,12 @@ private fun ChessSetupScreen(
     onAutoRotate: (Boolean) -> Unit,
     soundOn: Boolean,
     onSound: (Boolean) -> Unit,
+    boardStyle: ChessBoardStyle,
+    onBoardStyle: (ChessBoardStyle) -> Unit,
+    pieceStyle: ChessPieceStyle,
+    onPieceStyle: (ChessPieceStyle) -> Unit,
+    animationsEnabled: Boolean,
+    onAnimationsEnabled: (Boolean) -> Unit,
     onStart: () -> Unit,
     onBack: () -> Unit,
 ) {
@@ -174,7 +240,7 @@ private fun ChessSetupScreen(
     var showRules by remember { mutableStateOf(false) }
 
     Box(Modifier.fillMaxSize()) {
-        ChessBackdrop(Modifier.fillMaxSize())
+        ChessBackdrop(imageRes = R.drawable.chess_backdrop, modifier = Modifier.fillMaxSize())
         Column(
             Modifier
                 .fillMaxSize()
@@ -277,6 +343,21 @@ private fun ChessSetupScreen(
                     Text("افکت‌های صوتی", modifier = Modifier.weight(1f), color = MaterialTheme.colorScheme.onSurface)
                     Switch(checked = soundOn, onCheckedChange = onSound, colors = chessSwitchColors())
                 }
+                Spacer(Modifier.height(10.dp))
+                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                    Column(Modifier.weight(1f)) {
+                        Text("تصویر و ذرات متحرک", color = MaterialTheme.colorScheme.onSurface)
+                        Text("حرکت آرام پس‌زمینه و برق ذرات", fontSize = chessSp(11), color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
+                    Switch(checked = animationsEnabled, onCheckedChange = onAnimationsEnabled, colors = chessSwitchColors())
+                }
+            }
+
+            Spacer(Modifier.height(14.dp))
+            SettingsCard {
+                ChessBoardStylePicker(selected = boardStyle, onSelected = onBoardStyle)
+                Spacer(Modifier.height(16.dp))
+                ChessPieceStylePicker(selected = pieceStyle, onSelected = onPieceStyle)
             }
 
             Spacer(Modifier.height(18.dp))

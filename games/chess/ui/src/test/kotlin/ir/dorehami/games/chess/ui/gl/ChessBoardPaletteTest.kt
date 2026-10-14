@@ -1,5 +1,7 @@
 package ir.dorehami.games.chess.ui.gl
 
+import ir.dorehami.games.chess.ui.ChessBoardStyle
+import ir.dorehami.games.chess.ui.ChessPieceStyle
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
@@ -8,26 +10,41 @@ import kotlin.test.assertTrue
 class ChessBoardPaletteTest {
 
     @Test
-    fun `board colors use Pantohub warm and teal anchors`() {
-        val palette = ChessBoardPalette.Light
-
-        assertEquals(0xFFFFE08A.toInt(), palette.lightSquare)
-        assertEquals(0xFF0E8F87.toInt(), palette.darkSquare)
-        assertEquals(0xFF7B4CC2.toInt(), palette.lastMove)
-        assertEquals(0xFFD9480F.toInt(), palette.capture)
+    fun `all five board finishes keep the same black and white squares`() {
+        ChessBoardStyle.values().forEach { style ->
+            listOf(false, true).forEach { darkTheme ->
+                val palette = ChessBoardPalette.forAppearance(
+                    darkTheme = darkTheme,
+                    boardStyle = style,
+                    pieceStyle = ChessPieceStyle.CLASSIC,
+                )
+                assertEquals(0xFFF8F8F5.toInt(), palette.lightSquare, style.name)
+                assertEquals(0xFF191A1D.toInt(), palette.darkSquare, style.name)
+                assertTrue(contrastRatio(palette.lightSquare, palette.darkSquare) >= 10.0)
+            }
+        }
     }
 
     @Test
-    fun `system themes change the table while preserving readable square contrast`() {
-        val light = ChessBoardPalette.forDarkTheme(dark = false)
-        val dark = ChessBoardPalette.forDarkTheme(dark = true)
+    fun `board finishes have distinct frame materials`() {
+        val palettes = ChessBoardStyle.values().map { style ->
+            ChessBoardPalette.forAppearance(false, style, ChessPieceStyle.CLASSIC)
+        }
+        assertEquals(5, palettes.map { it.frameStart }.toSet().size)
+        assertEquals(5, palettes.map { it.tableColor }.toSet().size)
+    }
 
-        assertNotEquals(light.clearColor, dark.clearColor)
-        assertNotEquals(light.tableColor, dark.tableColor)
-        assertTrue(contrastRatio(light.lightSquare, light.darkSquare) >= 3.0)
-        assertTrue(contrastRatio(dark.lightSquare, dark.darkSquare) >= 3.0)
-        assertTrue(contrastRatio(light.darkPiece, light.darkSquare) >= 3.0)
-        assertTrue(contrastRatio(dark.darkPiece, dark.darkSquare) >= 3.0)
+    @Test
+    fun `each piece finish provides both light and dark materials`() {
+        ChessPieceStyle.values().forEach { style ->
+            val palette = ChessBoardPalette.forAppearance(false, ChessBoardStyle.WOOD, style)
+            assertEquals(style, palette.pieceStyle)
+            assertNotEquals(palette.lightPiece, palette.darkPiece, style.name)
+            assertTrue(palette.lightPieceSpecular >= 0f)
+            assertTrue(palette.darkPieceSpecular >= 0f)
+            assertTrue(palette.lightPieceShininess > 0f)
+            assertTrue(palette.darkPieceShininess > 0f)
+        }
     }
 
     private fun contrastRatio(first: Int, second: Int): Double {

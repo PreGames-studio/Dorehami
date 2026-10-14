@@ -1,9 +1,16 @@
 package ir.dorehami.games.chess.ui
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.Spring
+import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.spring
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.Indication
 import androidx.compose.foundation.LocalIndication
 import androidx.compose.foundation.background
@@ -22,12 +29,16 @@ import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
@@ -41,6 +52,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import kotlin.math.PI
+import kotlin.math.sin
 
 private const val CHESS_TYPE_SCALE = 1.15f
 
@@ -132,36 +145,73 @@ private val ChessDarkColors = darkColorScheme(
     onErrorContainer = Color(0xFFFFDAD4),
 )
 
-/** Chess-local Material theme matching Pantohub's system-aware color and typography language. */
+internal val LocalChessMotion = staticCompositionLocalOf { true }
+
+/** Chess-local Material theme and motion preference; no other game module is affected. */
 @Composable
-internal fun ChessTheme(content: @Composable () -> Unit) {
+internal fun ChessTheme(motionEnabled: Boolean = true, content: @Composable () -> Unit) {
     val dark = androidx.compose.foundation.isSystemInDarkTheme()
-    MaterialTheme(
-        colorScheme = if (dark) ChessDarkColors else ChessLightColors,
-        typography = ChessTypography,
-        content = content,
-    )
+    CompositionLocalProvider(LocalChessMotion provides motionEnabled) {
+        MaterialTheme(
+            colorScheme = if (dark) ChessDarkColors else ChessLightColors,
+            typography = ChessTypography,
+            content = content,
+        )
+    }
 }
 
-/** Warm paper gradient with restrained, static confetti glows; no Pantohub photos are reused. */
+/** Chess-only illustrated background with gentle camera drift and Pantohub-style moving sparkles. */
 @Composable
-internal fun ChessBackdrop(modifier: Modifier = Modifier) {
+internal fun ChessBackdrop(
+    imageRes: Int = R.drawable.chess_backdrop,
+    modifier: Modifier = Modifier,
+) {
     val colors = MaterialTheme.colorScheme
     val dark = colors.background.luminance() < 0.4f
+    val motion = LocalChessMotion.current
     val sparkles = remember(colors) {
-        listOf(colors.primaryContainer, colors.secondaryContainer, colors.tertiaryContainer, colors.surface)
+        listOf(Color.White, colors.primaryContainer, colors.secondaryContainer, colors.tertiaryContainer)
     }
-    Box(
-        modifier = modifier.background(
-            Brush.verticalGradient(
-                listOf(
-                    colors.background,
-                    colors.surfaceVariant.copy(alpha = if (dark) 0.55f else 0.48f),
-                    colors.background,
-                ),
-            ),
+    val transition = rememberInfiniteTransition(label = "chessBackdropMotion")
+    val phaseValue by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            tween(durationMillis = 22_000, easing = LinearEasing),
+            RepeatMode.Restart,
         ),
-    ) {
+        label = "chessBackdropPhase",
+    )
+    val phase = if (motion) phaseValue else 0f
+    val drift = sin(phase * 2f * PI.toFloat())
+
+    Box(modifier = modifier) {
+        Image(
+            painter = painterResource(imageRes),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier
+                .fillMaxSize()
+                .graphicsLayer {
+                    val zoom = 1.035f + 0.016f * drift
+                    scaleX = zoom
+                    scaleY = zoom
+                    rotationZ = if (motion) 0.35f * drift else 0f
+                },
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            colors.background.copy(alpha = if (dark) 0.58f else 0.60f),
+                            colors.background.copy(alpha = if (dark) 0.48f else 0.52f),
+                            colors.background.copy(alpha = if (dark) 0.72f else 0.70f),
+                        ),
+                    ),
+                ),
+        )
         Canvas(Modifier.fillMaxSize()) {
             val shortSide = size.minDimension
             val glows = listOf(
@@ -169,8 +219,10 @@ internal fun ChessBackdrop(modifier: Modifier = Modifier) {
                 Triple(Offset(size.width * 0.94f, size.height * 0.28f), colors.secondary, 0.12f),
                 Triple(Offset(size.width * 0.86f, size.height * 0.92f), colors.tertiary, 0.10f),
             )
-            glows.forEach { (center, color, alpha) ->
+            glows.forEachIndexed { index, (baseCenter, color, alpha) ->
                 val radius = shortSide * 0.40f
+                val sway = if (motion) sin(phase * 2f * PI.toFloat() + index) * shortSide * 0.035f else 0f
+                val center = Offset(baseCenter.x + sway, baseCenter.y - sway * 0.35f)
                 drawCircle(
                     brush = Brush.radialGradient(
                         colors = listOf(color.copy(alpha = alpha), Color.Transparent),
@@ -181,14 +233,20 @@ internal fun ChessBackdrop(modifier: Modifier = Modifier) {
                     center = center,
                 )
             }
-            for (i in 0 until 24) {
-                val x = ((i * 47 + 13) % 100) / 100f * size.width
-                val y = ((i * 31 + 19) % 100) / 100f * size.height
-                val alpha = if (dark) 0.17f else 0.24f
+            for (i in 0 until 26) {
+                val baseX = ((i * 53 + 17) % 100) / 100f
+                val baseY = ((i * 29 + 7) % 100) / 100f
+                val speed = 1 + (i % 3)
+                val y = if (motion) ((baseY - phase * speed) % 1f + 1f) % 1f else baseY
+                val sway = if (motion) 0.018f * sin(phase * 2f * PI.toFloat() * (1 + i % 2) + i) else 0f
+                val x = (baseX + sway).coerceIn(0f, 1f)
+                val twinkle = if (motion) 0.72f + 0.28f * sin(phase * 2f * PI.toFloat() * 2f + i).let { (it + 1f) / 2f } else 0.8f
+                val radius = (1.6f + (i % 4) * 0.9f) * density
+                val alpha = (0.30f + ((i * 7) % 5) / 10f) * twinkle
                 drawCircle(
                     color = sparkles[i % sparkles.size].copy(alpha = alpha),
-                    radius = (1.2f + (i % 3) * 0.75f) * density,
-                    center = Offset(x, y),
+                    radius = radius,
+                    center = Offset(x * size.width, y * size.height),
                 )
             }
         }
@@ -212,8 +270,9 @@ internal fun ChessGradientButton(
     }
     val interaction = remember { MutableInteractionSource() }
     val pressed by interaction.collectIsPressedAsState()
+    val motion = LocalChessMotion.current
     val scale by animateFloatAsState(
-        targetValue = if (pressed && enabled) 0.94f else 1f,
+        targetValue = if (pressed && motion && enabled) 0.94f else 1f,
         animationSpec = spring(dampingRatio = Spring.DampingRatioMediumBouncy, stiffness = Spring.StiffnessMedium),
         label = "chessButtonScale",
     )

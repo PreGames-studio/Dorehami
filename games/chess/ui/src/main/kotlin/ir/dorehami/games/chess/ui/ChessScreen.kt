@@ -10,6 +10,7 @@ import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -21,6 +22,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -47,6 +49,8 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
@@ -84,6 +88,8 @@ fun ChessScreen(
     onClearNote: () -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
+    boardStyle: ChessBoardStyle = ChessBoardStyle.WOOD,
+    pieceStyle: ChessPieceStyle = ChessPieceStyle.CLASSIC,
 ) {
     var confirmExit by remember { mutableStateOf(false) }
     var confirmUndo by remember { mutableStateOf(false) }
@@ -108,8 +114,8 @@ fun ChessScreen(
     val context = LocalContext.current
     val board = remember { Chess3DView(context) }
     val darkTheme = isSystemInDarkTheme()
-    LaunchedEffect(board, darkTheme) {
-        board.setPalette(ChessBoardPalette.forDarkTheme(darkTheme))
+    LaunchedEffect(board, darkTheme, boardStyle, pieceStyle) {
+        board.setPalette(ChessBoardPalette.forAppearance(darkTheme, boardStyle, pieceStyle))
     }
     val lifecycle = LocalLifecycleOwner.current
     DisposableEffect(board, lifecycle) {
@@ -133,7 +139,7 @@ fun ChessScreen(
     }
 
     Box(Modifier.fillMaxSize()) {
-        ChessBackdrop(Modifier.fillMaxSize())
+        ChessBackdrop(imageRes = R.drawable.chess_game_backdrop, modifier = Modifier.fillMaxSize())
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             TopBar(
                 mode = state.mode,
@@ -455,7 +461,18 @@ private fun OutcomeDialog(outcome: ChessOutcome, onPlayAgain: () -> Unit, onExit
         title = { Text(outcome.title, fontWeight = FontWeight.Black, fontSize = chessSp(20)) },
         text = {
             val who = if (outcome.winnerSide != 0) " — ${ChessText.colorName(outcome.winnerSide)}" else ""
-            Text(outcome.detail + who, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = chessSp(14))
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                Image(
+                    painter = painterResource(R.drawable.chess_finish_art),
+                    contentDescription = null,
+                    contentScale = ContentScale.Crop,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .height(116.dp)
+                        .clip(RoundedCornerShape(18.dp)),
+                )
+                Text(outcome.detail + who, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = chessSp(14))
+            }
         },
         confirmButton = { ChessGradientButton(text = "دوباره", onClick = onPlayAgain) },
         dismissButton = { TextButton(onClick = onExit) { Text("خروج") } },
