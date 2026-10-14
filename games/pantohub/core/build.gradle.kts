@@ -7,6 +7,14 @@ kotlin {
     jvmToolchain(17)
 }
 
+// Unique coordinates and jar name on purpose — see the note in `games/chess/core`.
+group = "ir.dorehami.games.pantohub"
+version = "0.1.0"
+
+base {
+    archivesName = "dorehami-games-pantohub-core"
+}
+
 dependencies {
     implementation(libs.kotlinx.serialization.json)
 
