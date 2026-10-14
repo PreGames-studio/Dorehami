@@ -1,5 +1,7 @@
 package ir.dorehami.games.hokm.ui
 
+import android.animation.ValueAnimator
+import android.provider.Settings
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -17,12 +19,15 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.staticCompositionLocalOf
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
@@ -39,6 +44,31 @@ import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.compose.material3.Text
+
+/**
+ * HK-013.a — whether the player has asked the *system* for reduced motion. Provided once at the
+ * Hokm entry/table roots via [rememberHokmReducedMotion]; deep components only read it, so the
+ * player's setting reaches every animation without threading a flag through every call site.
+ * The decision itself is pure ([HokmMotion]); this file only reads the system signals.
+ */
+val LocalHokmReducedMotion = staticCompositionLocalOf { false }
+
+/**
+ * Reads the system reduced-motion signals once for this composition root:
+ * `Settings.Global.ANIMATOR_DURATION_SCALE` and `ValueAnimator.areAnimatorsEnabled()`.
+ * Read defensively — a provider that refuses the setting must never crash the table; it just
+ * leaves normal motion on.
+ */
+@Composable
+fun rememberHokmReducedMotion(): Boolean {
+    val context = LocalContext.current
+    return remember(context) {
+        val scale = runCatching {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+        }.getOrDefault(1f)
+        HokmMotion.isReducedMotion(scale, ValueAnimator.areAnimatorsEnabled())
+    }
+}
 
 /** A shared, high-contrast palette for the Hokm lobby, room and table. */
 object HokmPalette {
@@ -190,9 +220,10 @@ fun Hokm3DButton(
     val shape = RoundedCornerShape(17.dp)
     val interaction = remember { MutableInteractionSource() }
     val isPressed by interaction.collectIsPressedAsState()
+    val reducedMotion = LocalHokmReducedMotion.current
     val pressDepth by animateFloatAsState(
         targetValue = if (isPressed) 1f else 0f,
-        animationSpec = tween(125, easing = FastOutSlowInEasing),
+        animationSpec = tween(HokmMotion.durationMs(125, reducedMotion), easing = FastOutSlowInEasing),
         label = "hokm-button-press",
     )
     val foreground = textColor ?: palette.foreground
@@ -203,16 +234,18 @@ fun Hokm3DButton(
         else -> 13.dp
     }
 
+    // HK-013.a: `height` is a *minimum*, not a cage — at fontScale 200% the label may need more
+    // room than the design height, and the button must grow instead of clipping its text.
     Box(
         modifier = modifier
-            .height(height + 5.dp)
+            .heightIn(min = height + 5.dp)
             .alpha(if (enabled) 1f else 0.58f),
     ) {
         Box(
             Modifier
                 .align(Alignment.BottomCenter)
                 .fillMaxWidth()
-                .height(height)
+                .heightIn(min = height)
                 .clip(shape)
                 .background(palette.base),
         )
@@ -220,7 +253,7 @@ fun Hokm3DButton(
             modifier = Modifier
                 .align(Alignment.TopCenter)
                 .fillMaxWidth()
-                .height(height)
+                .heightIn(min = height)
                 .offset(y = (pressDepth * 4f).dp)
                 .shadow((8f * (1f - pressDepth)).dp, shape)
                 .clip(shape)

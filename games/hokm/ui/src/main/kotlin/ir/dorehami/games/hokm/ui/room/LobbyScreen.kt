@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -87,7 +88,7 @@ fun LobbyScreen(
                     leading = "‹",
                     tone = HokmButtonTone.GLASS,
                     height = 42.dp,
-                    modifier = Modifier.width(104.dp),
+                    modifier = Modifier.widthIn(min = 104.dp),
                     onSound = onTap,
                     onClick = onExit,
                 )
@@ -219,7 +220,7 @@ private fun OnlineChoose(
                 text = "ورود",
                 tone = HokmButtonTone.GOLD,
                 height = 54.dp,
-                modifier = Modifier.width(86.dp),
+                modifier = Modifier.widthIn(min = 86.dp),
                 enabled = code.length == 5,
                 onSound = onTap,
                 onClick = { flow.joinOnline(code) },
