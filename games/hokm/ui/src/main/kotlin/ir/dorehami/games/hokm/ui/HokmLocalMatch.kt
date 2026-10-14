@@ -69,7 +69,7 @@ class HokmLocalMatch(
 
     override fun isFinished(): Boolean = engine.session.phase == Phase.FINISHED
 
-    override fun sendMine(action: GameAction) = onResult(engine.submit(players[mySeat], action), mySeat)
+    override fun sendMine(action: GameAction) = onResult(engine.submit(players[mySeat], action), mySeat, engine.session.version)
 
     override suspend fun botStep(s: HokmUiState, actor: Int): Boolean {
         delay(
@@ -86,7 +86,7 @@ class HokmLocalMatch(
             setError("ربات حرکتی پیدا نکرد")
             delay(1000)
         } else {
-            onResult(r, actor)
+            onResult(r, actor, engine.session.version)
         }
         return true
     }

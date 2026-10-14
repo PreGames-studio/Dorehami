@@ -308,15 +308,15 @@ class HostController(
         for (e in emissions) {
             when (e) {
                 is Emission.Public -> {
-                    _events.tryEmit(SessionEvent.Public(e.type, e.payload))
+                    _events.tryEmit(SessionEvent.Public(e.type, e.payload, eng.session.version))
                     broadcast(Msg.SESSION_EVENT, buildJsonObject { put("kind", "public"); put("type", e.type); put("payload", e.payload) }, eng.session.version)
                 }
                 is Emission.Feed -> {
-                    _events.tryEmit(SessionEvent.Feed(e.key, e.args, e.kind))
+                    _events.tryEmit(SessionEvent.Feed(e.key, e.args, e.kind, eng.session.version))
                     broadcast(Msg.SESSION_EVENT, buildJsonObject { put("kind", "feed"); put("key", e.key); put("args", e.args); put("level", e.kind) }, eng.session.version)
                 }
                 is Emission.Sound -> {
-                    _events.tryEmit(SessionEvent.Sound(e.name))
+                    _events.tryEmit(SessionEvent.Sound(e.name, eng.session.version))
                     broadcast(Msg.SESSION_EVENT, buildJsonObject { put("kind", "sound"); put("name", e.name) }, eng.session.version)
                 }
                 // Private emissions are never broadcast; the full private view goes point-to-point in pushViews.
@@ -354,7 +354,7 @@ class HostController(
                     if (e.session.legalActions(m.player.id).isEmpty()) continue
                     val r = e.submitBot(m.player.id) ?: continue
                     if (r is ApplyResult.Ok) {
-                        _events.tryEmit(SessionEvent.Feed("turn_timeout", buildJsonObject { put("seat", m.seat) }, "warn"))
+                        _events.tryEmit(SessionEvent.Feed("turn_timeout", buildJsonObject { put("seat", m.seat) }, "warn", e.session.version))
                         broadcast(Msg.SESSION_EVENT, buildJsonObject { put("kind", "feed"); put("key", "turn_timeout"); put("args", buildJsonObject { put("seat", m.seat) }); put("level", "warn") }, e.session.version)
                         fanOut(r.emissions)
                     }

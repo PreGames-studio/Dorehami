@@ -125,9 +125,9 @@ class GuestController(
                 room()?.let { r -> _state.value = _state.value.copy(room = r.copy(members = membersFromJson(p["members"]), started = true)) }
             }
             Msg.SESSION_EVENT -> when (p.str("kind")) {
-                "public" -> _events.tryEmit(SessionEvent.Public(p.str("type") ?: return, p.obj("payload") ?: JsonObject(emptyMap())))
-                "feed" -> _events.tryEmit(SessionEvent.Feed(p.str("key") ?: return, p.obj("args") ?: JsonObject(emptyMap()), p.str("level") ?: "info"))
-                "sound" -> _events.tryEmit(SessionEvent.Sound(p.str("name") ?: return))
+                "public" -> _events.tryEmit(SessionEvent.Public(p.str("type") ?: return, p.obj("payload") ?: JsonObject(emptyMap()), env.seq))
+                "feed" -> _events.tryEmit(SessionEvent.Feed(p.str("key") ?: return, p.obj("args") ?: JsonObject(emptyMap()), p.str("level") ?: "info", env.seq))
+                "sound" -> _events.tryEmit(SessionEvent.Sound(p.str("name") ?: return, env.seq))
             }
             Msg.SESSION_FINISHED -> _state.value = _state.value.copy(result = p, phase = "FINISHED")
             Msg.CHAT_EMOJI -> {

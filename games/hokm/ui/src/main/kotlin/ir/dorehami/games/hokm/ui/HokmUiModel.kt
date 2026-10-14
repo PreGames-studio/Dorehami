@@ -105,6 +105,10 @@ data class HokmUiState(
     val stickers: List<SeatSticker> = emptyList(),
     /** Cards on the table right now (kept visible for a moment after a trick closes). */
     val tableCards: List<Play> = emptyList(),
+    /** Which trick `tableCards` belong to — the felt is trick-scoped (HK-010). */
+    val tableTrickNumber: Int = 0,
+    /** Seat sweeping the trick frozen on the felt; null when the felt is calm (HK-010). */
+    val sweepOf: Int? = null,
     /** Seat that is sweeping the current trick, while the collect animation runs. */
     val collectingTo: Int? = null,
     val lastHand: HandSummary? = null,
@@ -132,7 +136,7 @@ data class HokmUiState(
 ) {
     val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
     fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
-    private val calm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
+    private val calm: Boolean get() = !finished && introShown == null && collectingTo == null && sweepOf == null && !dealing && banner == null
     val isMyTurn: Boolean get() = calm && handPhase == HandPhase.PLAYING && turn == mySeat
     val iChooseHokm: Boolean get() = calm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
     val iDiscard: Boolean get() = calm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
@@ -240,21 +244,24 @@ object HokmUiMapper {
      * * game fields update from the snapshot; transient table furniture (stickers, feed, banners,
      *   fx, score-sheet history, room timer meta) survives;
      * * `tableCards` is rebuilt from the snapshot's current trick — **unless** an animation is
-     *   showing those cards (collect / dealing / intro);
+     *   showing those cards (collect / dealing / intro) **or** notices are still queued
+     *   ([feltSync] false): then the notice stream keeps building the felt and the merge only
+     *   updates truth, so a mid-burst resync can neither drop nor duplicate a card (HK-010);
      * * a snapshot older than [HokmUiState.viewVersion] is stale and ignored entirely;
      * * a snapshot for another seat or player count is refused (the table keeps its identity).
      */
-    fun merge(old: HokmUiState, snap: TableSnapshot): HokmUiState {
+    fun merge(old: HokmUiState, snap: TableSnapshot, feltSync: Boolean = true): HokmUiState {
         if (old.viewVersion > 0 && snap.version < old.viewVersion) return old
         if (snap.mySeat != old.mySeat || snap.playerCount != old.playerCount) return old
-        val animating = old.collectingTo != null || old.dealing || old.introShown != null
+        val animating = old.collectingTo != null || old.dealing || old.introShown != null || old.sweepOf != null
+        val feltFromSnapshot = feltSync && !animating
         return old.copy(
             phase = if (snap.finished) Phase.FINISHED else Phase.PLAYING,
             handPhase = snap.handPhase,
             handNumber = snap.handNumber,
             hakem = snap.hakem,
             hokm = snap.hokm,
-            turn = snap.turn,
+            turn = if (old.sweepOf != null || old.collectingTo != null) -1 else snap.turn,
             trickNumber = snap.trickNumber,
             tricksWon = snap.tricksWon,
             scores = snap.scores,
@@ -266,7 +273,8 @@ object HokmUiMapper {
             discardCount = snap.discardCount,
             stockCount = snap.stockCount,
             hakemDraw = snap.hakemDraw,
-            tableCards = if (animating) old.tableCards else snap.currentTrick,
+            tableCards = if (feltFromSnapshot) snap.currentTrick else old.tableCards,
+            tableTrickNumber = if (feltFromSnapshot) snap.trickNumber else old.tableTrickNumber,
             lastHand = snap.lastHand,
             lastTrick = snap.lastTrick,
             lastTrickWinner = snap.lastTrickWinner,

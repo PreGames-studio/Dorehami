@@ -100,6 +100,18 @@ abstract class HokmTable(
     private var pendingDeal = false
     private var started = false
 
+    /**
+     * Versioned FIFO of animation notices (HK-010). Actions enqueue their emissions here; the
+     * loop drains one notice at a time so bursts can never interleave, and duplicate delivery is
+     * refused before any sound can fire twice.
+     */
+    protected val eventQueue = HokmEventQueue()
+
+    /** Enqueues one action's emissions as a notice and wakes the loop. */
+    protected fun offerNotice(version: Long, actor: Int, emissions: List<Emission>) {
+        if (eventQueue.offer(Notice(version, actor, emissions))) wake.trySend(Unit)
+    }
+
     /** Starts the opening animation and the table loop. Safe to call once. */
     fun start() {
         if (started) return
@@ -246,11 +258,13 @@ abstract class HokmTable(
 
     protected suspend fun loop() {
         while (scope.isActive) {
-            // 1) Animations requested by the last action run before anything else moves.
-            if (pendingPauseMs > 0L) {
+            // 1) Animations requested by the last action run before anything else moves. The cycle
+            //    runs whenever any of its pieces is pending — a banner or deal can arrive in its
+            //    own notice (rooms fan out one emission per notice) and must not be stranded.
+            if (pendingPauseMs > 0L || pendingCollect != null || pendingHandBanner != null || pendingDeal) {
                 val ms = pendingPauseMs
                 pendingPauseMs = 0L
-                delay(ms)
+                if (ms > 0L) delay(ms)
                 pendingCollect?.let { winner ->
                     pendingCollect = null
                     _state.value = _state.value.copy(collectingTo = winner)
@@ -258,7 +272,7 @@ abstract class HokmTable(
                     onSound(if (HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)) "trick_won" else "trick_lost")
                     pushFx(FxKind.TRICK_WIN, winner, 900)
                     delay(COLLECT_MS)
-                    _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
+                    _state.value = HokmPacing.onTrickCollected(_state.value)
                     refresh()
                 }
                 pendingHandBanner?.let { banner ->
@@ -286,7 +300,18 @@ abstract class HokmTable(
                 continue
             }
 
-            // 2) Whose move?
+            // 2) Drain the versioned notice queue one notice at a time (HK-010). Effects play at
+            //    their own pace; the loop never runs a move while animation work is pending. A
+            //    refresh follows every notice so truth (hand/turn) stays current mid-burst — the
+            //    merge only rebuilds the felt when the queue has emptied (see [HokmUiMapper.merge]).
+            val notice = eventQueue.poll()
+            if (notice != null) {
+                handleEmissions(notice.emissions, notice.actor)
+                refresh()
+                continue
+            }
+
+            // 3) Whose move?
             val s = _state.value
             val actor = if (s.handPhase == HandPhase.CHOOSING_HOKM) s.hakem else s.turn
             if (actor !in 0 until playerCount) {
@@ -299,7 +324,7 @@ abstract class HokmTable(
                 continue
             }
 
-            // 3) Someone else's move: locally that is a bot (with a human-like pause); in a room the
+            // 4) Someone else's move: locally that is a bot (with a human-like pause); in a room the
             //    host drives it and we simply wait for the next event.
             if (!botStep(s, actor)) {
                 wake.receive()
@@ -307,15 +332,15 @@ abstract class HokmTable(
         }
     }
 
-    protected fun onResult(r: ApplyResult, actor: Int) {
+    /**
+     * An action completed ([r] from [actor] at the session `version` it produced). Ok results are
+     * enqueued as versioned notices — never applied inline — so a burst of actions animates one
+     * at a time and a redelivered action is refused before its sounds can double (HK-010).
+     */
+    protected fun onResult(r: ApplyResult, actor: Int, version: Long) {
         when (r) {
             is ApplyResult.Rejected -> setError(r.messageFa)
-            is ApplyResult.Ok -> {
-                handleEmissions(r.emissions, actor)
-                // While a trick/hand animation is pending the table keeps showing the old state;
-                // the loop refreshes once the animation is over.
-                if (pendingPauseMs == 0L) refresh()
-            }
+            is ApplyResult.Ok -> offerNotice(version, actor, r.emissions)
         }
     }
 
@@ -347,20 +372,25 @@ abstract class HokmTable(
                             pushFx(FxKind.CUT, seat)
                             feed += "${seats[seat].name} با حکم برید!"
                         }
-                        _state.value = cur.copy(
-                            tableCards = cur.tableCards + Play(seat, card),
-                            myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
-                            legalCards = if (seat == mySeat) emptySet() else cur.legalCards,
-                            // While a closed trick sits on the table nobody is "on turn".
-                            turn = if (cur.tableCards.size + 1 >= playerCount) -1 else HokmRules.nextSeat(seat, playerCount),
-                        )
+                        // Presentation never writes results (HK-010): only the felt display is
+                        // updated here, idempotently. myHand/legalCards/turn come from the next
+                        // snapshot merge — a re-delivered card cannot duplicate or lose a card.
+                        val trickNumber = e.payload["trickNumber"]?.jsonPrimitive?.int ?: cur.tableTrickNumber
+                        _state.value = HokmPacing.onCardPlayed(cur, seat, card, trickNumber)
                     }
 
                     "trick_won" -> {
                         val winner = e.payload["winner"]!!.jsonPrimitive.int
-                        pendingCollect = winner
-                        pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
-                        feed += "${seats[winner].name} ترفند را برد"
+                        val before = _state.value
+                        val after = HokmPacing.onTrickWon(before, winner)
+                        _state.value = after
+                        // Only a sweep that actually owns the felt schedules the collect cycle;
+                        // superseded/stale wins change nothing.
+                        if (after.sweepOf != before.sweepOf) {
+                            pendingCollect = winner
+                            pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
+                            feed += "${seats[winner].name} ترفند را برد"
+                        }
                     }
 
                     "hand_finished" -> {
@@ -381,7 +411,7 @@ abstract class HokmTable(
                         }
                         val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
                         pendingHandBanner = Banner(title, subtitle, big = true)
-                        _state.value = _state.value.copy(handHistory = _state.value.handHistory + summary)
+                        _state.value = HokmPacing.recordHand(_state.value, summary)
                         if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
                             scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
                         }
@@ -461,12 +491,16 @@ abstract class HokmTable(
      * Re-reads the human's private view through the typed [HokmUiMapper] boundary. Incomplete or
      * inconsistent views are refused (the table keeps its previous state) and stale views are
      * ignored by [HokmUiMapper.merge]. The screen never sees anything beyond this.
+     *
+     * HK-010: while notices are still queued, the merge updates truth only — the felt keeps being
+     * built by the notice stream (no card is dropped or doubled by a mid-burst resync). The felt
+     * is rebuilt from the snapshot once the queue has emptied.
      */
     protected fun refresh() {
         val v = privateView() ?: return
         when (val mapped = HokmUiMapper.map(v)) {
             is MappedView.Rejected -> setError(mapped.messageFa)
-            is MappedView.Valid -> _state.value = HokmUiMapper.merge(_state.value, mapped.snapshot)
+            is MappedView.Valid -> _state.value = HokmUiMapper.merge(_state.value, mapped.snapshot, feltSync = eventQueue.isEmpty)
         }
     }
 }
