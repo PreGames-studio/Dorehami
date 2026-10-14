@@ -105,8 +105,21 @@ enum class SpecialCard(val titleFa: String, val descriptionFa: String) {
     EXTRA_TIME("۱۵ ثانیه فرصت", "۱۵ ثانیه به زمان همین نوبت اضافه می‌شود."),
 }
 
+/**
+ * How a group match flows. SPEEDY keeps guessing words until the turn timer ends;
+ * NORMAL ends the turn after one correct guess (skips keep the turn going).
+ * The per-turn difficulty/category choice of NORMAL is a UI concern; the engine
+ * only records which mode the match was created with.
+ */
+@Serializable
+enum class PlayMode(val labelFa: String) {
+    SPEEDY("سرعتی"),
+    NORMAL("عادی"),
+}
+
 @Serializable
 data class GameSettings(
+    val playMode: PlayMode = PlayMode.SPEEDY,
     val turnSeconds: Int = 60,
     val roundsPerTeam: Int = 3,
     val allowedDifficulties: Set<Difficulty> = Difficulty.entries.toSet(),

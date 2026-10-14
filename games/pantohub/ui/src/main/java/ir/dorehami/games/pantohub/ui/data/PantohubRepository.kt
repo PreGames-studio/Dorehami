@@ -468,8 +468,8 @@ class PantohubRepository(context: Context) {
         const val DB_VERSION = 1
         const val SEED_ASSET = "pantohub-words-fa.csv"
         const val SEED_MARKER = "bootstrap_words"
-        const val SEED_VERSION = "curated-bootstrap-v3"
-        const val SEED_RECORD_COUNT = 2_500
+        const val SEED_VERSION = "curated-bootstrap-v4"
+        const val SEED_RECORD_COUNT = 5_000
         const val STATUS_ACTIVE = "ACTIVE"
         const val STATUS_FINISHED = "FINISHED"
         const val STATUS_ABANDONED = "ABANDONED"

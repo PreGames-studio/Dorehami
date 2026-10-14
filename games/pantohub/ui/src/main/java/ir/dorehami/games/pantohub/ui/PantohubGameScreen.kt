@@ -11,6 +11,7 @@ import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -58,12 +59,17 @@ import androidx.compose.ui.unit.dp
 import ir.dorehami.games.pantohub.GameAction
 import ir.dorehami.games.pantohub.GameActionResult
 import ir.dorehami.games.pantohub.GameMoment
+import ir.dorehami.games.pantohub.Difficulty
 import ir.dorehami.games.pantohub.GamePhase
+import ir.dorehami.games.pantohub.GameSettings
+import ir.dorehami.games.pantohub.PlayMode
+import ir.dorehami.games.pantohub.WordCategories
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.PantohubEngine
 import ir.dorehami.games.pantohub.SpecialCard
 import ir.dorehami.games.pantohub.TurnProgress
 import ir.dorehami.games.pantohub.WordOutcome
+import ir.dorehami.games.pantohub.WordRecord
 import ir.dorehami.games.pantohub.WordSelectionResult
 import ir.dorehami.games.pantohub.ui.data.PantohubRepository
 import kotlinx.coroutines.Dispatchers
@@ -140,10 +146,29 @@ internal fun PantohubGameScreen(
         }
     }
 
+    // NORMAL mode: the acting player picks this turn's difficulty and category first.
+    var turnDifficulty by remember(state.id) { mutableStateOf(Difficulty.MEDIUM) }
+    var turnCategory by remember(state.id) { mutableStateOf<String?>(null) }
+    var turnCategories by remember(state.id) { mutableStateOf<List<String>>(emptyList()) }
+    val isNormalMode = state.settings.playMode == PlayMode.NORMAL
+    LaunchedEffect(state.id) {
+        turnCategories = runCatching { withContext(Dispatchers.IO) { repository.listCategories() } }
+            .getOrDefault(emptyList())
+    }
+
+    fun pickSettings(): GameSettings = if (isNormalMode) {
+        state.settings.copy(
+            allowedDifficulties = setOf(turnDifficulty),
+            allowedCategories = turnCategory?.let { setOf(it) } ?: emptySet(),
+        )
+    } else {
+        state.settings
+    }
+
     fun startNextTurn() {
         val current = latestState
         scope.launch {
-            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
+            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(pickSettings(), current.usedWordIds) } }
             if (selection.isFailure) {
                 errorMessage = "واژه بارگذاری نشد؛ فضای ذخیره‌سازی را بررسی کن."
                 return@launch
@@ -156,8 +181,44 @@ internal fun PantohubGameScreen(
         }
     }
 
+
+    // The next word is prefetched as soon as a word becomes current, so scoring a
+    // word dispatches immediately on tap — the same synchronous path as Reveal/Hide.
+    var nextWord by remember { mutableStateOf<WordRecord?>(null) }
+    var nextWordReady by remember { mutableStateOf(false) }
+    LaunchedEffect(state.id, state.currentTurn?.currentWord?.id, state.phase) {
+        nextWord = null
+        nextWordReady = false
+        if (state.phase == GamePhase.RUNNING && state.currentTurn?.currentWord != null) {
+            val used = state.usedWordIds
+            val result = runCatching { withContext(Dispatchers.IO) { repository.pickWord(pickSettings(), used) } }
+            nextWord = (result.getOrNull() as? WordSelectionResult.Selected)?.word
+            nextWordReady = true
+        }
+    }
+
     fun resolve(outcome: WordOutcome) {
         val current = latestState
+        if (nextWordReady) {
+            val result = dispatch(
+                GameAction.ResolveWord(
+                    current.version,
+                    outcome,
+                    if (isNormalMode && outcome == WordOutcome.CORRECT) null else nextWord,
+                    gameMoment(),
+                ),
+            )
+            if (result != null && isNormalMode && outcome == WordOutcome.CORRECT && result.phase == GamePhase.RUNNING) {
+                dispatch(GameAction.EndTurn(result.version, gameMoment()))
+            }
+            if (result != null && outcome == WordOutcome.CORRECT && current.settings.soundEnabled) {
+                tone?.startTone(ToneGenerator.TONE_PROP_ACK, 110)
+            }
+            if (result != null && nextWord == null && result.phase == GamePhase.RUNNING) {
+                errorMessage = "واژهٔ دیگری مطابق فیلترهای این بازی پیدا نشد. سطح یا دسته را آگاهانه تغییر بده؛ انتخاب خودکار جایگزین انجام نشد."
+            }
+            return
+        }
         scope.launch {
             val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
             if (selection.isFailure) {
@@ -165,12 +226,12 @@ internal fun PantohubGameScreen(
                 return@launch
             }
             val pick = selection.getOrThrow()
-            val nextWord = (pick as? WordSelectionResult.Selected)?.word
-            val result = dispatch(GameAction.ResolveWord(current.version, outcome, nextWord, gameMoment()))
+            val picked = (pick as? WordSelectionResult.Selected)?.word
+            val result = dispatch(GameAction.ResolveWord(current.version, outcome, picked, gameMoment()))
             if (result != null && outcome == WordOutcome.CORRECT && current.settings.soundEnabled) {
                 tone?.startTone(ToneGenerator.TONE_PROP_ACK, 110)
             }
-            if (result != null && nextWord == null && result.phase == GamePhase.RUNNING) {
+            if (result != null && picked == null && result.phase == GamePhase.RUNNING) {
                 errorMessage = "واژهٔ دیگری مطابق فیلترهای این بازی پیدا نشد. سطح یا دسته را آگاهانه تغییر بده؛ انتخاب خودکار جایگزین انجام نشد."
             }
         }
@@ -219,7 +280,9 @@ internal fun PantohubGameScreen(
                     remainingMs = remaining,
                     remainingSeconds = remainingSeconds,
                     storageError = storageError,
+                    errorMessage = errorMessage,
                     onHide = { dispatch(GameAction.HideWord(latestState.version, gameMoment())) },
+                    onResolve = ::resolve,
                 )
             } else {
                 Column(
@@ -254,6 +317,16 @@ internal fun PantohubGameScreen(
                                         Text("دور ${(done + 1).toString().toPersianDigits()} از ${state.settings.roundsPerTeam.toString().toPersianDigits()}")
                                     } else {
                                         Text("هر تیم واجد شرایط یک نوبت اضافه می‌گیرد؛ ضریب امتیاز ${state.settings.finalRoundMultiplier.toString().toPersianDigits()} برابر است.")
+                                    }
+                                    if (isNormalMode) {
+                                        Spacer(Modifier.height(14.dp))
+                                        NormalTurnChoices(
+                                            difficulty = turnDifficulty,
+                                            onDifficulty = { turnDifficulty = it },
+                                            category = turnCategory,
+                                            categories = turnCategories,
+                                            onCategory = { turnCategory = it },
+                                        )
                                     }
                                     Spacer(Modifier.height(16.dp))
                                     Button(onClick = ::startNextTurn, modifier = Modifier.fillMaxWidth()) {
@@ -379,6 +452,54 @@ internal fun PantohubGameScreen(
     }
 }
 
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun NormalTurnChoices(
+    difficulty: Difficulty,
+    onDifficulty: (Difficulty) -> Unit,
+    category: String?,
+    categories: List<String>,
+    onCategory: (String?) -> Unit,
+) {
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+        Text("سختی این نوبت", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            Difficulty.entries.forEach { level ->
+                FilterChip(
+                    colors = pantohubChipColors(PantohubTint.Mint),
+                    selected = difficulty == level,
+                    onClick = { onDifficulty(level) },
+                    label = { Text(level.labelFa) },
+                )
+            }
+        }
+        Text("موضوع این نوبت", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+            FilterChip(
+                colors = pantohubChipColors(PantohubTint.Mint),
+                selected = category == null,
+                onClick = { onCategory(null) },
+                label = { Text("همهٔ موضوعات") },
+            )
+        }
+        categories.chunked(2).forEach { row ->
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                row.forEach { item ->
+                    FilterChip(
+                        colors = pantohubChipColors(PantohubTint.Mint),
+                        selected = category == item,
+                        onClick = { onCategory(item) },
+                        label = { Text(WordCategories.labelFa(item)) },
+                        modifier = Modifier.weight(1f),
+                    )
+                }
+                if (row.size == 1) Spacer(Modifier.weight(1f))
+            }
+        }
+    }
+}
+
 @Composable
 private fun SecretWordScreen(
     modifier: Modifier,
@@ -387,7 +508,9 @@ private fun SecretWordScreen(
     remainingMs: Long,
     remainingSeconds: Int,
     storageError: String?,
+    errorMessage: String?,
     onHide: () -> Unit,
+    onResolve: (WordOutcome) -> Unit,
 ) {
     val window = LocalContext.current.findActivity()?.window
     val hadSecureFlag = window != null && (window.attributes.flags and WindowManager.LayoutParams.FLAG_SECURE) != 0
@@ -404,10 +527,15 @@ private fun SecretWordScreen(
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         storageError?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall) }
+        errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium, textAlign = TextAlign.Center) }
         Text("${turn.playerName}  •  فقط اجراکننده نگاه کند", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold, textAlign = TextAlign.Center)
         TimerView(state, remainingMs, remainingSeconds)
         val wordCard: @Composable () -> Unit = {
-            Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(PantohubDesign.Radius.CardLarge),
+                border = BorderStroke(1.5.dp, PantohubDesign.Violet.copy(alpha = 0.65f)),
+            ) {
                 Column(Modifier.padding(24.dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Text(turn.currentWord?.difficulty?.labelFa.orEmpty(), style = MaterialTheme.typography.labelLarge)
                     Spacer(Modifier.height(8.dp))
@@ -434,10 +562,23 @@ private fun SecretWordScreen(
         } else {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { wordCard() }
         }
-        Button(onClick = onHide, modifier = Modifier.fillMaxWidth().height(64.dp)) {
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { onResolve(WordOutcome.CORRECT) },
+                modifier = Modifier.weight(1f).height(56.dp),
+            ) { Text("حدس درست") }
+            if (state.settings.allowSkip) {
+                OutlinedButton(
+                    onClick = { onResolve(WordOutcome.SKIPPED) },
+                    enabled = turn.skippedWords < state.settings.maxSkipsPerTurn,
+                    modifier = Modifier.weight(1f).height(56.dp),
+                ) { Text("رد واژه") }
+            }
+        }
+        Button(onClick = onHide, modifier = Modifier.fillMaxWidth().height(56.dp)) {
             Text("پوشاندن سریع واژه")
         }
-        Text("برای ثبت پاسخ، ابتدا واژه را بپوشان و گوشی را برگردان.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+        Text("نتیجه را همین‌جا ثبت کن؛ واژهٔ بعدی خودکار پوشیده نمایش داده می‌شود.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
     }
 }
 
@@ -449,7 +590,7 @@ private fun TimerView(state: GameState, remainingMs: Long, remainingSeconds: Int
             progress = { (remainingMs.toFloat() / (durationSeconds * 1_000f)).coerceIn(0f, 1f) },
             modifier = Modifier.size(104.dp),
             strokeWidth = 7.dp,
-            color = if (remainingSeconds <= 10) MaterialTheme.colorScheme.error else MaterialTheme.colorScheme.primary,
+            color = if (remainingSeconds <= 10) PantohubDesign.Orange else PantohubDesign.Teal,
         )
         Text(formatClock(remainingSeconds), style = MaterialTheme.typography.headlineMedium, fontWeight = FontWeight.Bold)
     }

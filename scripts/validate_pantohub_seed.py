@@ -8,8 +8,8 @@ from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 SEED = ROOT / "games/pantohub/ui/src/main/assets/pantohub-words-fa.csv"
-EXPECTED_COUNT = 2_500
-EXPECTED_DIFFICULTY_COUNTS = {"EASY": 1_000, "MEDIUM": 900, "HARD": 600}
+EXPECTED_COUNT = 5_000
+EXPECTED_DIFFICULTY_COUNTS = {"EASY": 2_000, "MEDIUM": 1_800, "HARD": 1_200}
 EXPECTED_CATEGORIES = {
     "animals", "nature", "home", "objects", "food", "jobs", "sports", "actions",
     "emotions", "places", "transport", "cinema", "literature", "idioms", "technology",
@@ -109,8 +109,10 @@ def main() -> None:
             expected_version = "curated-bootstrap-v1"
         elif line_number <= 1001:
             expected_version = "curated-bootstrap-v2"
-        else:
+        elif line_number <= 2501:
             expected_version = "curated-bootstrap-v3"
+        else:
+            expected_version = "curated-bootstrap-v4"
         if source_version != expected_version:
             fail(f"unexpected source version at CSV line {line_number}: {source_version!r}")
         expected_id = f"seed-{line_number - 1:03d}"
