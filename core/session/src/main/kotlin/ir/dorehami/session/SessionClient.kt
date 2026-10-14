@@ -17,9 +17,9 @@ data class RoomInfo(
 
 /** Things that happen once (feed lines, sounds, public game emissions, reactions). */
 sealed interface SessionEvent {
-    data class Feed(val key: String, val args: JsonObject, val kind: String) : SessionEvent
-    data class Sound(val name: String) : SessionEvent
-    data class Public(val type: String, val payload: JsonObject) : SessionEvent
+    data class Feed(val key: String, val args: JsonObject, val kind: String = "info", val seq: Long = 0) : SessionEvent
+    data class Sound(val name: String, val seq: Long = 0) : SessionEvent
+    data class Public(val type: String, val payload: JsonObject, val seq: Long = 0) : SessionEvent
     data class Emoji(val from: PlayerId, val id: String) : SessionEvent
     data class Error(val code: String, val messageFa: String) : SessionEvent
 }

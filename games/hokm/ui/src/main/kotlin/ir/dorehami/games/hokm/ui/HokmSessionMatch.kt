@@ -80,11 +80,13 @@ class HokmSessionMatch(
 
     private fun onEvent(e: SessionEvent) {
         when (e) {
+            // Events are enqueued as versioned notices (HK-010) — the wire `seq` is the host's
+            // session version, shared with snapshots, so bursts and resyncs stay aligned.
             is SessionEvent.Public -> {
                 val actor = e.payload["seat"]?.jsonPrimitive?.intOrNull ?: e.payload["hakem"]?.jsonPrimitive?.intOrNull ?: -1
-                handleEmissions(listOf(Emission.Public(e.type, e.payload)), actor)
+                offerNotice(e.seq, actor, listOf(Emission.Public(e.type, e.payload)))
             }
-            is SessionEvent.Sound -> handleEmissions(listOf(Emission.Sound(e.name)), -1)
+            is SessionEvent.Sound -> offerNotice(e.seq, -1, listOf(Emission.Sound(e.name)))
             is SessionEvent.Emoji -> seatOfPlayer[e.from.value]?.takeIf { it != mySeat }?.let { showRemoteSticker(it, e.id) }
             is SessionEvent.Error -> setError(e.messageFa)
             is SessionEvent.Feed -> Unit

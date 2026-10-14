@@ -100,7 +100,17 @@ class RoomHubTest {
                     val a = move(ga); val b = move(gb); delay(if (a || b) 15 else 5)
                 }
             }
-            assertNotNull(store.get("ROOM1"), "record persisted on finish")
+            // The guests can observe SESSION_FINISHED a hair before the host's own bookkeeping
+            // (store.save) lands — on a busy CI runner the assert below raced that hop and
+            // flaked. Bounded poll keeps the product requirement exact: the record MUST land.
+            var stored = store.get("ROOM1")
+            withTimeout(10_000) {
+                while (stored == null) {
+                    delay(10)
+                    stored = store.get("ROOM1")
+                }
+            }
+            assertNotNull(stored, "record persisted on finish")
             assertEquals(ga.state.value.result!!["result"].toString(), gb.state.value.result!!["result"].toString())
             hub.reap()
             assertNull(hub.get("ROOM1"), "finished room reaped")

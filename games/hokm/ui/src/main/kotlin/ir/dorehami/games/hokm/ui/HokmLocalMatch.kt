@@ -1,9 +1,11 @@
 package ir.dorehami.games.hokm.ui
 
+import ir.dorehami.gamesdk.ApplyResult
 import ir.dorehami.gamesdk.GameAction
 import ir.dorehami.gamesdk.GameConfig
 import ir.dorehami.gamesdk.GameEngine
 import ir.dorehami.gamesdk.ManualClock
+import ir.dorehami.gamesdk.MatchRecord
 import ir.dorehami.gamesdk.Phase
 import ir.dorehami.gamesdk.SplitMixRng
 import ir.dorehami.games.hokm.HandPhase
@@ -28,6 +30,16 @@ class HokmLocalMatch(
     seed: Long,
     botLevel: String = HokmModule.BOT_PRO,
     onSound: (String) -> Unit,
+    /**
+     * HK-011: a previously saved match rebuilt by [HokmSave.load] (deterministic replay).
+     * `null` starts a fresh match from [seed]. Passing the engine keeps rotation and process
+     * death on the exact same deal, hand and turn instead of silently restarting.
+     */
+    restored: GameEngine? = null,
+    /** HK-011: called once at construction and after every accepted action to persist the record. */
+    private val onPersist: ((MatchRecord) -> Unit)? = null,
+    /** HK-011: a safe error to show when a previous save could not be trusted. */
+    initialError: String? = null,
 ) : HokmTable(
     scope = scope,
     seats = (0 until playerCount).map { seat ->
@@ -44,7 +56,7 @@ class HokmLocalMatch(
 
     private val players = listOf(PlayerId("p_me"), PlayerId("p_bot1"), PlayerId("p_bot2"), PlayerId("p_bot3")).take(playerCount)
 
-    private val engine: GameEngine = GameEngine.start(
+    private val engine: GameEngine = restored ?: GameEngine.start(
         HokmModule,
         GameConfig(
             seed = seed,
@@ -59,17 +71,30 @@ class HokmLocalMatch(
     )
 
     init {
-        _state.value = _state.value.copy(modeLabel = if (botLevel == HokmModule.BOT_EASY) "ربات ساده" else "ربات حرفه‌ای")
+        _state.value = _state.value.copy(
+            modeLabel = if (botLevel == HokmModule.BOT_EASY) "ربات ساده" else "ربات حرفه‌ای",
+            error = initialError,
+        )
+        // Persist right away so the seed survives a rotation made before the first move.
+        onPersist?.invoke(engine.record())
     }
 
     /** The record of this match so far (for saving / verification later). */
     fun record() = engine.record()
 
+    private fun persist() {
+        onPersist?.invoke(engine.record())
+    }
+
     override fun privateView(): JsonObject = engine.session.privateView(players[mySeat])
 
     override fun isFinished(): Boolean = engine.session.phase == Phase.FINISHED
 
-    override fun sendMine(action: GameAction) = onResult(engine.submit(players[mySeat], action), mySeat)
+    override fun sendMine(action: GameAction) {
+        val r = engine.submit(players[mySeat], action)
+        if (r is ApplyResult.Ok) persist()
+        onResult(r, mySeat, engine.session.version)
+    }
 
     override suspend fun botStep(s: HokmUiState, actor: Int): Boolean {
         delay(
@@ -86,7 +111,8 @@ class HokmLocalMatch(
             setError("ربات حرکتی پیدا نکرد")
             delay(1000)
         } else {
-            onResult(r, actor)
+            if (r is ApplyResult.Ok) persist()
+            onResult(r, actor, engine.session.version)
         }
         return true
     }

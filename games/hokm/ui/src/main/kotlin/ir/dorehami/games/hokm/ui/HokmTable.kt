@@ -5,14 +5,12 @@ import androidx.compose.runtime.mutableStateOf
 import ir.dorehami.gamesdk.ApplyResult
 import ir.dorehami.gamesdk.Emission
 import ir.dorehami.gamesdk.GameAction
-import ir.dorehami.gamesdk.Phase
 import ir.dorehami.gamesdk.view
 import ir.dorehami.games.hokm.Card
 import ir.dorehami.games.hokm.HandPhase
 import ir.dorehami.games.hokm.HandWinKind
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.HokmRules
-import ir.dorehami.games.hokm.HokmSession
 import ir.dorehami.games.hokm.Play
 import ir.dorehami.games.hokm.Suit
 import ir.dorehami.uikit.toFa
@@ -24,132 +22,11 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
-/** A player as drawn on the table. */
-data class SeatInfo(val seat: Int, val name: String, val isBot: Boolean)
+/** The table's model types live in [HokmUiModel.kt] (pure Kotlin, JVM-testable). */
 
-/** Result of the last finished hand, as the UI needs it. */
-data class HandSummary(
-    val handNumber: Int,
-    /** `null` for a void three-player hand. */
-    val winnerTeam: Int?,
-    val points: Int,
-    val kind: HandWinKind,
-    val hakem: Int,
-    val tricks: List<Int>,
-    val hokm: Suit? = null,
-)
-
-/** A sticker shown in a bubble over a seat. */
-data class Sticker(val id: String, val emoji: String, val captionFa: String)
-
-/** All stickers available in the tray; ids are what travels over the wire later. */
-object Stickers {
-    val all = listOf(
-        Sticker("clap", "👏", "آفرین!"),
-        Sticker("laugh", "😂", "خنده‌دار بود"),
-        Sticker("cool", "😎", "حرفه‌ای"),
-        Sticker("angry", "😤", "اَه!"),
-        Sticker("think", "🤔", "صبر کن…"),
-        Sticker("fire", "🔥", "ترکوندی"),
-        Sticker("crown", "👑", "حاکم منم"),
-        Sticker("heart", "❤️", "دمت گرم"),
-        Sticker("cry", "😭", "باختیم…"),
-        Sticker("fast", "⏱️", "زود باش!"),
-        Sticker("tea", "🍵", "یه چایی بزنیم"),
-        Sticker("gg", "🤝", "بازی خوبی بود"),
-    )
-
-    fun byId(id: String): Sticker? = all.firstOrNull { it.id == id }
-}
-
-/** A sticker currently visible over [seat]; [stamp] makes repeated identical stickers re-animate. */
-data class SeatSticker(val seat: Int, val sticker: Sticker, val stamp: Long)
-
-/** Something transient to say on the table (feed line / banner). */
-data class Banner(val title: String, val subtitle: String? = null, val big: Boolean = false)
-
-/** One-shot visual effects the screen renders on top of the table. */
-enum class FxKind {
-    /** A trump was thrown on a non-trump lead ("بریدن"): golden flash + sparks at that seat's slot. */
-    CUT,
-    /** Trick swept: a small sparkle at the winner. */
-    TRICK_WIN,
-    /** Kot / hakem kot: a big burst in the middle. */
-    KOT,
-    /** Match won by my side: confetti. */
-    CONFETTI,
-}
-
-data class TableFx(val kind: FxKind, val seat: Int, val stamp: Long)
-
-/**
- * Everything the screen draws. Built **only** from the human player's `privateView()` plus the
- * UI-side animation bookkeeping — the screen never touches the session.
- */
-data class HokmUiState(
-    val seats: List<SeatInfo> = emptyList(),
-    val playerCount: Int = 4,
-    val mySeat: Int = 0,
-    val phase: Phase = Phase.PLAYING,
-    val handPhase: HandPhase = HandPhase.CHOOSING_HOKM,
-    val handNumber: Int = 1,
-    val hakem: Int = 0,
-    val hokm: Suit? = null,
-    val turn: Int = 0,
-    val trickNumber: Int = 0,
-    val tricksWon: List<Int> = listOf(0, 0),
-    val scores: List<Int> = listOf(0, 0),
-    val targetPoints: Int = 7,
-    val handCounts: List<Int> = listOf(0, 0, 0, 0),
-    val myHand: List<Card> = emptyList(),
-    val legalCards: Set<Card> = emptySet(),
-    /** Two-player: the stock card shown to me while I decide keep/pass. */
-    val revealed: Card? = null,
-    /** Two-player: how many cards I must burn right now (0 = not my burn turn). */
-    val discardCount: Int = 0,
-    val stockCount: Int = 0,
-    /** Cards I have tapped so far while burning. */
-    val selectedForDiscard: Set<Card> = emptySet(),
-    val stickers: List<SeatSticker> = emptyList(),
-    /** Cards on the table right now (kept visible for a moment after a trick closes). */
-    val tableCards: List<Play> = emptyList(),
-    /** Seat that is sweeping the current trick, while the collect animation runs. */
-    val collectingTo: Int? = null,
-    val lastHand: HandSummary? = null,
-    val banner: Banner? = null,
-    val hakemDraw: List<Play> = emptyList(),
-    /** How many of [hakemDraw] are face-up during the opening animation (`null` = intro finished). */
-    val introShown: Int? = null,
-    val dealing: Boolean = false,
-    val error: String? = null,
-    val finished: Boolean = false,
-    val winnerTeam: Int? = null,
-    val feed: List<String> = emptyList(),
-    val fx: List<TableFx> = emptyList(),
-    /** Every finished hand so far (score sheet). */
-    val handHistory: List<HandSummary> = emptyList(),
-    val lastTrick: List<Play> = emptyList(),
-    val lastTrickWinner: Int? = null,
-    /** Wall-clock deadline for the current human move in rooms (0 = no timer). */
-    val turnDeadlineMs: Long = 0L,
-    val turnSeconds: Int = 0,
-    /** Short label of the game mode shown in the score bar ("ربات", "بلوتوث", "آنلاین"). */
-    val modeLabel: String = "",
-) {
-    val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
-    fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
-    private val calm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
-    val isMyTurn: Boolean get() = calm && handPhase == HandPhase.PLAYING && turn == mySeat
-    val iChooseHokm: Boolean get() = calm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
-    val iDiscard: Boolean get() = calm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
-    val iDraw: Boolean get() = calm && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
-    val isTeamGame: Boolean get() = playerCount == 4
-}
 
 /**
  * The table's state machine: turns the private view + emissions into [HokmUiState] with the pacing
@@ -222,6 +99,18 @@ abstract class HokmTable(
     private var pendingHandBanner: Banner? = null
     private var pendingDeal = false
     private var started = false
+
+    /**
+     * Versioned FIFO of animation notices (HK-010). Actions enqueue their emissions here; the
+     * loop drains one notice at a time so bursts can never interleave, and duplicate delivery is
+     * refused before any sound can fire twice.
+     */
+    protected val eventQueue = HokmEventQueue()
+
+    /** Enqueues one action's emissions as a notice and wakes the loop. */
+    protected fun offerNotice(version: Long, actor: Int, emissions: List<Emission>) {
+        if (eventQueue.offer(Notice(version, actor, emissions))) wake.trySend(Unit)
+    }
 
     /** Starts the opening animation and the table loop. Safe to call once. */
     fun start() {
@@ -369,11 +258,13 @@ abstract class HokmTable(
 
     protected suspend fun loop() {
         while (scope.isActive) {
-            // 1) Animations requested by the last action run before anything else moves.
-            if (pendingPauseMs > 0L) {
+            // 1) Animations requested by the last action run before anything else moves. The cycle
+            //    runs whenever any of its pieces is pending — a banner or deal can arrive in its
+            //    own notice (rooms fan out one emission per notice) and must not be stranded.
+            if (pendingPauseMs > 0L || pendingCollect != null || pendingHandBanner != null || pendingDeal) {
                 val ms = pendingPauseMs
                 pendingPauseMs = 0L
-                delay(ms)
+                if (ms > 0L) delay(ms)
                 pendingCollect?.let { winner ->
                     pendingCollect = null
                     _state.value = _state.value.copy(collectingTo = winner)
@@ -381,7 +272,7 @@ abstract class HokmTable(
                     onSound(if (HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)) "trick_won" else "trick_lost")
                     pushFx(FxKind.TRICK_WIN, winner, 900)
                     delay(COLLECT_MS)
-                    _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
+                    _state.value = HokmPacing.onTrickCollected(_state.value)
                     refresh()
                 }
                 pendingHandBanner?.let { banner ->
@@ -409,7 +300,18 @@ abstract class HokmTable(
                 continue
             }
 
-            // 2) Whose move?
+            // 2) Drain the versioned notice queue one notice at a time (HK-010). Effects play at
+            //    their own pace; the loop never runs a move while animation work is pending. A
+            //    refresh follows every notice so truth (hand/turn) stays current mid-burst — the
+            //    merge only rebuilds the felt when the queue has emptied (see [HokmUiMapper.merge]).
+            val notice = eventQueue.poll()
+            if (notice != null) {
+                handleEmissions(notice.emissions, notice.actor)
+                refresh()
+                continue
+            }
+
+            // 3) Whose move?
             val s = _state.value
             val actor = if (s.handPhase == HandPhase.CHOOSING_HOKM) s.hakem else s.turn
             if (actor !in 0 until playerCount) {
@@ -422,7 +324,7 @@ abstract class HokmTable(
                 continue
             }
 
-            // 3) Someone else's move: locally that is a bot (with a human-like pause); in a room the
+            // 4) Someone else's move: locally that is a bot (with a human-like pause); in a room the
             //    host drives it and we simply wait for the next event.
             if (!botStep(s, actor)) {
                 wake.receive()
@@ -430,15 +332,15 @@ abstract class HokmTable(
         }
     }
 
-    protected fun onResult(r: ApplyResult, actor: Int) {
+    /**
+     * An action completed ([r] from [actor] at the session `version` it produced). Ok results are
+     * enqueued as versioned notices — never applied inline — so a burst of actions animates one
+     * at a time and a redelivered action is refused before its sounds can double (HK-010).
+     */
+    protected fun onResult(r: ApplyResult, actor: Int, version: Long) {
         when (r) {
             is ApplyResult.Rejected -> setError(r.messageFa)
-            is ApplyResult.Ok -> {
-                handleEmissions(r.emissions, actor)
-                // While a trick/hand animation is pending the table keeps showing the old state;
-                // the loop refreshes once the animation is over.
-                if (pendingPauseMs == 0L) refresh()
-            }
+            is ApplyResult.Ok -> offerNotice(version, actor, r.emissions)
         }
     }
 
@@ -470,24 +372,33 @@ abstract class HokmTable(
                             pushFx(FxKind.CUT, seat)
                             feed += "${seats[seat].name} با حکم برید!"
                         }
-                        _state.value = cur.copy(
-                            tableCards = cur.tableCards + Play(seat, card),
-                            myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
-                            legalCards = if (seat == mySeat) emptySet() else cur.legalCards,
-                            // While a closed trick sits on the table nobody is "on turn".
-                            turn = if (cur.tableCards.size + 1 >= playerCount) -1 else HokmRules.nextSeat(seat, playerCount),
-                        )
+                        // Presentation never writes results (HK-010): only the felt display is
+                        // updated here, idempotently. myHand/legalCards/turn come from the next
+                        // snapshot merge — a re-delivered card cannot duplicate or lose a card.
+                        val trickNumber = e.payload["trickNumber"]?.jsonPrimitive?.int ?: cur.tableTrickNumber
+                        _state.value = HokmPacing.onCardPlayed(cur, seat, card, trickNumber)
                     }
 
                     "trick_won" -> {
                         val winner = e.payload["winner"]!!.jsonPrimitive.int
-                        pendingCollect = winner
-                        pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
-                        feed += "${seats[winner].name} دست را برد"
+                        val before = _state.value
+                        val after = HokmPacing.onTrickWon(before, winner)
+                        _state.value = after
+                        // Only a sweep that actually owns the felt schedules the collect cycle;
+                        // superseded/stale wins change nothing.
+                        if (after.sweepOf != before.sweepOf) {
+                            pendingCollect = winner
+                            pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
+                            feed += "${seats[winner].name} ترفند را برد"
+                        }
                     }
 
                     "hand_finished" -> {
-                        val summary = parseHand(e.payload)
+                        val summary = HokmUiMapper.handSummary(e.payload)
+                        if (summary == null) {
+                            feed += "نتیجهٔ دست خوانده نشد"
+                            continue
+                        }
                         val myTeam = HokmRules.teamOf(mySeat, playerCount)
                         val mine = summary.winnerTeam == myTeam
                         val we = if (playerCount == 4) "بردیم" else "بردی"
@@ -500,7 +411,7 @@ abstract class HokmTable(
                         }
                         val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
                         pendingHandBanner = Banner(title, subtitle, big = true)
-                        _state.value = _state.value.copy(handHistory = _state.value.handHistory + summary)
+                        _state.value = HokmPacing.recordHand(_state.value, summary)
                         if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
                             scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
                         }
@@ -576,53 +487,20 @@ abstract class HokmTable(
 
     // ------------------------------------------------------------------ view → state
 
-    /** Re-reads the human's private view. The screen never sees anything beyond this. */
+    /**
+     * Re-reads the human's private view through the typed [HokmUiMapper] boundary. Incomplete or
+     * inconsistent views are refused (the table keeps its previous state) and stale views are
+     * ignored by [HokmUiMapper.merge]. The screen never sees anything beyond this.
+     *
+     * HK-010: while notices are still queued, the merge updates truth only — the felt keeps being
+     * built by the notice stream (no card is dropped or doubled by a mid-burst resync). The felt
+     * is rebuilt from the snapshot once the queue has emptied.
+     */
     protected fun refresh() {
         val v = privateView() ?: return
-        val old = _state.value
-        val tricks = v["tricksWon"]!!.jsonArray.map { it.jsonPrimitive.int }
-        val scores = v["scores"]!!.jsonArray.map { it.jsonPrimitive.int }
-        val finished = v["phase"]!!.jsonPrimitive.content == Phase.FINISHED.name
-        _state.value = old.copy(
-            phase = if (finished) Phase.FINISHED else Phase.PLAYING,
-            handPhase = HandPhase.entries.firstOrNull { it.id == v["handPhase"]!!.jsonPrimitive.content } ?: HandPhase.CHOOSING_HOKM,
-            handNumber = v["handNumber"]!!.jsonPrimitive.int,
-            hakem = v["hakem"]!!.jsonPrimitive.int,
-            hokm = v["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
-            turn = v["turn"]!!.jsonPrimitive.int,
-            trickNumber = v["trickNumber"]!!.jsonPrimitive.int,
-            tricksWon = tricks,
-            scores = scores,
-            targetPoints = v["targetPoints"]!!.jsonPrimitive.int,
-            handCounts = v["handCounts"]!!.jsonArray.map { it.jsonPrimitive.int },
-            myHand = v["hand"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! },
-            legalCards = v["legalCards"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! }.toSet(),
-            revealed = v[HokmSession.Keys.REVEALED]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Card.parse(it) },
-            discardCount = v[HokmSession.Keys.DISCARD_COUNT]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-            stockCount = v["stockCount"]!!.jsonPrimitive.int,
-            hakemDraw = v["hakemDraw"]!!.jsonArray.map { p ->
-                val o = p.jsonObject
-                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
-            },
-            lastHand = v["lastHandResult"]?.let { parseHand(it.jsonObject) },
-            lastTrick = (v["lastTrick"] as? JsonObject)?.get("cards")?.jsonArray?.map { p ->
-                val o = p.jsonObject
-                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
-            } ?: emptyList(),
-            lastTrickWinner = (v["lastTrick"] as? JsonObject)?.get("winner")?.jsonPrimitive?.int,
-            finished = finished,
-            winnerTeam = if (finished) scores.indexOf(scores.max()) else null,
-            selectedForDiscard = if (v["handPhase"]!!.jsonPrimitive.content == HandPhase.DISCARDING.id) old.selectedForDiscard else emptySet(),
-        )
+        when (val mapped = HokmUiMapper.map(v)) {
+            is MappedView.Rejected -> setError(mapped.messageFa)
+            is MappedView.Valid -> _state.value = HokmUiMapper.merge(_state.value, mapped.snapshot, feltSync = eventQueue.isEmpty)
+        }
     }
-
-    private fun parseHand(o: JsonObject) = HandSummary(
-        handNumber = o["handNumber"]!!.jsonPrimitive.int,
-        winnerTeam = o["winnerTeam"]!!.jsonPrimitive.content.toIntOrNull(),
-        points = o["points"]!!.jsonPrimitive.int,
-        kind = HandWinKind.entries.first { it.id == o["kind"]!!.jsonPrimitive.content },
-        hakem = o["hakem"]!!.jsonPrimitive.int,
-        tricks = o["tricks"]!!.jsonArray.map { it.jsonPrimitive.int },
-        hokm = o["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
-    )
 }
