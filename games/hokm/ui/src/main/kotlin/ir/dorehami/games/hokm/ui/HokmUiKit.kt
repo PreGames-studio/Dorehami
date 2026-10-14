@@ -1,6 +1,7 @@
 package ir.dorehami.games.hokm.ui
 
 import android.animation.ValueAnimator
+import android.os.Build
 import android.provider.Settings
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
@@ -66,7 +67,13 @@ fun rememberHokmReducedMotion(): Boolean {
         val scale = runCatching {
             Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
         }.getOrDefault(1f)
-        HokmMotion.isReducedMotion(scale, ValueAnimator.areAnimatorsEnabled())
+        // `areAnimatorsEnabled` exists from API 26; below that the duration-scale setting is the signal.
+        val animatorsEnabled = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
+            ValueAnimator.areAnimatorsEnabled()
+        } else {
+            true
+        }
+        HokmMotion.isReducedMotion(scale, animatorsEnabled)
     }
 }
 
