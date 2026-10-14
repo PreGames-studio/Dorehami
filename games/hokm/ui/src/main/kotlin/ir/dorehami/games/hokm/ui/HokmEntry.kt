@@ -98,9 +98,10 @@ fun HokmEntry(onExit: () -> Unit) {
     var serverUrl by rememberSaveable { mutableStateOf(prefs.serverUrl) }
     var stats by remember { mutableStateOf(prefs.stats) }
 
-    val onFinished: (HokmUiState) -> Unit = { state ->
+    val onFinished: (HokmUiState, String) -> Unit = { state, matchId ->
         state.matchStatsDelta()?.let { delta ->
             prefs.recordMatch(
+                matchId = matchId,
                 won = delta.won,
                 hands = delta.hands,
                 handsWon = delta.handsWon,
@@ -152,21 +153,26 @@ fun HokmEntry(onExit: () -> Unit) {
             botLevel = botLevel,
             soundOn = soundOn,
             hapticsOn = hapticsOn,
+            prefs = prefs,
             onFinished = onFinished,
             onPlayAgain = { matchKey++ },
-            onExit = { started = false },
+            onExit = {
+                // Leaving the game abandons the save — the next game must start fresh.
+                prefs.savedMatch = null
+                started = false
+            },
         )
     }
 }
 
 /** Fires [onFinished] exactly once per match, when the table reports the game over. */
 @Composable
-private fun RecordWhenFinished(state: HokmUiState, matchKey: Any, onFinished: (HokmUiState) -> Unit) {
+private fun RecordWhenFinished(state: HokmUiState, matchKey: Any, onFinished: (HokmUiState, String) -> Unit) {
     var recorded by rememberSaveable(matchKey) { mutableStateOf(false) }
     LaunchedEffect(state.finished) {
         if (shouldRecordMatchStats(state.finished, recorded)) {
             recorded = true
-            onFinished(state)
+            onFinished(state, matchStatsId(state))
         }
     }
 }
@@ -180,7 +186,8 @@ private fun HokmSoloGame(
     botLevel: String,
     soundOn: Boolean,
     hapticsOn: Boolean,
-    onFinished: (HokmUiState) -> Unit,
+    prefs: HokmPrefs,
+    onFinished: (HokmUiState, String) -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
 ) {
@@ -189,16 +196,47 @@ private fun HokmSoloGame(
 
     val scope = remember(key) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     val match = remember(key) {
-        HokmLocalMatch(
-            scope = scope,
-            playerName = playerName,
-            playerCount = playerCount,
-            targetPoints = targetPoints,
-            // Seed picked by the UI (never by rules): wall clock is fine here, it is recorded.
-            seed = System.currentTimeMillis() xor (key.toLong() shl 20),
-            botLevel = botLevel,
-            onSound = { sounds.play(it) },
-        )
+        // HK-011: a saved match (rotation, process death) is rebuilt exactly where it was; a save
+        // this build cannot trust is refused with a safe error and a fresh match takes its place.
+        when (val loaded = HokmSave.load(prefs.savedMatch)) {
+            is HokmSave.Load.Restored -> HokmLocalMatch(
+                scope = scope,
+                playerName = playerName,
+                playerCount = loaded.record.players.size,
+                targetPoints = targetPoints,
+                seed = loaded.record.seed,
+                botLevel = botLevel,
+                onSound = { sounds.play(it) },
+                restored = loaded.engine,
+                onPersist = { prefs.savedMatch = HokmSave.save(it) },
+            )
+            is HokmSave.Load.Failed -> {
+                prefs.savedMatch = null
+                HokmLocalMatch(
+                    scope = scope,
+                    playerName = playerName,
+                    playerCount = playerCount,
+                    targetPoints = targetPoints,
+                    // Seed picked by the UI (never by rules): wall clock is fine here, it is recorded.
+                    seed = System.currentTimeMillis() xor (key.toLong() shl 20),
+                    botLevel = botLevel,
+                    onSound = { sounds.play(it) },
+                    onPersist = { prefs.savedMatch = HokmSave.save(it) },
+                    initialError = loaded.messageFa + " — بازی تازه‌ای شروع شد.",
+                )
+            }
+            HokmSave.Load.Empty -> HokmLocalMatch(
+                scope = scope,
+                playerName = playerName,
+                playerCount = playerCount,
+                targetPoints = targetPoints,
+                // Seed picked by the UI (never by rules): wall clock is fine here, it is recorded.
+                seed = System.currentTimeMillis() xor (key.toLong() shl 20),
+                botLevel = botLevel,
+                onSound = { sounds.play(it) },
+                onPersist = { prefs.savedMatch = HokmSave.save(it) },
+            )
+        }
     }
     DisposableEffect(key) {
         match.start()
@@ -235,7 +273,7 @@ private fun HokmRoom(
     hapticsOn: Boolean,
     serverUrl: String,
     onServerUrl: (String) -> Unit,
-    onFinished: (HokmUiState) -> Unit,
+    onFinished: (HokmUiState, String) -> Unit,
     onExit: () -> Unit,
 ) {
     val context = LocalContext.current

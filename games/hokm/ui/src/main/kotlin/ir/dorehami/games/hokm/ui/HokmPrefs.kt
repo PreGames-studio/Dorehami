@@ -38,6 +38,19 @@ class HokmPrefs(context: Context) {
         get() = sp.getString("serverUrl", DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         set(v) = sp.edit().putString("serverUrl", v).apply()
 
+    /**
+     * HK-011: the in-progress local match as a serialised [ir.dorehami.gamesdk.MatchRecord]
+     * (`null` = none). Survives rotation and process death; cleared when the player leaves.
+     */
+    var savedMatch: String?
+        get() = sp.getString("saved.match", null)
+        set(v) = sp.edit().putString("saved.match", v).apply()
+
+    /** HK-011: identity of the last match whose finish updated the stats (once-only guard). */
+    var lastRecordedMatchId: String?
+        get() = sp.getString("st.lastMatchId", null)
+        set(v) = sp.edit().putString("st.lastMatchId", v).apply()
+
     val stats: HokmStats
         get() = HokmStats(
             games = sp.getInt("st.games", 0),
@@ -47,8 +60,13 @@ class HokmPrefs(context: Context) {
             handsWon = sp.getInt("st.handsWon", 0),
         )
 
-    /** Called once per finished match. [kots] = hands my side won by kot / hakem kot. */
-    fun recordMatch(won: Boolean, hands: Int, handsWon: Int, kots: Int) {
+    /**
+     * Called once per finished match. [kots] = hands my side won by kot / hakem kot.
+     * HK-011: [matchId] makes the update durable-once — a match whose id is already recorded
+     * (rotation, process death, restored finished match) never counts twice.
+     */
+    fun recordMatch(matchId: String, won: Boolean, hands: Int, handsWon: Int, kots: Int) {
+        if (!shouldRecordStatsFor(matchId, lastRecordedMatchId)) return
         val s = stats
         sp.edit()
             .putInt("st.games", s.games + 1)
@@ -56,6 +74,7 @@ class HokmPrefs(context: Context) {
             .putInt("st.kots", s.kots + kots)
             .putInt("st.hands", s.hands + hands)
             .putInt("st.handsWon", s.handsWon + handsWon)
+            .putString("st.lastMatchId", matchId)
             .apply()
     }
 
