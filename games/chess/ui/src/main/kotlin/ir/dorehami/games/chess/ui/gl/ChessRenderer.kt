@@ -124,7 +124,12 @@ internal class ChessRenderer(
         applyClearColor()
         GLES20.glClearStencil(0)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
-        GLES20.glBlendFunc(GLES20.GL_SRC_ALPHA, GLES20.GL_ONE_MINUS_SRC_ALPHA)
+        GLES20.glBlendFuncSeparate(
+            GLES20.GL_SRC_ALPHA,
+            GLES20.GL_ONE_MINUS_SRC_ALPHA,
+            GLES20.GL_ONE,
+            GLES20.GL_ONE_MINUS_SRC_ALPHA,
+        )
         lastFrameMs = 0L
     }
 
@@ -176,7 +181,9 @@ internal class ChessRenderer(
         // (2) Table + drop shadow of the board.
         GLES20.glDisable(GLES20.GL_DEPTH_TEST)
         GLES20.glEnable(GLES20.GL_BLEND)
-        drawFlat(vp, 0f, -0.345f, 0f, 22f, 22f, SHAPE_TABLE, tableRgb[0], tableRgb[1], tableRgb[2], 1f)
+        // Keep the material-tinted tabletop translucent: the bespoke scene image lives beneath
+        // this GL surface, and should remain visible around the solid board.
+        drawFlat(vp, 0f, -0.345f, 0f, 22f, 22f, SHAPE_TABLE, tableRgb[0], tableRgb[1], tableRgb[2], 0.34f)
         drawFlat(vp, 0.45f, -0.343f, 0.35f, 5.5f, 5.5f, SHAPE_SOFT_RECT, 0f, 0f, 0f, 0.62f)
         if (hasStencil) GLES20.glDisable(GLES20.GL_STENCIL_TEST)
         GLES20.glEnable(GLES20.GL_DEPTH_TEST)
@@ -185,7 +192,9 @@ internal class ChessRenderer(
         // (3) Board block and lacquered top.
         drawMesh(vp, boardBlock!!, IDENTITY, frameRgb, spec = 0.25f, shininess = 30f, ao = 0f, alpha = 1f, mirror = false, cull = true)
         if (hasStencil) GLES20.glEnable(GLES20.GL_BLEND)
-        drawBoardTop(vp, if (hasStencil) 0.86f else 1f)
+        // Keep every playing square fully opaque so all five finishes retain readable
+        // black-and-white contrast over the newly visible background.
+        drawBoardTop(vp, 1f)
 
         // (4) Contact blobs (no depth write) and planar shadows (depth trick: no double darkening).
         GLES20.glEnable(GLES20.GL_BLEND)
@@ -530,8 +539,10 @@ internal class ChessRenderer(
     }
 
     private fun applyClearColor() {
+        // The EGL config has an alpha channel; clear it away so the Compose artwork can show
+        // through every part of the board viewport not covered by the actual chess table.
         GLES20.glClearColor(
-            red(palette.clearColor), green(palette.clearColor), blue(palette.clearColor), 1f,
+            red(palette.clearColor), green(palette.clearColor), blue(palette.clearColor), 0f,
         )
     }
 
