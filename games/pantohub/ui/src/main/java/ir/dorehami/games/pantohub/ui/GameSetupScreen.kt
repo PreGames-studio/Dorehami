@@ -46,6 +46,7 @@ import ir.dorehami.games.pantohub.GameSettings
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.NewGameRequest
 import ir.dorehami.games.pantohub.PantohubEngine
+import ir.dorehami.games.pantohub.PlayMode
 import ir.dorehami.games.pantohub.GameActionResult
 import ir.dorehami.games.pantohub.Team
 import ir.dorehami.games.pantohub.WordBankRules
@@ -93,21 +94,13 @@ private fun encodeTeamDrafts(teams: List<TeamDraft>): String = JSONArray().apply
     }
 }.toString()
 
-private val teamColors = listOf(
-    0xffd94f52.toInt(),
-    0xff3777c8.toInt(),
-    0xff229b73.toInt(),
-    0xffdd922e.toInt(),
-    0xff8b62bb.toInt(),
-    0xffd45b9b.toInt(),
-    0xff547d83.toInt(),
-    0xff737b2e.toInt(),
-)
+private val teamColors = PantohubDesign.TeamColors
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun GameSetupScreen(
     repository: PantohubRepository,
+    playMode: PlayMode = PlayMode.SPEEDY,
     onBack: () -> Unit,
     onStart: (GameState) -> Unit,
 ) {
@@ -184,6 +177,12 @@ internal fun GameSetupScreen(
     }
 
     PantohubPageFrame("آماده‌سازی بازی", onBack) {
+        Text(
+            "نوع بازی: ${playMode.labelFa}",
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            color = if (playMode == PlayMode.NORMAL) PantohubDesign.Teal else PantohubDesign.Violet,
+        )
         Text("نام بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
             colors = pantohubFieldColors(PantohubTint.Mint),
@@ -251,15 +250,25 @@ internal fun GameSetupScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("رنگ تیم:", style = MaterialTheme.typography.bodySmall)
                         teamColors.forEach { color ->
+                            val selectedColor = draft.colorArgb == color
                             Box(
                                 modifier = Modifier
-                                    .size(25.dp)
+                                    .size(30.dp)
                                     .background(Color(color), CircleShape)
-                                    .then(if (draft.colorArgb == color) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
-                                    .padding(2.dp)
-                                    .background(Color(color), CircleShape)
-                                    .then(Modifier.clickableNoRipple { editTeam(index) { it.copy(colorArgb = color) } }),
-                            )
+                                    .then(
+                                        if (selectedColor) {
+                                            Modifier.border(2.5.dp, PantohubDesign.Teal, CircleShape)
+                                        } else {
+                                            Modifier.border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
+                                        },
+                                    )
+                                    .clickableNoRipple { editTeam(index) { it.copy(colorArgb = color) } },
+                                contentAlignment = Alignment.Center,
+                            ) {
+                                if (selectedColor) {
+                                    Text("✓", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
+                                }
+                            }
                         }
                     }
                 }
@@ -387,6 +396,10 @@ internal fun GameSetupScreen(
 
         errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
         Button(
+            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
+                containerColor = PantohubDesign.Orange,
+                contentColor = Color.White,
+            ),
             onClick = {
                 if (creating) return@Button
                 if (teams.size < 2) {
@@ -427,10 +440,13 @@ internal fun GameSetupScreen(
                                 )
                             }
                             val settings = GameSettings(
+                                playMode = playMode,
                                 turnSeconds = turnSeconds,
                                 roundsPerTeam = roundsPerTeam,
-                                allowedDifficulties = difficulties,
-                                allowedCategories = categories,
+                                // In NORMAL mode each turn picks its own difficulty and
+                                // category, so the match itself must allow all of them.
+                                allowedDifficulties = if (playMode == PlayMode.NORMAL) Difficulty.entries.toSet() else difficulties,
+                                allowedCategories = if (playMode == PlayMode.NORMAL) emptySet() else categories,
                                 easyPoints = easyPoints,
                                 mediumPoints = mediumPoints,
                                 hardPoints = hardPoints,
