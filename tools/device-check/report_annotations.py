@@ -6,9 +6,10 @@ annotations are readable through the REST API — so the interesting lines of th
 re-emitted as annotations (the same trick `.github/workflows/ci.yml` uses for test results).
 
 Priority order (the annotation budget is limited):
-  1. every `[device-check]` line — the script's own progress trail and its failure list,
-  2. crash / app-lifecycle lines (`FATAL`, `AndroidRuntime`, app's own log tags),
-  3. the tail of the log, when nothing above matched.
+  1. an APK-contents report (`inspect_apk.py`): every `MISS` line first, then the `ok` lines,
+  2. every `[device-check]` line — the script's own progress trail and its failure list,
+  3. crash / app-lifecycle lines (`FATAL`, `AndroidRuntime`, app's own log tags),
+  4. the tail of the log, when nothing above matched.
 """
 from __future__ import annotations
 
@@ -30,15 +31,33 @@ def clean(line: str) -> str:
     return line.replace("\r", "").replace("%", "%25")[:MAX_LINE]
 
 
+APK_REPORT_HEADER = "== required classes"
+
+
+def apk_annotations(lines: list[str]) -> None:
+    """An APK-contents report: missing classes are errors, the rest is context."""
+    errors = [line for line in lines if line.startswith("MISS ")]
+    notes = [line for line in lines if line.startswith(("ok ", "APK:", "dex files:", "ir.dorehami"))]
+    for line in errors[:20]:
+        print("::error::" + clean(line))
+    for line in notes[:20]:
+        print("::notice::" + clean(line))
+    if not errors:
+        print("::notice::every required class is packaged")
+
+
 def main() -> int:
     path = sys.argv[1] if len(sys.argv) > 1 else "device-log.txt"
     try:
         text = open(path, errors="replace").read()
     except FileNotFoundError:
-        print(f"::error::no device log found at {path}")
+        print(f"::error::no report found at {path}")
         return 1
 
     lines = [line for line in text.splitlines() if line.strip()]
+    if any(line.startswith(APK_REPORT_HEADER) for line in lines):
+        apk_annotations(lines)
+        return 0
     progress = [line for line in lines if line.startswith(PROGRESS_PREFIX)]
     crash = [line for line in lines if CRASH.search(line)]
 
