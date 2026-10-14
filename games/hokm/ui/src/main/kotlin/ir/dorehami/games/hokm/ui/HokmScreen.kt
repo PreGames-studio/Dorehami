@@ -44,6 +44,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
@@ -73,6 +74,11 @@ import androidx.compose.ui.graphics.drawscope.rotate as drawScopeRotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
+import androidx.compose.ui.semantics.LiveRegionMode
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.liveRegion
+import androidx.compose.ui.semantics.onClick
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
@@ -100,6 +106,13 @@ private object Table {
     val ours = Color(0xFF64B5F6)
     val theirs = Color(0xFFEF9A9A)
 }
+
+/**
+ * The smallest touch target on the table (games/hokm/AGENTS.md 4.4: «هدف لمسی حداقل 48dp»).
+ * Applied as a *minimum* hit-area floor (HK-013): cards already larger keep their size and the
+ * fan's geometry is untouched, so the visual layout cannot regress.
+ */
+private val MIN_TOUCH_DP = 48.dp
 
 /**
  * The Hokm table. Pure presentation: reads [HokmUiState], reports taps through callbacks.
@@ -194,6 +207,17 @@ fun HokmScreen(
                 Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
                     val line = state.feed.lastOrNull()
                     if (line != null && state.banner == null && state.introShown == null) FeedChip(line)
+                    // HK-013: the status line is a polite live region — TalkBack announces the turn
+                    // and any error without the player having to explore the table to find it.
+                    Box(
+                        Modifier
+                            .size(1.dp)
+                            .alpha(0.04f)
+                            .semantics {
+                                liveRegion = LiveRegionMode.Polite
+                                contentDescription = HokmA11y.turnLabel(state) + " — " + HokmA11y.tableLabel(state)
+                            },
+                    )
                 }
                 if (topSeat != null) {
                     SeatWithBubble(state, topSeat)
@@ -504,6 +528,18 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
             modifier
+                // HK-013: a seat is one focusable, self-describing line for TalkBack.
+                .semantics(mergeDescendants = true) {
+                    contentDescription = HokmA11y.seatLabel(
+                        seat = seat,
+                        name = info.name,
+                        cardCount = state.handCounts.getOrElse(seat) { 0 },
+                        tricksWon = state.tricksWon.getOrElse(if (state.isTeamGame) state.teamOf(seat) else seat) { 0 },
+                        isTurn = isTurn,
+                        isHakem = isHakem,
+                        isMe = seat == state.mySeat,
+                    )
+                }
                 .clip(RoundedCornerShape(22.dp))
                 .background(Table.chip)
                 .border(
@@ -688,11 +724,18 @@ private fun HandFan(
                 modifier = Modifier
                     .offset(x = startX + step * i, y = 20.dp + lift - (12.dp * raise))
                     .rotate(angle)
+                    // HK-013: TalkBack must be able to play — the card is named, its legality is
+                    // spoken, and the touch target never falls below the accessible minimum.
+                    .sizeIn(minWidth = MIN_TOUCH_DP, minHeight = MIN_TOUCH_DP)
                     .clickable(
                         interactionSource = remember { MutableInteractionSource() },
                         indication = null,
+                        onClickLabel = "بازی کردن ${HokmA11y.cardLabel(card)}",
                         onClick = { onTap(card) },
-                    ),
+                    )
+                    .semantics {
+                        contentDescription = HokmA11y.handCardLabel(card, legal = playable, selected = isSelected)
+                    },
             )
             }
         }
@@ -717,6 +760,11 @@ private fun ScoreBar(
                 .background(Brush.verticalGradient(listOf(Color(0xDD12372D), Color(0xE608211A))))
                 .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
                 .clickable(onClick = onSheet)
+                // HK-013: the score bar speaks the score line, and its tap is named.
+                .semantics(mergeDescendants = true) {
+                    contentDescription = HokmA11y.scoreLabel(state.scores, state.myTeam, state.targetPoints)
+                    onClick(label = "باز کردن کارنامهٔ دست‌ها") { onSheet(); true }
+                }
                 .padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
