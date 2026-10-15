@@ -77,22 +77,22 @@ fun rememberHokmReducedMotion(): Boolean {
     }
 }
 
-/** A shared, high-contrast palette for the Hokm lobby, room and table. */
+/** A shared, high-contrast palette for the Hokm lobby, room and table (values: [HokmTokens]). */
 object HokmPalette {
-    val night = Color(0xFF061913)
-    val deepGreen = Color(0xFF09271F)
-    val felt = Color(0xFF0D3B30)
-    val emerald = Color(0xFF14936A)
-    val mint = Color(0xFF75DAB4)
-    val gold = Color(0xFFE8C779)
-    val goldLight = Color(0xFFFFE9A8)
-    val goldDark = Color(0xFF936825)
-    val ivory = Color(0xFFF8F4E9)
-    val text = Color(0xFFF8F5EA)
-    val muted = Color(0xFFB7CCC1)
-    val coral = Color(0xFFE47B69)
-    val panel = Color(0xE6102D25)
-    val panelLight = Color(0xFF19483A)
+    val night = Color(HokmTokens.Color.NIGHT)
+    val deepGreen = Color(HokmTokens.Color.SURFACE_DEEP)
+    val felt = Color(HokmTokens.Color.SURFACE_FELT)
+    val emerald = Color(HokmTokens.Color.ACCENT_EMERALD)
+    val mint = Color(HokmTokens.Color.ACCENT_MINT)
+    val gold = Color(HokmTokens.Color.GOLD)
+    val goldLight = Color(HokmTokens.Color.GOLD_LIGHT)
+    val goldDark = Color(HokmTokens.Color.GOLD_DARK)
+    val ivory = Color(HokmTokens.Color.IVORY)
+    val text = Color(HokmTokens.Color.TEXT)
+    val muted = Color(HokmTokens.Color.TEXT_MUTED)
+    val coral = Color(HokmTokens.Color.DANGER)
+    val panel = Color(HokmTokens.Color.SURFACE_PANEL).copy(alpha = 230f / 255f)
+    val panelLight = Color(HokmTokens.Color.SURFACE_PANEL_LIGHT)
 }
 
 enum class HokmButtonTone { GOLD, EMERALD, GLASS, CORAL }
@@ -230,7 +230,7 @@ fun Hokm3DButton(
     val reducedMotion = LocalHokmReducedMotion.current
     val pressDepth by animateFloatAsState(
         targetValue = if (isPressed) 1f else 0f,
-        animationSpec = tween(HokmMotion.durationMs(125, reducedMotion), easing = FastOutSlowInEasing),
+        animationSpec = tween(HokmMotion.durationMs(HokmTokens.Motion.PRESS_MS, reducedMotion), easing = FastOutSlowInEasing),
         label = "hokm-button-press",
     )
     val foreground = textColor ?: palette.foreground

@@ -33,13 +33,13 @@ import ir.dorehami.games.hokm.Card
 import ir.dorehami.games.hokm.Rank
 import ir.dorehami.games.hokm.Suit
 
-/** Palette of a real deck: ivory stock, deep red and near-black ink. */
+/** Palette of a real deck: ivory stock, deep red and near-black ink (values: [HokmTokens]). */
 object CardColors {
-    val ivory = Color(0xFFFDFBF4)
+    val ivory = Color(HokmTokens.Color.CARD_IVORY)
     val ivoryShade = Color(0xFFEFEBE0)
     val edge = Color(0xFFCFC9B8)
-    val red = Color(0xFFB3202B)
-    val black = Color(0xFF1C1C1E)
+    val red = Color(HokmTokens.Color.INK_RED)
+    val black = Color(HokmTokens.Color.INK_BLACK)
     val gold = Color(0xFFD4AF37)
     // GX-01 "Emerald Royale" card back: deep emerald field, brass lattice (was burgundy).
     val backA = Color(HokmArtDirection.FELT_SPOTLIGHT)

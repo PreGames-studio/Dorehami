@@ -29,7 +29,8 @@ PURE_UI=" \
   $UI_MAIN/HokmMotion.kt \
   $UI_MAIN/HokmBaselineScenario.kt \
   $UI_MAIN/HokmBaselinePlayback.kt \
-  $UI_MAIN/HokmArtDirection.kt"
+  $UI_MAIN/HokmArtDirection.kt \
+  $UI_MAIN/HokmTokens.kt"
 PURE_UI_TESTS=" \
   $UI_TEST/HokmUiMapperTest.kt \
   $UI_TEST/HokmUiStateTest.kt \
@@ -41,7 +42,8 @@ PURE_UI_TESTS=" \
   $UI_TEST/HokmMotionTest.kt \
   $UI_TEST/HokmBaselineScenarioTest.kt \
   $UI_TEST/HokmBaselinePlaybackTest.kt \
-  $UI_TEST/HokmArtDirectionTest.kt"
+  $UI_TEST/HokmArtDirectionTest.kt \
+  $UI_TEST/HokmTokensTest.kt"
 echo "== compile main (pure UI files: $(echo $PURE_UI | wc -w))"
 "$KC" -nowarn -cp "$CO" -d "$OUT/main.jar" "$STUBS/kxs" \
   "$R/core/protocol/src/main/kotlin" "$R/core/gamesdk/src/main/kotlin" "$R/games/hokm/core/src/main/kotlin" \

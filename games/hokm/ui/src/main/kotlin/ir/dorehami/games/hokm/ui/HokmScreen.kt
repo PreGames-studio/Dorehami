@@ -93,14 +93,14 @@ import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-/** Table palette: the locked GX-01 "Emerald Royale" direction (see HokmArtDirection). */
+/** Table palette: the locked GX-01 "Emerald Royale" direction, read through [HokmTokens]. */
 private object Table {
-    val feltLight = Color(HokmArtDirection.FELT_SPOTLIGHT)
-    val feltDark = Color(HokmArtDirection.FELT)
+    val feltLight = Color(HokmTokens.Color.FELT_SPOTLIGHT)
+    val feltDark = Color(HokmTokens.Color.FELT)
     val rimLight = Color(HokmArtDirection.BRASS_LIGHT)
     val rimDark = Color(0xFF6E5212)
     val brass = Color(HokmArtDirection.BRASS_LIGHT)
-    val turquoise = Color(HokmArtDirection.TURQUOISE)
+    val turquoise = Color(HokmTokens.Color.TURQUOISE)
     val chip = Color(0x99000000)
     val turnGlow = Color(0xFFFFE082)
     val ours = Color(0xFF64B5F6)
