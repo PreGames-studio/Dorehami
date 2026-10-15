@@ -1,0 +1,179 @@
+{
+  "frames": {
+    "soldier_death_right_00": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7812
+      }
+    },
+    "soldier_death_right_01": {
+      "frame": {
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7812
+      }
+    },
+    "soldier_death_right_02": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7812
+      }
+    },
+    "soldier_death_right_03": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7812
+      }
+    },
+    "soldier_death_right_04": {
+      "frame": {
+        "x": 256,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7812
+      }
+    },
+    "soldier_death_right_05": {
+      "frame": {
+        "x": 320,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 64
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 64
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7812
+      }
+    }
+  },
+  "animations": {
+    "soldier_death_right": [
+      "soldier_death_right_00",
+      "soldier_death_right_01",
+      "soldier_death_right_02",
+      "soldier_death_right_03",
+      "soldier_death_right_04",
+      "soldier_death_right_05"
+    ]
+  },
+  "meta": {
+    "app": "Dezhban military-soldier sprite generator",
+    "version": "1.0",
+    "image": "soldier_death_right.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 384,
+      "h": 64
+    },
+    "scale": "1",
+    "frameTags": [
+      {
+        "name": "soldier_death_right",
+        "from": 0,
+        "to": 5,
+        "direction": "forward",
+        "fps": 8,
+        "label": "افتادن"
+      }
+    ]
+  }
+}

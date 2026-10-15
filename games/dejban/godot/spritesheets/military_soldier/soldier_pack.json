@@ -1,0 +1,334 @@
+{
+  "name": "military_soldier",
+  "unit": "Military soldier (top-down, high-angle bird's eye)",
+  "style": "semi-realistic military pixel art",
+  "frameSize": {
+    "w": 64,
+    "h": 64
+  },
+  "background": "transparent",
+  "pivot": {
+    "x": 0.5,
+    "y": 0.7812,
+    "note": "ground contact point; frame centre works too for TD placement"
+  },
+  "directions": [
+    "front",
+    "back",
+    "left",
+    "right"
+  ],
+  "animations": {
+    "idle": {
+      "label": "ایستاده (تنفس)",
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "uniqueFrames": 7,
+      "loopNote": "frame 8 is an exact copy of frame 1 for seamless looping"
+    },
+    "walk": {
+      "label": "راه رفتن",
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "uniqueFrames": 7,
+      "loopNote": "frame 8 is an exact copy of frame 1 for seamless looping"
+    },
+    "run": {
+      "label": "دویدن",
+      "frames": 8,
+      "fps": 14,
+      "loop": true,
+      "uniqueFrames": 7,
+      "loopNote": "frame 8 is an exact copy of frame 1 for seamless looping"
+    },
+    "attack": {
+      "label": "نشانه‌گیری و شلیک",
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "uniqueFrames": 7,
+      "loopNote": "frame 8 is an exact copy of frame 1 for seamless looping"
+    },
+    "death": {
+      "label": "افتادن",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "uniqueFrames": 6,
+      "loopNote": "non looping"
+    }
+  },
+  "sheets": [
+    {
+      "file": "soldier_idle_front.png",
+      "atlas": "soldier_idle_front.json",
+      "animation": "idle",
+      "direction": "front",
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_idle_back.png",
+      "atlas": "soldier_idle_back.json",
+      "animation": "idle",
+      "direction": "back",
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_idle_left.png",
+      "atlas": "soldier_idle_left.json",
+      "animation": "idle",
+      "direction": "left",
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_idle_right.png",
+      "atlas": "soldier_idle_right.json",
+      "animation": "idle",
+      "direction": "right",
+      "frames": 8,
+      "fps": 6,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_walk_front.png",
+      "atlas": "soldier_walk_front.json",
+      "animation": "walk",
+      "direction": "front",
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_walk_back.png",
+      "atlas": "soldier_walk_back.json",
+      "animation": "walk",
+      "direction": "back",
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_walk_left.png",
+      "atlas": "soldier_walk_left.json",
+      "animation": "walk",
+      "direction": "left",
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_walk_right.png",
+      "atlas": "soldier_walk_right.json",
+      "animation": "walk",
+      "direction": "right",
+      "frames": 8,
+      "fps": 10,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_run_front.png",
+      "atlas": "soldier_run_front.json",
+      "animation": "run",
+      "direction": "front",
+      "frames": 8,
+      "fps": 14,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_run_back.png",
+      "atlas": "soldier_run_back.json",
+      "animation": "run",
+      "direction": "back",
+      "frames": 8,
+      "fps": 14,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_run_left.png",
+      "atlas": "soldier_run_left.json",
+      "animation": "run",
+      "direction": "left",
+      "frames": 8,
+      "fps": 14,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_run_right.png",
+      "atlas": "soldier_run_right.json",
+      "animation": "run",
+      "direction": "right",
+      "frames": 8,
+      "fps": 14,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_attack_front.png",
+      "atlas": "soldier_attack_front.json",
+      "animation": "attack",
+      "direction": "front",
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_attack_back.png",
+      "atlas": "soldier_attack_back.json",
+      "animation": "attack",
+      "direction": "back",
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_attack_left.png",
+      "atlas": "soldier_attack_left.json",
+      "animation": "attack",
+      "direction": "left",
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_attack_right.png",
+      "atlas": "soldier_attack_right.json",
+      "animation": "attack",
+      "direction": "right",
+      "frames": 8,
+      "fps": 12,
+      "loop": true,
+      "size": {
+        "w": 512,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_death_front.png",
+      "atlas": "soldier_death_front.json",
+      "animation": "death",
+      "direction": "front",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "size": {
+        "w": 384,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_death_back.png",
+      "atlas": "soldier_death_back.json",
+      "animation": "death",
+      "direction": "back",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "size": {
+        "w": 384,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_death_left.png",
+      "atlas": "soldier_death_left.json",
+      "animation": "death",
+      "direction": "left",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "size": {
+        "w": 384,
+        "h": 64
+      }
+    },
+    {
+      "file": "soldier_death_right.png",
+      "atlas": "soldier_death_right.json",
+      "animation": "death",
+      "direction": "right",
+      "frames": 6,
+      "fps": 8,
+      "loop": false,
+      "size": {
+        "w": 384,
+        "h": 64
+      }
+    }
+  ],
+  "atlas": {
+    "file": "soldier_all_atlas.png",
+    "atlas": "soldier_all_atlas.json",
+    "frames": 152,
+    "size": {
+      "w": 512,
+      "h": 1216
+    }
+  }
+}

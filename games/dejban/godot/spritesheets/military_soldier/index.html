@@ -1,0 +1,115 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Military soldier sprite sheets - Dezhban</title>
+<style>
+  :root { color-scheme: dark; }
+  body { margin:0; background:#1e221c; color:#dfe6d6; font-family:system-ui,sans-serif; }
+  header { padding:12px 18px; background:#272c23; border-bottom:1px solid #3a4133;
+           display:flex; gap:16px; align-items:center; flex-wrap:wrap; position:sticky; top:0; z-index:2; }
+  h1 { font-size:15px; margin:0; font-weight:600; }
+  label { font-size:13px; display:flex; gap:6px; align-items:center; }
+  table { border-collapse:separate; border-spacing:6px; }
+  th { color:#e6eedd; font-weight:600; font-size:12px; }
+  th.row { text-align:left; padding-right:10px; white-space:nowrap; }
+  th.row span { display:block; color:#8e9c82; font-weight:400; }
+  td.cell { background:#2b3026; border-radius:6px; padding:0; }
+  canvas { display:block; image-rendering:pixelated; }
+  main { padding:8px 18px 40px; overflow:auto; }
+  .hint { font-size:12px; color:#8e9c82; }
+  .bg { display:flex; gap:8px; align-items:center; }
+</style>
+</head>
+<body>
+<header>
+  <h1>Military soldier &mdash; 64&times;64 &mdash; 8-frame horizontal sheets</h1>
+  <label>speed <input id="speed" type="range" min="2" max="24" value="10"><span id="fps">10</span> fps</label>
+  <label>zoom <input id="zoom" type="range" min="1" max="6" value="3"><span id="zl">3</span>&times;</label>
+  <label><input id="play" type="checkbox" checked> play</label>
+  <label class="bg">bg
+    <select id="bgsel">
+      <option value="#2b3026">dark</option>
+      <option value="#6f7a5e">grass</option>
+      <option value="#c9b98a">sand</option>
+      <option value="#ffffff">white</option>
+      <option value="#000000">black</option>
+    </select>
+  </label>
+  <span class="hint">Last frame of every looping sheet is an exact copy of frame 1.</span>
+</header>
+<main><table id="grid"></table></main>
+<script>
+const DIRS = ["front","back","left","right"];
+const ANIMS = [["idle",8,6],["walk",8,10],["run",8,14],["attack",8,12],["death",6,8]];
+const LOOPING = { idle:true, walk:true, run:true, attack:true, death:false };
+const imgs = {}, canv = [];
+let t0 = performance.now(), frame = 0, playing = true, speed = 10, zoom = 3;
+
+function loadSheets() {
+  const jobs = [];
+  for (const [a] of ANIMS) for (const d of DIRS) {
+    jobs.push(new Promise(res => {
+      const im = new Image();
+      im.onload = () => { imgs[a + "_" + d] = im; res(); };
+      im.onerror = () => res();
+      im.src = "soldier_" + a + "_" + d + ".png";
+    }));
+  }
+  return Promise.all(jobs);
+}
+
+function buildGrid() {
+  const table = document.getElementById("grid");
+  let html = "<tr><th></th>" + DIRS.map(d => "<th>" + d + "</th>").join("") + "</tr>";
+  for (const [a, n, f] of ANIMS) {
+    html += "<tr><th class='row'>" + a + "<span>" + n + " frames &middot; " + f + " fps</span></th>";
+    for (const d of DIRS) {
+      html += "<td class='cell'><canvas data-a='" + a + "' data-d='" + d + "'></canvas></td>";
+    }
+    html += "</tr>";
+  }
+  table.innerHTML = html;
+  for (const c of table.querySelectorAll("canvas")) {
+    const ctx = c.getContext("2d");
+    ctx.imageSmoothingEnabled = false;
+    canv.push([c, ctx]);
+  }
+}
+
+function resize() {
+  for (const [c] of canv) {
+    c.width = 64; c.height = 64;
+    c.style.width = (64 * zoom) + "px";
+    c.style.height = (64 * zoom) + "px";
+  }
+}
+
+function tick(now) {
+  if (playing && now - t0 > 1000 / speed) { t0 = now; frame++; }
+  for (const [c, ctx] of canv) {
+    const a = c.dataset.a, d = c.dataset.d;
+    const n = ANIMS.find(x => x[0] === a)[1];
+    const i = LOOPING[a] ? frame % n : Math.min(frame, n - 1);
+    const im = imgs[a + "_" + d];
+    if (!im) continue;
+    ctx.clearRect(0, 0, 64, 64);
+    ctx.drawImage(im, i * 64, 0, 64, 64, 0, 0, 64, 64);
+  }
+  requestAnimationFrame(tick);
+}
+
+document.getElementById("speed").addEventListener("input", e => {
+  speed = +e.target.value; document.getElementById("fps").textContent = speed;
+});
+document.getElementById("zoom").addEventListener("input", e => {
+  zoom = +e.target.value; document.getElementById("zl").textContent = zoom; resize();
+});
+document.getElementById("play").addEventListener("change", e => { playing = e.target.checked; });
+document.getElementById("bgsel").addEventListener("change", e => {
+  for (const td of document.querySelectorAll("td.cell")) td.style.background = e.target.value;
+});
+loadSheets().then(() => { buildGrid(); resize(); requestAnimationFrame(tick); });
+</script>
+</body>
+</html>

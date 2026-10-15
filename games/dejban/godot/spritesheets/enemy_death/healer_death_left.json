@@ -1,0 +1,179 @@
+{
+  "frames": {
+    "healer_death_left_00": {
+      "frame": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 72
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7361
+      }
+    },
+    "healer_death_left_01": {
+      "frame": {
+        "x": 64,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 72
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7361
+      }
+    },
+    "healer_death_left_02": {
+      "frame": {
+        "x": 128,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 72
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7361
+      }
+    },
+    "healer_death_left_03": {
+      "frame": {
+        "x": 192,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 72
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7361
+      }
+    },
+    "healer_death_left_04": {
+      "frame": {
+        "x": 256,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 72
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7361
+      }
+    },
+    "healer_death_left_05": {
+      "frame": {
+        "x": 320,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "rotated": false,
+      "trimmed": false,
+      "spriteSourceSize": {
+        "x": 0,
+        "y": 0,
+        "w": 64,
+        "h": 72
+      },
+      "sourceSize": {
+        "w": 64,
+        "h": 72
+      },
+      "pivot": {
+        "x": 0.5,
+        "y": 0.7361
+      }
+    }
+  },
+  "animations": {
+    "healer_death_left": [
+      "healer_death_left_00",
+      "healer_death_left_01",
+      "healer_death_left_02",
+      "healer_death_left_03",
+      "healer_death_left_04",
+      "healer_death_left_05"
+    ]
+  },
+  "meta": {
+    "app": "Dezhban enemy sprite generator",
+    "version": "1.1",
+    "image": "healer_death_left.png",
+    "format": "RGBA8888",
+    "size": {
+      "w": 384,
+      "h": 72
+    },
+    "scale": "1",
+    "frameTags": [
+      {
+        "name": "healer_death_left",
+        "from": 0,
+        "to": 5,
+        "direction": "once",
+        "fps": 8,
+        "label": "افتادن"
+      }
+    ]
+  }
+}

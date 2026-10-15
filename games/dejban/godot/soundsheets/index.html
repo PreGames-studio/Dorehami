@@ -1,0 +1,115 @@
+<!DOCTYPE html>
+<html lang="fa" dir="rtl">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>موسیقی پس‌زمینهٔ دژبان — چهار طرح</title>
+<style>
+  :root {
+    --gold: #e2b04a;
+    --gold-dark: #a97a2c;
+    --accent: #3fb8ff;
+    --bg: #0d1418;
+    --panel: #161c20;
+    --text: #e8eef0;
+    --muted: #93a3aa;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 28px 18px 60px;
+    background: radial-gradient(circle at 50% -10%, #1b2a33 0%, var(--bg) 60%);
+    color: var(--text);
+    font-family: Tahoma, "Segoe UI", system-ui, sans-serif;
+    line-height: 1.8;
+  }
+  header { max-width: 900px; margin: 0 auto 26px; text-align: center; }
+  h1 { font-size: 24px; margin: 0 0 8px; color: var(--gold); }
+  header p { margin: 4px 0; color: var(--muted); font-size: 14px; }
+  .grid { max-width: 900px; margin: 0 auto; display: grid; gap: 16px; }
+  .card {
+    background: var(--panel);
+    border: 1px solid #24313a;
+    border-right: 4px solid var(--gold-dark);
+    border-radius: 12px;
+    padding: 16px 18px;
+  }
+  .card:hover { border-right-color: var(--gold); }
+  .card h2 { margin: 0 0 4px; font-size: 19px; color: var(--gold); }
+  .card h2 span { font-size: 13px; color: var(--accent); margin-inline-start: 8px; }
+  .meta { color: var(--muted); font-size: 13px; margin: 0 0 8px; }
+  .desc { margin: 0 0 12px; font-size: 14px; }
+  .tag {
+    display: inline-block; font-size: 12px; padding: 2px 10px; margin-inline-end: 6px;
+    border: 1px solid #2d3d46; border-radius: 999px; color: #b9c8ce;
+  }
+  audio { width: 100%; margin-top: 4px; filter: saturate(0.9); }
+  footer { max-width: 900px; margin: 26px auto 0; color: var(--muted); font-size: 13px; }
+  footer ul { padding-inline-start: 20px; margin: 6px 0; }
+  code { color: var(--accent); }
+</style>
+</head>
+<body>
+<header>
+  <h1>موسیقی پس‌زمینهٔ دژبان — چهار طرح برای انتخاب</h1>
+  <p>هر چهار فایل <strong>لوپِ بی‌درز</strong> هستند (دنبالهٔ ریورب به ابتدای حلقه تا شده)؛ همان‌طور که پخش می‌شود، انتهای فایل به ابتدایش می‌چسبد.</p>
+  <p>مونو، ۲۲٫۰۵ کیلوهرتز، ۱۶ بیت — دقیقاً هم‌قالبِ موسیقی فعلی بازی تا بدون تغییرِ کد داخل اپ برود.</p>
+</header>
+
+<div class="grid">
+  <div class="card">
+    <h2>طرح الف — مارشِ دژبان <span>۱۰۰ ضربه، ۳۸ ثانیه</span> <em style="color:#7bd48a;font-style:normal">✔ انتخاب‌شده برای نبرد</em></h2>
+    <p class="meta">ر مینور · ارکستری</p>
+    <p class="desc">مارشِ حماسی: طبل کوچکِ رزمی، برنجیِ کوبنده، زهی‌های پایین و تیمپانی؛ نیمهٔ میانی آرام می‌گیرد و در پایان اوج می‌گیرد. حسِ «ایستادن روی دیوار قلعه».</p>
+    <p>
+      <span class="tag">صحنهٔ نبرد</span>
+      <span class="tag">پیروزی</span>
+      <span class="tag">منوی اصلی</span>
+    </p>
+    <audio controls loop preload="none" src="music_candidates/a_march.wav"></audio>
+  </div>
+
+  <div class="card">
+    <h2>طرح ب — سایهٔ رون‌ها <span>۶۰ ضربه، ۳۲ ثانیه</span> <em style="color:#7bd48a;font-style:normal">✔ انتخاب‌شده برای منو</em></h2>
+    <p class="meta">لا مینور · امبینتِ تاریکِ فانتزی</p>
+    <p class="desc">درونِ کم و گروه‌کرِ محو، زنگ‌های رونِ پنتاتونیک و ضربانِ آرامِ طبل بزرگ؛ بی‌هیچ شلوغی. حسِ راز، جادو و شبِ پیش از حمله.</p>
+    <p>
+      <span class="tag">منو</span>
+      <span class="tag">انتخاب نقشه</span>
+      <span class="tag">فاصلهٔ موج‌ها</span>
+    </p>
+    <audio controls loop preload="none" src="music_candidates/b_runes.wav"></audio>
+  </div>
+
+  <div class="card">
+    <h2>طرح ج — ضربانِ خط مقدم <span>۱۲۴ ضربه، ۳۱ ثانیه</span> <em style="color:#93a3aa;font-style:normal">(ذخیره)</em></h2>
+    <p class="meta">لا مینور · الکترونیکِ تاکتیکی</p>
+    <p class="desc">کیکِ چهارضربی، باسِ شانزدهمی با فیلترِ بازشونده، کلپ و هت، و یک هوکِ سی‌نتِ دو‌میزانی با دیلِی. مدرن، پرانرژی و بی‌وقفه — مناسبِ موج‌های سخت.</p>
+    <p>
+      <span class="tag">نبرد</span>
+      <span class="tag">تمرکز و ریتم</span>
+    </p>
+    <audio controls loop preload="none" src="music_candidates/c_pulse.wav"></audio>
+  </div>
+
+  <div class="card">
+    <h2>طرح د — کاروانِ شب <span>۹۲ ضربه، ۴۲ ثانیه</span> <em style="color:#93a3aa;font-style:normal">(ذخیره)</em></h2>
+    <p class="meta">لا مینورِ هارمونیک · ایرانی</p>
+    <p class="desc">سنتورِ زخمه‌ای و تنبک با ریتمِ ۳+۳+۲، درونِ باسِ آرام و در نیمهٔ دوم نِیِ نفس‌دار. حسِ راهِ کاروان و دفاعِ شبانه.</p>
+    <p>
+      <span class="tag">منو</span>
+      <span class="tag">نقشه</span>
+      <span class="tag">نبردِ تمپوی متوسط</span>
+    </p>
+    <audio controls loop preload="none" src="music_candidates/d_caravan.wav"></audio>
+  </div>
+</div>
+
+<footer>
+  <p><strong style="color:#7bd48a">انتخاب شد: ب برای منو + الف برای نبرد</strong> — هر دو در <code>assets/sounds/</code> نشستند. هر طرح با <code>tools/compose_music.py</code> ساخته می‌شود و بعد از انتخاب، همان فایل در <code>assets/sounds/</code> می‌نشیند (کلیدهای <code>music_menu</code> و <code>music_battle</code>) و خودکار در APK می‌آید.</p>
+  <ul>
+    <li>می‌شود دو طرح را ترکیب کرد: مثلاً بی برای منو و الف برای نبرد.</li>
+    <li>گفتنِ «الف را کمی تندتر کن» یا «طبلِ ب را کمتر کن» کافی است تا همان طرح بازسازی شود.</li>
+  </ul>
+</footer>
+</body>
+</html>

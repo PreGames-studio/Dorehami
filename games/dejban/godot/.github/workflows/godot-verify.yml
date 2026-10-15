@@ -1,0 +1,89 @@
+name: Godot verify
+
+# بررسی خودکار پروژه: نصب Godot، ایمپورت دارایی‌ها و اجرای تست بدون رابط گرافیکی.
+# این گردش‌کار روی هر فشار به شاخه‌های کاری و اصلی اجرا می‌شود تا هیچ تغییری
+# بی‌آزمون نماند. خروجی ساخت (APK) اینجا ساخته نمی‌شود؛ آن کار گردش‌کار
+# «Android APK» است و فقط با درخواست انجام می‌شود.
+on:
+  push:
+    branches:
+      - main
+      - 'arena/**'
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: godot-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3-stable"
+
+jobs:
+  verify:
+    name: Import and headless self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Install Godot
+        run: |
+          set -e
+          mkdir -p "$HOME/.local/bin"
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d "$HOME/.local/bin"
+          GODOT_BIN=$(find "$HOME/.local/bin" -maxdepth 1 -type f -name "Godot*" | head -n 1)
+          chmod +x "$GODOT_BIN"
+          mv "$GODOT_BIN" "$HOME/.local/bin/godot"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Import assets
+        run: godot --headless --path . --import 2>&1 | tail -40
+
+      # کد خروج Godot با pipefail حفظ می‌شود تا تستِ ناموفق، اجرا را بشکند.
+      - name: Run the headless self-test
+        id: selftest
+        timeout-minutes: 6
+        run: |
+          set -o pipefail
+          # --quit-after سقف ایمنی است: اگر تست جایی منتظر بماند، موتور خودش
+          # بیرون می‌آید و لاگ نیمه‌کاره برای عیب‌یابی می‌ماند.
+          if godot --headless --path . --fixed-fps 60 --quit-after 3600 res://tests/headless_test.tscn 2>&1 | tee /tmp/dezhban-test.log; then
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for script errors in the log
+        if: always()
+        run: |
+          # الگوهای خطای واقعی زمان اجرا؛ خطاهای بی‌خطر پایان اجرا (مثل
+          # «resources still in use at exit») عمداً بیرون مانده‌اند.
+          PATTERN='SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Nonexistent function|Invalid call|read-only state|Invalid get index|Invalid set index|Invalid access to property|Cannot call method|Cannot infer the type'
+          if grep -nE "$PATTERN" /tmp/dezhban-test.log; then
+            echo "::error title=dezhban-runtime-error::$(grep -cE "$PATTERN" /tmp/dezhban-test.log) خطای زمان اجرا در لاگ دیده شد"
+            exit 1
+          else
+            echo "بدون خطای زمان اجرا"
+          fi
+
+      # خلاصهٔ تست به‌صورت annotation منتشر می‌شود تا از API هم خواندنی باشد.
+      - name: Publish the test summary
+        if: always()
+        run: |
+          MSG=$(tail -n 80 /tmp/dezhban-test.log | tr '\n' '¶' | sed 's/%/%25/g; s/\r//g')
+          if [ "${{ steps.selftest.outputs.result }}" = "fail" ]; then
+            echo "::error title=dezhban-self-test::$MSG"
+            exit 1
+          fi
+          if grep -qE "SCRIPT ERROR|Parse Error|Nonexistent function|Invalid call|read-only state|Cannot call method" /tmp/dezhban-test.log; then
+            echo "::error title=dezhban-script-error::$MSG"
+            exit 1
+          fi
+          echo "::notice title=dezhban-self-test::$MSG"
