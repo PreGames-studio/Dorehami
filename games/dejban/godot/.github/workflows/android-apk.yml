@@ -1,0 +1,144 @@
+name: Android APK
+
+# ساخت فایل نصبی اندروید. این گردش‌کار فقط با درخواست اجرا می‌شود:
+#   • اجرای دستی از زبانهٔ Actions
+#   • یا فشاری که در پیام کامیتش نشان [build-apk] باشد
+# خروجی هم به‌عنوان «اثر» همان اجرا و هم در انتشار ثابت apk-latest
+# گذاشته می‌شود تا لینک دانلود همیشه یکی باشد:
+#   https://github.com/pregamesstudio/Dezhban/releases/download/apk-latest/dezhban.apk
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+      - 'arena/**'
+
+permissions:
+  contents: write
+
+env:
+  GODOT_VERSION: "4.3-stable"
+
+jobs:
+  build:
+    name: Export the Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    if: >-
+      github.event_name != 'push' ||
+      github.ref == 'refs/heads/main' && contains(github.event.head_commit.message, '[build-apk]') ||
+      github.ref != 'refs/heads/main' && contains(github.event.head_commit.message, '[build-apk]')
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v5
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Install Android platform
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "Android SDK command-line tools not found under $SDK_ROOT" >&2
+            find /usr/local/lib/android -maxdepth 5 -name sdkmanager -type f -print || true
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Install Godot and export templates
+        run: |
+          set -e
+          mkdir -p "$HOME/.local/bin" "$HOME/.local/share/godot/export_templates"
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d "$HOME/.local/bin"
+          GODOT_BIN=$(find "$HOME/.local/bin" -maxdepth 1 -type f -name "Godot*" | head -n 1)
+          chmod +x "$GODOT_BIN"
+          mv "$GODOT_BIN" "$HOME/.local/bin/godot"
+          curl -sSL -o /tmp/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q -o /tmp/templates.tpz -d /tmp/templates
+          TEMPLATE_DIR="${GODOT_VERSION/-stable/.stable}"
+          rm -rf "$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}"
+          mv /tmp/templates/templates/* "$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Import the project
+        run: godot --headless --path . --import
+
+      # پیش از ساخت خروجی، تست بدون رابط اجرا می‌شود؛ اگر چیزی بشکند،
+      # APK ساخته نمی‌شود و خطا در همین اجرا دیده می‌شود.
+      - name: Run the headless test suite
+        run: godot --headless --path . res://tests/headless_test.tscn
+
+      - name: Point Godot at the Android SDK
+        run: |
+          # خروجی اندروید از خط فرمان، تنظیمات ویرایشگر را از این پرونده می‌خواند.
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_HOME}"
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          EOF
+          cat "$HOME/.config/godot/editor_settings-4.tres"
+
+      - name: Prepare a throwaway signing key
+        env:
+          KEYSTORE_PASSWORD: dezhban
+        run: |
+          KEYSTORE="$RUNNER_TEMP/dezhban-release.keystore"
+          keytool -genkeypair \
+            -keystore "$KEYSTORE" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEYSTORE_PASSWORD" \
+            -alias dezhban \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "cn=Dezhban, ou=CI, o=Dezhban, c=IR"
+          {
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KEYSTORE"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=dezhban"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$KEYSTORE_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Export the APK
+        run: |
+          set +e
+          mkdir -p build/android
+          godot --headless --path . --export-release "Android" build/android/dezhban.apk > /tmp/export.log 2>&1
+          CODE=$?
+          tail -c 4000 /tmp/export.log
+          if [ $CODE -ne 0 ]; then
+            REPORT=$(tail -c 3000 /tmp/export.log | tr '\n' '|')
+            echo "::error title=خطای خروجی APK::${REPORT}"
+            exit 1
+          fi
+          ls -la build/android
+
+      - name: Upload the APK as an artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-apk
+          path: build/android/dezhban.apk
+          if-no-files-found: error
+
+      - name: Refresh the fixed apk-latest release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          if ! gh release view apk-latest >/dev/null 2>&1; then
+            gh release create apk-latest \
+              --title "دژبان — آخرین ساخت" \
+              --notes "آخرین فایل نصبی ساخته‌شده از شاخهٔ $GITHUB_REF_NAME (کامیت $GITHUB_SHA)."
+          fi
+          gh release upload apk-latest build/android/dezhban.apk --clobber
