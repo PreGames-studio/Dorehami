@@ -83,6 +83,17 @@ curl -s localhost:8080/healthz
 (`…/releases/download/debug-latest/Dorehami-debug.apk`)؛ برای انتشار، توکن workflow باید در
 Settings → Actions → General روی «Read and write» باشد (اگر نباشد فقط هشدار می‌دهد و اجرا سبز می‌ماند).
 
+**وقتی Artifacts قابل دانلود نیست:** فایل artifact روی فضای ذخیره‌سازی blob می‌نشیند
+(`*.blob.core.windows.net`) و لاگ اجرا روی `results-receiver.actions.githubusercontent.com`؛
+محیط‌هایی که فقط به `github.com`/`api.github.com` دسترسی دارند ( sandbox ایجنت، برخی پراکسی‌های
+سازمانی) نه artifact را می‌توانند دانلود کنند نه لاگ را. برای همین ورک‌فلوی **APK release**
+(`.github/workflows/apk-release.yml`) APK را مستقیم روی ریلیز می‌گذارد تا لینک دانلودش یک URL
+`github.com/…/releases/download/…` باشد که در مرورگر باز می‌شود. دو راه فعال‌کردنش:
+push به یک برنچ `arena/**` که پیام کامیتش `[apk-release]` دارد، یا اجرای دستی از تب Actions
+(تگ مقصد هم قابل انتخاب است). نتیجه — چه موفق، چه «توکن workflow فقط خواندنی است» — به‌صورت
+annotation روی همان اجرا گزارش می‌شود و با `gh api repos/<owner>/<repo>/check-runs/<job-id>/annotations`
+قابل خواندن است.
+
 ### تعریف «تمام شد» برای هر تغییر
 
 1. `./gradlew checkAll` سبز است.
