@@ -16,9 +16,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
+
 import androidx.compose.ui.graphics.graphicsLayer
 import kotlin.math.cos
 import kotlin.math.sin
@@ -46,6 +44,7 @@ import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -94,13 +93,14 @@ import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-/** Table palette: tournament-green baize, walnut rim, brass accents. */
+/** Table palette: the locked GX-01 "Emerald Royale" direction, read through [HokmTokens]. */
 private object Table {
-    val feltLight = Color(0xFF2F8A4E)
-    val feltDark = Color(0xFF0F3D22)
-    val rimLight = Color(0xFF8B5A2B)
-    val rimDark = Color(0xFF3E2410)
-    val brass = Color(0xFFD9B55A)
+    val feltLight = Color(HokmTokens.Color.FELT_SPOTLIGHT)
+    val feltDark = Color(HokmTokens.Color.FELT)
+    val rimLight = Color(HokmArtDirection.BRASS_LIGHT)
+    val rimDark = Color(0xFF6E5212)
+    val brass = Color(HokmArtDirection.BRASS_LIGHT)
+    val turquoise = Color(HokmTokens.Color.TURQUOISE)
     val chip = Color(0x99000000)
     val turnGlow = Color(0xFFFFE082)
     val ours = Color(0xFF64B5F6)
@@ -164,7 +164,11 @@ fun HokmScreen(
         }
     }
 
-    CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Ltr) {
+    val reducedMotion = rememberHokmReducedMotion()
+    CompositionLocalProvider(
+        LocalLayoutDirection provides LayoutDirection.Ltr,
+        LocalHokmReducedMotion provides reducedMotion,
+    ) {
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
@@ -204,7 +208,7 @@ fun HokmScreen(
                         haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     },
                 )
-                Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.heightIn(min = 26.dp), contentAlignment = Alignment.Center) {
                     val line = state.feed.lastOrNull()
                     if (line != null && state.banner == null && state.introShown == null) FeedChip(line)
                     // HK-013: the status line is a polite live region — TalkBack announces the turn
@@ -415,7 +419,7 @@ fun HokmScreen(
                                 text = "خروج",
                                 tone = HokmButtonTone.CORAL,
                                 height = 42.dp,
-                                modifier = Modifier.width(86.dp),
+                                modifier = Modifier.widthIn(min = 86.dp),
                                 onSound = { onUiSound("tap") },
                                 onClick = onExit,
                             )
@@ -425,7 +429,7 @@ fun HokmScreen(
                                 text = "ادامه",
                                 tone = HokmButtonTone.GLASS,
                                 height = 42.dp,
-                                modifier = Modifier.width(100.dp),
+                                modifier = Modifier.widthIn(min = 100.dp),
                                 onSound = { onUiSound("tap") },
                                 onClick = { confirmExit = false },
                             )
@@ -439,50 +443,48 @@ fun HokmScreen(
 
 // --------------------------------------------------------------------------------------- felt
 
-/** Photographic baize + walnut rim, with a soft vignette and the brass medallion painted on top. */
+/**
+ * The table itself, drawn with vectors (GX-01 "Emerald Royale", HK-015 sample): brass rim with
+ * girih-lite diamond ticks and turquoise inlays, emerald felt with one focused spotlight in the
+ * centre (from direction B) that never darkens the card area, and the brass medallion rings.
+ * Vector instead of the old photograph: crisp at every size and the spotlight stays centred.
+ */
 @Composable
 private fun TableBackground() {
-    Image(
-        painter = painterResource(R.drawable.hokm_table),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
-    )
-    Canvas(Modifier.fillMaxSize()) {
-        drawRect(
-            Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)),
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.75f,
-            ),
-        )
-        val c = Offset(size.width / 2f, size.height * 0.45f)
-        drawCircle(Table.brass.copy(alpha = 0.14f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
-        drawCircle(Table.brass.copy(alpha = 0.09f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
-    }
-}
-
-/** Vector fallback of the table (not used by default). */
-@Suppress("unused")
-@Composable
-private fun FeltBackground() {
     Canvas(Modifier.fillMaxSize()) {
         val rim = 14.dp.toPx()
-        // walnut rim
+        // brass rim
         drawRect(Brush.verticalGradient(listOf(Table.rimLight, Table.rimDark)))
-        // baize
+        // girih-lite: tiny diamond ticks along the rim band
+        val tick = 5.dp.toPx()
+        val tickStep = 22.dp.toPx()
+        var tx = tickStep / 2f
+        while (tx < size.width) {
+            listOf(rim / 2f, size.height - rim / 2f).forEach { ty ->
+                val p = androidx.compose.ui.graphics.Path().apply {
+                    moveTo(tx, ty - tick / 2f)
+                    lineTo(tx + tick / 2f, ty)
+                    lineTo(tx, ty + tick / 2f)
+                    lineTo(tx - tick / 2f, ty)
+                    close()
+                }
+                drawPath(p, Color.Black.copy(alpha = 0.22f), style = Stroke(1.2f))
+            }
+            tx += tickStep
+        }
+        // emerald felt with the focused centre spotlight
         val inner = androidx.compose.ui.geometry.Rect(rim, rim, size.width - rim, size.height - rim)
         drawRoundRect(
             brush = Brush.radialGradient(
-                colors = listOf(Table.feltLight, Table.feltDark),
+                colors = listOf(Table.feltLight, Table.feltDark, Color(HokmArtDirection.FELT_EDGE)),
                 center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.7f,
+                radius = size.height * 0.72f,
             ),
             topLeft = inner.topLeft,
             size = inner.size,
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.12f),
         )
-        // brass inlay line
+        // brass inlay line + turquoise inlay stones on the inner rim
         drawRoundRect(
             color = Table.brass.copy(alpha = 0.55f),
             topLeft = Offset(inner.left + 6.dp.toPx(), inner.top + 6.dp.toPx()),
@@ -490,6 +492,13 @@ private fun FeltBackground() {
             cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.11f),
             style = Stroke(1.5.dp.toPx()),
         )
+        val stoneR = 3.dp.toPx()
+        val stoneY = listOf(inner.top + rim * 0.7f, inner.bottom - rim * 0.7f)
+        var sx = inner.left + 34.dp.toPx()
+        while (sx < inner.right - 20.dp.toPx()) {
+            stoneY.forEach { sy -> drawCircle(Table.turquoise.copy(alpha = 0.85f), stoneR, Offset(sx, sy)) }
+            sx += 68.dp.toPx()
+        }
         // felt grain: very faint diagonal hatch
         val step = 7.dp.toPx()
         var x = -size.height
@@ -517,13 +526,16 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
     val team = state.teamOf(seat)
     val teamColor = if (team == state.myTeam) Table.ours else Table.theirs
 
+    val reducedMotion = LocalHokmReducedMotion.current
     val pulse = rememberInfiniteTransition(label = "turn")
-    val glow by pulse.animateFloat(
+    val animatedGlow by pulse.animateFloat(
         initialValue = 0.35f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(tween(700, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "glow",
     )
+    // HK-013.a: in reduced-motion mode the turn border is steady, not pulsing.
+    val glow = if (HokmMotion.infiniteMotionEnabled(reducedMotion)) animatedGlow else 0.85f
 
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
@@ -637,9 +649,10 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
         }
 
         val collectTo = state.collectingTo
+        val reducedMotion = LocalHokmReducedMotion.current
         val collect by animateFloatAsState(
             targetValue = if (collectTo != null) 1f else 0f,
-            animationSpec = tween(480, easing = FastOutSlowInEasing),
+            animationSpec = tween(HokmMotion.durationMs(480, reducedMotion), easing = FastOutSlowInEasing),
             label = "collect",
         )
 
@@ -668,7 +681,10 @@ private fun TableCard(
     collect: Float,
 ) {
     val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { progress.animateTo(1f, tween(300, easing = FastOutSlowInEasing)) }
+    val reducedMotion = LocalHokmReducedMotion.current
+    LaunchedEffect(Unit) {
+        progress.animateTo(1f, tween(HokmMotion.durationMs(300, reducedMotion), easing = FastOutSlowInEasing))
+    }
     val p = progress.value
     val baseX = origin.first + (slot.first - origin.first) * p
     val baseY = origin.second + (slot.second - origin.second) * p
@@ -699,6 +715,7 @@ private fun HandFan(
     onTap: (Card) -> Unit,
     selected: Set<Card> = emptySet(),
 ) {
+    val reducedMotion = LocalHokmReducedMotion.current
     BoxWithConstraints(Modifier.fillMaxWidth().height(cardWidth / CARD_ASPECT + 26.dp)) {
         val n = cards.size
         if (n == 0) return@BoxWithConstraints
@@ -715,7 +732,11 @@ private fun HandFan(
             val lift = (abs(rel) * abs(rel) * 1.1f).dp
             val playable = enabled && card in legal
             val isSelected = card in selected
-            val raise by animateFloatAsState(if (isSelected) 2.2f else if (playable) 1f else 0f, tween(180), label = "raise")
+            val raise by animateFloatAsState(
+                if (isSelected) 2.2f else if (playable) 1f else 0f,
+                tween(HokmMotion.durationMs(180, reducedMotion)),
+                label = "raise",
+            )
             PlayingCardView(
                 card = card,
                 width = cardWidth,
@@ -773,7 +794,7 @@ private fun ScoreBar(
                 leading = "‹",
                 tone = HokmButtonTone.GLASS,
                 height = 39.dp,
-                modifier = Modifier.width(74.dp),
+                modifier = Modifier.widthIn(min = 74.dp),
                 onSound = onTap,
                 onClick = onExit,
             )
@@ -806,11 +827,33 @@ private fun ScoreBar(
 @Composable
 private fun HokmBadge(state: HokmUiState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+        Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+            // GX-01: the trump lives in a brass medallion with a turquoise stone once chosen.
             val hokm = state.hokm
+            Box(
+                Modifier
+                    .size(34.dp)
+                    .clip(CircleShape)
+                    .background(Brush.radialGradient(listOf(Table.rimLight, Table.rimDark)))
+                    .border(1.dp, Table.brass, CircleShape),
+                contentAlignment = Alignment.Center,
+            ) {
+                if (hokm != null) {
+                    SuitIcon(hokm, 19.dp, onDark = true)
+                    Box(
+                        Modifier
+                            .align(Alignment.BottomCenter)
+                            .padding(bottom = 2.dp)
+                            .size(4.dp)
+                            .clip(CircleShape)
+                            .background(Table.turquoise),
+                    )
+                } else {
+                    Text("؟", color = Color.White.copy(alpha = 0.85f), fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                }
+            }
+            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
             if (hokm != null) {
-                SuitIcon(hokm, 18.dp, onDark = true)
                 Text(hokm.titleFa, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             } else {
                 Text("—", color = Color.White, fontSize = 13.sp)
@@ -940,14 +983,17 @@ private fun DealingOverlay(state: HokmUiState, modifier: Modifier = Modifier) {
         // deck
         repeat(4) { i -> CardBackView(width = 56.dp, elevation = 2.dp, modifier = Modifier.offset(y = (-i).dp)) }
         // Fly one card toward each real seat in turn, keeping the local player at the bottom.
-        val step = phase * state.playerCount
-        val relativeSeat = step.toInt() % state.playerCount
-        val seat = HokmSeatLayout.seatAtOffset(state.mySeat, relativeSeat, state.playerCount)
-        val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
-        val f = step % 1f
-        val dx = 90f * direction.x * f
-        val dy = 90f * direction.y * f
-        CardBackView(width = 56.dp, elevation = 6.dp, modifier = Modifier.offset(dx.dp, dy.dp).alpha(1f - f * 0.8f))
+        // HK-013.a: reduced motion shows the deck and the caption, without the flying card.
+        if (HokmMotion.infiniteMotionEnabled(LocalHokmReducedMotion.current)) {
+            val step = phase * state.playerCount
+            val relativeSeat = step.toInt() % state.playerCount
+            val seat = HokmSeatLayout.seatAtOffset(state.mySeat, relativeSeat, state.playerCount)
+            val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
+            val f = step % 1f
+            val dx = 90f * direction.x * f
+            val dy = 90f * direction.y * f
+            CardBackView(width = 56.dp, elevation = 6.dp, modifier = Modifier.offset(dx.dp, dy.dp).alpha(1f - f * 0.8f))
+        }
         Text(
             "در حال پخش کارت‌ها…",
             color = Color.White,
@@ -1060,7 +1106,7 @@ private fun GameOverDialog(
                     leading = if (playAgainAvailable) "↻" else "‹",
                     tone = if (playAgainAvailable) HokmButtonTone.EMERALD else HokmButtonTone.GLASS,
                     height = 46.dp,
-                    modifier = Modifier.width(if (playAgainAvailable) 126.dp else 102.dp),
+                    modifier = Modifier.widthIn(min = if (playAgainAvailable) 126.dp else 102.dp),
                     onSound = onTap,
                     onClick = if (playAgainAvailable) onPlayAgain else onExit,
                 )
@@ -1225,7 +1271,7 @@ private fun StickerTray(
                     text = "بستن",
                     tone = HokmButtonTone.GLASS,
                     height = 40.dp,
-                    modifier = Modifier.width(76.dp),
+                    modifier = Modifier.widthIn(min = 76.dp),
                     onSound = onTap,
                     onClick = onDismiss,
                 )
@@ -1257,6 +1303,9 @@ private fun StickerTray(
 /** Particle bursts: gold sparks on a cut, a sparkle on each trick, a big burst on kot, confetti on a win. */
 @Composable
 private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier = Modifier) {
+    // HK-013.a: particles/confetti are decoration; reduced motion drops them entirely.
+    // The information they carried (a cut, a won trick, a kot) stays on the banner and score.
+    if (HokmMotion.particleCount(1, LocalHokmReducedMotion.current) == 0) return
     if (state.fx.isEmpty()) return
     BoxWithConstraints(modifier) {
         val cw = maxWidth
@@ -1436,7 +1485,7 @@ private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () ->
                 text = "بستن",
                 tone = HokmButtonTone.GLASS,
                 height = 40.dp,
-                modifier = Modifier.width(82.dp),
+                modifier = Modifier.widthIn(min = 82.dp),
                 onSound = onTap,
                 onClick = onDismiss,
             )
@@ -1488,7 +1537,7 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                         text = "بستن",
                         tone = HokmButtonTone.GLASS,
                         height = 40.dp,
-                        modifier = Modifier.width(76.dp),
+                        modifier = Modifier.widthIn(min = 76.dp),
                         onSound = onTap,
                         onClick = onDismiss,
                     )

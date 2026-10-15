@@ -26,11 +26,13 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -40,6 +42,7 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -111,6 +114,7 @@ fun HokmEntry(onExit: () -> Unit) {
         }
     }
 
+    CompositionLocalProvider(LocalHokmReducedMotion provides rememberHokmReducedMotion()) {
     when {
         roomMode != null -> HokmRoom(
             mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
@@ -162,6 +166,7 @@ fun HokmEntry(onExit: () -> Unit) {
                 started = false
             },
         )
+    }
     }
 }
 
@@ -576,7 +581,7 @@ private fun HokmSetupScreen(
                         text = "پاک کن",
                         tone = HokmButtonTone.CORAL,
                         height = 42.dp,
-                        modifier = Modifier.width(88.dp),
+                        modifier = Modifier.widthIn(min = 88.dp),
                         onSound = tap,
                         onClick = {
                             onResetStats()
@@ -589,7 +594,7 @@ private fun HokmSetupScreen(
                         text = "انصراف",
                         tone = HokmButtonTone.GLASS,
                         height = 42.dp,
-                        modifier = Modifier.width(92.dp),
+                        modifier = Modifier.widthIn(min = 92.dp),
                         onSound = tap,
                         onClick = { confirmResetStats = false },
                     )
@@ -623,7 +628,7 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
             leading = "‹",
             tone = HokmButtonTone.GLASS,
             height = 42.dp,
-            modifier = Modifier.width(104.dp),
+            modifier = Modifier.widthIn(min = 104.dp),
             onSound = onTap,
             onClick = onBack,
         )
@@ -633,18 +638,22 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
 @Composable
 private fun HokmHero(playerCount: Int, target: Int) {
     val transition = rememberInfiniteTransition(label = "hokm-hero")
-    val bob by transition.animateFloat(
+    val animatedBob by transition.animateFloat(
         initialValue = -3f,
         targetValue = 3f,
         animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "card-bob",
     )
-    val glow by transition.animateFloat(
+    val animatedGlow by transition.animateFloat(
         initialValue = 0.42f,
         targetValue = 0.82f,
         animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
         label = "hero-glow",
     )
+    // HK-013.a: the hero fan is decoration; reduced motion holds it still.
+    val motionOn = HokmMotion.infiniteMotionEnabled(LocalHokmReducedMotion.current)
+    val bob = if (motionOn) animatedBob else 0f
+    val glow = if (motionOn) animatedGlow else 0.6f
 
     BoxWithConstraints(
         Modifier
@@ -748,7 +757,7 @@ private fun SettingToggle(
 ) {
     Row(
         modifier
-            .height(68.dp)
+            .heightIn(min = 68.dp)
             .clip(RoundedCornerShape(15.dp))
             .background(Color(0xFF12372D))
             .border(1.dp, Color(0x447DD6B4), RoundedCornerShape(15.dp))
@@ -763,7 +772,7 @@ private fun SettingToggle(
         }
         val knob by androidx.compose.animation.core.animateFloatAsState(
             targetValue = if (checked) 1f else 0f,
-            animationSpec = tween(180),
+            animationSpec = tween(HokmMotion.durationMs(180, LocalHokmReducedMotion.current)),
             label = "toggle-knob",
         )
         Box(
@@ -799,7 +808,7 @@ private fun StatsCard(stats: HokmStats, onReset: () -> Unit, onTap: () -> Unit) 
                 text = "پاک‌کردن",
                 tone = HokmButtonTone.GLASS,
                 height = 40.dp,
-                modifier = Modifier.width(96.dp),
+                modifier = Modifier.widthIn(min = 96.dp),
                 onSound = onTap,
                 onClick = onReset,
             )

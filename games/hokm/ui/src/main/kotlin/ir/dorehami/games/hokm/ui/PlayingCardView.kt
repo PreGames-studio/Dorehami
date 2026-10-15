@@ -1,9 +1,6 @@
 package ir.dorehami.games.hokm.ui
 
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -36,17 +33,18 @@ import ir.dorehami.games.hokm.Card
 import ir.dorehami.games.hokm.Rank
 import ir.dorehami.games.hokm.Suit
 
-/** Palette of a real deck: ivory stock, deep red and near-black ink. */
+/** Palette of a real deck: ivory stock, deep red and near-black ink (values: [HokmTokens]). */
 object CardColors {
-    val ivory = Color(0xFFFDFBF4)
+    val ivory = Color(HokmTokens.Color.CARD_IVORY)
     val ivoryShade = Color(0xFFEFEBE0)
     val edge = Color(0xFFCFC9B8)
-    val red = Color(0xFFB3202B)
-    val black = Color(0xFF1C1C1E)
+    val red = Color(HokmTokens.Color.INK_RED)
+    val black = Color(HokmTokens.Color.INK_BLACK)
     val gold = Color(0xFFD4AF37)
-    val backA = Color(0xFF7A1B22)
-    val backB = Color(0xFF3F0B10)
-    val backPattern = Color(0xFFF1D9A4)
+    // GX-01 "Emerald Royale" card back: deep emerald field, brass lattice (was burgundy).
+    val backA = Color(HokmArtDirection.FELT_SPOTLIGHT)
+    val backB = Color(HokmArtDirection.FELT_EDGE)
+    val backPattern = Color(HokmArtDirection.BRASS_LIGHT)
 }
 
 val Suit.inkColor: Color
@@ -88,7 +86,8 @@ fun PlayingCardView(
         Canvas(Modifier.fillMaxSize()) {
             val w = size.width
             val h = size.height
-            val indexSize = w * 0.19f
+            // GX-01 locks jumbo corner indices for readability (see HokmArtDirection).
+            val indexSize = w * HokmArtDirection.JUMBO_INDEX_FRACTION
             val style = TextStyle(
                 color = ink,
                 fontSize = (indexSize / density).sp,
@@ -120,32 +119,14 @@ fun PlayingCardView(
     }
 }
 
-/** The back of a card: deep red stock with a Persian "girih" lattice and a thin gold frame. */
+/** The back of a card: the painted emerald girih lattice below (GX-01; no raster asset). */
 @Composable
 fun CardBackView(
     width: Dp,
     modifier: Modifier = Modifier,
     elevation: Dp = 4.dp,
 ) {
-    // Photographic back (crimson girih on gold); the painted lattice below stays as a fallback.
-    val height = width / CARD_ASPECT
-    val corner = width * 0.09f
-    val shape = RoundedCornerShape(corner)
-    Box(
-        modifier
-            .size(width, height)
-            .shadow(elevation, shape, clip = false)
-            .clip(shape)
-            .background(CardColors.ivory)
-            .border(width * 0.015f, Color(0x33000000), shape),
-    ) {
-        Image(
-            painter = painterResource(R.drawable.hokm_card_back),
-            contentDescription = null,
-            contentScale = ContentScale.Crop,
-            modifier = Modifier.fillMaxSize(),
-        )
-    }
+    PaintedCardBackView(width, modifier, elevation)
 }
 
 /** Vector-drawn card back (used nowhere by default; kept for low-memory devices / tests). */
@@ -169,7 +150,7 @@ fun PaintedCardBackView(
             val w = size.width
             val h = size.height
             val m = w * 0.07f
-            // red field
+            // emerald field
             drawRoundRect(
                 brush = Brush.radialGradient(listOf(CardColors.backA, CardColors.backB), center = Offset(w / 2f, h / 2f), radius = h * 0.75f),
                 topLeft = Offset(m, m),
@@ -211,6 +192,8 @@ fun PaintedCardBackView(
             drawCircle(CardColors.backB, radius = w * 0.2f, center = c)
             drawCircle(CardColors.gold, radius = w * 0.2f, center = c, style = Stroke(w * 0.012f))
             drawStar(c, w * 0.15f, CardColors.gold)
+            // turquoise heart — the single Iranian accent of the GX-01 direction
+            drawCircle(Color(HokmArtDirection.TURQUOISE), radius = w * 0.045f, center = c)
         }
     }
 }
