@@ -78,7 +78,12 @@ jobs:
           say() { echo "::notice title=apk-release::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
           bad() { echo "::error title=apk-release::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
 
-          src=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          # NOTE: Actions runs this block as `bash -e -o pipefail`, so every command that may
+          # legitimately return non-zero (grep with no match, gh api on a read-only token, a failed
+          # release upload) needs an explicit `|| …` — otherwise the step dies before it can report
+          # anything. That is exactly how the first run of this workflow lost its dist/ folder.
+          src=$(ls app/build/outputs/apk/debug/*.apk 2>/dev/null | head -n 1 || true)
+          [ -n "$src" ] || { bad "no APK under app/build/outputs/apk/debug/ — the build step did not produce one"; exit 1; }
           sha=$(git rev-parse --short=7 HEAD)
           ref_name=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
           # The checkout is shallow, so pull main to be able to say whether this APK carries any
@@ -86,7 +91,7 @@ jobs:
           git fetch --no-tags --depth=50 origin main >/dev/null 2>&1 || true
           main_sha=$(git rev-parse --short=7 FETCH_HEAD 2>/dev/null || echo unknown)
           code_diff=$(git diff --name-only FETCH_HEAD HEAD 2>/dev/null \
-            | grep -Ev '^(\.github/|docs/|AGENTS\.md|README\.md|CONTRIBUTING\.md)' | head -n 5 | tr '\n' ' ')
+            | { grep -Ev '^(\.github/|docs/|AGENTS\.md|README\.md|CONTRIBUTING\.md)' || true; } | head -n 5 | tr '\n' ' ')
           [ -n "$code_diff" ] || code_diff="none (CI/docs only)"
           mkdir -p dist
           cp "$src" dist/Dorehami-debug.apk
@@ -95,9 +100,9 @@ jobs:
           sum=$(sha256sum dist/Dorehami-debug.apk | cut -c1-16)
           say "built ${src} size=${size} sha256=${sum}… ref=${GITHUB_REF_NAME} commit=${sha} main=${main_sha} code-diff-vs-main: ${code_diff}"
 
-          perms=$(gh api "repos/${GH_REPO}" --jq '.permissions' 2>&1 | head -c 200)
+          perms=$(gh api "repos/${GH_REPO}" --jq '.permissions' 2>&1 | head -c 200 || true)
           say "workflow-token permissions: ${perms}"
-          can_push=$(gh api "repos/${GH_REPO}" --jq '.permissions.push' 2>&1 | head -c 20)
+          can_push=$(gh api "repos/${GH_REPO}" --jq '.permissions.push' 2>&1 | head -c 20 || true)
           if [ "$can_push" != "true" ]; then
             bad "the workflow token cannot write releases (${perms}). Fix: Settings → Actions → General → Workflow permissions → «Read and write permissions». The APK is still available as an artifact of this run."
             echo "published=false" >> "$GITHUB_OUTPUT"
@@ -108,16 +113,18 @@ jobs:
           notes=$(printf 'بیلد دیباگ برای نصب روی گوشی.\n\n| | |\n|---|---|\n| برنچ | `%s` |\n| کامیت | `%s` |\n| `main` | `%s` |\n| تفاوت کد با `main` | %s |\n| اندازه | %s |\n| sha256 | `%s…` |\n| اجرا | %s |\n\nنصب: `adb install -r -t Dorehami-debug.apk` یا بازکردن مستقیم فایل روی گوشی (امضای debug).' \
             "${GITHUB_REF_NAME}" "${sha}" "${main_sha}" "${code_diff}" "${size}" "${sum}" "${run_url}")
 
+          rc=0
           if gh release view "$TAG" >/dev/null 2>&1; then
             say "release ${TAG} already exists — refreshing it"
-            out=$(gh release edit "$TAG" --prerelease --title "Debug APK (rolling)" --notes "$notes" 2>&1); rc=$?
+            out=$(gh release edit "$TAG" --prerelease --title "Debug APK (rolling)" --notes "$notes" 2>&1) || rc=$?
           else
-            out=$(gh release create "$TAG" --prerelease --title "Debug APK (rolling)" --target main --notes "$notes" 2>&1); rc=$?
+            out=$(gh release create "$TAG" --prerelease --title "Debug APK (rolling)" --target main --notes "$notes" 2>&1) || rc=$?
           fi
-          [ $rc -eq 0 ] && say "release ${TAG} ready: ${out}" || bad "release create/edit rc=${rc}: ${out}"
+          if [ $rc -eq 0 ]; then say "release ${TAG} ready: ${out}"; else bad "release create/edit rc=${rc}: ${out}"; fi
           [ $rc -eq 0 ] || { echo "published=false" >> "$GITHUB_OUTPUT"; exit 1; }
 
-          out=$(gh release upload "$TAG" dist/Dorehami-debug.apk "dist/Dorehami-debug-${ref_name}-${sha}.apk" --clobber 2>&1); rc=$?
+          rc=0
+          out=$(gh release upload "$TAG" dist/Dorehami-debug.apk "dist/Dorehami-debug-${ref_name}-${sha}.apk" --clobber 2>&1) || rc=$?
           if [ $rc -ne 0 ]; then
             bad "release upload rc=${rc}: ${out}"
             echo "published=false" >> "$GITHUB_OUTPUT"
@@ -126,7 +133,7 @@ jobs:
           say "uploaded: ${out}"
 
           assets=$(gh api "repos/${GH_REPO}/releases/tags/${TAG}" \
-            --jq '[.assets[] | "\(.name) (\(.size) bytes) \(.browser_download_url)"] | join(" | ")' 2>&1 | head -c 400)
+            --jq '[.assets[] | "\(.name) (\(.size) bytes) \(.browser_download_url)"] | join(" | ")' 2>&1 | head -c 400 || true)
           say "release ${TAG} assets: ${assets}"
           echo "published=true" >> "$GITHUB_OUTPUT"
           echo "url=${GITHUB_SERVER_URL}/${GH_REPO}/releases/download/${TAG}/Dorehami-debug.apk" >> "$GITHUB_OUTPUT"
@@ -175,7 +182,7 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           grep -E "^e: |error:|FAILURE:|Execution failed" build.log 2>/dev/null | head -n 8 | while IFS= read -r line; do
             echo "::error::${line:0:300}"
-          done
+          done || true
 
       - name: Upload APK artifact
         if: always()
