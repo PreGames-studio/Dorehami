@@ -62,8 +62,11 @@ jobs:
           set -o pipefail
           ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee build.log
 
+      # Best effort: a read-only workflow token must not turn the whole run red — the APK artifact
+      # below is already the deliverable, and the reason is reported as an annotation.
       - name: Publish APK to a release
         id: publish
+        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
           GH_REPO: ${{ github.repository }}
@@ -77,14 +80,20 @@ jobs:
 
           src=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
           sha=$(git rev-parse --short=7 HEAD)
-          main_sha=$(git rev-parse --short=7 origin/main 2>/dev/null || echo "unknown")
           ref_name=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          # The checkout is shallow, so pull main to be able to say whether this APK carries any
+          # code difference from main or only CI/docs changes (which are not inside the APK).
+          git fetch --no-tags --depth=50 origin main >/dev/null 2>&1 || true
+          main_sha=$(git rev-parse --short=7 FETCH_HEAD 2>/dev/null || echo unknown)
+          code_diff=$(git diff --name-only FETCH_HEAD HEAD 2>/dev/null \
+            | grep -Ev '^(\.github/|docs/|AGENTS\.md|README\.md|CONTRIBUTING\.md)' | head -n 5 | tr '\n' ' ')
+          [ -n "$code_diff" ] || code_diff="none (CI/docs only)"
           mkdir -p dist
           cp "$src" dist/Dorehami-debug.apk
           cp "$src" "dist/Dorehami-debug-${ref_name}-${sha}.apk"
           size=$(du -h dist/Dorehami-debug.apk | cut -f1)
           sum=$(sha256sum dist/Dorehami-debug.apk | cut -c1-16)
-          say "built ${src} size=${size} sha256=${sum}… ref=${GITHUB_REF_NAME} commit=${sha} main=${main_sha}"
+          say "built ${src} size=${size} sha256=${sum}… ref=${GITHUB_REF_NAME} commit=${sha} main=${main_sha} code-diff-vs-main: ${code_diff}"
 
           perms=$(gh api "repos/${GH_REPO}" --jq '.permissions' 2>&1 | head -c 200)
           say "workflow-token permissions: ${perms}"
@@ -96,8 +105,8 @@ jobs:
           fi
 
           run_url="${GITHUB_SERVER_URL}/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}"
-          notes=$(printf 'بیلد دیباگ برای نصب روی گوشی.\n\n| | |\n|---|---|\n| برنچ | `%s` |\n| کامیت | `%s` |\n| `main` | `%s` |\n| اندازه | %s |\n| sha256 | `%s…` |\n| اجرا | %s |\n\nنصب: `adb install -r -t Dorehami-debug.apk` یا بازکردن مستقیم فایل روی گوشی (امضای debug).' \
-            "${GITHUB_REF_NAME}" "${sha}" "${main_sha}" "${size}" "${sum}" "${run_url}")
+          notes=$(printf 'بیلد دیباگ برای نصب روی گوشی.\n\n| | |\n|---|---|\n| برنچ | `%s` |\n| کامیت | `%s` |\n| `main` | `%s` |\n| تفاوت کد با `main` | %s |\n| اندازه | %s |\n| sha256 | `%s…` |\n| اجرا | %s |\n\nنصب: `adb install -r -t Dorehami-debug.apk` یا بازکردن مستقیم فایل روی گوشی (امضای debug).' \
+            "${GITHUB_REF_NAME}" "${sha}" "${main_sha}" "${code_diff}" "${size}" "${sum}" "${run_url}")
 
           if gh release view "$TAG" >/dev/null 2>&1; then
             say "release ${TAG} already exists — refreshing it"
@@ -138,6 +147,23 @@ jobs:
             echo '```bash'
             echo 'adb install -r -t Dorehami-debug.apk'
             echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Hint when publishing was not allowed
+        if: steps.publish.outcome == 'failure'
+        run: |
+          {
+            echo "## ⚠️ APK روی ریلیز منتشر نشد"
+            echo
+            echo "توکن workflow این مخزن فقط خواندنی است (`contents: read`)، پس ساختن ریلیز و بارگذاری"
+            echo "فایل روی آن ممکن نیست. خودِ APK در **Artifacts** همین اجرا موجود است."
+            echo
+            echo "برای فعال‌کردن لینک دانلود پایدار"
+            echo "(`…/releases/download/debug-latest/Dorehami-debug.apk`):"
+            echo
+            echo "Settings → Actions → General → Workflow permissions → «Read and write permissions»"
+            echo
+            echo "بعد همین ورک‌فلو را دوباره اجرا کن (یا یک کامیت با `[apk-release]` در پیامش push کن)."
           } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Report build failure
