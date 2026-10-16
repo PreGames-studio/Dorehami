@@ -20,6 +20,7 @@ import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.drawscope.DrawScope
+import androidx.compose.ui.graphics.drawscope.clipPath
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.text.TextMeasurer
@@ -298,6 +299,38 @@ private fun brushOf(spec: GradientSpec, topLeft: Offset, size: Size): Brush = wh
         radius = max(size.width, size.height) * 0.62f,
     )
 }
+
+/**
+ * The outline of a [CardOp.Clip] in pixels. A clip region is written in the same card fractions as
+ * every other geometry in the deck (0..1 across and down), so mapping it is only a scale — no
+ * glyph box and no rotation, unlike [glyphPath].
+ */
+private fun absolutePath(commands: List<GlyphCommand>, widthPx: Float, heightPx: Float): Path =
+    Path().apply {
+        for (command in commands) {
+            when (command) {
+                is GlyphCommand.MoveTo -> moveTo(command.x * widthPx, command.y * heightPx)
+                is GlyphCommand.LineTo -> lineTo(command.x * widthPx, command.y * heightPx)
+                is GlyphCommand.QuadTo -> quadraticTo(
+                    command.cx * widthPx,
+                    command.cy * heightPx,
+                    command.x * widthPx,
+                    command.y * heightPx,
+                )
+
+                is GlyphCommand.CurveTo -> cubicTo(
+                    command.c1x * widthPx,
+                    command.c1y * heightPx,
+                    command.c2x * widthPx,
+                    command.c2y * heightPx,
+                    command.x * widthPx,
+                    command.y * heightPx,
+                )
+
+                GlyphCommand.Close -> close()
+            }
+        }
+    }
 
 /**
  * Maps a unit-space glyph into canvas space: the unit outline is scaled into a `widthPx × heightPx`

@@ -266,10 +266,10 @@ private fun HokmSoloGame(
         onDispose { scope.cancel() }
     }
     // GX-04: the table paces its movements with the same reduced-motion setting this screen
-    // renders with — one flag, one timing table, no second opinion.
-    LaunchedEffect(match, LocalHokmReducedMotion.current) {
-        match.reducedMotion = LocalHokmReducedMotion.current
-    }
+    // renders with — one flag, one timing table, no second opinion. The local is read here, in
+    // composable context: the effect body itself is a suspend lambda and cannot read a local.
+    val reducedMotion = LocalHokmReducedMotion.current
+    LaunchedEffect(match, reducedMotion) { match.reducedMotion = reducedMotion }
 
     val state by match.state
     RecordWhenFinished(state, matchKey = key, onFinished = onFinished)
@@ -341,9 +341,8 @@ private fun HokmRoom(
         LaunchedEffect(match) { match.begin() }
         // GX-04: a room's table follows this device's reduced-motion setting (display pacing is per
         // device; the host still owns the game's truth).
-        LaunchedEffect(match, LocalHokmReducedMotion.current) {
-            match.reducedMotion = LocalHokmReducedMotion.current
-        }
+        val reducedMotion = LocalHokmReducedMotion.current
+        LaunchedEffect(match, reducedMotion) { match.reducedMotion = reducedMotion }
         val state by match.state
         RecordWhenFinished(state, matchKey = playing.client, onFinished = onFinished)
         HokmScreen(
