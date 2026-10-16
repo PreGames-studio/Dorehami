@@ -43,13 +43,21 @@ abstract class HokmTable(
     protected val onSound: (String) -> Unit,
 ) {
     protected companion object {
+        /**
+         * GX-04 keeps only the *bot's* human-like thinking pace here: it is not a movement of the
+         * table, so it does not belong to [HokmChoreography]. Every card movement's length now
+         * comes from that table ([beatMs]).
+         */
         const val BOT_THINK_MS = 650L
         const val BOT_LEAD_MS = 900L
-        const val TRICK_SHOW_MS = 1150L
-        const val COLLECT_MS = 520L
-        const val INTRO_CARD_MS = 420L
-        const val DEAL_MS = 1400L
-        const val HAND_BANNER_MS = 2600L
+
+        /**
+         * GX-04: how deep the notice queue may get before the felt stops waiting out its movements.
+         * A queue this deep means truth is already ahead (a burst, a reconnect resync); the
+         * in-flight movement is then fast-forwarded — its cues still fire exactly once — so the
+         * table never holds the game behind an animation (the roadmap's BASELINE criterion).
+         */
+        const val SKIP_AHEAD_QUEUE = 4
     }
 
     protected val playerCount: Int = seats.size
@@ -81,7 +89,6 @@ abstract class HokmTable(
     protected val _state = mutableStateOf(HokmUiState(seats = seats, playerCount = playerCount, mySeat = mySeat))
     private var stickerStamp = 0L
     private var fxStamp = 0L
-    private var cutPending = false
     val state: State<HokmUiState> get() = _state
 
     protected fun pushFx(kind: FxKind, seat: Int, ttlMs: Long = 1400) {
@@ -97,6 +104,9 @@ abstract class HokmTable(
     protected var pendingPauseMs = 0L
     private var pendingCollect: Int? = null
     private var pendingHandBanner: Banner? = null
+
+    /** GX-04: the sound the coming hand banner must speak (kot/hand_lost/hand_won), set on finish. */
+    private var pendingHandSound: String? = null
     private var pendingDeal = false
     private var started = false
 
@@ -110,6 +120,105 @@ abstract class HokmTable(
     /** Enqueues one action's emissions as a notice and wakes the loop. */
     protected fun offerNotice(version: Long, actor: Int, emissions: List<Emission>) {
         if (eventQueue.offer(Notice(version, actor, emissions))) wake.trySend(Unit)
+    }
+
+    // ------------------------------------------------------------------ GX-04 choreography
+
+    /**
+     * GX-04: the player's reduced-motion choice. The table has no Compose access on purpose, so
+     * the screen (which owns the system-setting hook) keeps this flag in sync. Every movement is
+     * read through [beat]/[beatMs] so exactly one table rules the pacing.
+     */
+    var reducedMotion: Boolean = false
+
+    /** The row that actually plays for [event] right now (reduced-motion variant included). */
+    protected fun beat(event: HokmChoreography.Event): HokmChoreography.Beat =
+        HokmChoreography.beat(event, reducedMotion)
+
+    /** How long [event] plays right now, as the loop wants it. */
+    protected fun beatMs(event: HokmChoreography.Event): Long = beat(event).totalMs.toLong()
+
+    /** The movement currently in flight; the loop fires its cues at their offsets (never twice). */
+    private var cueRunner: HokmCueRunner? = null
+
+    /** The seat the moving cards belong to (a cut's sparks, a collected trick). */
+    private var cueSeat: Int = -1
+
+    private var hapticStamp = 0L
+
+    /**
+     * Starts a movement. Its cues fire from the loop (see [runPendingCues]) or inline when the
+     * caller is a linear script ([runBeat]) — either way the truth is never gated on it: hand,
+     * turn and scores still come from snapshots, and a skipped movement is *heard*, not dropped.
+     */
+    private fun startBeat(
+        event: HokmChoreography.Event,
+        seat: Int = -1,
+        rename: (HokmChoreography.Beat) -> HokmChoreography.Beat = { it },
+    ) {
+        cueRunner = HokmCueRunner(rename(beat(event)))
+        cueSeat = seat
+    }
+
+    /** True while a movement is in flight; the loop services its cues before anything else. */
+    private val hasPendingCues: Boolean get() = cueRunner?.let { !it.finished } ?: false
+
+    /**
+     * One turn of a movement: waits out the movement's own clock and fires whatever became due.
+     * Writing this as a wait-then-fire (instead of a single `delay(totalMs)`) is what puts a card's
+     * click on the frame the card lands, and keeps the loop able to service truth between cues.
+     */
+    private suspend fun runPendingCues() {
+        val runner = cueRunner ?: return
+        val wait = runner.waitMs() ?: run { cueRunner = null; return }
+        if (wait > 0L) delay(wait)
+        runner.due(wait).forEach { fireCue(it, cueSeat) }
+        if (runner.finished) cueRunner = null
+    }
+
+    /**
+     * GX-04: fast-forwards the movement in flight — the player still *hears* it (every pending cue
+     * fires once), but the table does not wait for it. Used when the notice queue proves the felt
+     * is behind the truth, so a burst or a resync can never make the game wait on an animation.
+     */
+    private fun finishPendingCues() {
+        val runner = cueRunner ?: return
+        runner.finish().forEach { fireCue(it, cueSeat) }
+        cueRunner = null
+    }
+
+    /** Plays a whole movement inline (the opening script has nothing else to do meanwhile). */
+    protected suspend fun runBeat(
+        event: HokmChoreography.Event,
+        seat: Int = -1,
+        rename: (HokmChoreography.Beat) -> HokmChoreography.Beat = { it },
+    ) {
+        val runner = HokmCueRunner(rename(beat(event)))
+        while (true) {
+            val wait = runner.waitMs() ?: break
+            if (wait > 0L) delay(wait)
+            runner.due(wait).forEach { fireCue(it, seat) }
+        }
+    }
+
+    /**
+     * Turns a cue into the thing the player perceives. SOUND goes to the sound player, HAPTIC is
+     * *published* in the state for the screen to buzz (the table owns no Android API), FX schedules
+     * the particle burst at the seat the movement belongs to.
+     */
+    private fun fireCue(cue: HokmChoreography.Cue, seat: Int) {
+        when (cue.kind) {
+            HokmChoreography.CueKind.SOUND -> onSound(cue.name)
+            HokmChoreography.CueKind.HAPTIC -> {
+                _state.value = _state.value.copy(hapticCue = TableHaptic(cue.name, ++hapticStamp))
+            }
+            HokmChoreography.CueKind.FX -> when (cue.name) {
+                "cut" -> pushFx(FxKind.CUT, seat, HokmChoreography.Fx.CUT_MS.toLong())
+                "trick_win" -> pushFx(FxKind.TRICK_WIN, seat, HokmChoreography.Fx.TRICK_WIN_MS.toLong())
+                "confetti" -> pushFx(FxKind.CONFETTI, -1, HokmChoreography.Fx.CONFETTI_MS.toLong())
+                else -> Unit // an unknown fx id is a table bug the tests already refuse
+            }
+        }
     }
 
     /** Starts the opening animation and the table loop. Safe to call once. */
@@ -215,7 +324,7 @@ abstract class HokmTable(
         val botsOnWinningSide = botSeats.filter { HokmRules.teamOf(it, playerCount) == winnerTeam }
         val botsOnLosingSide = botSeats.filter { HokmRules.teamOf(it, playerCount) != winnerTeam }
         scope.launch {
-            delay(TRICK_SHOW_MS + COLLECT_MS + 300)
+            delay(beatMs(HokmChoreography.Event.TRICK_SHOW) + beatMs(HokmChoreography.Event.COLLECT) + 300)
             when (summary.kind) {
                 HandWinKind.KOT, HandWinKind.HAKEM_KOT -> {
                     botsOnWinningSide.firstOrNull()?.let { showSticker(it, Stickers.byId("fire")!!) }
@@ -240,15 +349,14 @@ abstract class HokmTable(
         val draw = _state.value.hakemDraw
         for (i in 1..draw.size) {
             _state.value = _state.value.copy(introShown = i)
-            onSound("card_deal")
-            delay(INTRO_CARD_MS)
+            // GX-04: one beat per flipped card; the deal-click fires at the beat's own cue.
+            runBeat(HokmChoreography.Event.HAKEM_DRAW)
         }
         val hakem = _state.value.hakem
         _state.value = _state.value.copy(
             banner = Banner("${seats[hakem].name} حاکم شد", "اولین آس را آورد", big = true),
         )
-        onSound("hokm_chosen")
-        delay(1500)
+        runBeat(HokmChoreography.Event.HAKEM_BANNER)
         // Hakem receives the first five cards; the rest is dealt after hokm is named.
         onSound("card_deal")
         _state.value = _state.value.copy(introShown = null, banner = null)
@@ -261,31 +369,51 @@ abstract class HokmTable(
             // 1) Animations requested by the last action run before anything else moves. The cycle
             //    runs whenever any of its pieces is pending — a banner or deal can arrive in its
             //    own notice (rooms fan out one emission per notice) and must not be stranded.
-            if (pendingPauseMs > 0L || pendingCollect != null || pendingHandBanner != null || pendingDeal) {
+            if (pendingPauseMs > 0L || pendingCollect != null || pendingHandBanner != null || pendingDeal || hasPendingCues) {
                 val ms = pendingPauseMs
                 pendingPauseMs = 0L
                 if (ms > 0L) delay(ms)
+                // GX-04: a movement already in flight gets its turn first, so a cue lands on the
+                // frame it belongs to (a card's click on contact) instead of behind the next move.
+                // If the queue is deep the felt is already behind the truth: fast-forward.
+                if (hasPendingCues && eventQueue.size > SKIP_AHEAD_QUEUE) finishPendingCues()
+                else if (hasPendingCues) runPendingCues()
                 pendingCollect?.let { winner ->
                     pendingCollect = null
                     _state.value = _state.value.copy(collectingTo = winner)
-                    onSound("whoosh")
-                    onSound(if (HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)) "trick_won" else "trick_lost")
-                    pushFx(FxKind.TRICK_WIN, winner, 900)
-                    delay(COLLECT_MS)
+                    // The sweep is one beat: whoosh at 0, the result sound and the spark a hair
+                    // later, and the felt is released when the beat ends (never before).
+                    runBeat(
+                        HokmChoreography.Event.COLLECT,
+                        seat = winner,
+                        rename = { row ->
+                            val won = HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)
+                            row.withSound("collect.result", if (won) "trick_won" else "trick_lost")
+                        },
+                    )
                     _state.value = HokmPacing.onTrickCollected(_state.value)
                     refresh()
                 }
                 pendingHandBanner?.let { banner ->
                     pendingHandBanner = null
                     _state.value = _state.value.copy(banner = banner)
-                    delay(if (banner.big) HAND_BANNER_MS else 1300L)
+                    if (banner.big) {
+                        // The hand banner's own cue speaks the result (kot / lost / won) once, at
+                        // the banner's offset — no background coroutine racing the banner itself.
+                        val sound = pendingHandSound ?: "hand_won"
+                        pendingHandSound = null
+                        runBeat(HokmChoreography.Event.HAND_BANNER, rename = { it.withSound("banner.in", sound) })
+                    } else {
+                        pendingHandSound = null
+                        runBeat(HokmChoreography.Event.BANNER)
+                    }
                     _state.value = _state.value.copy(banner = null)
                 }
                 if (pendingDeal) {
                     pendingDeal = false
                     _state.value = _state.value.copy(dealing = true)
-                    onSound("shuffle")
-                    delay(DEAL_MS)
+                    // GX-04: shuffle and the cards coming out are two cues of one deal beat.
+                    runBeat(HokmChoreography.Event.DEAL)
                     _state.value = _state.value.copy(dealing = false)
                 }
                 refresh()
@@ -349,10 +477,9 @@ abstract class HokmTable(
         for (e in emissions) {
             when (e) {
                 is Emission.Sound -> when (e.name) {
-                    "card_played" -> {
-                        onSound(if (cutPending) "card_cut" else "card_play")
-                        cutPending = false
-                    }
+                    // GX-04: the throw's own cues speak (slide now, click on contact, `card_cut`
+                    // instead of `card_play` when the throw is a cut) — see the Public branch below.
+                    "card_played" -> Unit
                     "hokm_chosen" -> onSound("hokm_chosen")
                     "trick_won" -> Unit // voiced when the collect animation starts
                     "shuffle" -> Unit // voiced when the deal animation starts
@@ -367,10 +494,13 @@ abstract class HokmTable(
                         val cur = _state.value
                         val lead = cur.tableCards.firstOrNull()?.card?.suit
                         val hokm = cur.hokm
-                        if (lead != null && hokm != null && card.suit == hokm && lead != hokm) {
-                            cutPending = true
-                            pushFx(FxKind.CUT, seat)
-                            feed += "${seats[seat].name} با حکم برید!"
+                        // `بریدن`: the same throw, a snappier click and the gold spark. The beat is
+                        // built from the choreography either way — a cut never plays two clicks.
+                        val cutting = lead != null && hokm != null && card.suit == hokm && lead != hokm
+                        if (cutting) feed += "${seats[seat].name} با حکم برید!"
+                        startBeat(HokmChoreography.Event.PLAY, seat) { throwBeat ->
+                            if (cutting) throwBeat.withSound("play.contact", "card_cut")
+                            else throwBeat.withoutCues("play.cut", "play.cut.haptic")
                         }
                         // Presentation never writes results (HK-010): only the felt display is
                         // updated here, idempotently. myHand/legalCards/turn come from the next
@@ -388,7 +518,7 @@ abstract class HokmTable(
                         // superseded/stale wins change nothing.
                         if (after.sweepOf != before.sweepOf) {
                             pendingCollect = winner
-                            pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
+                            pendingPauseMs = maxOf(pendingPauseMs, beatMs(HokmChoreography.Event.TRICK_SHOW))
                             feed += "${seats[winner].name} ترفند را برد"
                         }
                     }
@@ -413,13 +543,17 @@ abstract class HokmTable(
                         pendingHandBanner = Banner(title, subtitle, big = true)
                         _state.value = HokmPacing.recordHand(_state.value, summary)
                         if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
-                            scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
+                            scope.launch {
+                                delay(beatMs(HokmChoreography.Event.TRICK_SHOW) + beatMs(HokmChoreography.Event.COLLECT))
+                                pushFx(FxKind.KOT, -1, HokmChoreography.Fx.KOT_MS.toLong())
+                            }
                         }
-                        val sound = when (summary.kind) {
+                        // GX-04: the result sound is the coming banner's own cue (offset inside the
+                        // beat) instead of a coroutine guessing when the banner will appear.
+                        pendingHandSound = when (summary.kind) {
                             HandWinKind.NORMAL, HandWinKind.VOID -> if (mine) "hand_won" else "hand_lost"
                             else -> if (mine) "kot" else "hand_lost"
                         }
-                        scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); onSound(sound) }
                         botReactions(summary)
                         feed += title
                     }
@@ -446,9 +580,20 @@ abstract class HokmTable(
                         val winner = e.payload["winnerTeam"]!!.jsonPrimitive.int
                         val mine = winner == HokmRules.teamOf(mySeat, playerCount)
                         scope.launch {
-                            delay(TRICK_SHOW_MS + COLLECT_MS + 600)
-                            onSound(if (mine) "game_won" else "game_lost")
-                            if (mine) pushFx(FxKind.CONFETTI, -1, 4000)
+                            // Let the last trick finish, then the match banner beat speaks the
+                            // result (game_won/game_lost) and the celebration burst is scheduled.
+                            delay(
+                                beatMs(HokmChoreography.Event.TRICK_SHOW) +
+                                    beatMs(HokmChoreography.Event.COLLECT) + 600L,
+                            )
+                            val banner = HokmChoreography.beat(HokmChoreography.Event.MATCH_BANNER)
+                                .withSound("match.in", if (mine) "game_won" else "game_lost")
+                            val runner = HokmCueRunner(banner)
+                            while (true) {
+                                val wait = runner.waitMs() ?: break
+                                if (wait > 0L) delay(wait)
+                                runner.due(wait).forEach { fireCue(it, -1) }
+                            }
                         }
                     }
 

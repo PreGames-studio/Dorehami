@@ -38,8 +38,20 @@ object HokmTokens {
         const val FELT_EDGE: Long = HokmArtDirection.FELT_EDGE
         const val TURQUOISE: Long = HokmArtDirection.TURQUOISE
         const val CARD_IVORY: Long = 0xFFFDFBF4 // shipped card stock (near-white, distinct from board cream)
+        const val CARD_IVORY_SHADE: Long = 0xFFEFEBE0 // bottom of the stock gradient
+        const val CARD_EDGE: Long = 0xFFCFC9B8 // hairline + side thickness of a card
         const val INK_BLACK: Long = HokmArtDirection.INK_BLACK
         const val INK_RED: Long = HokmArtDirection.INK_RED
+
+        // GX-03 — the four-colour deck inks and the "on the felt" variants (all AA-checked).
+        const val INK_BLUE: Long = 0xFF0F4C9B
+        const val INK_GREEN: Long = 0xFF0F6B3F
+        const val SKY_ON_DARK: Long = 0xFF8FB8FF
+
+        /** Court-card parchment (the inset the figures sit on) and its frame gold. */
+        const val COURT_PARCHMENT_TOP: Long = 0xFFF7EFD9
+        const val COURT_PARCHMENT_BOTTOM: Long = 0xFFEADFBF
+        const val CARD_GOLD: Long = 0xFFD4AF37
     }
 
     /** Persian type ladder (sp). Caption is the floor — nothing renders smaller. */

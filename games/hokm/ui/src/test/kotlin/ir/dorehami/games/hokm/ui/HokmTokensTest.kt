@@ -39,6 +39,19 @@ class HokmTokensTest {
     }
 
     @Test
+    fun `GX-03 card inks are real tokens and stay readable on the stock`() {
+        assertEquals(HokmArtDirection.INK_RED, HokmTokens.Color.INK_RED)
+        // The four-colour deck's blue and green are tokens too, not one-off literals in the painter.
+        listOf(HokmTokens.Color.INK_BLACK, HokmTokens.Color.INK_RED, HokmTokens.Color.INK_BLUE, HokmTokens.Color.INK_GREEN)
+            .forEach { ink ->
+                assertTrue(
+                    HokmArtDirection.contrastRatio(ink, HokmTokens.Color.CARD_IVORY) >= 4.5,
+                    "card ink ${ink.toString(16)} must stay AA on the ivory stock",
+                )
+            }
+    }
+
+    @Test
     fun `every motion token compresses under reduced motion instead of vanishing`() {
         HokmTokens.Motion.ALL_MS.forEach { ms ->
             val reduced = HokmMotion.durationMs(ms, reducedMotion = true)

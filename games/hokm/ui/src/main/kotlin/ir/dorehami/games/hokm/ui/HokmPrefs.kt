@@ -39,6 +39,21 @@ class HokmPrefs(context: Context) {
         set(v) = sp.edit().putString("serverUrl", v).apply()
 
     /**
+     * GX-03 card presentation. The classic deck and the jumbo index stay the defaults: they are the
+     * shipped, approved look — the four-colour deck is a readability option the player turns on.
+     */
+    var deckStyle: String
+        get() = sp.getString("deck", HokmDeckStyle.CLASSIC.id) ?: HokmDeckStyle.CLASSIC.id
+        set(v) = sp.edit().putString("deck", v).apply()
+    var jumboIndex: Boolean
+        get() = sp.getBoolean("jumboIndex", true)
+        set(v) = sp.edit().putBoolean("jumboIndex", v).apply()
+    var cardBack: String
+        get() = sp.getString("back", HokmCardBacks.DEFAULT_ID) ?: HokmCardBacks.DEFAULT_ID
+        set(v) = sp.edit().putString("back", v).apply()
+
+
+    /**
      * HK-011: the in-progress local match as a serialised [ir.dorehami.gamesdk.MatchRecord]
      * (`null` = none). Survives rotation and process death; cleared when the player leaves.
      */

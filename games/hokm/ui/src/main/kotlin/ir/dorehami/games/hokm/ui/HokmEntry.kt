@@ -15,6 +15,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -99,6 +100,9 @@ fun HokmEntry(onExit: () -> Unit) {
     var matchKey by rememberSaveable { mutableStateOf(0) }
     var roomMode by rememberSaveable { mutableStateOf<String?>(null) }
     var serverUrl by rememberSaveable { mutableStateOf(prefs.serverUrl) }
+    var deckStyle by rememberSaveable { mutableStateOf(prefs.deckStyle) }
+    var jumboIndex by rememberSaveable { mutableStateOf(prefs.jumboIndex) }
+    var cardBack by rememberSaveable { mutableStateOf(prefs.cardBack) }
     var stats by remember { mutableStateOf(prefs.stats) }
 
     val onFinished: (HokmUiState, String) -> Unit = { state, matchId ->
@@ -114,7 +118,15 @@ fun HokmEntry(onExit: () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(LocalHokmReducedMotion provides rememberHokmReducedMotion()) {
+    CompositionLocalProvider(
+        LocalHokmReducedMotion provides rememberHokmReducedMotion(),
+        // GX-03: deck style, index size and back reach every card (table, lobby, previews).
+        LocalHokmCardStyle provides HokmCardStyle(
+            deck = HokmDeckStyle.byId(deckStyle),
+            jumbo = jumboIndex,
+            back = HokmCardBacks.byId(cardBack).id,
+        ),
+    ) {
     when {
         roomMode != null -> HokmRoom(
             mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
@@ -142,6 +154,12 @@ fun HokmEntry(onExit: () -> Unit) {
             onHaptics = { hapticsOn = it; prefs.hapticsOn = it },
             botLevel = botLevel,
             onBotLevel = { botLevel = it; prefs.botLevel = it },
+            deckStyle = HokmDeckStyle.byId(deckStyle),
+            onDeckStyle = { deckStyle = it.id; prefs.deckStyle = it.id },
+            jumboIndex = jumboIndex,
+            onJumboIndex = { jumboIndex = it; prefs.jumboIndex = it },
+            cardBack = HokmCardBacks.byId(cardBack),
+            onCardBack = { cardBack = it.id; prefs.cardBack = it.id },
             stats = stats,
             onResetStats = { prefs.resetStats(); stats = prefs.stats },
             onStart = { started = true },
@@ -247,6 +265,11 @@ private fun HokmSoloGame(
         match.start()
         onDispose { scope.cancel() }
     }
+    // GX-04: the table paces its movements with the same reduced-motion setting this screen
+    // renders with — one flag, one timing table, no second opinion. The local is read here, in
+    // composable context: the effect body itself is a suspend lambda and cannot read a local.
+    val reducedMotion = LocalHokmReducedMotion.current
+    LaunchedEffect(match, reducedMotion) { match.reducedMotion = reducedMotion }
 
     val state by match.state
     RecordWhenFinished(state, matchKey = key, onFinished = onFinished)
@@ -316,6 +339,10 @@ private fun HokmRoom(
         val label = if (mode == RoomMode.BLUETOOTH) "بلوتوث" else "آنلاین"
         val match = remember(playing.client) { HokmSessionMatch(scope, playing.client, label) { sounds.play(it) } }
         LaunchedEffect(match) { match.begin() }
+        // GX-04: a room's table follows this device's reduced-motion setting (display pacing is per
+        // device; the host still owns the game's truth).
+        val reducedMotion = LocalHokmReducedMotion.current
+        LaunchedEffect(match, reducedMotion) { match.reducedMotion = reducedMotion }
         val state by match.state
         RecordWhenFinished(state, matchKey = playing.client, onFinished = onFinished)
         HokmScreen(
@@ -352,6 +379,12 @@ private fun HokmSetupScreen(
     onHaptics: (Boolean) -> Unit,
     botLevel: String,
     onBotLevel: (String) -> Unit,
+    deckStyle: HokmDeckStyle,
+    onDeckStyle: (HokmDeckStyle) -> Unit,
+    jumboIndex: Boolean,
+    onJumboIndex: (Boolean) -> Unit,
+    cardBack: CardBackSpec,
+    onCardBack: (CardBackSpec) -> Unit,
     stats: HokmStats,
     onResetStats: () -> Unit,
     onStart: () -> Unit,
@@ -509,6 +542,51 @@ private fun HokmSetupScreen(
                     )
                 }
                 Spacer(Modifier.height(14.dp))
+                Text("دک ورق", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.height(4.dp))
+                Text(
+                    "اندازهٔ نشانه و رنگ خال‌ها؛ انتخاب شما روی میز و لابی اثر می‌گذارد.",
+                    color = HokmPalette.muted,
+                    fontSize = 11.sp,
+                )
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    HokmDeckStyle.entries.forEach { style ->
+                        Hokm3DButton(
+                            text = style.titleFa,
+                            subtitle = if (style == HokmDeckStyle.CLASSIC) "پیش‌فرض" else "خواناتر",
+                            trailing = if (deckStyle == style) "✓" else null,
+                            tone = if (deckStyle == style) HokmButtonTone.GOLD else HokmButtonTone.GLASS,
+                            height = 54.dp,
+                            modifier = Modifier.weight(1f),
+                            onSound = tap,
+                            onClick = { onDeckStyle(style) },
+                        )
+                    }
+                    SettingToggle(
+                        title = "نشانهٔ درشت",
+                        subtitle = if (jumboIndex) "جامبو" else "معمولی",
+                        checked = jumboIndex,
+                        modifier = Modifier.weight(1f),
+                        onClick = { tap(); onJumboIndex(!jumboIndex) },
+                    )
+                }
+                Spacer(Modifier.height(12.dp))
+                Text("پشت کارت", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    HokmCardBacks.ALL.forEach { back ->
+                        CardBackChoice(
+                            back = back,
+                            selected = back.id == cardBack.id,
+                            modifier = Modifier.weight(1f),
+                            onClick = { tap(); onCardBack(back) },
+                        )
+                    }
+                }
+                Spacer(Modifier.height(14.dp))
+                Text("احساس و صدا", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     SettingToggle(
                         title = "صدای بازی",
@@ -743,6 +821,50 @@ private fun SectionHeader(title: String, subtitle: String) {
                 .size(width = 34.dp, height = 3.dp)
                 .clip(CircleShape)
                 .background(Brush.horizontalGradient(listOf(HokmPalette.gold, HokmPalette.emerald))),
+        )
+    }
+}
+
+/**
+ * GX-03: one card back per choice — the actual vector back plus its Persian name, so the player
+ * picks by looking, not by reading. Selection is marked with the brass check and a gold border.
+ */
+@Composable
+private fun CardBackChoice(
+    back: CardBackSpec,
+    selected: Boolean,
+    modifier: Modifier = Modifier,
+    onClick: () -> Unit,
+) {
+    Column(
+        modifier
+            .heightIn(min = 96.dp)
+            .clip(RoundedCornerShape(15.dp))
+            .background(Color(0xFF12372D))
+            .border(
+                width = if (selected) 1.5.dp else 1.dp,
+                color = if (selected) HokmPalette.gold else Color(0x447DD6B4),
+                shape = RoundedCornerShape(15.dp),
+            )
+            .clickable(onClick = onClick)
+            .padding(vertical = 8.dp, horizontal = 6.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
+    ) {
+        CardBackView(width = 44.dp, elevation = 5.dp, backId = back.id)
+        Spacer(Modifier.height(6.dp))
+        Text(
+            back.titleFa,
+            color = HokmPalette.text,
+            fontSize = 10.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            textAlign = TextAlign.Center,
+        )
+        Text(
+            if (selected) "انتخاب‌شده ✓" else " ",
+            color = if (selected) HokmPalette.goldLight else HokmPalette.muted,
+            fontSize = 9.sp,
+            maxLines = 1,
         )
     }
 }
