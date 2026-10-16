@@ -75,6 +75,17 @@ enum class FxKind {
 data class TableFx(val kind: FxKind, val seat: Int, val stamp: Long)
 
 /**
+ * GX-04 — a haptic moment published by the table's choreography. The table cannot buzz the phone
+ * itself (it has no Android access on purpose), so it publishes the cue and the screen — the only
+ * place that owns a `HapticFeedback` — performs it. `stamp` is what makes it fire exactly once:
+ * a merged snapshot never rewrites this field, and a repeated stamp is ignored by the screen.
+ *
+ * [slot] is a slot, not a device API: `card_lift` (a card rose), `card_contact` (it touched the
+ * felt), `cut` (a trump was thrown on another suit).
+ */
+data class TableHaptic(val slot: String, val stamp: Long)
+
+/**
  * Everything the screen draws. Built **only** from the human player's `privateView()` plus the
  * UI-side animation bookkeeping — the screen never touches the session.
  */
@@ -122,6 +133,8 @@ data class HokmUiState(
     val winnerTeam: Int? = null,
     val feed: List<String> = emptyList(),
     val fx: List<TableFx> = emptyList(),
+    /** GX-04: the newest haptic moment of the choreography (see [TableHaptic]). */
+    val hapticCue: TableHaptic? = null,
     /** Every finished hand so far (score sheet). */
     val handHistory: List<HandSummary> = emptyList(),
     val lastTrick: List<Play> = emptyList(),

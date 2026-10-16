@@ -156,6 +156,12 @@ fun HokmScreen(
     LaunchedEffect(state.fx.lastOrNull()?.stamp) {
         if (state.fx.lastOrNull()?.kind == FxKind.KOT) haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
     }
+    // GX-04: the table publishes the haptic cues of its choreography (a card touching the felt, a
+    // trump cut). A repeated stamp cannot buzz twice, and a skipped movement still buzzes once.
+    LaunchedEffect(state.hapticCue?.stamp) {
+        val cue = state.hapticCue ?: return@LaunchedEffect
+        haptics?.performHapticFeedback(hapticTypeOf(cue.slot))
+    }
 
     LaunchedEffect(state.error) {
         if (state.error != null) {
@@ -297,7 +303,10 @@ fun HokmScreen(
                     selected = state.selectedForDiscard,
                     cardWidth = handCardW,
                     onTap = { card ->
-                        haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
+                        // GX-04: the lift's tick is the SELECT row's own cue, not a literal here.
+                        haptics?.performHapticFeedback(
+                            hapticTypeOf(HokmChoreography.hapticSlot(HokmChoreography.Event.SELECT, "select.lift")),
+                        )
                         if (state.iDiscard) onToggleDiscard(card) else onPlayCard(card)
                     },
                 )
@@ -652,7 +661,11 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
         val reducedMotion = LocalHokmReducedMotion.current
         val collect by animateFloatAsState(
             targetValue = if (collectTo != null) 1f else 0f,
-            animationSpec = tween(HokmMotion.durationMs(480, reducedMotion), easing = FastOutSlowInEasing),
+            // GX-04: the sweep runs exactly as long as the table's collect beat, with its curve.
+            animationSpec = tween(
+                HokmChoreography.durationMs(HokmChoreography.Event.COLLECT, reducedMotion),
+                easing = HokmChoreography.curve(HokmChoreography.Event.COLLECT).toEasing(),
+            ),
             label = "collect",
         )
 
@@ -683,7 +696,14 @@ private fun TableCard(
     val progress = remember { Animatable(0f) }
     val reducedMotion = LocalHokmReducedMotion.current
     LaunchedEffect(Unit) {
-        progress.animateTo(1f, tween(HokmMotion.durationMs(300, reducedMotion), easing = FastOutSlowInEasing))
+        // GX-04: the throw is the PLAY beat — the card lands at the cue the click is tied to.
+        progress.animateTo(
+            1f,
+            tween(
+                HokmChoreography.durationMs(HokmChoreography.Event.PLAY, reducedMotion),
+                easing = HokmChoreography.curve(HokmChoreography.Event.PLAY).toEasing(),
+            ),
+        )
     }
     val p = progress.value
     val baseX = origin.first + (slot.first - origin.first) * p
@@ -734,7 +754,7 @@ private fun HandFan(
             val isSelected = card in selected
             val raise by animateFloatAsState(
                 if (isSelected) 2.2f else if (playable) 1f else 0f,
-                tween(HokmMotion.durationMs(180, reducedMotion)),
+                tween(HokmChoreography.durationMs(HokmChoreography.Event.SELECT, reducedMotion)),
                 label = "raise",
             )
             PlayingCardView(
@@ -1007,10 +1027,18 @@ private fun DealingOverlay(state: HokmUiState, modifier: Modifier = Modifier) {
 private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
     var last by remember { mutableStateOf(banner) }
     if (banner != null) last = banner
+    // GX-04: a banner is a read pause of the table — how long it stays up is the beat's job, and
+    // its own in/out phases say how fast it appears and leaves.
+    val beat = HokmChoreography.beat(
+        if (last?.big == true) HokmChoreography.Event.HAND_BANNER else HokmChoreography.Event.BANNER,
+        LocalHokmReducedMotion.current,
+    )
+    val inMs = beat.phase("in")?.durationMs ?: HokmTokens.Motion.FADE_MS
+    val outMs = beat.phase("out")?.durationMs ?: HokmTokens.Motion.FADE_MS
     AnimatedVisibility(
         visible = banner != null,
-        enter = fadeIn() + scaleIn(initialScale = 0.7f),
-        exit = fadeOut() + scaleOut(targetScale = 0.9f),
+        enter = fadeIn(tween(inMs)) + scaleIn(tween(inMs), initialScale = 0.7f),
+        exit = fadeOut(tween(outMs)) + scaleOut(tween(outMs), targetScale = 0.9f),
         modifier = modifier,
     ) {
         val b = last ?: return@AnimatedVisibility
@@ -1319,21 +1347,21 @@ private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier
                 when (fx.kind) {
                     FxKind.CUT -> Burst(
                         cx = cw * centre.first, cy = ch * centre.second,
-                        count = 18, radius = tableCardWidth * 1.6f, durationMs = 900,
+                        count = 18, radius = tableCardWidth * 1.6f, durationMs = HokmChoreography.Fx.CUT_MS,
                         colors = listOf(Color(0xFFFFE082), Color(0xFFFFC107), Color.White),
                         label = "بُرید!",
                     )
                     FxKind.TRICK_WIN -> Burst(
                         cx = cw * centre.first, cy = ch * centre.second,
-                        count = 8, radius = tableCardWidth, durationMs = 700,
+                        count = 8, radius = tableCardWidth, durationMs = HokmChoreography.Fx.TRICK_WIN_MS,
                         colors = listOf(Color.White.copy(alpha = 0.9f), Table.brass),
                     )
                     FxKind.KOT -> Burst(
                         cx = cw * 0.5f, cy = ch * 0.45f,
-                        count = 48, radius = cw * 0.55f, durationMs = 2200,
+                        count = 48, radius = cw * 0.55f, durationMs = HokmChoreography.Fx.KOT_MS,
                         colors = listOf(Color(0xFFFF7043), Color(0xFFFFD54F), Color(0xFFEF5350), Color.White),
                     )
-                    FxKind.CONFETTI -> Confetti(cw, ch, durationMs = 3800)
+                    FxKind.CONFETTI -> Confetti(cw, ch, durationMs = HokmChoreography.Fx.CONFETTI_MS)
                 }
             }
         }
