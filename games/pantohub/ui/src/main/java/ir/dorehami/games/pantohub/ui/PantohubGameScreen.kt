@@ -102,12 +102,23 @@ internal fun PantohubGameScreen(
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showEndGameDialog by remember { mutableStateOf(false) }
 
+    // The newest state this screen produced. The parent hands a new state back only on the next
+    // recomposition, so until then [latestState] is the snapshot from before an action accepted a
+    // moment ago — a follow-up action built on it was rejected as stale (PH-B01). Every action is
+    // therefore built on [freshState], which is never older than what this screen last produced.
+    val produced = remember { NewestState() }
+    fun freshState(): GameState {
+        val fromParent = latestState
+        val mine = produced.value
+        return if (mine != null && mine.id == fromParent.id && mine.version > fromParent.version) mine else fromParent
+    }
+
     DisposableEffect(tone) {
         onDispose { tone?.release() }
     }
 
     fun dispatch(action: GameAction): GameState? {
-        val before = latestState
+        val before = freshState()
         return when (val result = PantohubEngine.apply(before, action)) {
             is GameActionResult.Rejected -> {
                 errorMessage = result.messageFa
@@ -115,14 +126,17 @@ internal fun PantohubGameScreen(
             }
             is GameActionResult.Accepted -> {
                 errorMessage = null
-                if (result.state.version != before.version) latestOnStateChange(result.state)
+                if (result.state.version != before.version) {
+                    produced.value = result.state
+                    latestOnStateChange(result.state)
+                }
                 result.state
             }
         }
     }
 
     fun leaveAndPause() {
-        val current = latestState
+        val current = freshState()
         if (current.phase == GamePhase.RUNNING) {
             dispatch(GameAction.PauseTurn(current.version, gameMoment()))
         }
@@ -135,10 +149,14 @@ internal fun PantohubGameScreen(
         while (isActive) {
             val moment = gameMoment()
             now = moment
-            val current = latestState
+            val current = freshState()
             if (current.phase == GamePhase.RUNNING) {
                 val result = PantohubEngine.apply(current, GameAction.Tick(current.version, moment))
                 if (result is GameActionResult.Accepted && result.state.version != current.version) {
+                    produced.value = result.state
+                    // Time ran out and the turn closed: a message about that turn must not follow
+                    // the phone to the next team's screen (PH-B06).
+                    errorMessage = null
                     latestOnStateChange(result.state)
                 }
             }
@@ -166,13 +184,16 @@ internal fun PantohubGameScreen(
     }
 
     fun startNextTurn() {
-        val current = latestState
+        val current = freshState()
         scope.launch {
             val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(pickSettings(), current.usedWordIds) } }
             if (selection.isFailure) {
                 errorMessage = "واژه بارگذاری نشد؛ فضای ذخیره‌سازی را بررسی کن."
                 return@launch
             }
+            // A double tap already started this turn while the word was loading: nothing to do,
+            // rather than a stale-command error on the running turn's screen.
+            if (freshState().version != current.version) return@launch
             when (val pick = selection.getOrThrow()) {
                 is WordSelectionResult.Selected -> dispatch(GameAction.StartTurn(current.version, pick.word, gameMoment()))
                 WordSelectionResult.Empty -> errorMessage = "برای دسته‌ها و سطح‌های انتخاب‌شده واژهٔ بازبینی‌شدهٔ استفاده‌نشده‌ای باقی نمانده؛ فیلترها را تغییر بده یا بانک را تکمیل کن."
@@ -197,43 +218,41 @@ internal fun PantohubGameScreen(
         }
     }
 
+    fun finishResolve(before: GameState, outcome: WordOutcome, next: WordRecord?) {
+        val after = dispatch(GameAction.ResolveWord(before.version, outcome, next, gameMoment())) ?: return
+        // Celebrate only an answer that counted — not one tapped after the time had run out (PH-B07).
+        if (outcome == WordOutcome.CORRECT && before.settings.soundEnabled && PantohubEngine.scoredCorrect(before, after)) {
+            tone?.startTone(ToneGenerator.TONE_PROP_ACK, 110)
+        }
+        if (next == null && after.phase == GamePhase.RUNNING) {
+            errorMessage = "واژهٔ دیگری مطابق فیلترهای این بازی پیدا نشد. سطح یا دسته را آگاهانه تغییر بده؛ انتخاب خودکار جایگزین انجام نشد."
+        }
+    }
+
     fun resolve(outcome: WordOutcome) {
-        val current = latestState
+        val current = freshState()
+        // Only a word that is on the performer's screen can be scored. A second tap in the same
+        // frame, or a tap after the turn closed, is ignored instead of reported as an error.
+        if (current.phase != GamePhase.RUNNING || current.currentTurn?.wordRevealed != true) return
+        // NORMAL: the engine ends the turn on a correct guess — no next word is needed (PH-B01).
+        if (isNormalMode && outcome == WordOutcome.CORRECT) {
+            finishResolve(current, outcome, null)
+            return
+        }
         if (nextWordReady) {
-            val result = dispatch(
-                GameAction.ResolveWord(
-                    current.version,
-                    outcome,
-                    if (isNormalMode && outcome == WordOutcome.CORRECT) null else nextWord,
-                    gameMoment(),
-                ),
-            )
-            if (result != null && isNormalMode && outcome == WordOutcome.CORRECT && result.phase == GamePhase.RUNNING) {
-                dispatch(GameAction.EndTurn(result.version, gameMoment()))
-            }
-            if (result != null && outcome == WordOutcome.CORRECT && current.settings.soundEnabled) {
-                tone?.startTone(ToneGenerator.TONE_PROP_ACK, 110)
-            }
-            if (result != null && nextWord == null && result.phase == GamePhase.RUNNING) {
-                errorMessage = "واژهٔ دیگری مطابق فیلترهای این بازی پیدا نشد. سطح یا دسته را آگاهانه تغییر بده؛ انتخاب خودکار جایگزین انجام نشد."
-            }
+            finishResolve(current, outcome, nextWord)
             return
         }
         scope.launch {
-            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
+            // The same filters as the prefetch: in NORMAL that is this turn's difficulty/category.
+            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(pickSettings(), current.usedWordIds) } }
             if (selection.isFailure) {
                 errorMessage = "واژه بارگذاری نشد؛ پاسخ این واژه هنوز ثبت نشده است."
                 return@launch
             }
-            val pick = selection.getOrThrow()
-            val picked = (pick as? WordSelectionResult.Selected)?.word
-            val result = dispatch(GameAction.ResolveWord(current.version, outcome, picked, gameMoment()))
-            if (result != null && outcome == WordOutcome.CORRECT && current.settings.soundEnabled) {
-                tone?.startTone(ToneGenerator.TONE_PROP_ACK, 110)
-            }
-            if (result != null && picked == null && result.phase == GamePhase.RUNNING) {
-                errorMessage = "واژهٔ دیگری مطابق فیلترهای این بازی پیدا نشد. سطح یا دسته را آگاهانه تغییر بده؛ انتخاب خودکار جایگزین انجام نشد."
-            }
+            // Another tap (or the timer) already moved the game on while the next word was loading.
+            if (freshState().version != current.version) return@launch
+            finishResolve(current, outcome, (selection.getOrThrow() as? WordSelectionResult.Selected)?.word)
         }
     }
 
@@ -281,7 +300,7 @@ internal fun PantohubGameScreen(
                     remainingSeconds = remainingSeconds,
                     storageError = storageError,
                     errorMessage = errorMessage,
-                    onHide = { dispatch(GameAction.HideWord(latestState.version, gameMoment())) },
+                    onHide = { dispatch(GameAction.HideWord(freshState().version, gameMoment())) },
                     onResolve = ::resolve,
                 )
             } else {
@@ -366,14 +385,14 @@ internal fun PantohubGameScreen(
                                         Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
                                         Spacer(Modifier.height(8.dp))
                                         Button(
-                                            onClick = { dispatch(GameAction.RevealWord(latestState.version, gameMoment())) },
+                                            onClick = { dispatch(GameAction.RevealWord(freshState().version, gameMoment())) },
                                             enabled = state.phase == GamePhase.RUNNING,
                                             modifier = Modifier.fillMaxWidth(),
                                         ) { Text("نمایش واژه برای اجراکننده") }
                                     }
                                     Spacer(Modifier.height(12.dp))
                                     if (state.phase == GamePhase.PAUSED) {
-                                        Button(onClick = { dispatch(GameAction.ResumeTurn(latestState.version, gameMoment())) }, modifier = Modifier.fillMaxWidth()) {
+                                        Button(onClick = { dispatch(GameAction.ResumeTurn(freshState().version, gameMoment())) }, modifier = Modifier.fillMaxWidth()) {
                                             Text("ادامهٔ نوبت")
                                         }
                                     } else {
@@ -392,18 +411,18 @@ internal fun PantohubGameScreen(
                                             }
                                         }
                                         OutlinedButton(
-                                            onClick = { dispatch(GameAction.PauseTurn(latestState.version, gameMoment())) },
+                                            onClick = { dispatch(GameAction.PauseTurn(freshState().version, gameMoment())) },
                                             modifier = Modifier.fillMaxWidth(),
                                         ) { Text("توقف موقت") }
                                     }
                                     OutlinedButton(
-                                        onClick = { dispatch(GameAction.EndTurn(latestState.version, gameMoment())) },
+                                        onClick = { dispatch(GameAction.EndTurn(freshState().version, gameMoment())) },
                                         modifier = Modifier.fillMaxWidth(),
                                     ) { Text("پایان نوبت") }
                                 }
                             }
                             if (state.settings.cardsEnabled && state.phase == GamePhase.RUNNING) {
-                                SpecialCardsRow(state, ::dispatch)
+                                SpecialCardsRow(state, onUse = { card -> dispatch(GameAction.UseCard(freshState().version, card, gameMoment())) })
                             }
                             if (errorMessage != null) ErrorCard(errorMessage!!)
                             Text("اگر گوشی را از اجراکننده می‌گیری، واژه را بپوشان یا نوبت را متوقف کن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
@@ -444,7 +463,7 @@ internal fun PantohubGameScreen(
             confirmButton = {
                 TextButton(onClick = {
                     showEndGameDialog = false
-                    dispatch(GameAction.EndGame(latestState.version, gameMoment()))
+                    dispatch(GameAction.EndGame(freshState().version, gameMoment()))
                 }) { Text("پایان و ثبت نتیجه") }
             },
             dismissButton = { TextButton(onClick = { showEndGameDialog = false }) { Text("ادامهٔ بازی") } },
@@ -623,7 +642,7 @@ private fun Scoreboard(state: GameState) {
 }
 
 @Composable
-private fun SpecialCardsRow(state: GameState, dispatch: (GameAction) -> GameState?) {
+private fun SpecialCardsRow(state: GameState, onUse: (SpecialCard) -> Unit) {
     val teamId = state.currentTurn?.teamId ?: return
     val used = state.usedCardsByTeam[teamId].orEmpty()
     Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -634,7 +653,7 @@ private fun SpecialCardsRow(state: GameState, dispatch: (GameAction) -> GameStat
                     colors = pantohubChipColors(PantohubTint.Butter),
                     selected = card in state.currentTurn!!.activeCards,
                     enabled = card !in used,
-                    onClick = { dispatch(GameAction.UseCard(state.version, card, gameMoment())) },
+                    onClick = { onUse(card) },
                     label = { Text(card.titleFa) },
                 )
             }
@@ -650,6 +669,14 @@ private fun ErrorCard(message: String) {
             Text(message, color = MaterialTheme.colorScheme.error)
         }
     }
+}
+
+/**
+ * The newest [GameState] a game screen produced, kept until the parent hands it back through
+ * recomposition. A plain holder on purpose: reading it must never wait for a frame.
+ */
+private class NewestState {
+    var value: GameState? = null
 }
 
 private fun formatClock(totalSeconds: Int): String {

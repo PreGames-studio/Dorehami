@@ -108,8 +108,9 @@ enum class SpecialCard(val titleFa: String, val descriptionFa: String) {
 /**
  * How a group match flows. SPEEDY keeps guessing words until the turn timer ends;
  * NORMAL ends the turn after one correct guess (skips keep the turn going).
- * The per-turn difficulty/category choice of NORMAL is a UI concern; the engine
- * only records which mode the match was created with.
+ * [PantohubEngine] enforces the NORMAL turn end itself: a correct
+ * [GameAction.ResolveWord] closes the turn and ignores any next word.
+ * The per-turn difficulty/category choice of NORMAL is a UI concern.
  */
 @Serializable
 enum class PlayMode(val labelFa: String) {

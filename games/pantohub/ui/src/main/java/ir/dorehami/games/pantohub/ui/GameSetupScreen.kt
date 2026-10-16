@@ -279,7 +279,12 @@ internal fun GameSetupScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("تنظیمات این بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    "هر نوبت ${turnSeconds.toString().toPersianDigits()} ثانیه · ${roundsPerTeam.toString().toPersianDigits()} دور برای هر تیم · ${difficulties.size.toString().toPersianDigits()} سطح دشواری",
+                    "هر نوبت ${turnSeconds.toString().toPersianDigits()} ثانیه · ${roundsPerTeam.toString().toPersianDigits()} دور برای هر تیم · " +
+                        if (playMode == PlayMode.NORMAL) {
+                            "سختی و موضوع را اجراکننده پیش از هر نوبت انتخاب می‌کند"
+                        } else {
+                            "${difficulties.size.toString().toPersianDigits()} سطح دشواری"
+                        },
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -320,47 +325,57 @@ internal fun GameSetupScreen(
                 SettingStepper("نوبت هر تیم", roundsPerTeam, 1, 20, "دور") { roundsPerTeam = it }
 
                 SectionTitle("دشواری و موضوع")
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                    Difficulty.entries.forEach { difficulty ->
-                        FilterChip(
-                            colors = pantohubChipColors(PantohubTint.Mint),
-                            selected = difficulty in difficulties,
-                            onClick = {
-                                difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
-                                errorMessage = null
-                            },
-                            label = { Text(difficulty.labelFa) },
-                        )
-                    }
-                }
-                if (availableCategories.isEmpty()) {
-                    Text("هنوز دستهٔ تأییدشده‌ای در بانک نیست.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                if (playMode == PlayMode.NORMAL) {
+                    // NORMAL never reads these filters: the performer picks the difficulty and
+                    // category before each turn, so editing them here would change nothing.
+                    Text(
+                        "در بازی عادی، اجراکننده پیش از هر نوبت سطح دشواری و موضوع واژه را خودش انتخاب می‌کند؛ این‌جا تنظیمی لازم نیست.",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                        FilterChip(
-                            colors = pantohubChipColors(PantohubTint.Mint),
-                            selected = categories.isEmpty(),
-                            onClick = { categories = emptySet() },
-                            label = { Text("همه") },
-                        )
-                    }
-                    availableCategories.chunked(2).forEach { row ->
-                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                            row.forEach { category ->
-                                FilterChip(
-                                    colors = pantohubChipColors(PantohubTint.Mint),
-                                    selected = category in categories,
-                                    onClick = {
-                                        categories = if (category in categories) categories - category else categories + category
-                                    },
-                                    label = { Text(WordCategories.labelFa(category)) },
-                                    modifier = Modifier.weight(1f),
-                                )
-                            }
-                            if (row.size == 1) Spacer(Modifier.weight(1f))
+                        Difficulty.entries.forEach { difficulty ->
+                            FilterChip(
+                                colors = pantohubChipColors(PantohubTint.Mint),
+                                selected = difficulty in difficulties,
+                                onClick = {
+                                    difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
+                                    errorMessage = null
+                                },
+                                label = { Text(difficulty.labelFa) },
+                            )
                         }
                     }
-                    Text("اگر «همه» انتخاب باشد، همهٔ دسته‌های معتبر و فعال مجازند.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    if (availableCategories.isEmpty()) {
+                        Text("هنوز دستهٔ تأییدشده‌ای در بانک نیست.", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    } else {
+                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                            FilterChip(
+                                colors = pantohubChipColors(PantohubTint.Mint),
+                                selected = categories.isEmpty(),
+                                onClick = { categories = emptySet() },
+                                label = { Text("همه") },
+                            )
+                        }
+                        availableCategories.chunked(2).forEach { row ->
+                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                row.forEach { category ->
+                                    FilterChip(
+                                        colors = pantohubChipColors(PantohubTint.Mint),
+                                        selected = category in categories,
+                                        onClick = {
+                                            categories = if (category in categories) categories - category else categories + category
+                                        },
+                                        label = { Text(WordCategories.labelFa(category)) },
+                                        modifier = Modifier.weight(1f),
+                                    )
+                                }
+                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            }
+                        }
+                        Text("اگر «همه» انتخاب باشد، همهٔ دسته‌های معتبر و فعال مجازند.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    }
                 }
 
                 SectionTitle("امتیازدهی")
@@ -406,7 +421,7 @@ internal fun GameSetupScreen(
                     errorMessage = "برای شروع دست‌کم دو تیم بساز."
                     return@Button
                 }
-                if (difficulties.isEmpty()) {
+                if (playMode != PlayMode.NORMAL && difficulties.isEmpty()) {
                     errorMessage = "حداقل یک سطح دشواری را انتخاب کن."
                     return@Button
                 }
