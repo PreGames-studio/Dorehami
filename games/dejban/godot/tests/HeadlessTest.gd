@@ -584,10 +584,11 @@ func _test_unit_sheets() -> void:
 
 
 func _test_maps() -> void:
-	check(Maps.count() == 15, "تعداد نقشه‌ها باید ۱۵ باشد، هست: %d" % Maps.count())
-	# به خواست کاربر جای نقشهٔ ۱ و ۶ عوض شد تا نقشهٔ آسان‌تر (۶) اول بیاید.
-	check(String(Maps.def(0).get("bg", "")) == "maps/map_06" and String(Maps.def(5).get("bg", "")) == "maps/map_01",
-		"جای نقشهٔ ۱ و ۶ عوض نشده است")
+	check(Maps.count() == 12, "تعداد نقشه‌ها باید ۱۲ باشد، هست: %d" % Maps.count())
+	# مجموعهٔ جدید: ورودی iام دقیقاً تصویر map_%02d خودش را پس‌زمینه دارد.
+	for i in Maps.count():
+		check(String(Maps.def(i).get("bg", "")) == ("maps/map_%02d" % (i + 1)),
+			"پس‌زمینهٔ نقشه %d با شماره‌اش یکی نیست" % i)
 	var min_spots := 999999
 	var min_placed := 999999
 	for index in Maps.count():
@@ -600,21 +601,21 @@ func _test_maps() -> void:
 		check(map.route.size() >= 4, "مسیر نقشهٔ %d نقطهٔ کافی ندارد" % index)
 		check(map.route[map.route.size() - 1].distance_to(map.keep_pos) < 1.0,
 			"مسیر نقشهٔ %d به دژ نمی‌رسد" % index)
-		if index == 0:
-			var raw_waypoints: Array = Maps.def(0).get("waypoints", [])
-			check(map.route.size() == raw_waypoints.size(),
-				"مسیر نقشهٔ اول باید فقط رأس‌های شکسته داشته باشد")
-			for i in range(1, map.route.size()):
-				var delta := map.route[i] - map.route[i - 1]
-				check((is_zero_approx(delta.x) and not is_zero_approx(delta.y)) or
-					(is_zero_approx(delta.y) and not is_zero_approx(delta.x)),
-					"قطعهٔ %d مسیر نقشهٔ اول باید افقی یا عمودی باشد" % i)
-			for i in range(1, map.route.size() - 1):
-				var before := map.route[i] - map.route[i - 1]
-				var after := map.route[i + 1] - map.route[i]
-				check(is_zero_approx(before.dot(after)), "پیچ %d نقشهٔ اول باید ۹۰ درجه باشد" % i)
-			for pad in map.pads:
-				check(map.distance_to_route(pad) >= 80.0, "سکوی نقشهٔ اول روی جاده افتاده است")
+		# همهٔ نقشه‌های جدید شبکه‌ای‌اند: فقط قطعه‌های افقی/عمودی و پیچ‌های دقیقاً ۹۰ درجه.
+		var raw_waypoints: Array = Maps.def(index).get("waypoints", [])
+		check(map.route.size() == raw_waypoints.size(),
+			"مسیر نقشهٔ %d باید فقط رأس‌های شکسته داشته باشد" % index)
+		for i in range(1, map.route.size()):
+			var delta := map.route[i] - map.route[i - 1]
+			check((is_zero_approx(delta.x) and not is_zero_approx(delta.y)) or
+				(is_zero_approx(delta.y) and not is_zero_approx(delta.x)),
+				"قطعهٔ %d مسیر نقشهٔ %d باید افقی یا عمودی باشد" % [i, index])
+		for i in range(1, map.route.size() - 1):
+			var before := map.route[i] - map.route[i - 1]
+			var after := map.route[i + 1] - map.route[i]
+			check(is_zero_approx(before.dot(after)), "پیچ %d نقشهٔ %d باید ۹۰ درجه باشد" % [i, index])
+		for pad in map.pads:
+			check(map.distance_to_route(pad) >= 80.0, "سکوی نقشهٔ %d روی جاده افتاده است" % index)
 		var ground_count := map.ground_tiles.size()
 		check(ground_count == Balance.COLS * Balance.ROWS, "کاشی‌های زمین نقشهٔ %d ناقص است" % index)
 		for tile in map.blocked_tiles.keys():

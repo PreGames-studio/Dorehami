@@ -1,0 +1,194 @@
+# APK release — builds an installable debug APK from *any* pushed branch and puts it on a GitHub
+# release, so the download link can be opened straight in a browser.
+#
+# Why this exists next to `debug-apk.yml`: Actions *artifacts* live on blob storage
+# (`*.blob.core.windows.net`) and job logs on `results-receiver.actions.githubusercontent.com`.
+# Environments with a restricted egress allow-list (an API-only agent sandbox, some corporate
+# proxies) can reach `github.com`/`api.github.com` but not those hosts, so the artifact is built and
+# then unreachable. Release assets are served from a `github.com/.../releases/download/...` URL,
+# which any browser (and any logged-in collaborator, on a private repo) can open.
+#
+# Triggers:
+#   * a push to `arena/**` whose head commit message contains `[apk-release]` — ordinary branch
+#     pushes publish nothing;
+#   * `workflow_dispatch` from the Actions tab (pick the branch and the release tag).
+#
+# Publishing needs a workflow token with `contents: write`. If the repository default is read-only
+# (Settings → Actions → General → Workflow permissions), this job says so in an annotation instead of
+# failing quietly, and the APK is still kept as an artifact.
+name: APK release
+
+on:
+  push:
+    branches: ["arena/**"]
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "تگ ریلیزی که APK روی آن منتشر می‌شود"
+        default: "debug-latest"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: apk-release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  apk-release:
+    name: Build APK and publish it to a release
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[apk-release]')
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    permissions:
+      contents: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build debug APK
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee build.log
+
+      # Best effort: a read-only workflow token must not turn the whole run red — the APK artifact
+      # below is already the deliverable, and the reason is reported as an annotation.
+      - name: Publish APK to a release
+        id: publish
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          TAG: ${{ github.event.inputs.tag || 'debug-latest' }}
+        run: |
+          set -uo pipefail
+          # Annotations are the only part of a run readable through api.github.com alone, so every
+          # interesting fact (and every error) is reported there, truncated to annotation size.
+          say() { echo "::notice title=apk-release::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
+          bad() { echo "::error title=apk-release::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
+
+          # NOTE: Actions runs this block as `bash -e -o pipefail`, so every command that may
+          # legitimately return non-zero (grep with no match, gh api on a read-only token, a failed
+          # release upload) needs an explicit `|| …` — otherwise the step dies before it can report
+          # anything. That is exactly how the first run of this workflow lost its dist/ folder.
+          src=$(ls app/build/outputs/apk/debug/*.apk 2>/dev/null | head -n 1 || true)
+          [ -n "$src" ] || { bad "no APK under app/build/outputs/apk/debug/ — the build step did not produce one"; exit 1; }
+          sha=$(git rev-parse --short=7 HEAD)
+          ref_name=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          # The checkout is shallow, so pull main to be able to say whether this APK carries any
+          # code difference from main or only CI/docs changes (which are not inside the APK).
+          git fetch --no-tags --depth=50 origin main >/dev/null 2>&1 || true
+          main_sha=$(git rev-parse --short=7 FETCH_HEAD 2>/dev/null || echo unknown)
+          code_diff=$(git diff --name-only FETCH_HEAD HEAD 2>/dev/null \
+            | { grep -Ev '^(\.github/|docs/|AGENTS\.md|README\.md|CONTRIBUTING\.md)' || true; } | head -n 5 | tr '\n' ' ')
+          [ -n "$code_diff" ] || code_diff="none (CI/docs only)"
+          mkdir -p dist
+          cp "$src" dist/Dorehami-debug.apk
+          cp "$src" "dist/Dorehami-debug-${ref_name}-${sha}.apk"
+          size=$(du -h dist/Dorehami-debug.apk | cut -f1)
+          sum=$(sha256sum dist/Dorehami-debug.apk | cut -c1-16)
+          say "built ${src} size=${size} sha256=${sum}… ref=${GITHUB_REF_NAME} commit=${sha} main=${main_sha} code-diff-vs-main: ${code_diff}"
+
+          perms=$(gh api "repos/${GH_REPO}" --jq '.permissions' 2>&1 | head -c 200 || true)
+          say "workflow-token permissions: ${perms}"
+          can_push=$(gh api "repos/${GH_REPO}" --jq '.permissions.push' 2>&1 | head -c 20 || true)
+          if [ "$can_push" != "true" ]; then
+            bad "the workflow token cannot write releases (${perms}). Fix: Settings → Actions → General → Workflow permissions → «Read and write permissions». The APK is still available as an artifact of this run."
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+
+          run_url="${GITHUB_SERVER_URL}/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}"
+          notes=$(printf 'بیلد دیباگ برای نصب روی گوشی.\n\n| | |\n|---|---|\n| برنچ | `%s` |\n| کامیت | `%s` |\n| `main` | `%s` |\n| تفاوت کد با `main` | %s |\n| اندازه | %s |\n| sha256 | `%s…` |\n| اجرا | %s |\n\nنصب: `adb install -r -t Dorehami-debug.apk` یا بازکردن مستقیم فایل روی گوشی (امضای debug).' \
+            "${GITHUB_REF_NAME}" "${sha}" "${main_sha}" "${code_diff}" "${size}" "${sum}" "${run_url}")
+
+          rc=0
+          if gh release view "$TAG" >/dev/null 2>&1; then
+            say "release ${TAG} already exists — refreshing it"
+            out=$(gh release edit "$TAG" --prerelease --title "Debug APK (rolling)" --notes "$notes" 2>&1) || rc=$?
+          else
+            out=$(gh release create "$TAG" --prerelease --title "Debug APK (rolling)" --target main --notes "$notes" 2>&1) || rc=$?
+          fi
+          if [ $rc -eq 0 ]; then say "release ${TAG} ready: ${out}"; else bad "release create/edit rc=${rc}: ${out}"; fi
+          [ $rc -eq 0 ] || { echo "published=false" >> "$GITHUB_OUTPUT"; exit 1; }
+
+          rc=0
+          out=$(gh release upload "$TAG" dist/Dorehami-debug.apk "dist/Dorehami-debug-${ref_name}-${sha}.apk" --clobber 2>&1) || rc=$?
+          if [ $rc -ne 0 ]; then
+            bad "release upload rc=${rc}: ${out}"
+            echo "published=false" >> "$GITHUB_OUTPUT"
+            exit 1
+          fi
+          say "uploaded: ${out}"
+
+          assets=$(gh api "repos/${GH_REPO}/releases/tags/${TAG}" \
+            --jq '[.assets[] | "\(.name) (\(.size) bytes) \(.browser_download_url)"] | join(" | ")' 2>&1 | head -c 400 || true)
+          say "release ${TAG} assets: ${assets}"
+          echo "published=true" >> "$GITHUB_OUTPUT"
+          echo "url=${GITHUB_SERVER_URL}/${GH_REPO}/releases/download/${TAG}/Dorehami-debug.apk" >> "$GITHUB_OUTPUT"
+          {
+            echo "## APK روی ریلیز منتشر شد ✅"
+            echo
+            echo "لینک دانلود مستقیم:"
+            echo
+            echo "\`${GITHUB_SERVER_URL}/${GH_REPO}/releases/download/${TAG}/Dorehami-debug.apk\`"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| برنچ | \`${GITHUB_REF_NAME}\` |"
+            echo "| کامیت | \`${sha}\` |"
+            echo "| اندازه | ${size} |"
+            echo "| sha256 | \`${sum}…\` |"
+            echo
+            echo '```bash'
+            echo 'adb install -r -t Dorehami-debug.apk'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Hint when publishing was not allowed
+        if: steps.publish.outcome == 'failure'
+        run: |
+          {
+            echo "## ⚠️ APK روی ریلیز منتشر نشد"
+            echo
+            echo "توکن workflow این مخزن فقط خواندنی است (`contents: read`)، پس ساختن ریلیز و بارگذاری"
+            echo "فایل روی آن ممکن نیست. خودِ APK در **Artifacts** همین اجرا موجود است."
+            echo
+            echo "برای فعال‌کردن لینک دانلود پایدار"
+            echo "(`…/releases/download/debug-latest/Dorehami-debug.apk`):"
+            echo
+            echo "Settings → Actions → General → Workflow permissions → «Read and write permissions»"
+            echo
+            echo "بعد همین ورک‌فلو را دوباره اجرا کن (یا یک کامیت با `[apk-release]` در پیامش push کن)."
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Report build failure
+        if: failure() && steps.publish.outcome != 'failure'
+        run: |
+          echo "## APK build failed — last 80 log lines" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          tail -n 80 build.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no build.log)" >> "$GITHUB_STEP_SUMMARY"
+          echo '```' >> "$GITHUB_STEP_SUMMARY"
+          grep -E "^e: |error:|FAILURE:|Execution failed" build.log 2>/dev/null | head -n 8 | while IFS= read -r line; do
+            echo "::error::${line:0:300}"
+          done || true
+
+      - name: Upload APK artifact
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dorehami-debug-apk
+          path: dist/*.apk
+          if-no-files-found: warn
+          retention-days: 14

@@ -1,0 +1,236 @@
+# Dejban Android APK — the Dezhban (Godot) game's own installable build, ported to the monorepo root.
+#
+# چرا این فایل لازم است: پروژهٔ Godot دژبان در `games/dejban/godot` نشسته و گردش‌کار ساخت APK خودش
+# (`games/dejban/godot/.github/workflows/android-apk.yml`) را همراه آورده، ولی گیت‌هاب فقط
+# گردش‌کارهای `.github/workflows` ریشهٔ مخزن را اجرا می‌کند — پس آن فایل در این monorepo هرگز اجرا
+# نمی‌شود و خروجی اندروید دژبان تا امروز ساخته نشده بود. این فایل همان کار را با سه تفاوت انجام
+# می‌دهد: همهٔ دستورها داخل `games/dejban/godot` اجرا می‌شوند، مسیر artifact نسبت به ریشهٔ مخزن
+# است، و نتیجه (موفق یا نه) به‌صورت annotation گزارش می‌شود تا از `api.github.com` هم خوانده شود
+# (لاگ کامل اجرا روی میزبانی است که محیط‌های با egress محدود به آن نمی‌رسند).
+#
+# اجرا: دستی از تب Actions، یا push به `main`/`arena/**` که پیام کامیتش `[build-apk]` دارد.
+# خروجی: artifact به نام `dezhban-apk` و (اگر توکن workflow نوشتن داشته باشد) انتشار ثابت
+# `…/releases/download/apk-latest/dezhban.apk`.
+name: Dejban Android APK
+
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - "games/dejban/godot/**"
+      - ".github/workflows/dejban-android-apk.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dejban-android-apk-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3-stable"
+
+defaults:
+  run:
+    working-directory: games/dejban/godot
+
+jobs:
+  build:
+    name: Export the Dezhban Android APK
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    # A marker in the commit message keeps ordinary pushes from exporting an APK.
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      contains(github.event.head_commit.message, '[build-apk]')
+    permissions:
+      contents: write
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Java
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "21"
+
+      - name: Install Android platform
+        run: |
+          SDK_ROOT="${ANDROID_HOME:-/usr/local/lib/android/sdk}"
+          echo "ANDROID_SDK_ROOT=$SDK_ROOT" >> "$GITHUB_ENV"
+          echo "$SDK_ROOT/cmdline-tools/latest/bin" >> "$GITHUB_PATH"
+          SDKMANAGER="$SDK_ROOT/cmdline-tools/latest/bin/sdkmanager"
+          if [ ! -x "$SDKMANAGER" ]; then
+            echo "::error title=dezhban-apk::Android SDK command-line tools not found under $SDK_ROOT"
+            find /usr/local/lib/android -maxdepth 5 -name sdkmanager -type f -print || true
+            exit 1
+          fi
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-35" "build-tools;35.0.0" "platform-tools"
+          echo "ANDROID_HOME=$SDK_ROOT" >> "$GITHUB_ENV"
+
+      - name: Install Godot and export templates
+        run: |
+          set -e
+          mkdir -p "$HOME/.local/bin" "$HOME/.local/share/godot/export_templates"
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d "$HOME/.local/bin"
+          GODOT_BIN=$(find "$HOME/.local/bin" -maxdepth 1 -type f -name "Godot*" | head -n 1)
+          chmod +x "$GODOT_BIN"
+          mv "$GODOT_BIN" "$HOME/.local/bin/godot"
+          curl -sSL -o /tmp/templates.tpz \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          unzip -q -o /tmp/templates.tpz -d /tmp/templates
+          TEMPLATE_DIR="${GODOT_VERSION/-stable/.stable}"
+          rm -rf "$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}"
+          mkdir -p "$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}"
+          mv /tmp/templates/templates/* "$HOME/.local/share/godot/export_templates/${TEMPLATE_DIR}/"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          godot --version || true
+
+      - name: Import the project
+        run: godot --headless --path . --import 2>&1 | tail -40
+
+      # پیش از ساخت خروجی، تست بدون رابط اجرا می‌شود؛ اگر چیزی بشکند، APK ساخته نمی‌شود و خطا در
+      # همین اجرا دیده می‌شود. همان پرچم‌های گردش‌کار «Dejban (Godot) verify» که روی main سبز است.
+      - name: Run the headless self-test
+        id: selftest
+        timeout-minutes: 10
+        run: |
+          set -o pipefail
+          if godot --headless --path . --fixed-fps 60 --quit-after 3600 res://tests/headless_test.tscn 2>&1 | tee /tmp/dezhban-test.log; then
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for script errors in the log
+        if: always()
+        run: |
+          PATTERN='SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Nonexistent function|Invalid call|read-only state|Invalid get index|Invalid set index|Invalid access to property|Cannot call method|Cannot infer the type'
+          if grep -nE "$PATTERN" /tmp/dezhban-test.log; then
+            echo "::error title=dezhban-runtime-error::$(grep -cE "$PATTERN" /tmp/dezhban-test.log) خطای زمان اجرا در لاگ تست دیده شد"
+            exit 1
+          fi
+          MSG=$(tail -n 40 /tmp/dezhban-test.log | tr '\n' '¶' | sed 's/%/%25/g; s/\r//g' | head -c 400)
+          echo "::notice title=dezhban-self-test::${MSG}"
+
+      - name: Point Godot at the Android SDK
+        run: |
+          # خروجی اندروید از خط فرمان، تنظیمات ویرایشگر را از این پرونده می‌خواند.
+          mkdir -p "$HOME/.config/godot"
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/android_sdk_path = "${ANDROID_HOME}"
+          export/android/java_sdk_path = "${JAVA_HOME}"
+          EOF
+          cat "$HOME/.config/godot/editor_settings-4.tres"
+
+      - name: Prepare a throwaway signing key
+        env:
+          KEYSTORE_PASSWORD: dezhban
+        run: |
+          KEYSTORE="$RUNNER_TEMP/dezhban-release.keystore"
+          keytool -genkeypair \
+            -keystore "$KEYSTORE" \
+            -storepass "$KEYSTORE_PASSWORD" \
+            -keypass "$KEYSTORE_PASSWORD" \
+            -alias dezhban \
+            -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname "cn=Dezhban, ou=CI, o=Dezhban, c=IR"
+          {
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PATH=$KEYSTORE"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_USER=dezhban"
+            echo "GODOT_ANDROID_KEYSTORE_RELEASE_PASSWORD=$KEYSTORE_PASSWORD"
+          } >> "$GITHUB_ENV"
+
+      - name: Export the APK
+        id: export
+        run: |
+          mkdir -p build/android
+          # Actions runs this block with `bash -e -o pipefail`, so the export's exit code is
+          # captured explicitly to keep the tail of the log in an annotation either way.
+          code=0
+          godot --headless --path . --export-release "Android" build/android/dezhban.apk > /tmp/export.log 2>&1 || code=$?
+          tail -c 4000 /tmp/export.log
+          if [ $code -ne 0 ] || [ ! -f build/android/dezhban.apk ]; then
+            echo "::error title=dezhban-apk::export rc=${code}: $(tail -c 900 /tmp/export.log | tr '\n' '|' | sed 's/%/%25/g')"
+            exit 1
+          fi
+          size=$(du -h build/android/dezhban.apk | cut -f1)
+          sum=$(sha256sum build/android/dezhban.apk | cut -c1-16)
+          sha=$(git rev-parse --short=7 HEAD)
+          echo "size=$size" >> "$GITHUB_OUTPUT"
+          echo "sum=$sum" >> "$GITHUB_OUTPUT"
+          echo "::notice title=dezhban-apk::built build/android/dezhban.apk size=${size} sha256=${sum}… ref=${GITHUB_REF_NAME} commit=${sha}"
+
+      - name: Upload the APK as an artifact
+        if: always() && steps.export.outcome == 'success'
+        uses: actions/upload-artifact@v4
+        with:
+          # `defaults.run.working-directory` does not apply to action inputs — this path is
+          # relative to the repository root.
+          name: dezhban-apk
+          path: games/dejban/godot/build/android/dezhban.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      # Best effort: this repo's workflow token may be read-only (Settings → Actions → General →
+      # Workflow permissions). Then the artifact above is the deliverable and we say so loudly.
+      - name: Refresh the fixed apk-latest release
+        id: publish
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          GH_REPO: ${{ github.repository }}
+        run: |
+          say() { echo "::notice title=dezhban-apk::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
+          bad() { echo "::error title=dezhban-apk::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
+          can_push=$(gh api "repos/${GH_REPO}" --jq '.permissions.push' 2>&1 | head -c 20 || true)
+          if [ "$can_push" != "true" ]; then
+            bad "the workflow token cannot write releases (permissions.push=${can_push}). Fix: Settings → Actions → General → Workflow permissions → «Read and write permissions». The APK is in this run's artifacts (dezhban-apk)."
+            exit 1
+          fi
+          rc=0
+          if gh release view apk-latest >/dev/null 2>&1; then
+            out=$(gh release edit apk-latest --title "دژبان — آخرین ساخت" \
+              --notes "آخرین فایل نصبی دژبان، ساخته‌شده از شاخهٔ ${GITHUB_REF_NAME} (کامیت ${GITHUB_SHA}). اندازه: ${steps.export.outputs.size} · sha256: ${steps.export.outputs.sum}…" 2>&1) || rc=$?
+          else
+            out=$(gh release create apk-latest --prerelease --title "دژبان — آخرین ساخت" --target main \
+              --notes "آخرین فایل نصبی دژبان، ساخته‌شده از شاخهٔ ${GITHUB_REF_NAME} (کامیت ${GITHUB_SHA}). اندازه: ${steps.export.outputs.size} · sha256: ${steps.export.outputs.sum}…" 2>&1) || rc=$?
+          fi
+          [ $rc -eq 0 ] || { bad "release create/edit rc=${rc}: ${out}"; exit 1; }
+          rc=0
+          out=$(gh release upload apk-latest build/android/dezhban.apk --clobber 2>&1) || rc=$?
+          if [ $rc -ne 0 ]; then bad "release upload rc=${rc}: ${out}"; exit 1; fi
+          say "published: ${GITHUB_SERVER_URL}/${GH_REPO}/releases/download/apk-latest/dezhban.apk"
+          {
+            echo "## APK دژبان منتشر شد ✅"
+            echo
+            echo "لینک دانلود مستقیم: \`${GITHUB_SERVER_URL}/${GH_REPO}/releases/download/apk-latest/dezhban.apk\`"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| شاخه | \`${GITHUB_REF_NAME}\` |"
+            echo "| کامیت | \`${GITHUB_SHA}\` |"
+            echo "| اندازه | ${steps.export.outputs.size} |"
+            echo "| sha256 | \`${steps.export.outputs.sum}…\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Hint when publishing was not allowed
+        if: steps.publish.outcome == 'failure'
+        run: |
+          {
+            echo "## ⚠️ APK دژبان روی ریلیز منتشر نشد"
+            echo
+            echo "توکن workflow این مخزن فقط خواندنی است، پس انتشار روی `apk-latest` ممکن نیست."
+            echo "خودِ APK در **Artifacts** همین اجرا (`dezhban-apk`) موجود است."
+            echo
+            echo "برای لینک دانلود پایدار: Settings → Actions → General → Workflow permissions →"
+            echo "«Read and write permissions»، بعد همین گردش‌کار را دوباره اجرا کن."
+          } >> "$GITHUB_STEP_SUMMARY"

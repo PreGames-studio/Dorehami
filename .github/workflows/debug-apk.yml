@@ -113,21 +113,40 @@ jobs:
           path: apk
 
       # Best effort: on repos whose workflow token is read-only this fails, and we say so instead
-      # of turning the run red (the artifact above is already the deliverable).
+      # of turning the run red (the artifact above is already the deliverable). Everything that
+      # matters is echoed as an annotation, because run logs live on a host that API-only
+      # environments cannot fetch.
       - name: Upload to debug-latest release
         id: publish
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
+          say() { echo "::notice title=debug-apk::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
+          bad() { echo "::error title=debug-apk::$(printf '%s' "$*" | tr '\n' ' ' | head -c 400)"; }
           apk=apk/Dorehami-debug.apk
           notes="بیلد دیباگ جاری برای تست روی گوشی. نصب: \`adb install -r -t Dorehami-debug.apk\`
-          اجرا: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
-          gh release view debug-latest >/dev/null 2>&1 || \
-            gh release create debug-latest --prerelease --title "Debug APK (rolling)" --target "${GITHUB_SHA}" --notes "$notes"
-          gh release upload debug-latest "$apk" --clobber
-          echo "published: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/debug-latest/Dorehami-debug.apk"
+          اجرا: ${GITHUB_SERVER_URL}/${GH_REPO}/actions/runs/${GITHUB_RUN_ID}"
+          can_push=$(gh api "repos/${GH_REPO}" --jq '.permissions.push' 2>&1 | head -c 20 || true)
+          if [ "$can_push" != "true" ]; then
+            bad "the workflow token cannot write releases (permissions.push=${can_push}). Fix: Settings → Actions → General → Workflow permissions → «Read and write permissions»."
+            exit 1
+          fi
+          # Actions runs this block as `bash -e -o pipefail`: a failing command substitution inside an
+          # assignment aborts the step before `rc=$?` can run, so capture with `|| rc=$?` instead.
+          rc=0
+          if gh release view debug-latest >/dev/null 2>&1; then
+            out="release debug-latest already exists"
+          else
+            out=$(gh release create debug-latest --prerelease --title "Debug APK (rolling)" --target "${GITHUB_SHA}" --notes "$notes" 2>&1) || rc=$?
+          fi
+          [ $rc -eq 0 ] || { bad "release create rc=${rc}: ${out}"; exit 1; }
+          rc=0
+          out=$(gh release upload debug-latest "$apk" --clobber 2>&1) || rc=$?
+          if [ $rc -ne 0 ]; then bad "release upload rc=${rc}: ${out}"; exit 1; fi
+          say "published: ${GITHUB_SERVER_URL}/${GH_REPO}/releases/download/debug-latest/Dorehami-debug.apk"
 
       - name: Hint when publishing was not allowed
         if: steps.publish.outcome == 'failure'

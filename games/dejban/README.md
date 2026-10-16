@@ -51,6 +51,23 @@ python3 games/dejban/godot/tools/check_refs.py                          # برر
 گردش‌کارهای داخل `godot/.github/workflows/` در این مخزن **اجرا نمی‌شوند**، چون GitHub فقط
 پوشهٔ `.github` ریشه را می‌خواند.
 
+## گرفتن APK دژبان
+
+همان گردش‌کار `godot/.github/workflows/android-apk.yml` به ریشه منتقل شده است:
+**`.github/workflows/dejban-android-apk.yml`** (با `working-directory: games/dejban/godot` و مسیر
+artifact نسبت به ریشهٔ مخزن). دو راه اجرا:
+
+| راه | چطور |
+|---|---|
+| دستی | تب Actions → **Dejban Android APK** → Run workflow (شاخه را انتخاب کن) |
+| با push | پیام کامیت نشان `[build-apk]` داشته باشد و `games/dejban/godot/**` یا خود فایل گردش‌کار عوض شده باشد |
+
+خروجی: artifact به نام `dezhban-apk` در همان اجرا، و در صورت نوشتن‌داشتن توکن workflow، انتشار
+ثابت `…/releases/download/apk-latest/dezhban.apk`. امضا با کلید یک‌بارمصرف CI است
+(`keytool`، رمز `dezhban`)؛ برای انتشار عمومی باید کلید واقعی از secrets بیاید. نتیجهٔ هر دو گام
+(ساخت و انتشار) به‌صورت annotation گزارش می‌شود تا با
+`gh api repos/<owner>/<repo>/check-runs/<job-id>/annotations` هم خوانده شود.
+
 ## چرا داخل `godot/` و نه ریشهٔ مخزن؟
 
 - ریشهٔ zip با ریشهٔ دورهمی روی `README.md` و `.gitignore` هم‌نام است و گردش‌کارهایش روی
