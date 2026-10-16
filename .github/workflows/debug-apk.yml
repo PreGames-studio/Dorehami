@@ -5,10 +5,9 @@
 # * Every push to `main` refreshes a rolling `debug-latest` GitHub release so the download URL is
 #   stable:  https://github.com/<org>/<repo>/releases/download/debug-latest/Dorehami-debug.apk
 #
-# Artifact upload only needs the default read-only workflow token. The publish job asks for
-# `contents: write` itself (job-level `permissions`), so the repository default may stay read-only;
-# if publishing still fails (e.g. an organisation policy), the step logs a warning and the run
-# still succeeds.
+# Artifact upload only needs the default read-only workflow token. Publishing to the release needs
+# Settings → Actions → General → Workflow permissions = "Read and write"; without it the publish
+# step logs a warning and the run still succeeds.
 name: Debug APK
 
 on:
@@ -113,17 +112,13 @@ jobs:
           name: dorehami-debug-apk
           path: apk
 
-      # Best effort: if publishing fails for any reason we say so instead of turning the run red
-      # (the artifact above is already the deliverable).
+      # Best effort: on repos whose workflow token is read-only this fails, and we say so instead
+      # of turning the run red (the artifact above is already the deliverable).
       - name: Upload to debug-latest release
         id: publish
         continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
-          # This job has no checkout, so `gh` cannot infer the repository from a git remote and
-          # every `gh release …` call failed with "fatal: not a git repository" — the real reason
-          # debug-latest was never published (the job-level `contents: write` is honoured).
-          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           apk=apk/Dorehami-debug.apk
@@ -137,4 +132,4 @@ jobs:
       - name: Hint when publishing was not allowed
         if: steps.publish.outcome == 'failure'
         run: |
-          echo "⚠️ انتشار روی ریلیز انجام نشد — علت دقیق در لاگ گام «Upload to debug-latest release» است. خود APK در Artifacts همین اجرا موجود است. اگر خطا دسترسی بود (مثلاً سیاست سازمان مجوز نوشتن توکن را بسته باشد): Settings → Actions → General → Workflow permissions." >> "$GITHUB_STEP_SUMMARY"
+          echo "⚠️ انتشار روی ریلیز انجام نشد (احتمالاً توکن workflow فقط read-only است). خود APK در Artifacts همین اجرا موجود است. برای فعال‌کردن: Settings → Actions → General → Workflow permissions → «Read and write permissions»." >> "$GITHUB_STEP_SUMMARY"
