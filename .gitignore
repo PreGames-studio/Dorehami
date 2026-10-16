@@ -40,3 +40,4 @@ games/dejban/godot/**/__pycache__/
 games/dejban/godot/**/*.tmp
 games/dejban/godot/**/*.apk
 games/dejban/godot/**/*.aab
+games/dejban/godot/tools/art_source/
