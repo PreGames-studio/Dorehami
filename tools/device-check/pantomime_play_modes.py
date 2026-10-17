@@ -11,7 +11,10 @@ cannot see, so this walks the real app:
   2. start a turn, reveal the word, «حدس درست» → the next team's «نوبت بعدی» screen must appear,
      with no stale-command error and no «واژهٔ دیگری … پیدا نشد» message;
   3. second team: «رد واژه» keeps the turn going, then «حدس درست» ends it → round 2 for team 1;
-  4. end that game, start a SPEEDY game: «حدس درست» must NOT end the turn; «پایان نوبت» does.
+  4. end that game, start a SPEEDY game: «حدس درست» must NOT end the turn; «پایان نوبت» does;
+  5. turn safety (PH-B02, PH-B04): a running turn keeps the screen on — untouched for 16 s with a
+     10 s screen timeout it is still awake — and leaving the app (home button) pauses the turn,
+     covers the performer's word and freezes the clock; «ادامهٔ نوبت» brings the turn back.
 
 Run from a workflow that already has an emulator (see `.github/workflows/pantomime-device-check.yml`):
 
@@ -23,6 +26,7 @@ Exit code 0 = every expectation held and the app never died.
 from __future__ import annotations
 
 import os
+import re
 import sys
 import time
 
@@ -65,6 +69,11 @@ SKIP = "رد واژه"
 END_TURN = "پایان نوبت"
 STALE_ERROR = "این فرمان مربوط به وضعیت قبلی"
 NO_WORD = "واژهٔ دیگری مطابق فیلترها"
+RESUME = "ادامهٔ نوبت"
+PAUSED_MARKER = "بازی متوقف است"
+TIMER = re.compile(r"^[۰-۹]{2}:[۰-۹]{2}$")
+PERSIAN_DIGITS = str.maketrans("۰۱۲۳۴۵۶۷۸۹", "0123456789")
+LONG_SCREEN_TIMEOUT_MS = 30 * 60 * 1000
 
 
 def fail(message: str, shot: str | None = None) -> None:
@@ -162,6 +171,109 @@ def tap_and_settle(fragment: str) -> None:
     time.sleep(2.5)
 
 
+def timer_seconds() -> int | None:
+    """The turn clock on screen ("۰۰:۴۲") in seconds, or None when no clock is shown."""
+    for node in dc.nodes():
+        text = node.text.strip()
+        if TIMER.match(text):
+            minutes, seconds = text.translate(PERSIAN_DIGITS).split(":")
+            return int(minutes) * 60 + int(seconds)
+    return None
+
+
+def app_window_block() -> str:
+    """This app's entry in `dumpsys window windows` (its attributes include the window flags)."""
+    out = sh("adb", "shell", "dumpsys", "window", "windows").stdout or ""
+    for block in re.split(r"\n(?=\s*Window #\d+ )", out):
+        head = block.strip().split("\n", 1)[0]
+        if head.startswith("Window #") and f"{PKG}/" in head:
+            return block
+    return ""
+
+
+def wakefulness() -> str:
+    """"Awake" while the screen is on; "Asleep"/"Dozing" once it timed out."""
+    m = re.search(r"mWakefulness=(\w+)", sh("adb", "shell", "dumpsys", "power").stdout or "")
+    return m.group(1) if m else "?"
+
+
+def wake_and_unlock() -> None:
+    sh("adb", "shell", "input", "keyevent", "KEYCODE_WAKEUP")
+    time.sleep(1.0)
+    sh("adb", "shell", "wm", "dismiss-keyguard")
+    time.sleep(1.5)
+
+
+def end_turn_and_expect_ready(shot: str) -> bool:
+    reach_and_tap(END_TURN)
+    return expect(wait_text(READY_MARKER, 8.0), "«پایان نوبت» handed over to the next team", "«پایان نوبت» did not hand over", shot)
+
+
+def check_screen_stays_on() -> None:
+    """PH-B02: nobody touches the phone while the performer acts — the screen must stay on."""
+    reach_and_tap(START_TURN)
+    if not wait_text(REVEAL, 10.0):
+        fail(f"«{REVEAL}» never appeared after «{START_TURN}»", "30-b02-start")
+        return
+    flagged = "KEEP_SCREEN_ON" in app_window_block()
+    expect(flagged, "B02: the running turn's window carries FLAG_KEEP_SCREEN_ON", "B02: the running turn's window has no FLAG_KEEP_SCREEN_ON", "31-b02-flag")
+
+    # The real effect: a 10 s screen timeout and no touch at all for 16 s.
+    sh("adb", "shell", "svc", "power", "stayon", "false")
+    sh("adb", "shell", "settings", "put", "system", "screen_off_timeout", "10000")
+    time.sleep(16)
+    state = wakefulness()
+    sh("adb", "shell", "settings", "put", "system", "screen_off_timeout", str(LONG_SCREEN_TIMEOUT_MS))
+    sh("adb", "shell", "svc", "power", "stayon", "true")
+    if state != "Awake":
+        wake_and_unlock()
+    expect(
+        state == "Awake",
+        f"B02: untouched for 16 s with a 10 s screen timeout, the screen is still on (wakefulness={state})",
+        f"B02: the screen went off in the middle of the turn (wakefulness={state})",
+        "32-b02-awake",
+    )
+    end_turn_and_expect_ready("33-b02-end")
+
+
+def check_leaving_pauses() -> None:
+    """PH-B04: leaving the app (home button, a phone call) pauses the turn and covers the word."""
+    if not begin_turn_and_reveal("34-b04-word"):
+        return
+    before = timer_seconds()
+    sh("adb", "shell", "input", "keyevent", "KEYCODE_HOME")
+    time.sleep(10)
+    # The same intent as the first launch, so Android brings the existing task back (like tapping
+    # the app icon) instead of starting a fresh activity.
+    sh("adb", "shell", "am", "start", "-n", ACTIVITY)
+    paused = wait_text(RESUME, 8.0)
+    covered = not on_text(SECRET_MARKER)
+    after = timer_seconds()
+    expect(
+        paused and on_text(PAUSED_MARKER),
+        "B04: back in the app after 10 s away, the turn is paused («ادامهٔ نوبت»)",
+        "B04: the turn kept running while the app was in the background",
+        "35-b04-paused",
+    )
+    expect(covered, "B04: the performer's word is covered after coming back", "B04: the secret word was still on screen after coming back", "36-b04-covered")
+    frozen = before is not None and after is not None and 0 <= before - after <= 3
+    expect(
+        frozen,
+        f"B04: the clock did not run in the background ({before} s → {after} s)",
+        f"B04: the clock ran in the background or could not be read ({before} s → {after} s)",
+        "37-b04-clock",
+    )
+    if paused:
+        tap_text(RESUME)
+        expect(
+            wait_text(REVEAL, 6.0) and not on_text(RESUME),
+            "B04: «ادامهٔ نوبت» resumed the turn with the word still hidden",
+            "B04: «ادامهٔ نوبت» did not bring the running turn back",
+            "38-b04-resumed",
+        )
+    end_turn_and_expect_ready("39-b04-end")
+
+
 def main() -> int:
     apk = sys.argv[1] if len(sys.argv) > 1 else "app/build/outputs/apk/debug/app-debug.apk"
     sh("adb", "wait-for-device", timeout=300)
@@ -178,6 +290,9 @@ def main() -> int:
         emit("error", f"install failed: {install.stdout} {install.stderr}")
         return 1
 
+    # A long screen timeout for the walk itself; the B02 check shortens it on purpose.
+    sh("adb", "shell", "settings", "put", "system", "screen_off_timeout", str(LONG_SCREEN_TIMEOUT_MS))
+    sh("adb", "shell", "svc", "power", "stayon", "true")
     sh("adb", "logcat", "-c")
     sh("adb", "shell", "am", "force-stop", PKG)
     sh("adb", "shell", "am", "start", "-n", ACTIVITY)
@@ -261,12 +376,20 @@ def main() -> int:
             reach_and_tap(END_TURN)
             expect(wait_text(READY_MARKER, 6.0), "SPEEDY: «پایان نوبت» handed over to the next team", "SPEEDY: «پایان نوبت» did not end the turn", "24-speedy-end-turn")
 
+    # ---- turn safety: the screen stays on, leaving the app pauses (one fresh turn each)
+    if check_alive("turn safety") and on_text(READY_MARKER):
+        check_screen_stays_on()
+        if check_alive("leaving the app") and on_text(READY_MARKER):
+            check_leaving_pauses()
+    else:
+        fail("turn-safety checks skipped: the walk did not reach a «نوبت بعدی» screen")
+
     check_alive("end of walk")
     if failures:
         emit("error", "RESULT: FAIL — " + " | ".join(failures))
         dump_logs()
         return 1
-    log("RESULT: PASS — NORMAL ends the turn on a correct guess, skips keep it; SPEEDY keeps going")
+    log("RESULT: PASS — NORMAL ends the turn on a correct guess, skips keep it; SPEEDY keeps going; the screen stays on; leaving pauses")
     return 0
 
 
