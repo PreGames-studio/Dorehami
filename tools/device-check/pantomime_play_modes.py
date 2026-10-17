@@ -205,7 +205,11 @@ def wake_and_unlock() -> None:
 
 
 def end_turn_and_expect_ready(shot: str) -> bool:
-    reach_and_tap(END_TURN)
+    if on_text(SECRET_MARKER):  # the performer's word is still up: cover it before ending the turn
+        tap_text(SECRET_MARKER)
+        wait_text(END_TURN, 6.0)
+    if not reach_and_tap(END_TURN):
+        return False
     return expect(wait_text(READY_MARKER, 8.0), "«پایان نوبت» handed over to the next team", "«پایان نوبت» did not hand over", shot)
 
 
@@ -242,7 +246,7 @@ def check_leaving_pauses() -> None:
         return
     before = timer_seconds()
     sh("adb", "shell", "input", "keyevent", "KEYCODE_HOME")
-    time.sleep(10)
+    time.sleep(12)
     # The same intent as the first launch, so Android brings the existing task back (like tapping
     # the app icon) instead of starting a fresh activity.
     sh("adb", "shell", "am", "start", "-n", ACTIVITY)
@@ -251,12 +255,14 @@ def check_leaving_pauses() -> None:
     after = timer_seconds()
     expect(
         paused and on_text(PAUSED_MARKER),
-        "B04: back in the app after 10 s away, the turn is paused («ادامهٔ نوبت»)",
+        "B04: back in the app after 12 s away, the turn is paused («ادامهٔ نوبت»)",
         "B04: the turn kept running while the app was in the background",
         "35-b04-paused",
     )
     expect(covered, "B04: the performer's word is covered after coming back", "B04: the secret word was still on screen after coming back", "36-b04-covered")
-    frozen = before is not None and after is not None and 0 <= before - after <= 3
+    # A few seconds pass between reading the clock and the pause itself; a clock that kept running
+    # in the background would have lost at least the 12 s spent away.
+    frozen = before is not None and after is not None and 0 <= before - after <= 5
     expect(
         frozen,
         f"B04: the clock did not run in the background ({before} s → {after} s)",
