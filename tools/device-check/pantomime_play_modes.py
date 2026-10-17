@@ -11,8 +11,13 @@ cannot see, so this walks the real app:
   2. start a turn, reveal the word, «حدس درست» → the next team's «نوبت بعدی» screen must appear,
      with no stale-command error and no «واژهٔ دیگری … پیدا نشد» message;
   3. second team: «رد واژه» keeps the turn going, then «حدس درست» ends it → round 2 for team 1;
-  4. end that game, start a SPEEDY game: «حدس درست» must NOT end the turn; «پایان نوبت» does;
-  5. turn safety (PH-B02, PH-B04): a running turn keeps the screen on — untouched for 16 s with a
+     the next-team screen says what the last team earned («… در نوبت قبل … امتیاز گرفت»);
+  4. the covered-word (shared) screen (PH-B05 + the owner's second report): before anyone has seen
+     the word it shows no dead «حدس درست»/«رد واژه»; once the performer has seen the word and
+     covered it, «حدس درست» there ends the NORMAL turn and is scored;
+  5. end that game, start a SPEEDY game: «حدس درست» must NOT end the turn — also from the covered
+     screen, where it scores and moves on to a fresh word; «پایان نوبت» ends the turn;
+  6. turn safety (PH-B02, PH-B04): a running turn keeps the screen on — untouched for 16 s with a
      10 s screen timeout it is still awake — and leaving the app (home button) pauses the turn,
      covers the performer's word and freezes the clock; «ادامهٔ نوبت» brings the turn back.
 
@@ -213,6 +218,104 @@ def end_turn_and_expect_ready(shot: str) -> bool:
     return expect(wait_text(READY_MARKER, 8.0), "«پایان نوبت» handed over to the next team", "«پایان نوبت» did not hand over", shot)
 
 
+def dead_buttons_visible() -> bool:
+    """«حدس درست»/«رد واژه» drawn on the shared screen (also looks once further down)."""
+    seen = on_text(CORRECT) or on_text(SKIP)
+    if not seen:
+        scroll("down")
+        seen = on_text(CORRECT) or on_text(SKIP)
+        scroll("up")
+    return seen
+
+
+def score_of(team: str) -> int | None:
+    """The team's score on the scoreboard: the first all-digit label after the team's own name."""
+    after_name = False
+    for node in dc.nodes():
+        text = node.text.strip()
+        if text == team:
+            after_name = True
+        elif after_name and text and all(ch in "۰۱۲۳۴۵۶۷۸۹-−" for ch in text):
+            try:
+                return int(text.translate(PERSIAN_DIGITS).replace("−", "-"))
+            except ValueError:
+                return None
+    return None
+
+
+def reveal_then_cover(shot: str) -> bool:
+    """The performer looks at the word, then covers it again with «پوشاندن سریع واژه»."""
+    reach_and_tap(REVEAL)
+    if not wait_text(SECRET_MARKER, 8.0):
+        fail("the performer's word screen never appeared", shot + "-reveal")
+        return False
+    time.sleep(2.5)  # the next-word prefetch, as on a real phone
+    tap_text(SECRET_MARKER)
+    if not wait_text(REVEAL, 6.0):
+        fail("covering the word did not bring the shared screen back", shot + "-cover")
+        return False
+    return check_alive(shot)
+
+
+def check_covered_correct_normal() -> None:
+    """The owner's second report + PH-B05: «حدس درست» on the covered-word screen ends the turn."""
+    reach_and_tap(START_TURN)
+    if not wait_text(REVEAL, 10.0):
+        fail(f"«{REVEAL}» never appeared after «{START_TURN}»", "16a-covered-start")
+        return
+    time.sleep(1.0)
+    expect(
+        not dead_buttons_visible(),
+        "B05: before the performer has seen the word, the shared screen shows no «حدس درست»/«رد واژه»",
+        "B05: the shared screen shows «حدس درست»/«رد واژه» before anyone has seen the word (dead buttons)",
+        "16b-covered-unseen",
+    )
+    if not reveal_then_cover("16c-covered"):
+        return
+    before = score_of("تیم ۱")
+    reach_and_tap(CORRECT)
+    time.sleep(2.5)
+    ended = wait_text(READY_MARKER, 6.0)
+    after = score_of("تیم ۱")
+    expect(
+        ended and not on_text(STALE_ERROR),
+        "NORMAL: «حدس درست» on the covered-word screen ended the turn — the next team is up",
+        "NORMAL: «حدس درست» on the covered-word screen did NOT end the turn",
+        "16d-covered-correct",
+    )
+    expect(
+        before is not None and after is not None and after > before,
+        f"NORMAL: the covered-word guess was scored (تیم ۱: {before} → {after})",
+        f"NORMAL: the covered-word guess was not scored (تیم ۱: {before} → {after})",
+        "16e-covered-score",
+    )
+    if not ended:
+        end_turn_and_expect_ready("16f-covered-cleanup")
+
+
+def check_covered_correct_speedy() -> None:
+    """SPEEDY: a fresh word nobody has seen has no buttons; covered after a look, it scores."""
+    expect(
+        not dead_buttons_visible(),
+        "SPEEDY: the fresh word nobody has seen has no «حدس درست»/«رد واژه» on the shared screen",
+        "SPEEDY: dead «حدس درست»/«رد واژه» shown for a word nobody has seen",
+        "23a-speedy-unseen",
+    )
+    if not reveal_then_cover("23b-speedy-covered"):
+        return
+    before = score_of("تیم ۱")
+    reach_and_tap(CORRECT)
+    time.sleep(2.5)
+    running = wait_text(REVEAL, 6.0) and not on_text(READY_MARKER)
+    after = score_of("تیم ۱")
+    expect(
+        running and not on_text(STALE_ERROR) and before is not None and after is not None and after > before,
+        f"SPEEDY: «حدس درست» on the covered-word screen scored (تیم ۱: {before} → {after}) and the turn kept going",
+        f"SPEEDY: «حدس درست» on the covered-word screen failed (turn running={running}, تیم ۱: {before} → {after})",
+        "23c-speedy-covered-correct",
+    )
+
+
 def check_screen_stays_on() -> None:
     """PH-B02: nobody touches the phone while the performer acts — the screen must stay on."""
     reach_and_tap(START_TURN)
@@ -341,6 +444,12 @@ def main() -> int:
                 "12-normal-after-correct",
             )
             expect(on_text("۱/۳ نوبت"), "scoreboard counted the finished turn (۱/۳)", "scoreboard did not count the finished turn", "13-normal-scoreboard")
+            expect(
+                on_text("تیم ۱ در نوبت قبل") and on_text("امتیاز گرفت"),
+                "NORMAL: the next-team screen says what the last team earned («تیم ۱ در نوبت قبل … امتیاز گرفت»)",
+                "NORMAL: the next-team screen does not say what the last team earned",
+                "13b-normal-last-turn",
+            )
             if not ended:  # recover so the rest of the walk still runs
                 reach_and_tap(END_TURN)
                 wait_text(READY_MARKER, 6.0)
@@ -362,6 +471,10 @@ def main() -> int:
                         "16-normal-round-2",
                     )
 
+        # round 2, team 1: the covered-word screen
+        if check_alive("normal-covered") and on_text(READY_MARKER):
+            check_covered_correct_normal()
+
         # finish this game so a new one can be created
         if check_alive("normal-finish"):
             reach_and_tap("پایان بازی")
@@ -379,6 +492,8 @@ def main() -> int:
             running = wait_text(REVEAL, 6.0) and not on_text(READY_MARKER)
             expect(running, "SPEEDY: «حدس درست» kept the turn going (next word hidden)", "SPEEDY: the turn ended after one correct guess", "22-speedy-after-correct")
             expect(on_text("۰/۳ نوبت") and not on_text(STALE_ERROR), "SPEEDY: no turn counted yet and no error card", "SPEEDY: unexpected turn count or error card", "23-speedy-scoreboard")
+            if running:
+                check_covered_correct_speedy()
             reach_and_tap(END_TURN)
             expect(wait_text(READY_MARKER, 6.0), "SPEEDY: «پایان نوبت» handed over to the next team", "SPEEDY: «پایان نوبت» did not end the turn", "24-speedy-end-turn")
 
@@ -395,7 +510,7 @@ def main() -> int:
         emit("error", "RESULT: FAIL — " + " | ".join(failures))
         dump_logs()
         return 1
-    log("RESULT: PASS — NORMAL ends the turn on a correct guess, skips keep it; SPEEDY keeps going; the screen stays on; leaving pauses")
+    log("RESULT: PASS — NORMAL ends the turn on a correct guess (also from the covered screen), skips keep it; SPEEDY keeps going; the screen stays on; leaving pauses")
     return 0
 
 
