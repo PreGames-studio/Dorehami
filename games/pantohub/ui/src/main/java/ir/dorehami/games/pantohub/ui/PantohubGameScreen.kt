@@ -56,6 +56,9 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
 import ir.dorehami.games.pantohub.GameAction
 import ir.dorehami.games.pantohub.GameActionResult
 import ir.dorehami.games.pantohub.GameMoment
@@ -144,6 +147,36 @@ internal fun PantohubGameScreen(
     }
 
     BackHandler(enabled = true) { leaveAndPause() }
+
+    // PH-B04 (ADR-0006 §4): leaving the app — home button, a phone call, another app, the power
+    // button — pauses a running turn instead of letting its clock burn in the background. The
+    // engine's pause also covers the performer's word, so nobody sees it when the phone comes back.
+    val lifecycleOwner = LocalLifecycleOwner.current
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_STOP) {
+                val current = freshState()
+                if (current.phase == GamePhase.RUNNING) {
+                    dispatch(GameAction.PauseTurn(current.version, gameMoment()))
+                }
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+
+    // PH-B02: nobody touches the phone while the performer acts, so the screen must not time out
+    // in the middle of a turn. Only while the turn runs: paused and between-turn screens may still
+    // sleep as usual.
+    val window = LocalContext.current.findActivity()?.window
+    val keepScreenOn = state.phase == GamePhase.RUNNING
+    DisposableEffect(window, keepScreenOn) {
+        val alreadyOn = window != null && (window.attributes.flags and WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON) != 0
+        if (keepScreenOn) window?.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        onDispose {
+            if (keepScreenOn && !alreadyOn) window?.clearFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
+        }
+    }
 
     LaunchedEffect(state.id) {
         while (isActive) {
