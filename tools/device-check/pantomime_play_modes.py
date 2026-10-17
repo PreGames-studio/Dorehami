@@ -210,6 +210,9 @@ def wake_and_unlock() -> None:
 
 
 def end_turn_and_expect_ready(shot: str) -> bool:
+    if on_text(READY_MARKER):  # the turn clock already closed it — nothing left to end
+        log("(the turn was already over — its time ran out before «پایان نوبت»)")
+        return True
     if on_text(SECRET_MARKER):  # the performer's word is still up: cover it before ending the turn
         tap_text(SECRET_MARKER)
         wait_text(END_TURN, 6.0)
@@ -218,12 +221,18 @@ def end_turn_and_expect_ready(shot: str) -> bool:
     return expect(wait_text(READY_MARKER, 8.0), "«پایان نوبت» handed over to the next team", "«پایان نوبت» did not hand over", shot)
 
 
+def labels_on_screen(*fragments: str) -> bool:
+    """One dump: is any of [fragments] on screen, as a label or inside one?"""
+    texts = [node.text for node in dc.nodes()]
+    return any(fragment in text for fragment in fragments for text in texts)
+
+
 def dead_buttons_visible() -> bool:
     """«حدس درست»/«رد واژه» drawn on the shared screen (also looks once further down)."""
-    seen = on_text(CORRECT) or on_text(SKIP)
+    seen = labels_on_screen(CORRECT, SKIP)
     if not seen:
         scroll("down")
-        seen = on_text(CORRECT) or on_text(SKIP)
+        seen = labels_on_screen(CORRECT, SKIP)
         scroll("up")
     return seen
 
@@ -294,26 +303,32 @@ def check_covered_correct_normal() -> None:
 
 
 def check_covered_correct_speedy() -> None:
-    """SPEEDY: a fresh word nobody has seen has no buttons; covered after a look, it scores."""
+    """SPEEDY, in a fresh turn of its own (team 2) so the 60 s clock cannot interfere: a word
+    nobody has seen has no buttons; covered after a look, «حدس درست» scores and the turn goes on."""
+    reach_and_tap(START_TURN)
+    if not wait_text(REVEAL, 10.0):
+        fail(f"«{REVEAL}» never appeared after «{START_TURN}»", "25a-speedy-covered-start")
+        return
     expect(
         not dead_buttons_visible(),
-        "SPEEDY: the fresh word nobody has seen has no «حدس درست»/«رد واژه» on the shared screen",
+        "SPEEDY: a word nobody has seen has no «حدس درست»/«رد واژه» on the shared screen",
         "SPEEDY: dead «حدس درست»/«رد واژه» shown for a word nobody has seen",
-        "23a-speedy-unseen",
+        "25b-speedy-unseen",
     )
-    if not reveal_then_cover("23b-speedy-covered"):
+    if not reveal_then_cover("25c-speedy-covered"):
         return
-    before = score_of("تیم ۱")
+    before = score_of("تیم ۲")
     reach_and_tap(CORRECT)
     time.sleep(2.5)
     running = wait_text(REVEAL, 6.0) and not on_text(READY_MARKER)
-    after = score_of("تیم ۱")
+    after = score_of("تیم ۲")
     expect(
         running and not on_text(STALE_ERROR) and before is not None and after is not None and after > before,
-        f"SPEEDY: «حدس درست» on the covered-word screen scored (تیم ۱: {before} → {after}) and the turn kept going",
-        f"SPEEDY: «حدس درست» on the covered-word screen failed (turn running={running}, تیم ۱: {before} → {after})",
-        "23c-speedy-covered-correct",
+        f"SPEEDY: «حدس درست» on the covered-word screen scored (تیم ۲: {before} → {after}) and the turn kept going",
+        f"SPEEDY: «حدس درست» on the covered-word screen failed (turn running={running}, تیم ۲: {before} → {after})",
+        "25d-speedy-covered-correct",
     )
+    end_turn_and_expect_ready("25e-speedy-covered-end")
 
 
 def check_screen_stays_on() -> None:
@@ -492,10 +507,12 @@ def main() -> int:
             running = wait_text(REVEAL, 6.0) and not on_text(READY_MARKER)
             expect(running, "SPEEDY: «حدس درست» kept the turn going (next word hidden)", "SPEEDY: the turn ended after one correct guess", "22-speedy-after-correct")
             expect(on_text("۰/۳ نوبت") and not on_text(STALE_ERROR), "SPEEDY: no turn counted yet and no error card", "SPEEDY: unexpected turn count or error card", "23-speedy-scoreboard")
-            if running:
-                check_covered_correct_speedy()
             reach_and_tap(END_TURN)
             expect(wait_text(READY_MARKER, 6.0), "SPEEDY: «پایان نوبت» handed over to the next team", "SPEEDY: «پایان نوبت» did not end the turn", "24-speedy-end-turn")
+
+        # the second team: the covered-word screen in SPEEDY
+        if check_alive("speedy-covered") and on_text(READY_MARKER):
+            check_covered_correct_speedy()
 
     # ---- turn safety: the screen stays on, leaving the app pauses (one fresh turn each)
     if check_alive("turn safety") and on_text(READY_MARKER):
