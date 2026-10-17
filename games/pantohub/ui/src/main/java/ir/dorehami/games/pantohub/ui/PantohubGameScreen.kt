@@ -264,9 +264,11 @@ internal fun PantohubGameScreen(
 
     fun resolve(outcome: WordOutcome) {
         val current = freshState()
-        // Only a word that is on the performer's screen can be scored. A second tap in the same
-        // frame, or a tap after the turn closed, is ignored instead of reported as an error.
-        if (current.phase != GamePhase.RUNNING || current.currentTurn?.wordRevealed != true) return
+        // Only a word the performer has seen can be scored — on the word screen, or on the shared
+        // screen after covering it. A second tap in the same frame, or a tap after the turn closed,
+        // is ignored instead of reported as an error.
+        val turnNow = current.currentTurn
+        if (current.phase != GamePhase.RUNNING || turnNow == null || !(turnNow.wordRevealed || turnNow.wordSeen)) return
         // NORMAL: the engine ends the turn on a correct guess — no next word is needed (PH-B01).
         if (isNormalMode && outcome == WordOutcome.CORRECT) {
             finishResolve(current, outcome, null)
@@ -356,6 +358,24 @@ internal fun PantohubGameScreen(
                         GamePhase.READY, GamePhase.FINAL_READY -> {
                             Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(22.dp)) {
                                 Column(Modifier.padding(20.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                                    // What the team that just played earned — the scoreboard above already
+                                    // holds the new totals. The word itself is not shown (ADR-0006 §10).
+                                    state.turns.lastOrNull()?.let { last ->
+                                        val lastTeam = state.teams.firstOrNull { it.id == last.teamId }?.name.orEmpty()
+                                        val points = kotlin.math.abs(last.scoreEarned).toString().toPersianDigits()
+                                        Text(
+                                            when {
+                                                last.scoreEarned > 0 -> "$lastTeam در نوبت قبل $points امتیاز گرفت."
+                                                last.scoreEarned < 0 -> "$lastTeam در نوبت قبل $points امتیاز از دست داد."
+                                                else -> "$lastTeam در نوبت قبل امتیازی نگرفت."
+                                            },
+                                            style = MaterialTheme.typography.bodyMedium,
+                                            fontWeight = FontWeight.SemiBold,
+                                            color = MaterialTheme.colorScheme.primary,
+                                            textAlign = TextAlign.Center,
+                                        )
+                                        Spacer(Modifier.height(10.dp))
+                                    }
                                     Text(
                                         if (state.phase == GamePhase.FINAL_READY) "دور پایانی" else "نوبت بعدی",
                                         style = MaterialTheme.typography.titleMedium,
@@ -414,8 +434,13 @@ internal fun PantohubGameScreen(
                                         )
                                         Text("بازی سطح یا دسته را خودکار عوض نمی‌کند.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
                                     } else if (currentTurn?.wordRevealed != true) {
-                                        Text("واژه فقط برای اجراکننده است", fontWeight = FontWeight.SemiBold)
-                                        Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                                        if (currentTurn?.wordSeen == true) {
+                                            Text("واژه پوشیده است", fontWeight = FontWeight.SemiBold)
+                                            Text("اجراکننده واژه را دیده است؛ اگر تیم درست حدس زد، همین‌جا «حدس درست» را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                                        } else {
+                                            Text("واژه فقط برای اجراکننده است", fontWeight = FontWeight.SemiBold)
+                                            Text("گوشی را به او بده و بعد دکمهٔ نمایش را بزن.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant, textAlign = TextAlign.Center)
+                                        }
                                         Spacer(Modifier.height(8.dp))
                                         Button(
                                             onClick = { dispatch(GameAction.RevealWord(freshState().version, gameMoment())) },
@@ -429,18 +454,24 @@ internal fun PantohubGameScreen(
                                             Text("ادامهٔ نوبت")
                                         }
                                     } else {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            Button(
-                                                onClick = { resolve(WordOutcome.CORRECT) },
-                                                enabled = currentWord != null && currentTurn?.wordRevealed == true,
-                                                modifier = Modifier.weight(1f),
-                                            ) { Text("حدس درست") }
-                                            if (state.settings.allowSkip) {
-                                                OutlinedButton(
-                                                    onClick = { resolve(WordOutcome.SKIPPED) },
-                                                    enabled = currentWord != null && currentTurn?.wordRevealed == true && (currentTurn?.skippedWords ?: Int.MAX_VALUE) < state.settings.maxSkipsPerTurn,
+                                        // The performer has seen the word and covered it: the guess can be
+                                        // recorded right here. Before anyone has seen the word there is nothing
+                                        // to score, so no buttons — they used to sit here permanently disabled
+                                        // (PH-B05).
+                                        val seenTurn = currentTurn?.takeIf { it.wordSeen }
+                                        if (currentWord != null && seenTurn != null) {
+                                            Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                                                Button(
+                                                    onClick = { resolve(WordOutcome.CORRECT) },
                                                     modifier = Modifier.weight(1f),
-                                                ) { Text("رد واژه") }
+                                                ) { Text("حدس درست") }
+                                                if (state.settings.allowSkip) {
+                                                    OutlinedButton(
+                                                        onClick = { resolve(WordOutcome.SKIPPED) },
+                                                        enabled = seenTurn.skippedWords < state.settings.maxSkipsPerTurn,
+                                                        modifier = Modifier.weight(1f),
+                                                    ) { Text("رد واژه") }
+                                                }
                                             }
                                         }
                                         OutlinedButton(

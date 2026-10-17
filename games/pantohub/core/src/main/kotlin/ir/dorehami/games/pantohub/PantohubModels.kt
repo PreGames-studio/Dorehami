@@ -193,6 +193,12 @@ data class TurnProgress(
     val remainingMs: Long,
     val currentWord: WordRecord? = null,
     val wordRevealed: Boolean = false,
+    /**
+     * The performer has seen [currentWord] at least once, even if it is covered again now. A seen
+     * word can be resolved from the shared (covered-word) screen; a word nobody has seen cannot.
+     * Games saved before this field existed decode it as `false`, the safe default.
+     */
+    val wordSeen: Boolean = false,
     val skippedWords: Int = 0,
     val scoreEarned: Int = 0,
     val activeCards: Set<SpecialCard> = emptySet(),

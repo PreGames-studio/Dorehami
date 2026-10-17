@@ -262,7 +262,7 @@ object PantohubEngine {
         val turn = state.currentTurn ?: return InternalResult.Error("نوبت فعالی پیدا نشد.")
         if (turn.currentWord == null) return InternalResult.Error("واژه‌ای برای نمایش باقی نمانده است.")
         if (turn.wordRevealed) return InternalResult.Error("این واژه از قبل نمایش داده شده است.")
-        return InternalResult.Success(state.copy(currentTurn = turn.copy(wordRevealed = true)))
+        return InternalResult.Success(state.copy(currentTurn = turn.copy(wordRevealed = true, wordSeen = true)))
     }
 
     private fun hideWord(state: GameState): InternalResult {
@@ -276,7 +276,9 @@ object PantohubEngine {
         if (state.phase != GamePhase.RUNNING) return InternalResult.Error("نوبت در حال اجرا نیست.")
         val turn = state.currentTurn ?: return InternalResult.Error("نوبت فعالی پیدا نشد.")
         val word = turn.currentWord ?: return InternalResult.Error("واژهٔ فعالی وجود ندارد؛ نوبت را تمام کن.")
-        if (!turn.wordRevealed) return InternalResult.Error("اول واژه را به اجراکننده نشان بده.")
+        // A covered word may be resolved from the shared screen once the performer has seen it;
+        // a word nobody has seen cannot be scored or skipped.
+        if (!turn.wordRevealed && !turn.wordSeen) return InternalResult.Error("اول واژه را به اجراکننده نشان بده.")
 
         if (action.outcome == WordOutcome.UNRESOLVED) {
             return InternalResult.Error("نتیجهٔ واژه را درست یا ردشده ثبت کن.")
@@ -327,6 +329,7 @@ object PantohubEngine {
         val updatedTurn = turn.copy(
             currentWord = nextWord,
             wordRevealed = false,
+            wordSeen = false,
             skippedWords = turn.skippedWords + if (action.outcome == WordOutcome.SKIPPED) 1 else 0,
             scoreEarned = turn.scoreEarned + awarded,
             activeCards = cardsAfterUse,
