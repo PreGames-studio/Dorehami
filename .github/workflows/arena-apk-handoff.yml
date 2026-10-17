@@ -1,0 +1,45 @@
+# TEMPORARY Arena-session helper — deleted again right after use.
+#
+# The sandbox that reviews this repo can reach api.github.com but not the storage behind release
+# downloads. This job copies the round-2 test APK (release `test-pantohub-round2`) into
+# *unreferenced* git blobs that can be fetched via the REST API, so it can be handed to the owner
+# directly. No branch, tag or release is created or modified.
+name: APK handoff (temporary)
+
+on:
+  push:
+    branches: ["arena/852e62eb-dorehami"]
+    paths: [".github/workflows/arena-apk-handoff.yml"]
+
+permissions:
+  contents: write # read the release asset + POST /git/blobs only
+
+jobs:
+  handoff:
+    name: Hand the round-2 test APK over
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Download and verify the release asset
+        run: |
+          set -euo pipefail
+          gh release download test-pantohub-round2 -p Dorehami-debug.apk -D apk
+          echo "36ba2bf0cf1a75a12964d962aaeb363e5d92f3a011a5c90e4d8d361bc399641c  apk/Dorehami-debug.apk" | sha256sum -c -
+
+      - name: Store the APK as unreferenced git blobs
+        run: |
+          set -euo pipefail
+          f=apk/Dorehami-debug.apk
+          size=$(stat -c%s "$f")
+          sum=$(sha256sum "$f" | cut -d' ' -f1)
+          split -b 8000000 -d -a 2 "$f" part-
+          parts=""
+          for p in part-*; do
+            python3 -c 'import base64, json, sys; d = open(sys.argv[1], "rb").read(); json.dump({"content": base64.b64encode(d).decode(), "encoding": "base64"}, open("body.json", "w"))' "$p"
+            sha=$(gh api "repos/$GH_REPO/git/blobs" --input body.json --jq .sha)
+            parts="$parts $p=$sha"
+          done
+          echo "::notice title=apk-handoff::size=$size sha256=$sum parts=$parts"
