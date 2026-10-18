@@ -210,6 +210,21 @@ object PantohubEngine {
         return team.players.getOrNull(index.mod(team.players.size))
     }
 
+    /**
+     * True when [after] — the state accepted for a correct-guess [GameAction.ResolveWord] on
+     * [before] — really counted [before]'s word as guessed. False when the turn had already run out
+     * and the reducer closed it instead (the word is then recorded as unresolved), so the screen
+     * never celebrates an answer that did not count (PH-B07). Holds whether the guess kept the turn
+     * going (SPEEDY) or closed it (NORMAL).
+     */
+    fun scoredCorrect(before: GameState, after: GameState): Boolean {
+        val word = before.currentTurn?.currentWord ?: return false
+        if (after.id != before.id || after.version != before.version + 1) return false
+        val attempts = after.currentTurn?.attempts ?: after.turns.lastOrNull()?.attempts ?: return false
+        val last = attempts.lastOrNull() ?: return false
+        return last.wordId == word.id && last.outcome == WordOutcome.CORRECT
+    }
+
     private fun startTurn(state: GameState, action: GameAction.StartTurn): InternalResult {
         if (state.phase != GamePhase.READY && state.phase != GamePhase.FINAL_READY) {
             return InternalResult.Error("اکنون زمان شروع نوبت نیست.")
@@ -247,7 +262,7 @@ object PantohubEngine {
         val turn = state.currentTurn ?: return InternalResult.Error("نوبت فعالی پیدا نشد.")
         if (turn.currentWord == null) return InternalResult.Error("واژه‌ای برای نمایش باقی نمانده است.")
         if (turn.wordRevealed) return InternalResult.Error("این واژه از قبل نمایش داده شده است.")
-        return InternalResult.Success(state.copy(currentTurn = turn.copy(wordRevealed = true)))
+        return InternalResult.Success(state.copy(currentTurn = turn.copy(wordRevealed = true, wordSeen = true)))
     }
 
     private fun hideWord(state: GameState): InternalResult {
@@ -261,7 +276,9 @@ object PantohubEngine {
         if (state.phase != GamePhase.RUNNING) return InternalResult.Error("نوبت در حال اجرا نیست.")
         val turn = state.currentTurn ?: return InternalResult.Error("نوبت فعالی پیدا نشد.")
         val word = turn.currentWord ?: return InternalResult.Error("واژهٔ فعالی وجود ندارد؛ نوبت را تمام کن.")
-        if (!turn.wordRevealed) return InternalResult.Error("اول واژه را به اجراکننده نشان بده.")
+        // A covered word may be resolved from the shared screen once the performer has seen it;
+        // a word nobody has seen cannot be scored or skipped.
+        if (!turn.wordRevealed && !turn.wordSeen) return InternalResult.Error("اول واژه را به اجراکننده نشان بده.")
 
         if (action.outcome == WordOutcome.UNRESOLVED) {
             return InternalResult.Error("نتیجهٔ واژه را درست یا ردشده ثبت کن.")
@@ -273,7 +290,12 @@ object PantohubEngine {
             }
         }
 
-        val nextWord = action.nextWord
+        // NORMAL: one correct guess ends the turn. The rule lives in the reducer so it holds however
+        // the UI dispatches — the screen used to send ResolveWord and then EndTurn in the same tap,
+        // and the second command was rejected as stale, so the turn never ended (PH-B01).
+        // No next word is drawn or reserved for a turn that is over.
+        val endsTurn = action.outcome == WordOutcome.CORRECT && state.settings.playMode == PlayMode.NORMAL
+        val nextWord = if (endsTurn) null else action.nextWord
         if (nextWord != null) {
             val error = validateChosenWord(state, nextWord, state.usedWordIds)
             if (error != null) return InternalResult.Error(error)
@@ -307,18 +329,20 @@ object PantohubEngine {
         val updatedTurn = turn.copy(
             currentWord = nextWord,
             wordRevealed = false,
+            wordSeen = false,
             skippedWords = turn.skippedWords + if (action.outcome == WordOutcome.SKIPPED) 1 else 0,
             scoreEarned = turn.scoreEarned + awarded,
             activeCards = cardsAfterUse,
             attempts = turn.attempts + attempt,
         )
-        return InternalResult.Success(
-            state.copy(
-                currentTurn = updatedTurn,
-                teamScores = state.teamScores + (turn.teamId to score),
-                usedWordIds = if (nextWord == null) state.usedWordIds else state.usedWordIds + nextWord.id,
-            ),
+        val resolved = state.copy(
+            currentTurn = updatedTurn,
+            teamScores = state.teamScores + (turn.teamId to score),
+            usedWordIds = if (nextWord == null) state.usedWordIds else state.usedWordIds + nextWord.id,
         )
+        // The scored word is already in the attempts and currentWord is null, so closing the turn
+        // records no phantom "unresolved" attempt.
+        return InternalResult.Success(if (endsTurn) closeTurn(resolved, action.moment) else resolved)
     }
 
     private fun pauseTurn(state: GameState, moment: GameMoment): InternalResult {
