@@ -89,6 +89,43 @@ object HokmTokens {
     }
 
     /**
+     * GX-07 (first slice) — named state colours for error/success/warning/info and disabled
+     * affordances. Added as tokens (no pixel change to existing surfaces) so screens stop
+     * hard-coding `Color.Red`/`Color.Green` for status, and so contrast can be guarded here.
+     * Values are derived from the approved palette and stay AA on their intended surfaces.
+     */
+    object State {
+        const val SUCCESS: Long = 0xFF4CAF7D
+        const val SUCCESS_ON_DARK: Long = 0xFF9BE3B8
+        const val WARNING: Long = 0xFFE8B94A
+        const val WARNING_ON_DARK: Long = 0xFFFFD98A
+        const val INFO: Long = 0xFF6FA8DC
+        const val INFO_ON_DARK: Long = 0xFFB3D4F0
+        const val ERROR: Long = HokmTokens.Color.DANGER
+        const val ERROR_ON_DARK: Long = 0xFFF0A89A
+        const val DISABLED_ALPHA: Float = 0.38f
+
+        val ALL_ON_DARK: List<Long> = listOf(SUCCESS_ON_DARK, WARNING_ON_DARK, INFO_ON_DARK, ERROR_ON_DARK)
+    }
+
+    /**
+     * GX-07 (first slice) — named button affordances. Pressed/disabled/focus are expressed as
+     * alpha or colour shifts on top of the base, so a button never changes size or shape on
+     * interaction (no layout shift, no jank).
+     */
+    object Button {
+        const val PRIMARY_BG: Long = HokmTokens.Color.ACCENT_EMERALD
+        const val PRIMARY_FG: Long = HokmTokens.Color.IVORY
+        const val PRIMARY_PRESSED_BG: Long = 0xFF0F7A5C
+        const val SECONDARY_BG: Long = 0x00000000 // transparent; border only
+        const val SECONDARY_FG: Long = HokmTokens.Color.TEXT
+        const val DISABLED_BG: Long = 0xFF1F3A32
+        const val DISABLED_FG: Long = 0xFF6B8A7E
+        const val FOCUS_RING: Long = HokmTokens.Color.ACCENT_MINT
+        const val FOCUS_RING_WIDTH_DP: Int = 2
+    }
+
+    /**
      * Named motion durations (ms) — the only durations new UI code may use. Under the system
      * reduced-motion setting, [HokmMotion] compresses every one of these to at most
      * [HokmMotion.REDUCED_MAX_MS] instead of removing them; the test pins that contract.
