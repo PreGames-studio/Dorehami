@@ -88,7 +88,7 @@ jobs:
           name: dorehami-debug-apk
           path: dist/*.apk
           if-no-files-found: error
-          retention-days: 30
+          retention-days: 7
 
       # Guard against a silently pack-less APK: the embedded game must be inside.
       - name: Verify Dezhban pack is inside the APK

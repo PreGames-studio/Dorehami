@@ -272,7 +272,7 @@ jobs:
           name: hokm-baseline-debug-apk-${{ github.run_id }}
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: warn
-          retention-days: 14
+          retention-days: 7
           compression-level: 0
 
       - name: Mark the baseline successful only if all checks passed
