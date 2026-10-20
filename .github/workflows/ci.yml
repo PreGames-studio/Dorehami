@@ -69,6 +69,16 @@ jobs:
           pat = re.compile(r"FAILURE:|What went wrong|^e: |error:|Execution failed|Caused by:|tests? completed|FAILED$|BUILD (SUCCESSFUL|FAILED)")
           hits = [l for l in lines if pat.search(l)]
           report = (hits or lines)[-8:]
+          for f in glob.glob("**/build/reports/lint-results-*.xml", recursive=True):
+              try:
+                  root = ET.parse(f).getroot()
+              except Exception:
+                  continue
+              for issue in root.iter("issue"):
+                  if issue.get("severity") in ("Error", "Fatal"):
+                      loc = issue.find("location")
+                      where = f"{loc.get('file')}:{loc.get('line')}" if loc is not None else f
+                      report.append(f"LINT {issue.get('id')} {where}: {issue.get('message', '')}")
           good = ok and tot > 0 and not bad and not missing
           head = (f"checkAll: {tot} tests, {bad} failing, {len(per)} module(s) with results"
                   if tot else "checkAll: no test results were written")
@@ -133,6 +143,23 @@ jobs:
             grep -E '(^e: |kt:[0-9]+:[0-9]+:|must be exhaustive|FAILED|expected:|but was:|tests completed)' build.log 2>/dev/null | head -n 12
             grep -E "Caused by:" build.log 2>/dev/null | head -n 2
           } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path("build.log")
+          if log.exists():
+              rows = [line.strip() for line in log.read_text(errors="replace").splitlines()]
+              keys = ("FAILED", "FAILURE", "What went wrong", "error:", "Caused by:", "> Task",
+                      "AAPT", "Manifest merger", "Duplicate", "More than one file", "e: ", "Lint found")
+              picked = [line for line in rows if any(key in line for key in keys)]
+              picked += [line for line in rows[-20:] if line]
+              seen = []
+              for line in picked:
+                  if line and line not in seen:
+                      seen.append(line)
+              for line in seen[-25:]:
+                  safe = line[:280].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error file=build.log,line=1::{safe}")
+          PY
           python3 - <<'PY'
           import os
           import xml.etree.ElementTree as ET
