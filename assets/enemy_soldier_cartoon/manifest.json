@@ -1,0 +1,102 @@
+{
+  "pack": "cartoon_red_enemy_soldier",
+  "version": 1,
+  "description": "Original chibi tower-defense enemy infantryman; side three-quarter view facing right.",
+  "character": {
+    "teamColor": "bright red",
+    "features": [
+      "oversized friendly face",
+      "red helmet",
+      "small olive backpack",
+      "carbine",
+      "thick dark outlines"
+    ],
+    "styleNote": "Original colorful hand-painted tower-defense cartoon; not a reproduction of any named game character."
+  },
+  "frame": {
+    "width": 64,
+    "height": 64,
+    "format": "PNG RGBA",
+    "background": "transparent"
+  },
+  "sheets": [
+    {
+      "file": "soldier_idle.png",
+      "animation": "idle",
+      "frames": 4,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 256,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 5,
+      "loop": true,
+      "notes": "Breathing/sway loop."
+    },
+    {
+      "file": "soldier_walk.png",
+      "animation": "walk",
+      "frames": 8,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 512,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 9,
+      "loop": true,
+      "notes": "Frame 8 duplicates frame 1 for the requested seam."
+    },
+    {
+      "file": "soldier_run.png",
+      "animation": "run",
+      "frames": 8,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 512,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 12,
+      "loop": true,
+      "notes": "Loop using frame order 1-8; do not duplicate endpoints."
+    },
+    {
+      "file": "soldier_shoot.png",
+      "animation": "shoot",
+      "frames": 6,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 384,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 10,
+      "loop": false,
+      "notes": "One-shot; frames 3-4 show muzzle flash, then shell casing and smoke."
+    },
+    {
+      "file": "soldier_death.png",
+      "animation": "death",
+      "frames": 6,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 384,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 8,
+      "loop": false,
+      "notes": "One-shot; hold frame 6 after it finishes."
+    }
+  ],
+  "construct3": {
+    "import": "Import each PNG as a sprite and set the animation frame size to 64x64.",
+    "frameOrder": "Frames are arranged left-to-right, starting at zero in the image editor.",
+    "holdAfterOneShot": {
+      "soldier_shoot.png": "last frame optional",
+      "soldier_death.png": "last frame"
+    }
+  }
+}
