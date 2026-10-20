@@ -29,6 +29,12 @@ android {
     buildFeatures {
         compose = true
     }
+
+    lint {
+        // The embedded Dezhban pack does not use Godot's APK-expansion downloader; that optional
+        // library code is what trips NotificationPermission. Dorehami itself posts no notifications.
+        disable += "NotificationPermission"
+    }
 }
 
 // AGP 9 has built-in Kotlin — do NOT apply org.jetbrains.kotlin.android here

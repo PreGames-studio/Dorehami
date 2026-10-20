@@ -105,15 +105,15 @@ jobs:
           log = Path("build.log")
           if log.exists():
               rows = [line.strip() for line in log.read_text(errors="replace").splitlines()]
-              keys = ("FAILED", "FAILURE", "What went wrong", "error:", "Caused by:", "> Task",
-                      "AAPT", "Manifest merger", "Duplicate", "More than one file", "e: ", "Lint found")
+              keys = ("Execution failed", "FAILURE", "What went wrong", "Caused by:", " FAILED",
+                      "error:", "AAPT", "Manifest merger", "Duplicate", "More than one file",
+                      "e: ", "Lint found", "Unable to strip")
               picked = [line for line in rows if any(key in line for key in keys)]
-              picked += [line for line in rows[-20:] if line]
               seen = []
               for line in picked:
                   if line and line not in seen:
                       seen.append(line)
-              for line in seen[-25:]:
+              for line in seen[-9:]:
                   safe = line[:280].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
                   print(f"::error file=build.log,line=1::{safe}")
           PY
