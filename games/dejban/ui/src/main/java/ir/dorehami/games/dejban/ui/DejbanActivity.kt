@@ -1,9 +1,9 @@
 package ir.dorehami.games.dejban.ui
 
 import android.os.Bundle
+import android.os.Process
 import android.util.Log
 import java.io.File
-import org.godotengine.godot.Godot
 import org.godotengine.godot.GodotActivity
 
 /**
@@ -18,6 +18,15 @@ import org.godotengine.godot.GodotActivity
  * The Activity runs in the `:dejban` process (declared in the manifest) so a
  * native Godot crash or shutdown cannot take down the Kotlin/Compose host
  * process.
+ *
+ * Lifecycle contract: a Godot engine instance is one-shot per process — it
+ * cannot be torn down and re-initialized in the same process (Godot's own
+ * [org.godotengine.godot.GodotActivity.onGodotForceQuit] default therefore
+ * kills the process). Because this Activity lives in the dedicated `:dejban`
+ * process, we keep that default: quitting the game kills only the game
+ * process, and the next launch starts a fresh process with a fresh engine.
+ * Simply finish()-ing the Activity instead would leave a spent engine behind
+ * and the next launch would crash.
  */
 class DejbanActivity : GodotActivity() {
 
@@ -33,14 +42,19 @@ class DejbanActivity : GodotActivity() {
     override fun getCommandLine(): List<String> =
         listOf("--main-pack", mainPackFile.absolutePath)
 
-    /**
-     * Dejban's menus call `get_tree().quit()`. In an embedded game that
-     * should mean "leave this game", not GodotActivity's default behaviour
-     * of force-quitting the whole application process. Finishing only this
-     * Activity returns the user to Dorehami's game picker.
-     */
-    override fun onGodotForceQuit(instance: Godot) {
-        runOnUiThread { finish() }
+    // NOTE: onGodotForceQuit is intentionally NOT overridden. GodotActivity's
+    // default terminates the engine by killing the hosting process, which here
+    // is only the dedicated `:dejban` process — the Dorehami host process keeps
+    // running and the user lands back on the game picker.
+
+    override fun onDestroy() {
+        super.onDestroy()
+        // Belt and braces for exits that finish this Activity without going
+        // through Godot's force-quit path (e.g. the engine never came up):
+        // never leave a spent engine process behind for the next launch.
+        if (isFinishing) {
+            Process.killProcess(Process.myPid())
+        }
     }
 
     /**
