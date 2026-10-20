@@ -56,7 +56,6 @@ private val games = listOf(
     GameEntry("حکم", "🎴", "۲ تا ۴ نفره • ربات و آنلاین", "games/hokm", GameAccent.Warm, implemented = true),
     GameEntry("شطرنج", "♟️", "تختهٔ سه‌بعدی • بازی نوبتی", "games/chess", GameAccent.Teal, implemented = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", GameAccent.Purple, implemented = true),
-    GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban", GameAccent.Gold),
 )
 
 /** Compact two-column game picker over original Dorehami artwork. */

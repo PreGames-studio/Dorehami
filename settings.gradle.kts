@@ -33,6 +33,4 @@ include(
     ":games:pantohub:ui",
     ":games:chess:core",
     ":games:chess:ui",
-    ":games:dejban:core",
-    ":games:dejban:ui",
 )

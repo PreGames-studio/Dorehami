@@ -156,7 +156,7 @@ fun HomeScreen(
             }
 
             Text(
-                text = "شطرنج  •  حکم  •  پانتومیم  •  دژبان",
+                text = "شطرنج  •  حکم  •  پانتومیم",
                 color = colors.onSurfaceVariant,
                 style = MaterialTheme.typography.labelMedium,
                 textAlign = TextAlign.Center,
