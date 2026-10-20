@@ -61,5 +61,6 @@ tasks.configureEach {
 }
 
 dependencies {
+    implementation(libs.androidx.fragment)
     implementation(libs.godot.android)
 }
