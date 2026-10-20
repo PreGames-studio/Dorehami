@@ -1,0 +1,85 @@
+# Dejban (Godot) verify — import and headless self-test for the embedded
+# Godot project. Root workflows are the only ones GitHub runs, so this is the
+# monorepo copy of the game's own verify workflow.
+name: Dejban (Godot) verify
+
+on:
+  push:
+    branches: [main, "arena/**"]
+    paths:
+      - "games/dejban/godot/**"
+      - "games/dejban/tools/prepare_android_pack.sh"
+      - ".github/workflows/dejban-godot-verify.yml"
+  pull_request:
+    paths:
+      - "games/dejban/godot/**"
+      - "games/dejban/tools/prepare_android_pack.sh"
+      - ".github/workflows/dejban-godot-verify.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: dejban-godot-verify-${{ github.ref }}
+  cancel-in-progress: true
+
+env:
+  GODOT_VERSION: "4.3-stable"
+
+jobs:
+  verify:
+    name: Import and headless self-test
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Godot
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin"
+          curl -sSL -o /tmp/godot.zip \
+            "https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -q -o /tmp/godot.zip -d "$HOME/.local/bin"
+          GODOT_BIN=$(find "$HOME/.local/bin" -maxdepth 1 -type f -name "Godot*" | head -n 1)
+          chmod +x "$GODOT_BIN"
+          mv "$GODOT_BIN" "$HOME/.local/bin/godot"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+
+      - name: Import assets
+        working-directory: games/dejban/godot
+        run: godot --headless --path . --import 2>&1 | tail -40
+
+      - name: Run headless self-test
+        id: selftest
+        working-directory: games/dejban/godot
+        timeout-minutes: 6
+        run: |
+          set -o pipefail
+          if godot --headless --path . --fixed-fps 60 --quit-after 3600 \
+              res://tests/headless_test.tscn 2>&1 | tee /tmp/dezhban-test.log; then
+            echo "result=ok" >> "$GITHUB_OUTPUT"
+          else
+            echo "result=fail" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Check for script errors in the log
+        if: always()
+        run: |
+          PATTERN='SCRIPT ERROR|Parse Error|Failed to load script|Cannot open file|Nonexistent function|Invalid call|Invalid get index|Invalid set index|Invalid access to property|Cannot call method|Cannot infer the type'
+          if grep -nE "$PATTERN" /tmp/dezhban-test.log; then
+            echo "::error title=dezhban-runtime-error::script/runtime errors found in the headless test log"
+            exit 1
+          fi
+
+      - name: Publish the test summary
+        if: always()
+        run: |
+          MSG=$(tail -n 80 /tmp/dezhban-test.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r//g' | head -c 3500)
+          if [ "${{ steps.selftest.outputs.result }}" = "fail" ]; then
+            echo "::error title=dezhban-self-test::${MSG}"
+            exit 1
+          fi
+          echo "::notice title=dezhban-self-test::${MSG}"

@@ -23,6 +23,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # The embedded Godot game must export its PCK before any Android
+      # module is configured: :games:dejban:ui fails fast without it.
+      - name: Prepare embedded Dezhban Godot pack
+        run: bash games/dejban/tools/prepare_android_pack.sh
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -64,6 +69,24 @@ jobs:
           pat = re.compile(r"FAILURE:|What went wrong|^e: |error:|Execution failed|Caused by:|tests? completed|FAILED$|BUILD (SUCCESSFUL|FAILED)")
           hits = [l for l in lines if pat.search(l)]
           report = (hits or lines)[-8:]
+          for f in glob.glob("**/build/reports/lint-results-*.xml", recursive=True):
+              try:
+                  root = ET.parse(f).getroot()
+              except Exception:
+                  continue
+              for issue in root.iter("issue"):
+                  if issue.get("severity") in ("Error", "Fatal"):
+                      loc = issue.find("location")
+                      where = f"{loc.get('file')}:{loc.get('line')}" if loc is not None else f
+                      report.append(f"LINT {issue.get('id')} {where}: {issue.get('message', '')}")
+          starts = [i for i, l in enumerate(lines) if l.strip() == "* What went wrong:"]
+          if starts:
+              for l in lines[starts[-1] + 1:]:
+                  if l.startswith("* Try:"):
+                      break
+                  if l.strip():
+                      report.append(l.strip())
+          report = report[-8:]
           good = ok and tot > 0 and not bad and not missing
           head = (f"checkAll: {tot} tests, {bad} failing, {len(per)} module(s) with results"
                   if tot else "checkAll: no test results were written")
@@ -102,6 +125,9 @@ jobs:
       - name: Validate curated Pantohub word bank
         run: python3 scripts/validate_pantohub_seed.py
 
+      - name: Prepare embedded Dezhban Godot pack
+        run: bash games/dejban/tools/prepare_android_pack.sh
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -119,12 +145,24 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           tail -n 100 build.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no build.log)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          {
-            awk '/^\* Where:/{f=1} f' build.log 2>/dev/null | head -n 6
-            grep -E "requires|Dependency '|issues were found" build.log 2>/dev/null | head -n 6
-            grep -E '(^e: |kt:[0-9]+:[0-9]+:|must be exhaustive|FAILED|expected:|but was:|tests completed)' build.log 2>/dev/null | head -n 12
-            grep -E "Caused by:" build.log 2>/dev/null | head -n 2
-          } | while IFS= read -r line; do echo "::error::${line:0:300}"; done
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path("build.log")
+          if log.exists():
+              rows = log.read_text(errors="replace").splitlines()
+              # Print the exact Gradle failure block (annotations are capped per step, so stay terse).
+              starts = [i for i, line in enumerate(rows) if line.strip() == "* What went wrong:"]
+              block = []
+              if starts:
+                  for line in rows[starts[-1] + 1:]:
+                      if line.startswith("* Try:"):
+                          break
+                      if line.strip():
+                          block.append(line.strip())
+              for line in block[:9]:
+                  safe = line[:280].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error file=build.log,line=1::{safe}")
+          PY
           python3 - <<'PY'
           import os
           import xml.etree.ElementTree as ET
@@ -161,3 +199,17 @@ jobs:
           path: app/build/outputs/apk/debug/*.apk
           if-no-files-found: error
           retention-days: 14
+
+      # Guard against a silently pack-less APK: the embedded game must be inside.
+      - name: Verify Dezhban pack is inside the APK
+        run: |
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          echo "APK: $apk ($(du -h "$apk" | cut -f1))"
+          unzip -l "$apk" | grep -E "assets/dezhban\.pck" || { echo "::error::dezhban.pck missing from APK"; exit 1; }
+          unzip -l "$apk" | grep -E "lib/[^ ]+/libgodot_android\.so" || { echo "::error::Godot native library missing from APK"; exit 1; }
+          {
+            echo "## Dezhban embedded ✅"
+            echo '```'
+            unzip -l "$apk" | grep -E "assets/dezhban\.pck|lib/[^ ]+/libgodot_android\.so"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"

@@ -38,6 +38,9 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      - name: Prepare embedded Dezhban Godot pack
+        run: bash games/dejban/tools/prepare_android_pack.sh
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -87,6 +90,20 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Guard against a silently pack-less APK: the embedded game must be inside.
+      - name: Verify Dezhban pack is inside the APK
+        run: |
+          apk=dist/Dorehami-debug.apk
+          echo "APK: $apk ($(du -h "$apk" | cut -f1))"
+          unzip -l "$apk" | grep -E "assets/dezhban\.pck" || { echo "::error::dezhban.pck missing from APK"; exit 1; }
+          unzip -l "$apk" | grep -E "lib/[^ ]+/libgodot_android\.so" || { echo "::error::Godot native library missing from APK"; exit 1; }
+          {
+            echo "## Dezhban embedded ✅"
+            echo '```'
+            unzip -l "$apk" | grep -E "assets/dezhban\.pck|lib/[^ ]+/libgodot_android\.so"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Report build failure
         if: failure()
         run: |
@@ -94,9 +111,23 @@ jobs:
           echo '```' >> "$GITHUB_STEP_SUMMARY"
           tail -n 80 build.log >> "$GITHUB_STEP_SUMMARY" 2>/dev/null || echo "(no build.log)" >> "$GITHUB_STEP_SUMMARY"
           echo '```' >> "$GITHUB_STEP_SUMMARY"
-          grep -E "^e: |error:|FAILURE:|Execution failed" build.log 2>/dev/null | head -n 8 | while IFS= read -r line; do
-            echo "::error::${line:0:300}"
-          done
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path("build.log")
+          if log.exists():
+              rows = log.read_text(errors="replace").splitlines()
+              starts = [i for i, line in enumerate(rows) if line.strip() == "* What went wrong:"]
+              block = []
+              if starts:
+                  for line in rows[starts[-1] + 1:]:
+                      if line.startswith("* Try:"):
+                          break
+                      if line.strip():
+                          block.append(line.strip())
+              for line in block[:9]:
+                  safe = line[:280].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::error file=build.log,line=1::{safe}")
+          PY
 
   publish-release:
     name: Publish rolling debug release

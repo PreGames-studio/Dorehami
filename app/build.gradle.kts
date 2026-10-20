@@ -13,6 +13,20 @@ android {
         targetSdk = providers.gradleProperty("dorehami.targetSdk").get().toInt()
         versionCode = providers.gradleProperty("dorehami.versionCode").get().toInt()
         versionName = providers.gradleProperty("dorehami.versionName").get()
+
+        ndk {
+            // The embedded Godot runtime ships a huge native library per ABI.
+            // Ship only arm64-v8a (every modern phone) so the APK stays sane.
+            abiFilters += "arm64-v8a"
+        }
+    }
+
+    packaging {
+        jniLibs {
+            // Compress native libraries inside the APK instead of storing
+            // them uncompressed; Godot's .so files are very large.
+            useLegacyPackaging = true
+        }
     }
 
     buildTypes {
@@ -28,6 +42,12 @@ android {
 
     buildFeatures {
         compose = true
+    }
+
+    lint {
+        // The embedded Dezhban pack does not use Godot's APK-expansion downloader; that optional
+        // library code is what trips NotificationPermission. Dorehami itself posts no notifications.
+        disable += "NotificationPermission"
     }
 }
 
@@ -45,6 +65,7 @@ dependencies {
     implementation(project(":games:hokm:ui"))
     implementation(project(":games:chess:ui"))
     implementation(project(":games:pantohub:ui"))
+    implementation(project(":games:dejban:ui"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
