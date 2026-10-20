@@ -60,9 +60,9 @@ func _impact() -> void:
 		_splash_hit()
 	elif target != null and is_instance_valid(target) and target.alive:
 		_damage(target, damage_value)
-		Fx.burst(_parent(), "fx/spark", position, 0.5, 0.22, 1.4)
+		Fx.impact(_parent(), position, 0.42)
 	else:
-		Fx.burst(_parent(), "fx/smoke_1", position, 0.5, 0.3, 1.2)
+		Fx.smoke(_parent(), position, 0.55)
 	_chain_hit()
 	queue_free()
 
@@ -80,7 +80,7 @@ func _splash_hit() -> void:
 		if enemy.position.distance_to(from) <= splash:
 			_damage(enemy, damage_value)
 	var size := clampf(splash / 34.0, 0.7, 2.2)
-	Fx.explosion(_parent(), from, size)
+	Fx.blast(_parent(), from, size)
 	Audio.play_combat_limited("combat/aircraft-hit", 160, 0.04, -13.0)
 
 func _chain_hit() -> void:
@@ -98,6 +98,7 @@ func _chain_hit() -> void:
 		if next == null:
 			break
 		_damage(next, damage_value * falloff)
+		Fx.bolt(_parent(), from, next.position, 0.7)
 		Fx.burst(_parent(), "fx/spark", from, 0.7, 0.2, 1.5)
 		from = next.position
 		hit.append(next)

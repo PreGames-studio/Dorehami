@@ -11,7 +11,20 @@
 | `godot/` | پروژهٔ اصلی Godot 4.3 دژبان: صحنه‌ها، کد GDScript، دارایی‌ها و تست headless |
 | `ui/` | ماژول Android Library میزبان: کتابخانهٔ Godot، `DejbanActivity` و لانچر بازی |
 | `tools/prepare_android_pack.sh` | ایمپورت، تست headless و ساخت `dezhban.pck` برای بیلد اندروید |
+| `godot/tools/gen_fx_sheets.py` | ساخت هشت اسپرایت‌شیت افکت کارتونی (فریم‌های ۶۴×۶۴، ردیف افقی، PNG شفاف) |
 | `core/` | جای‌نگهدار قبلی؛ در این ادغام استفاده نمی‌شود، چون منطق بازی داخل Godot است |
+
+## جلوه‌های کارتونی (FX)
+
+هشت شیت افکت در `godot/assets/sprites/fx/` (انفجار کوچک/متوسط/بزرگ، شعلهٔ دهانه، پرتو
+لیزر، صاعقهٔ تسلا، ابر دود و شعله) با `godot/tools/gen_fx_sheets.py` ساخته می‌شوند و
+با فهرست `Fx.SHEETS` در `godot/src/fx/Fx.gd` به بازی وصل‌اند: `Fx.sheet_frames` هر شیت
+افقی را با `AtlasTexture` به فریم‌های ۶۴×۶۴ می‌شکند و `Fx.blast`/`Fx.impact`/`Fx.muzzle`/
+`Fx.smoke`/`Fx.flame`/`Fx.beam`/`Fx.bolt` آن را در لحظهٔ شلیک، برخورد گلوله، مرگ دشمن و
+زنجیرهٔ صاعقه نشان می‌دهند. تغییر آرایهٔ تصویرها یا افزودن شیت تازه، با اجرای دوبارهٔ
+مولد و بعد `godot/tools/gen_assets_manifest.py` در مانیفست دارایی‌ها می‌نشیند؛ تست
+headless (`tests/HeadlessTest.gd` → `_test_fx_sheets`) ابعاد و ساخته‌شدن هر شیت را
+بررسی می‌کند.
 
 ## منشأ سورس
 

@@ -241,7 +241,7 @@ func _on_enemy_died(enemy) -> void:
 	kills += 1
 	var prize := Balance.enemy_reward(int(enemy.reward), wave_index)
 	coins += prize
-	Fx.explosion(_fx_layer, enemy.position, clampf(enemy.scale_mult, 0.7, 1.7))
+	Fx.blast(_fx_layer, enemy.position, clampf(enemy.scale_mult, 0.7, 1.7))
 	Fx.text(_fx_layer, enemy.position + Vector2(0.0, -20.0), "+" + Ui.fa(prize), Style.gold, 18)
 	var enemy_id := String(enemy.def.get("id", ""))
 	if enemy_id in HUMANOID_ENEMIES:

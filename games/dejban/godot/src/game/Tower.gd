@@ -19,8 +19,11 @@ var aim_angle := 0.0
 
 var _base: Sprite2D = null
 var _head: Sprite2D = null
-var _flash: Sprite2D = null
+var _flash: Node2D = null
+var _flash_anim: AnimatedSprite2D = null
 var _flash_time := 0.0
+## مدت نمایش شعلهٔ دهانه؛ با شیت انیمیشنی طولانی‌تر از تصویر ایستاست.
+var _flash_duration := 0.09
 var _recoil := 0.0
 var _ring := 0.0
 var _idle_phase := 0.0
@@ -60,11 +63,27 @@ func setup(weapon_def: Dictionary, battle_ref, start_level := 1) -> void:
 	_head.z_index = 2
 	add_child(_head)
 
-	_flash = Sprite2D.new()
-	_flash.texture = Assets.tex("towers/muzzle_1")
-	_flash.visible = false
-	_flash.z_index = 3
-	add_child(_flash)
+	# شعلهٔ دهانه: اگر شیت کارتونی چهارفریمی موجود باشد همان را می‌چرخانیم،
+	# وگرنه مثل قبل دو تصویر ایستای towers/muzzle_1 و _2 را یکی‌یکی نشان می‌دهیم.
+	var flash_frames := Fx.sheet_frames("fx/muzzle_flash")
+	if flash_frames != null:
+		_flash_anim = AnimatedSprite2D.new()
+		_flash_anim.sprite_frames = flash_frames
+		_flash_anim.animation = "play"
+		_flash_anim.visible = false
+		_flash_anim.z_index = 3
+		add_child(_flash_anim)
+		_flash = _flash_anim
+		# مدت نمایش: کل چهار فریم با ۳۰ فریم‌برثانیه ≈ ۰٫۱۳ ثانیه
+		_flash_duration = float(flash_frames.get_frame_count("play")) / maxf(1.0, flash_frames.get_animation_speed("play"))
+	else:
+		var static_flash := Sprite2D.new()
+		static_flash.texture = Assets.tex("towers/muzzle_1")
+		static_flash.visible = false
+		static_flash.z_index = 3
+		add_child(static_flash)
+		_flash = static_flash
+		_flash_duration = 0.09
 
 # ------------------------------------------------------------------ ویژگی‌های سطح
 
@@ -243,10 +262,32 @@ func _fire() -> void:
 				_ring = 0.32
 				queue_redraw()
 				Fx.ring(_fx_parent(), position, attack_range() * 0.45, Color(1.0, 0.85, 0.30, 0.45), 0.35)
+			_spawn_fire_fx()
 			var shots := maxi(1, int(weapon.get("shots", 1)))
 			var targets := _shot_targets(shots)
 			for i in targets.size():
 				_spawn_projectile(targets[i])
+
+## جلوهٔ اختصاصی هر خانوادهٔ سلاح در لحظهٔ شلیک (شیت‌های tools/gen_fx_sheets.py):
+## توپ سنگین دود دهانه، لیزر پرتو آبی، تسلا قوس بنفش و ابرسلاح شعلهٔ کیهانی می‌گیرد.
+func _spawn_fire_fx() -> void:
+	var family := String(weapon.get("family", ""))
+	var muzzle_pos := position + PIVOT_OFFSET + Vector2.RIGHT.rotated(aim_angle) * 26.0
+	var parent := _fx_parent()
+	match family:
+		"cannon":
+			Fx.smoke(parent, muzzle_pos, 0.55 + 0.05 * float(level - 1))
+		"laser":
+			if target != null and is_instance_valid(target):
+				var aim_point: Vector2 = (target as Node2D).position + Vector2(0.0, -12.0)
+				Fx.beam(parent, "fx/laser_beam", muzzle_pos, aim_point, 0.55 + 0.06 * float(level - 1))
+		"tesla":
+			if target != null and is_instance_valid(target):
+				var coil_point: Vector2 = (target as Node2D).position + Vector2(0.0, -12.0)
+				Fx.bolt(parent, muzzle_pos, coil_point, 0.6 + 0.05 * float(level - 1))
+		_:
+			if String(weapon.get("id", "")) == "omega":
+				Fx.flame(parent, position + Vector2(0.0, -14.0), 1.1)
 
 func _shot_targets(count: int) -> Array:
 	var out: Array = []
@@ -318,12 +359,18 @@ func _show_flash() -> void:
 	_shot_count += 1
 	if _flash == null:
 		return
-	_flash.texture = Assets.tex("towers/muzzle_2" if (_shot_count % 2 == 0) else "towers/muzzle_1")
 	_flash.visible = true
 	_flash.rotation = aim_angle
 	_flash.position = PIVOT_OFFSET + Vector2.RIGHT.rotated(aim_angle) * 26.0
-	_flash.scale = Vector2.ONE * (1.12 + 0.05 * float(level - 1))
-	_flash_time = 0.09
+	if _flash_anim != null:
+		# شیت افکت اندازهٔ ثابت ۶۴ پیکسلی دارد؛ با سطح کمی بزرگ‌تر می‌شود.
+		_flash_anim.scale = Vector2.ONE * (0.92 + 0.06 * float(level - 1))
+		_flash_anim.play("play")
+	else:
+		var still := _flash as Sprite2D
+		still.texture = Assets.tex("towers/muzzle_2" if (_shot_count % 2 == 0) else "towers/muzzle_1")
+		still.scale = Vector2.ONE * (1.12 + 0.05 * float(level - 1))
+	_flash_time = _flash_duration
 
 func _draw() -> void:
 	# سایهٔ بیضی زیر پایهٔ ثابت برجک
