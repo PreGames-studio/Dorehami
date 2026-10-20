@@ -16,7 +16,6 @@ on:
 
 permissions:
   contents: read
-  checks: write
 
 jobs:
   chess-on-device:
@@ -74,14 +73,6 @@ jobs:
         run: |
           echo "::notice::emulator step outcome: ${{ steps.device.outcome }}"
           python3 tools/device-check/report_annotations.py device-log.txt || true
-
-      # The emulator step's own log is not downloadable from API-only environments, so the whole
-      # log is republished as the output of its own check run (see the script for the exact query).
-      - name: Publish the device log
-        if: always()
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: python3 tools/device-check/publish_report.py device-log.txt "${{ github.sha }}" "Device log (chess start)"
 
       - name: Upload screenshots
         if: always()

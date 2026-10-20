@@ -15,7 +15,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
-import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,13 +26,11 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
@@ -43,7 +40,6 @@ import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
@@ -100,15 +96,11 @@ fun HokmEntry(onExit: () -> Unit) {
     var matchKey by rememberSaveable { mutableStateOf(0) }
     var roomMode by rememberSaveable { mutableStateOf<String?>(null) }
     var serverUrl by rememberSaveable { mutableStateOf(prefs.serverUrl) }
-    var deckStyle by rememberSaveable { mutableStateOf(prefs.deckStyle) }
-    var jumboIndex by rememberSaveable { mutableStateOf(prefs.jumboIndex) }
-    var cardBack by rememberSaveable { mutableStateOf(prefs.cardBack) }
     var stats by remember { mutableStateOf(prefs.stats) }
 
-    val onFinished: (HokmUiState, String) -> Unit = { state, matchId ->
+    val onFinished: (HokmUiState) -> Unit = { state ->
         state.matchStatsDelta()?.let { delta ->
             prefs.recordMatch(
-                matchId = matchId,
                 won = delta.won,
                 hands = delta.hands,
                 handsWon = delta.handsWon,
@@ -118,15 +110,6 @@ fun HokmEntry(onExit: () -> Unit) {
         }
     }
 
-    CompositionLocalProvider(
-        LocalHokmReducedMotion provides rememberHokmReducedMotion(),
-        // GX-03: deck style, index size and back reach every card (table, lobby, previews).
-        LocalHokmCardStyle provides HokmCardStyle(
-            deck = HokmDeckStyle.byId(deckStyle),
-            jumbo = jumboIndex,
-            back = HokmCardBacks.byId(cardBack).id,
-        ),
-    ) {
     when {
         roomMode != null -> HokmRoom(
             mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
@@ -154,12 +137,6 @@ fun HokmEntry(onExit: () -> Unit) {
             onHaptics = { hapticsOn = it; prefs.hapticsOn = it },
             botLevel = botLevel,
             onBotLevel = { botLevel = it; prefs.botLevel = it },
-            deckStyle = HokmDeckStyle.byId(deckStyle),
-            onDeckStyle = { deckStyle = it.id; prefs.deckStyle = it.id },
-            jumboIndex = jumboIndex,
-            onJumboIndex = { jumboIndex = it; prefs.jumboIndex = it },
-            cardBack = HokmCardBacks.byId(cardBack),
-            onCardBack = { cardBack = it.id; prefs.cardBack = it.id },
             stats = stats,
             onResetStats = { prefs.resetStats(); stats = prefs.stats },
             onStart = { started = true },
@@ -175,27 +152,21 @@ fun HokmEntry(onExit: () -> Unit) {
             botLevel = botLevel,
             soundOn = soundOn,
             hapticsOn = hapticsOn,
-            prefs = prefs,
             onFinished = onFinished,
             onPlayAgain = { matchKey++ },
-            onExit = {
-                // Leaving the game abandons the save — the next game must start fresh.
-                prefs.savedMatch = null
-                started = false
-            },
+            onExit = { started = false },
         )
-    }
     }
 }
 
 /** Fires [onFinished] exactly once per match, when the table reports the game over. */
 @Composable
-private fun RecordWhenFinished(state: HokmUiState, matchKey: Any, onFinished: (HokmUiState, String) -> Unit) {
+private fun RecordWhenFinished(state: HokmUiState, matchKey: Any, onFinished: (HokmUiState) -> Unit) {
     var recorded by rememberSaveable(matchKey) { mutableStateOf(false) }
     LaunchedEffect(state.finished) {
         if (shouldRecordMatchStats(state.finished, recorded)) {
             recorded = true
-            onFinished(state, matchStatsId(state))
+            onFinished(state)
         }
     }
 }
@@ -209,8 +180,7 @@ private fun HokmSoloGame(
     botLevel: String,
     soundOn: Boolean,
     hapticsOn: Boolean,
-    prefs: HokmPrefs,
-    onFinished: (HokmUiState, String) -> Unit,
+    onFinished: (HokmUiState) -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
 ) {
@@ -219,57 +189,21 @@ private fun HokmSoloGame(
 
     val scope = remember(key) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     val match = remember(key) {
-        // HK-011: a saved match (rotation, process death) is rebuilt exactly where it was; a save
-        // this build cannot trust is refused with a safe error and a fresh match takes its place.
-        when (val loaded = HokmSave.load(prefs.savedMatch)) {
-            is HokmSave.Load.Restored -> HokmLocalMatch(
-                scope = scope,
-                playerName = playerName,
-                playerCount = loaded.record.players.size,
-                targetPoints = targetPoints,
-                seed = loaded.record.seed,
-                botLevel = botLevel,
-                onSound = { sounds.play(it) },
-                restored = loaded.engine,
-                onPersist = { prefs.savedMatch = HokmSave.save(it) },
-            )
-            is HokmSave.Load.Failed -> {
-                prefs.savedMatch = null
-                HokmLocalMatch(
-                    scope = scope,
-                    playerName = playerName,
-                    playerCount = playerCount,
-                    targetPoints = targetPoints,
-                    // Seed picked by the UI (never by rules): wall clock is fine here, it is recorded.
-                    seed = System.currentTimeMillis() xor (key.toLong() shl 20),
-                    botLevel = botLevel,
-                    onSound = { sounds.play(it) },
-                    onPersist = { prefs.savedMatch = HokmSave.save(it) },
-                    initialError = loaded.messageFa + " — بازی تازه‌ای شروع شد.",
-                )
-            }
-            HokmSave.Load.Empty -> HokmLocalMatch(
-                scope = scope,
-                playerName = playerName,
-                playerCount = playerCount,
-                targetPoints = targetPoints,
-                // Seed picked by the UI (never by rules): wall clock is fine here, it is recorded.
-                seed = System.currentTimeMillis() xor (key.toLong() shl 20),
-                botLevel = botLevel,
-                onSound = { sounds.play(it) },
-                onPersist = { prefs.savedMatch = HokmSave.save(it) },
-            )
-        }
+        HokmLocalMatch(
+            scope = scope,
+            playerName = playerName,
+            playerCount = playerCount,
+            targetPoints = targetPoints,
+            // Seed picked by the UI (never by rules): wall clock is fine here, it is recorded.
+            seed = System.currentTimeMillis() xor (key.toLong() shl 20),
+            botLevel = botLevel,
+            onSound = { sounds.play(it) },
+        )
     }
     DisposableEffect(key) {
         match.start()
         onDispose { scope.cancel() }
     }
-    // GX-04: the table paces its movements with the same reduced-motion setting this screen
-    // renders with — one flag, one timing table, no second opinion. The local is read here, in
-    // composable context: the effect body itself is a suspend lambda and cannot read a local.
-    val reducedMotion = LocalHokmReducedMotion.current
-    LaunchedEffect(match, reducedMotion) { match.reducedMotion = reducedMotion }
 
     val state by match.state
     RecordWhenFinished(state, matchKey = key, onFinished = onFinished)
@@ -301,7 +235,7 @@ private fun HokmRoom(
     hapticsOn: Boolean,
     serverUrl: String,
     onServerUrl: (String) -> Unit,
-    onFinished: (HokmUiState, String) -> Unit,
+    onFinished: (HokmUiState) -> Unit,
     onExit: () -> Unit,
 ) {
     val context = LocalContext.current
@@ -315,10 +249,10 @@ private fun HokmRoom(
         if (hapticsOn) haptics.performHapticFeedback(HapticFeedbackType.TextHandleMove)
     }
 
-    DisposableEffect(flow, sounds) {
+    DisposableEffect(Unit) {
         onDispose {
-            sounds.enabled = false
             flow.leave()
+            scope.cancel()
         }
     }
     val stage by flow.stage
@@ -339,10 +273,6 @@ private fun HokmRoom(
         val label = if (mode == RoomMode.BLUETOOTH) "بلوتوث" else "آنلاین"
         val match = remember(playing.client) { HokmSessionMatch(scope, playing.client, label) { sounds.play(it) } }
         LaunchedEffect(match) { match.begin() }
-        // GX-04: a room's table follows this device's reduced-motion setting (display pacing is per
-        // device; the host still owns the game's truth).
-        val reducedMotion = LocalHokmReducedMotion.current
-        LaunchedEffect(match, reducedMotion) { match.reducedMotion = reducedMotion }
         val state by match.state
         RecordWhenFinished(state, matchKey = playing.client, onFinished = onFinished)
         HokmScreen(
@@ -379,12 +309,6 @@ private fun HokmSetupScreen(
     onHaptics: (Boolean) -> Unit,
     botLevel: String,
     onBotLevel: (String) -> Unit,
-    deckStyle: HokmDeckStyle,
-    onDeckStyle: (HokmDeckStyle) -> Unit,
-    jumboIndex: Boolean,
-    onJumboIndex: (Boolean) -> Unit,
-    cardBack: CardBackSpec,
-    onCardBack: (CardBackSpec) -> Unit,
     stats: HokmStats,
     onResetStats: () -> Unit,
     onStart: () -> Unit,
@@ -542,51 +466,6 @@ private fun HokmSetupScreen(
                     )
                 }
                 Spacer(Modifier.height(14.dp))
-                Text("دک ورق", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Spacer(Modifier.height(4.dp))
-                Text(
-                    "اندازهٔ نشانه و رنگ خال‌ها؛ انتخاب شما روی میز و لابی اثر می‌گذارد.",
-                    color = HokmPalette.muted,
-                    fontSize = 11.sp,
-                )
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    HokmDeckStyle.entries.forEach { style ->
-                        Hokm3DButton(
-                            text = style.titleFa,
-                            subtitle = if (style == HokmDeckStyle.CLASSIC) "پیش‌فرض" else "خواناتر",
-                            trailing = if (deckStyle == style) "✓" else null,
-                            tone = if (deckStyle == style) HokmButtonTone.GOLD else HokmButtonTone.GLASS,
-                            height = 54.dp,
-                            modifier = Modifier.weight(1f),
-                            onSound = tap,
-                            onClick = { onDeckStyle(style) },
-                        )
-                    }
-                    SettingToggle(
-                        title = "نشانهٔ درشت",
-                        subtitle = if (jumboIndex) "جامبو" else "معمولی",
-                        checked = jumboIndex,
-                        modifier = Modifier.weight(1f),
-                        onClick = { tap(); onJumboIndex(!jumboIndex) },
-                    )
-                }
-                Spacer(Modifier.height(12.dp))
-                Text("پشت کارت", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Spacer(Modifier.height(8.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    HokmCardBacks.ALL.forEach { back ->
-                        CardBackChoice(
-                            back = back,
-                            selected = back.id == cardBack.id,
-                            modifier = Modifier.weight(1f),
-                            onClick = { tap(); onCardBack(back) },
-                        )
-                    }
-                }
-                Spacer(Modifier.height(14.dp))
-                Text("احساس و صدا", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     SettingToggle(
                         title = "صدای بازی",
@@ -659,7 +538,7 @@ private fun HokmSetupScreen(
                         text = "پاک کن",
                         tone = HokmButtonTone.CORAL,
                         height = 42.dp,
-                        modifier = Modifier.widthIn(min = 88.dp),
+                        modifier = Modifier.width(88.dp),
                         onSound = tap,
                         onClick = {
                             onResetStats()
@@ -672,7 +551,7 @@ private fun HokmSetupScreen(
                         text = "انصراف",
                         tone = HokmButtonTone.GLASS,
                         height = 42.dp,
-                        modifier = Modifier.widthIn(min = 92.dp),
+                        modifier = Modifier.width(92.dp),
                         onSound = tap,
                         onClick = { confirmResetStats = false },
                     )
@@ -706,7 +585,7 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
             leading = "‹",
             tone = HokmButtonTone.GLASS,
             height = 42.dp,
-            modifier = Modifier.widthIn(min = 104.dp),
+            modifier = Modifier.width(104.dp),
             onSound = onTap,
             onClick = onBack,
         )
@@ -716,22 +595,18 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
 @Composable
 private fun HokmHero(playerCount: Int, target: Int) {
     val transition = rememberInfiniteTransition(label = "hokm-hero")
-    val animatedBob by transition.animateFloat(
+    val bob by transition.animateFloat(
         initialValue = -3f,
         targetValue = 3f,
         animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
         label = "card-bob",
     )
-    val animatedGlow by transition.animateFloat(
+    val glow by transition.animateFloat(
         initialValue = 0.42f,
         targetValue = 0.82f,
         animationSpec = infiniteRepeatable(tween(2600), RepeatMode.Reverse),
         label = "hero-glow",
     )
-    // HK-013.a: the hero fan is decoration; reduced motion holds it still.
-    val motionOn = HokmMotion.infiniteMotionEnabled(LocalHokmReducedMotion.current)
-    val bob = if (motionOn) animatedBob else 0f
-    val glow = if (motionOn) animatedGlow else 0.6f
 
     BoxWithConstraints(
         Modifier
@@ -825,50 +700,6 @@ private fun SectionHeader(title: String, subtitle: String) {
     }
 }
 
-/**
- * GX-03: one card back per choice — the actual vector back plus its Persian name, so the player
- * picks by looking, not by reading. Selection is marked with the brass check and a gold border.
- */
-@Composable
-private fun CardBackChoice(
-    back: CardBackSpec,
-    selected: Boolean,
-    modifier: Modifier = Modifier,
-    onClick: () -> Unit,
-) {
-    Column(
-        modifier
-            .heightIn(min = 96.dp)
-            .clip(RoundedCornerShape(15.dp))
-            .background(Color(0xFF12372D))
-            .border(
-                width = if (selected) 1.5.dp else 1.dp,
-                color = if (selected) HokmPalette.gold else Color(0x447DD6B4),
-                shape = RoundedCornerShape(15.dp),
-            )
-            .clickable(onClick = onClick)
-            .padding(vertical = 8.dp, horizontal = 6.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        CardBackView(width = 44.dp, elevation = 5.dp, backId = back.id)
-        Spacer(Modifier.height(6.dp))
-        Text(
-            back.titleFa,
-            color = HokmPalette.text,
-            fontSize = 10.sp,
-            fontWeight = FontWeight.Bold,
-            maxLines = 1,
-            textAlign = TextAlign.Center,
-        )
-        Text(
-            if (selected) "انتخاب‌شده ✓" else " ",
-            color = if (selected) HokmPalette.goldLight else HokmPalette.muted,
-            fontSize = 9.sp,
-            maxLines = 1,
-        )
-    }
-}
-
 @Composable
 private fun SettingToggle(
     title: String,
@@ -879,7 +710,7 @@ private fun SettingToggle(
 ) {
     Row(
         modifier
-            .heightIn(min = 68.dp)
+            .height(68.dp)
             .clip(RoundedCornerShape(15.dp))
             .background(Color(0xFF12372D))
             .border(1.dp, Color(0x447DD6B4), RoundedCornerShape(15.dp))
@@ -894,7 +725,7 @@ private fun SettingToggle(
         }
         val knob by androidx.compose.animation.core.animateFloatAsState(
             targetValue = if (checked) 1f else 0f,
-            animationSpec = tween(HokmMotion.durationMs(180, LocalHokmReducedMotion.current)),
+            animationSpec = tween(180),
             label = "toggle-knob",
         )
         Box(
@@ -930,7 +761,7 @@ private fun StatsCard(stats: HokmStats, onReset: () -> Unit, onTap: () -> Unit) 
                 text = "پاک‌کردن",
                 tone = HokmButtonTone.GLASS,
                 height = 40.dp,
-                modifier = Modifier.widthIn(min = 96.dp),
+                modifier = Modifier.width(96.dp),
                 onSound = onTap,
                 onClick = onReset,
             )
@@ -966,12 +797,12 @@ private fun RulesCard(playerCount: Int) {
         val common = listOf(
             "حاکم با دیدن پنج کارت اول، خالِ حکم را انتخاب می‌کند.",
             "اگر از خالِ زمین کارت داشته باشی، باید همان خال را بازی کنی.",
-            "بالاترین حکم، یا در نبودِ حکم بالاترین کارتِ خالِ زمین، ترفند را می‌برد.",
-            "اولین نفر یا تیمی که ۷ ترفند ببرد، آن دست را می‌گیرد؛ کُت امتیاز بیشتری دارد.",
+            "بالاترین حکم، یا در نبودِ حکم بالاترین کارتِ خالِ زمین، دست را می‌برد.",
+            "اولین نفر یا تیمی که ۷ دست ببرد، آن دست را می‌گیرد؛ کُت امتیاز بیشتری دارد.",
         )
         val variant = when (playerCount) {
             2 -> listOf("در دونفره ۳ کارت برای حاکم و ۲ کارت برای حریف سوزانده می‌شود؛ سپس نوبتی از دسته کارت می‌کشید.")
-            3 -> listOf("در سه‌نفره هر بازیکن برای خودش بازی می‌کند؛ یک کارت ۲ از دسته حذف می‌شود و هر نفر ۱۷ کارت دارد. اگر کارت‌ها تمام شد و مساوی (۶–۶–۵) شد، دست بی‌نتیجه است و حاکم به نفر بعدی می‌رسد.")
+            3 -> listOf("در سه‌نفره هر بازیکن برای خودش بازی می‌کند؛ یک کارت ۲ از دسته حذف می‌شود و هر نفر ۱۷ کارت دارد.")
             else -> listOf("در چهارنفره، صندلی‌های روبه‌رو هم‌تیمی‌اند؛ کُت ۲ امتیاز و حاکم‌کُت ۳ امتیاز دارد.")
         }
         (common + variant).forEachIndexed { index, rule ->

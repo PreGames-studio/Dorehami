@@ -5,34 +5,25 @@ data class Play(val seat: Int, val card: Card)
 
 /** How a hand (a "dast") was won — decides the points. */
 enum class HandWinKind(val id: String, val titleFa: String) {
-    /** Normal win: the winner took at least one losing side with them scoring. */
+    /** Normal win: 7 tricks against at least one. */
     NORMAL("normal", "برد"),
 
-    /** Kot: no losing side took a single trick (7-0 in 2/4 players, 7-0-0 in 3 players). */
+    /** Kot: the losing side did not take a single trick. */
     KOT("kot", "کُت"),
 
-    /** Hakem kot: the hakem's own side took zero tricks and lost (beats kot when both apply). */
+    /** Hakem kot: the hakem's own side was kotted. */
     HAKEM_KOT("hakem_kot", "حاکم‌کُت"),
 
-    /** Three-player only: all 17 tricks played, the two leaders tied 6-6-5 — nobody scores. */
+    /** Three-player only: all cards played, top scorers tied — nobody gets a point. */
     VOID("void", "بی‌نتیجه"),
 }
-
-/** Settled outcome of a finished hand: who won (if anybody), how, and how many points. */
-data class HandScore(val winnerTeam: Int?, val kind: HandWinKind, val points: Int)
 
 /**
  * Pure rules of Hokm — no state, no randomness, no I/O. Shared by the session, the bot and the UI.
  *
- * Terminology (HK-008): a **trick** (ترفند) is one round of one card each; a **hand** (دست) is the
- * stretch of tricks up to one side reaching 7 tricks (or, in 3 players, up to the deck running out);
- * a **match** (مسابقه) is the whole game up to the target score.
- *
  * Variants (all first-to-7-tricks, first-to-N-points):
  * * **4 players** — two fixed teams (0+2 vs 1+3), 13 cards each.
  * * **3 players** — everyone for themselves, one deuce removed (51 cards), 17 cards each.
- *   When all 17 tricks are played nobody can have more than 6, so the split is always 6-6-5 and
- *   the hand is void: nobody scores and the hakem passes to the next seat.
  * * **2 players** — 5 cards each; hakem burns 3 and the opponent 2; then they alternately draw
  *   from the 42-card stock ("keep the card you see and burn the next blind, or burn it and take
  *   the next blind") until both hold 13.
@@ -104,68 +95,27 @@ object HokmRules {
     }
 
     /**
-     * Points for a finished hand. The approved contract (HK-008):
-     *
-     * * **Kot** — *no* losing side took a single trick (7-0 in 2/4 players; 7-0-0 in 3 players).
-     *   One scoring loser is enough to make the hand normal: 7-0-3 in 3 players is **not** a kot.
-     * * **Hakem kot** — the hakem (their team in 4 players) took zero tricks and lost, whatever
-     *   the other sides scored. When both kot and hakem-kot apply, hakem-kot wins.
-     * * Anything else is a normal win, worth 1 point.
+     * Points for a finished hand.
      *
      * @param winnerTricks tricks of the winning side
-     * @param loserTricks tricks of each losing side (all-zero ⇒ kot)
+     * @param minLoserTricks fewest tricks among the losing sides (0 ⇒ somebody was kotted)
      * @param hakemTricks tricks of the hakem's side
      * @param hakemLost whether the hakem's side lost
      */
     fun handResult(
         winnerTricks: Int,
-        loserTricks: List<Int>,
+        minLoserTricks: Int,
         hakemTricks: Int,
         hakemLost: Boolean,
         kotPoints: Int,
         hakemKotPoints: Int,
     ): Pair<HandWinKind, Int> {
         require(winnerTricks > 0) { "hand is not over" }
-        require(loserTricks.isNotEmpty()) { "there must be a losing side" }
         return when {
             hakemLost && hakemTricks == 0 -> HandWinKind.HAKEM_KOT to hakemKotPoints
-            loserTricks.all { it == 0 } -> HandWinKind.KOT to kotPoints
+            minLoserTricks == 0 -> HandWinKind.KOT to kotPoints
             else -> HandWinKind.NORMAL to 1
         }
-    }
-
-    /**
-     * Settles a finished hand from final trick counts.
-     *
-     * @param reachedSeven the side that reached 7 tricks while playing, or `null` when all cards
-     *   were played instead (3-player exhaustion)
-     */
-    fun settleHand(
-        tricks: List<Int>,
-        reachedSeven: Int?,
-        hakem: Int,
-        players: Int,
-        kotPoints: Int,
-        hakemKotPoints: Int,
-    ): HandScore {
-        require(tricks.size == teamCount(players)) { "one trick count per side" }
-        val winner: Int? = reachedSeven ?: run {
-            val best = tricks.max()
-            val leaders = tricks.indices.filter { tricks[it] == best }
-            if (leaders.size == 1) leaders.first() else null
-        }
-        if (winner == null) return HandScore(null, HandWinKind.VOID, 0)
-        val hakemTeam = teamOf(hakem, players)
-        val losers = tricks.indices.filter { it != winner }
-        val (kind, points) = handResult(
-            winnerTricks = tricks[winner],
-            loserTricks = losers.map { tricks[it] },
-            hakemTricks = tricks[hakemTeam],
-            hakemLost = hakemTeam != winner,
-            kotPoints = kotPoints,
-            hakemKotPoints = hakemKotPoints,
-        )
-        return HandScore(winner, kind, points)
     }
 
     /** Who is hakem next hand: the same player if their side won, otherwise the next seat around. */

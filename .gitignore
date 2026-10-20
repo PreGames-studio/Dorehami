@@ -29,15 +29,3 @@ captures/
 # OS junk
 .DS_Store
 Thumbs.db
-
-# Dezhban Godot project (games/dejban/godot): editor cache and exports. These are the rules of the
-# project's own .gitignore, which now sits in games/dejban/godot/standalone_repo/ (build/ and
-# .DS_Store are already covered above).
-games/dejban/godot/.godot/
-games/dejban/godot/export/
-games/dejban/godot/.venv/
-games/dejban/godot/**/__pycache__/
-games/dejban/godot/**/*.tmp
-games/dejban/godot/**/*.apk
-games/dejban/godot/**/*.aab
-games/dejban/godot/tools/art_source/

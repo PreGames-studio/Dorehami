@@ -24,22 +24,6 @@ internal class OnlineServerAddress(initialUrl: String) {
         return "$scheme://${uri.rawAuthority}$path"
     }
 
-    /**
-     * Creates the next connection only from a validated, current address.
-     * Invalid input is reported before [createConnection] can allocate network resources.
-     */
-    suspend fun <T : Any> createForNextConnection(
-        onInvalidAddress: (String) -> Unit,
-        createConnection: suspend (baseUrl: String) -> T,
-    ): T? {
-        val baseUrl = validatedBaseUrl()
-        if (baseUrl == null) {
-            onInvalidAddress(INVALID_ADDRESS_MESSAGE_FA)
-            return null
-        }
-        return createConnection(baseUrl)
-    }
-
     companion object {
         const val INVALID_ADDRESS_MESSAGE_FA =
             "آدرس سرور معتبر نیست؛ نشانی کامل با http:// یا https:// و میزبان معتبر وارد کن."

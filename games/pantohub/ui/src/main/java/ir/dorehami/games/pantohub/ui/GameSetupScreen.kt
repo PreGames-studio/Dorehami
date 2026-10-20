@@ -46,7 +46,6 @@ import ir.dorehami.games.pantohub.GameSettings
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.NewGameRequest
 import ir.dorehami.games.pantohub.PantohubEngine
-import ir.dorehami.games.pantohub.PlayMode
 import ir.dorehami.games.pantohub.GameActionResult
 import ir.dorehami.games.pantohub.Team
 import ir.dorehami.games.pantohub.WordBankRules
@@ -94,13 +93,21 @@ private fun encodeTeamDrafts(teams: List<TeamDraft>): String = JSONArray().apply
     }
 }.toString()
 
-private val teamColors = PantohubDesign.TeamColors
+private val teamColors = listOf(
+    0xffd94f52.toInt(),
+    0xff3777c8.toInt(),
+    0xff229b73.toInt(),
+    0xffdd922e.toInt(),
+    0xff8b62bb.toInt(),
+    0xffd45b9b.toInt(),
+    0xff547d83.toInt(),
+    0xff737b2e.toInt(),
+)
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun GameSetupScreen(
     repository: PantohubRepository,
-    playMode: PlayMode = PlayMode.SPEEDY,
     onBack: () -> Unit,
     onStart: (GameState) -> Unit,
 ) {
@@ -177,12 +184,6 @@ internal fun GameSetupScreen(
     }
 
     PantohubPageFrame("آماده‌سازی بازی", onBack) {
-        Text(
-            "نوع بازی: ${playMode.labelFa}",
-            style = MaterialTheme.typography.titleMedium,
-            fontWeight = FontWeight.Bold,
-            color = if (playMode == PlayMode.NORMAL) PantohubDesign.Teal else PantohubDesign.Violet,
-        )
         Text("نام بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
         OutlinedTextField(
             colors = pantohubFieldColors(PantohubTint.Mint),
@@ -250,25 +251,15 @@ internal fun GameSetupScreen(
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), verticalAlignment = Alignment.CenterVertically) {
                         Text("رنگ تیم:", style = MaterialTheme.typography.bodySmall)
                         teamColors.forEach { color ->
-                            val selectedColor = draft.colorArgb == color
                             Box(
                                 modifier = Modifier
-                                    .size(30.dp)
+                                    .size(25.dp)
                                     .background(Color(color), CircleShape)
-                                    .then(
-                                        if (selectedColor) {
-                                            Modifier.border(2.5.dp, PantohubDesign.Teal, CircleShape)
-                                        } else {
-                                            Modifier.border(1.dp, Color.White.copy(alpha = 0.25f), CircleShape)
-                                        },
-                                    )
-                                    .clickableNoRipple { editTeam(index) { it.copy(colorArgb = color) } },
-                                contentAlignment = Alignment.Center,
-                            ) {
-                                if (selectedColor) {
-                                    Text("✓", color = Color.White, style = MaterialTheme.typography.labelLarge, fontWeight = FontWeight.ExtraBold)
-                                }
-                            }
+                                    .then(if (draft.colorArgb == color) Modifier.border(2.dp, MaterialTheme.colorScheme.onSurface, CircleShape) else Modifier)
+                                    .padding(2.dp)
+                                    .background(Color(color), CircleShape)
+                                    .then(Modifier.clickableNoRipple { editTeam(index) { it.copy(colorArgb = color) } }),
+                            )
                         }
                     }
                 }
@@ -279,12 +270,7 @@ internal fun GameSetupScreen(
             Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text("تنظیمات این بازی", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
-                    "هر نوبت ${turnSeconds.toString().toPersianDigits()} ثانیه · ${roundsPerTeam.toString().toPersianDigits()} دور برای هر تیم · " +
-                        if (playMode == PlayMode.NORMAL) {
-                            "سختی و موضوع را اجراکننده پیش از هر نوبت انتخاب می‌کند"
-                        } else {
-                            "${difficulties.size.toString().toPersianDigits()} سطح دشواری"
-                        },
+                    "هر نوبت ${turnSeconds.toString().toPersianDigits()} ثانیه · ${roundsPerTeam.toString().toPersianDigits()} دور برای هر تیم · ${difficulties.size.toString().toPersianDigits()} سطح دشواری",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
@@ -325,57 +311,47 @@ internal fun GameSetupScreen(
                 SettingStepper("نوبت هر تیم", roundsPerTeam, 1, 20, "دور") { roundsPerTeam = it }
 
                 SectionTitle("دشواری و موضوع")
-                if (playMode == PlayMode.NORMAL) {
-                    // NORMAL never reads these filters: the performer picks the difficulty and
-                    // category before each turn, so editing them here would change nothing.
-                    Text(
-                        "در بازی عادی، اجراکننده پیش از هر نوبت سطح دشواری و موضوع واژه را خودش انتخاب می‌کند؛ این‌جا تنظیمی لازم نیست.",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
+                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                    Difficulty.entries.forEach { difficulty ->
+                        FilterChip(
+                            colors = pantohubChipColors(PantohubTint.Mint),
+                            selected = difficulty in difficulties,
+                            onClick = {
+                                difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
+                                errorMessage = null
+                            },
+                            label = { Text(difficulty.labelFa) },
+                        )
+                    }
+                }
+                if (availableCategories.isEmpty()) {
+                    Text("هنوز دستهٔ تأییدشده‌ای در بانک نیست.", color = MaterialTheme.colorScheme.onSurfaceVariant)
                 } else {
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                        Difficulty.entries.forEach { difficulty ->
-                            FilterChip(
-                                colors = pantohubChipColors(PantohubTint.Mint),
-                                selected = difficulty in difficulties,
-                                onClick = {
-                                    difficulties = if (difficulty in difficulties) difficulties - difficulty else difficulties + difficulty
-                                    errorMessage = null
-                                },
-                                label = { Text(difficulty.labelFa) },
-                            )
-                        }
+                        FilterChip(
+                            colors = pantohubChipColors(PantohubTint.Mint),
+                            selected = categories.isEmpty(),
+                            onClick = { categories = emptySet() },
+                            label = { Text("همه") },
+                        )
                     }
-                    if (availableCategories.isEmpty()) {
-                        Text("هنوز دستهٔ تأییدشده‌ای در بانک نیست.", color = MaterialTheme.colorScheme.onSurfaceVariant)
-                    } else {
+                    availableCategories.chunked(2).forEach { row ->
                         Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                            FilterChip(
-                                colors = pantohubChipColors(PantohubTint.Mint),
-                                selected = categories.isEmpty(),
-                                onClick = { categories = emptySet() },
-                                label = { Text("همه") },
-                            )
-                        }
-                        availableCategories.chunked(2).forEach { row ->
-                            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                                row.forEach { category ->
-                                    FilterChip(
-                                        colors = pantohubChipColors(PantohubTint.Mint),
-                                        selected = category in categories,
-                                        onClick = {
-                                            categories = if (category in categories) categories - category else categories + category
-                                        },
-                                        label = { Text(WordCategories.labelFa(category)) },
-                                        modifier = Modifier.weight(1f),
-                                    )
-                                }
-                                if (row.size == 1) Spacer(Modifier.weight(1f))
+                            row.forEach { category ->
+                                FilterChip(
+                                    colors = pantohubChipColors(PantohubTint.Mint),
+                                    selected = category in categories,
+                                    onClick = {
+                                        categories = if (category in categories) categories - category else categories + category
+                                    },
+                                    label = { Text(WordCategories.labelFa(category)) },
+                                    modifier = Modifier.weight(1f),
+                                )
                             }
+                            if (row.size == 1) Spacer(Modifier.weight(1f))
                         }
-                        Text("اگر «همه» انتخاب باشد، همهٔ دسته‌های معتبر و فعال مجازند.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                     }
+                    Text("اگر «همه» انتخاب باشد، همهٔ دسته‌های معتبر و فعال مجازند.", style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
                 }
 
                 SectionTitle("امتیازدهی")
@@ -411,17 +387,13 @@ internal fun GameSetupScreen(
 
         errorMessage?.let { Text(it, color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodyMedium) }
         Button(
-            colors = androidx.compose.material3.ButtonDefaults.buttonColors(
-                containerColor = PantohubDesign.Orange,
-                contentColor = Color.White,
-            ),
             onClick = {
                 if (creating) return@Button
                 if (teams.size < 2) {
                     errorMessage = "برای شروع دست‌کم دو تیم بساز."
                     return@Button
                 }
-                if (playMode != PlayMode.NORMAL && difficulties.isEmpty()) {
+                if (difficulties.isEmpty()) {
                     errorMessage = "حداقل یک سطح دشواری را انتخاب کن."
                     return@Button
                 }
@@ -455,13 +427,10 @@ internal fun GameSetupScreen(
                                 )
                             }
                             val settings = GameSettings(
-                                playMode = playMode,
                                 turnSeconds = turnSeconds,
                                 roundsPerTeam = roundsPerTeam,
-                                // In NORMAL mode each turn picks its own difficulty and
-                                // category, so the match itself must allow all of them.
-                                allowedDifficulties = if (playMode == PlayMode.NORMAL) Difficulty.entries.toSet() else difficulties,
-                                allowedCategories = if (playMode == PlayMode.NORMAL) emptySet() else categories,
+                                allowedDifficulties = difficulties,
+                                allowedCategories = categories,
                                 easyPoints = easyPoints,
                                 mediumPoints = mediumPoints,
                                 hardPoints = hardPoints,

@@ -152,9 +152,10 @@ data class LoggedAction(val seq: Long, val player: String, val type: String,
                         val payload: JsonObject, val atMs: Long)
 
 data class MatchRecord(               // تنها قالب ذخیرهسازی کل پلتفرم (schema=1)
-    val gameId: GameId, val seed: Long, val options: JsonObject,
-    val players: List<PlayerId>, val actions: List<LoggedAction>,
-    val result: MatchResult?, val digest: String, val schema: Int = 1
+    val matchId: String, val gameId: GameId, val mode: String,
+    val seed: Long, val options: JsonObject, val players: List<Player>,
+    val actions: List<LoggedAction>, val result: MatchResult?,
+    val digest: String, ...
 )
 ```
 
@@ -165,13 +166,6 @@ data class MatchRecord(               // تنها قالب ذخیرهسازی ک
 val engine = GameEngine.replay(module, record)   // همان موتور، از سید
 verdict = MatchVerifier(registry).verify(record) // Verified(نتیجه, هش) | Rejected(دلیل)
 ```
-
-**وضعیت پیاده‌سازی امروز:** رمزگذاری/رمزگشایی این قالب در `MatchRecordCodec` (لایهٔ مشترک) است و
-`GET /v1/matches/{code}` از همان استفاده میکند. بازی محلی هم پس از هر حرکت رکورد را ذخیره و با
-بازپخش قطعی بازیابی میکند؛ رکوردِ ناشناخته/خراب/نسخهٔ جدیدتر **رد امن** میشود (نه کرش).
-`MatchVerifier` امروز فقط در تستهای قطعیت صدا زده میشود و سیمکشیِ تأیید در مرجع سرور باقی است.
-سیاست نسخه‌بندی (رکورد، قواعد، RNG، پروتکل)، مدل تهدید RNG و روش مهاجرت:
-`docs/adr/ADR-0007-versioning-rules-rng-record-protocol.md`.
 
 ## ۵. پروتکل (یک پاکت، همهکاره)
 

@@ -384,20 +384,39 @@ class HokmSession(private val config: GameConfig) : GameSession {
 
     /** Settles a finished hand. [reachedSeven] is the side that got 7, or `null` when cards ran out (3p). */
     private fun scoreHand(reachedSeven: Int?): HandResult {
-        val score = HokmRules.settleHand(
-            tricks = tricksWon.toList(),
-            reachedSeven = reachedSeven,
-            hakem = hakem,
-            players = n,
+        val hakemTeam = teamOf(hakem)
+        val winnerTeam: Int? = reachedSeven ?: run {
+            val max = tricksWon.max()
+            val leaders = tricksWon.indices.filter { tricksWon[it] == max }
+            if (leaders.size == 1) leaders.first() else null
+        }
+        if (winnerTeam == null) {
+            return HandResult(
+                handNumber,
+                null,
+                0,
+                HandWinKind.VOID,
+                hakem,
+                tricksWon.toList(),
+                hokm,
+                scores.toList(),
+            )
+        }
+        val losers = tricksWon.indices.filter { it != winnerTeam }
+        val (kind, points) = HokmRules.handResult(
+            winnerTricks = tricksWon[winnerTeam],
+            minLoserTricks = losers.minOf { tricksWon[it] },
+            hakemTricks = tricksWon[hakemTeam],
+            hakemLost = hakemTeam != winnerTeam,
             kotPoints = kotPoints,
             hakemKotPoints = hakemKotPoints,
         )
-        score.winnerTeam?.let { scores[it] += score.points }
+        scores[winnerTeam] += points
         return HandResult(
             handNumber,
-            score.winnerTeam,
-            score.points,
-            score.kind,
+            winnerTeam,
+            points,
+            kind,
             hakem,
             tricksWon.toList(),
             hokm,

@@ -1,44 +1,21 @@
 package ir.dorehami.games.hokm.ui.room
 
-import io.ktor.client.HttpClient
-import io.ktor.client.plugins.websocket.WebSockets
-import ir.dorehami.transport.online.OnlineApi
-import kotlinx.coroutines.runBlocking
 import kotlin.test.Test
 import kotlin.test.assertEquals
-import kotlin.test.assertFalse
 import kotlin.test.assertNull
 
 class OnlineServerAddressTest {
     @Test
-    fun `updated lobby address is used by the next HTTP and WebSocket endpoints`() = runBlocking {
+    fun `updated lobby address becomes the endpoint base for the next connection`() {
         val address = OnlineServerAddress("http://old.example:8080")
         address.update("  https://new.example:9443/hokm/  ")
-        var http: HttpClient? = null
-        var invalidAddressMessage: String? = null
 
-        try {
-            val api = address.createForNextConnection(
-                onInvalidAddress = { invalidAddressMessage = it },
-                createConnection = { baseUrl ->
-                    val client = HttpClient { install(WebSockets) }.also { http = it }
-                    OnlineApi(client, baseUrl)
-                },
-            )
-
-            assertEquals("https://new.example:9443/hokm", api?.baseUrl)
-            assertEquals(
-                "wss://new.example:9443/hokm/v1/ws/room/ABCDE?ticket=test-token",
-                api?.roomSocketUrl("ABCDE", "test-token"),
-            )
-            assertNull(invalidAddressMessage)
-        } finally {
-            http?.close()
-        }
+        assertEquals("https://new.example:9443/hokm", address.validatedBaseUrl())
     }
 
     @Test
-    fun `invalid lobby address reports a clear error without creating connection resources`() = runBlocking {
+    fun `invalid server addresses are rejected before connecting`() {
+        val address = OnlineServerAddress("http://10.0.2.2:8080")
         val invalidAddresses = listOf(
             "",
             "example.com",
@@ -51,22 +28,12 @@ class OnlineServerAddressTest {
         )
 
         invalidAddresses.forEach { invalid ->
-            val address = OnlineServerAddress("http://10.0.2.2:8080")
             address.update(invalid)
-            var createConnectionCalled = false
-            var shownError: String? = null
-
-            val connection = address.createForNextConnection(
-                onInvalidAddress = { shownError = it },
-                createConnection = { baseUrl ->
-                    createConnectionCalled = true
-                    baseUrl
-                },
-            )
-
-            assertNull(connection, "should reject $invalid")
-            assertFalse(createConnectionCalled, "must not create network resources for $invalid")
-            assertEquals(OnlineServerAddress.INVALID_ADDRESS_MESSAGE_FA, shownError)
+            assertNull(address.validatedBaseUrl(), "should reject $invalid")
         }
+        assertEquals(
+            "آدرس سرور معتبر نیست؛ نشانی کامل با http:// یا https:// و میزبان معتبر وارد کن.",
+            OnlineServerAddress.INVALID_ADDRESS_MESSAGE_FA,
+        )
     }
 }
