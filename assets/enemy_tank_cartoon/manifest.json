@@ -1,0 +1,91 @@
+{
+  "pack": "cartoon_red_enemy_tank",
+  "version": 1,
+  "description": "Original chibi enemy tank viewed from above, with a rounded red hull and rotating turret.",
+  "vehicle": {
+    "teamColors": [
+      "bright red",
+      "dark slate gray"
+    ],
+    "features": [
+      "chubby rounded hull",
+      "visible continuous tracks",
+      "six road wheels on each side",
+      "long cannon with muzzle brake",
+      "small rotating turret and hatch"
+    ],
+    "orientation": "front points to the top edge in forward, firing and explosion sheets",
+    "styleNote": "Original colorful tower-defense cartoon; not a reproduction of any named game vehicle."
+  },
+  "frame": {
+    "width": 64,
+    "height": 64,
+    "format": "PNG RGBA",
+    "background": "transparent"
+  },
+  "sheets": [
+    {
+      "file": "tank_forward.png",
+      "animation": "forward",
+      "frames": 8,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 512,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 8,
+      "loop": true,
+      "notes": "Heavy forward travel; six road wheels and tread links rotate, hull bobs, small rear exhaust puffs."
+    },
+    {
+      "file": "tank_turret_rotate.png",
+      "animation": "turret_rotate",
+      "frames": 8,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 512,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 8,
+      "loop": true,
+      "notes": "Stationary hull; turret and barrel rotate through eight 45-degree steps, looping through 360 degrees."
+    },
+    {
+      "file": "tank_shoot.png",
+      "animation": "shoot",
+      "frames": 6,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 384,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 8,
+      "loop": false,
+      "notes": "One heavy cannon shot; bright muzzle burst, tank recoil, brass casing and expanding muzzle smoke."
+    },
+    {
+      "file": "tank_explosion.png",
+      "animation": "explosion",
+      "frames": 6,
+      "frameWidth": 64,
+      "frameHeight": 64,
+      "sheetWidth": 384,
+      "sheetHeight": 64,
+      "layout": "horizontal",
+      "alpha": true,
+      "fps": 8,
+      "loop": false,
+      "notes": "Intact tank, turret fire, comic blast, flying turret with heavy smoke, burning wreck with scattered track links, charcoal remains; hold frame 6."
+    }
+  ],
+  "construct3": {
+    "import": "Import each PNG as a sprite and set animation frame size to 64x64.",
+    "frameOrder": "Frames are arranged left-to-right, starting at zero in the image editor.",
+    "turretRotate": "Eight frames at 45 degrees per frame; loop after frame 8.",
+    "oneShot": "Shoot and explosion are one-shot; hold explosion frame 6.",
+    "motionBlur": "No motion blur; tank links and details remain crisp."
+  }
+}
