@@ -90,6 +90,20 @@ jobs:
           if-no-files-found: error
           retention-days: 30
 
+      # Guard against a silently pack-less APK: the embedded game must be inside.
+      - name: Verify Dezhban pack is inside the APK
+        run: |
+          apk=dist/Dorehami-debug.apk
+          echo "APK: $apk ($(du -h "$apk" | cut -f1))"
+          unzip -l "$apk" | grep -E "assets/dezhban\.pck" || { echo "::error::dezhban.pck missing from APK"; exit 1; }
+          unzip -l "$apk" | grep -E "lib/[^ ]+/libgodot_android\.so" || { echo "::error::Godot native library missing from APK"; exit 1; }
+          {
+            echo "## Dezhban embedded ✅"
+            echo '```'
+            unzip -l "$apk" | grep -E "assets/dezhban\.pck|lib/[^ ]+/libgodot_android\.so"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
       - name: Report build failure
         if: failure()
         run: |
