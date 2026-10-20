@@ -11,6 +11,7 @@
 | `godot/` | پروژهٔ اصلی Godot 4.3 دژبان: صحنه‌ها، کد GDScript، دارایی‌ها و تست headless |
 | `ui/` | ماژول Android Library میزبان: کتابخانهٔ Godot، `DejbanActivity` و لانچر بازی |
 | `tools/prepare_android_pack.sh` | ایمپورت، تست headless و ساخت `dezhban.pck` برای بیلد اندروید |
+| `tools/gen_fx_sheets.py` | ساخت هشت اسپرایت‌شیت افکت کارتونی (فریم‌های ۶۴×۶۴، ردیف افقی، PNG شفاف) |
 | `core/` | جای‌نگهدار قبلی؛ در این ادغام استفاده نمی‌شود، چون منطق بازی داخل Godot است |
 
 ## منشأ سورس

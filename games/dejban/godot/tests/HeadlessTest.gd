@@ -585,10 +585,17 @@ func _test_unit_sheets() -> void:
 
 func _test_maps() -> void:
 	check(Maps.count() == 12, "تعداد نقشه‌ها باید ۱۲ باشد، هست: %d" % Maps.count())
-	# مجموعهٔ جدید: ورودی iام دقیقاً تصویر map_%02d خودش را پس‌زمینه دارد.
+	# هر خانه باید یکی از دوازده تصویرِ دست‌ساز را دقیقاً یک‌بار پس‌زمینه داشته باشد.
+	# ترتیب خانه‌ها در اطلس لزوماً با شمارهٔ تصویر یکی نیست (خانه‌های ۳ و ۱۰ جابه‌جا شده‌اند)،
+	# پس به‌جای شمارهٔ خانه، یکتا بودن و کامل بودن مجموعهٔ تصویرها بررسی می‌شود.
+	var seen_bg := {}
 	for i in Maps.count():
-		check(String(Maps.def(i).get("bg", "")) == ("maps/map_%02d" % (i + 1)),
-			"پس‌زمینهٔ نقشه %d با شماره‌اش یکی نیست" % i)
+		var key := String(Maps.def(i).get("bg", ""))
+		check(Assets.has_key(key), "پس‌زمینهٔ نقشهٔ %d ثبت نشده است: %s" % [i, key])
+		check(not seen_bg.has(key), "پس‌زمینهٔ %s بیش از یک بار استفاده شده است" % key)
+		seen_bg[key] = true
+	for n in range(1, Maps.count() + 1):
+		check(seen_bg.has("maps/map_%02d" % n), "تصویر map_%02d در هیچ خانه‌ای نیست" % n)
 	var min_spots := 999999
 	var min_placed := 999999
 	for index in Maps.count():
