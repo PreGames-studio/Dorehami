@@ -8,13 +8,17 @@ plugins {
     alias(libs.plugins.android.library)
 }
 
-val dejbanPack = File(rootDir, "games/dejban/godot/build/dezhban.pck")
 val generatedDejbanAssets =
     layout.buildDirectory.get().asFile.resolve("generated/dejbanAssets")
 
-val prepareDejbanPack by tasks.registering(Copy::class) {
+val prepareDejbanPack = tasks.register<Copy>("prepareDejbanPack") {
     description = "Copies the exported Dejban Godot pack into this library's assets."
     group = "build"
+
+    // Keep the pack path local to this task: capturing script-level values in a
+    // task action makes the task impossible to store in the configuration cache.
+    val dejbanPack = project.rootProject.file("games/dejban/godot/build/dezhban.pck")
+    inputs.file(dejbanPack)
 
     doFirst {
         check(dejbanPack.isFile) {
@@ -26,6 +30,12 @@ val prepareDejbanPack by tasks.registering(Copy::class) {
 
     from(dejbanPack)
     into(generatedDejbanAssets)
+
+    // The pack is produced outside Gradle (Godot export in CI / by hand locally),
+    // so this copy intentionally opts out of configuration-cache serialization.
+    notCompatibleWithConfigurationCache(
+        "Copies the Godot pack generated outside Gradle into the library assets."
+    )
 }
 
 android {
