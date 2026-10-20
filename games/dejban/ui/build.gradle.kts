@@ -9,7 +9,8 @@ plugins {
 }
 
 val dejbanPack = File(rootDir, "games/dejban/godot/build/dezhban.pck")
-val generatedDejbanAssets = layout.buildDirectory.dir("generated/dejbanAssets")
+val generatedDejbanAssets =
+    layout.buildDirectory.get().asFile.resolve("generated/dejbanAssets")
 
 val prepareDejbanPack by tasks.registering(Copy::class) {
     description = "Copies the exported Dejban Godot pack into this library's assets."
