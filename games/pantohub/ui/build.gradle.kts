@@ -37,7 +37,5 @@ dependencies {
     implementation(libs.androidx.compose.ui)
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
-    // LocalLifecycleOwner: a running turn pauses when the app goes to the background (PH-B04).
-    implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
 }

@@ -11,7 +11,7 @@
 
 **وضعیت فعلی مخزن:** سه بازی کامل به دکمه‌هایشان وصل‌اند — حکم (`games/hokm`، ۲/۳/۴ نفره با
 ربات، بلوتوث و آنلاین)، شطرنج (`games/chess`، میز سه‌بعدی OpenGL ES و ربات چهارسطحی) و پانتومیم
-(`games/pantohub`، بانک واژهٔ محلی). آزمون و ساخت Gradle در
+(`games/pantohub`، بانک واژهٔ محلی). دژبان هنوز جای‌نگهدار است. آزمون و ساخت Gradle در
 GitHub Actions انجام می‌شود (`.github/workflows/`)؛ ساخت محلی به JDK 17 و Android SDK نیاز دارد.
 تصمیم‌ها و وضعیت واقعی در `docs/ARCHITECTURE.md`، `docs/adr/` و `docs/ROADMAP.md` ثبت می‌شود.
 

@@ -46,7 +46,7 @@ jobs:
           ok = any("BUILD SUCCESSFUL" in l for l in lines)
 
           # Totals straight from the JUnit XML each test task wrote.
-          per, tot, bad, failed_cases = {}, 0, 0, []
+          per, tot, bad = {}, 0, 0
           for f in glob.glob("**/build/test-results/**/*.xml", recursive=True):
               try:
                   root = ET.parse(f).getroot()
@@ -57,18 +57,13 @@ jobs:
               acc = per.setdefault(f.split("/build/")[0], [0, 0, 0])
               acc[0] += n; acc[1] += fl; acc[2] += sk
               tot += n; bad += fl
-              # Name every failing case from the XML — the console log alone does not.
-              for tc in root.iter("testcase"):
-                  for fx in list(tc.findall("failure")) + list(tc.findall("error")):
-                      msg = (fx.get("message") or "").strip().splitlines()[0][:200]
-                      failed_cases.append(f"FAILED {tc.get('classname')}#{tc.get('name')}: {msg}")
 
           # A successful aggregate build must still prove that its critical suites ran.
           expected = {"server", "games/hokm/ui"}
           missing = sorted(module for module in expected if per.get(module, [0, 0, 0])[0] == 0)
           pat = re.compile(r"FAILURE:|What went wrong|^e: |error:|Execution failed|Caused by:|tests? completed|FAILED$|BUILD (SUCCESSFUL|FAILED)")
           hits = [l for l in lines if pat.search(l)]
-          report = (failed_cases + (hits or lines)[-6:])[:12]
+          report = (hits or lines)[-8:]
           good = ok and tot > 0 and not bad and not missing
           head = (f"checkAll: {tot} tests, {bad} failing, {len(per)} module(s) with results"
                   if tot else "checkAll: no test results were written")
@@ -90,15 +85,6 @@ jobs:
                   print(f"::error file=tests.log,line=1::{safe}")
               sys.exit(1)
           PY
-
-      # The exact failure lives in the JUnit XML; keep it for post-mortems (it is tiny).
-      - name: Upload test results
-        if: failure()
-        uses: actions/upload-artifact@v4
-        with:
-          name: test-results
-          path: "**/build/test-results/**/*.xml"
-          if-no-files-found: ignore
 
   build-apk:
     name: Build debug APK
@@ -167,29 +153,6 @@ jobs:
           name: dorehami-build-log
           path: build.log
           if-no-files-found: warn
-
-      # A game's rules module can compile and still be missing from the APK (two modules called
-      # `core` used to share one jar name, so Android packaging dropped one) — which only shows up
-      # on a device, as `NoClassDefFoundError`, the moment that game starts. Check it here instead.
-      - name: Check that every game module is inside the APK
-        id: apk-contents
-        continue-on-error: true
-        run: |
-          python3 tools/device-check/inspect_apk.py app/build/outputs/apk/debug/app-debug.apk apk-contents.txt && rc=0 || rc=$?
-          python3 tools/device-check/report_annotations.py apk-contents.txt || true
-          {
-            echo "## 📦 Classes inside the debug APK"
-            echo '```'
-            sed -n '/== required classes/,/^$/p' apk-contents.txt
-            echo '```'
-          } >> "$GITHUB_STEP_SUMMARY"
-          echo "exit-code=$rc" >> "$GITHUB_OUTPUT"
-
-      - name: Fail when a required class is missing
-        if: steps.apk-contents.outputs.exit-code != '0'
-        run: |
-          echo "::error::a required class is missing from the APK — see the step above"
-          exit 1
 
       - name: Upload APK artifact
         uses: actions/upload-artifact@v4

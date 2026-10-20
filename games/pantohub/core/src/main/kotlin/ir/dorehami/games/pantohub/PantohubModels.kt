@@ -105,22 +105,8 @@ enum class SpecialCard(val titleFa: String, val descriptionFa: String) {
     EXTRA_TIME("۱۵ ثانیه فرصت", "۱۵ ثانیه به زمان همین نوبت اضافه می‌شود."),
 }
 
-/**
- * How a group match flows. SPEEDY keeps guessing words until the turn timer ends;
- * NORMAL ends the turn after one correct guess (skips keep the turn going).
- * [PantohubEngine] enforces the NORMAL turn end itself: a correct
- * [GameAction.ResolveWord] closes the turn and ignores any next word.
- * The per-turn difficulty/category choice of NORMAL is a UI concern.
- */
-@Serializable
-enum class PlayMode(val labelFa: String) {
-    SPEEDY("سرعتی"),
-    NORMAL("عادی"),
-}
-
 @Serializable
 data class GameSettings(
-    val playMode: PlayMode = PlayMode.SPEEDY,
     val turnSeconds: Int = 60,
     val roundsPerTeam: Int = 3,
     val allowedDifficulties: Set<Difficulty> = Difficulty.entries.toSet(),
@@ -193,12 +179,6 @@ data class TurnProgress(
     val remainingMs: Long,
     val currentWord: WordRecord? = null,
     val wordRevealed: Boolean = false,
-    /**
-     * The performer has seen [currentWord] at least once, even if it is covered again now. A seen
-     * word can be resolved from the shared (covered-word) screen; a word nobody has seen cannot.
-     * Games saved before this field existed decode it as `false`, the safe default.
-     */
-    val wordSeen: Boolean = false,
     val skippedWords: Int = 0,
     val scoreEarned: Int = 0,
     val activeCards: Set<SpecialCard> = emptySet(),

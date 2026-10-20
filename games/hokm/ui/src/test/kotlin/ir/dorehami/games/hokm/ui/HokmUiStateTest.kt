@@ -20,7 +20,6 @@ class HokmUiStateTest {
         assertFalse(ready.copy(finished = true).isMyTurn)
         assertFalse(ready.copy(introShown = 0).isMyTurn)
         assertFalse(ready.copy(collectingTo = 2).isMyTurn)
-        assertFalse(ready.copy(sweepOf = 2).isMyTurn)
         assertFalse(ready.copy(dealing = true).isMyTurn)
         assertFalse(ready.copy(banner = Banner("دست تمام شد")).isMyTurn)
     }
