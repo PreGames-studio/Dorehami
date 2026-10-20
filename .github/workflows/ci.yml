@@ -23,6 +23,11 @@ jobs:
           distribution: temurin
           java-version: "17"
 
+      # The embedded Godot game must export its PCK before any Android
+      # module is configured: :games:dejban:ui fails fast without it.
+      - name: Prepare embedded Dezhban Godot pack
+        run: bash games/dejban/tools/prepare_android_pack.sh
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -101,6 +106,9 @@ jobs:
 
       - name: Validate curated Pantohub word bank
         run: python3 scripts/validate_pantohub_seed.py
+
+      - name: Prepare embedded Dezhban Godot pack
+        run: bash games/dejban/tools/prepare_android_pack.sh
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4

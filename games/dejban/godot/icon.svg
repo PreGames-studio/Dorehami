@@ -1,0 +1,22 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="128" height="128" viewBox="0 0 128 128">
+  <defs>
+    <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#0b1f24"/>
+      <stop offset="1" stop-color="#16362f"/>
+    </linearGradient>
+    <linearGradient id="stone" x1="0" y1="0" x2="0" y2="1">
+      <stop offset="0" stop-color="#aab2bd"/>
+      <stop offset="1" stop-color="#5d6673"/>
+    </linearGradient>
+  </defs>
+  <rect width="128" height="128" rx="20" fill="url(#sky)"/>
+  <path d="M64 16 L104 32 L104 68 L64 112 L24 68 L24 32 Z" fill="#14302f" stroke="#dcae4b" stroke-width="3"/>
+  <rect x="36" y="58" width="56" height="40" fill="url(#stone)"/>
+  <rect x="30" y="48" width="18" height="50" fill="url(#stone)"/>
+  <rect x="80" y="48" width="18" height="50" fill="url(#stone)"/>
+  <rect x="58" y="72" width="12" height="26" rx="6" fill="#3a2f22"/>
+  <rect x="45" y="40" width="8" height="10" fill="#98a2b0"/>
+  <rect x="60" y="40" width="8" height="10" fill="#98a2b0"/>
+  <rect x="75" y="40" width="8" height="10" fill="#98a2b0"/>
+  <path d="M64 26 L64 8 L86 14 L64 22 Z" fill="#b4402f"/>
+</svg>

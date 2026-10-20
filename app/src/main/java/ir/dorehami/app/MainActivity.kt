@@ -10,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.unit.LayoutDirection
 import ir.dorehami.app.ui.GamesScreen
@@ -17,6 +18,7 @@ import ir.dorehami.app.ui.HomeScreen
 import ir.dorehami.app.ui.SettingsScreen
 import ir.dorehami.app.ui.theme.DorehamiTheme
 import ir.dorehami.games.chess.ui.ChessEntry
+import ir.dorehami.games.dejban.ui.DejbanEntry
 import ir.dorehami.games.hokm.ui.HokmEntry
 import ir.dorehami.games.pantohub.ui.PantohubScreen
 
@@ -52,6 +54,7 @@ class MainActivity : ComponentActivity() {
 
 @Composable
 private fun EntryApp() {
+    val context = LocalContext.current
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
 
     when (screen) {
@@ -65,6 +68,7 @@ private fun EntryApp() {
             onOpenHokm = { screen = Screen.Hokm },
             onOpenChess = { screen = Screen.Chess },
             onPantomime = { screen = Screen.Pantomime },
+            onOpenDejban = { DejbanEntry.launch(context) },
         )
 
         Screen.Hokm -> HokmEntry(onExit = { screen = Screen.Games })

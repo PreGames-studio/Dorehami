@@ -28,6 +28,7 @@ coreKtx = "1.19.1"
 datastore = "1.2.1"
 nearby = "19.5.1"
 koin = "4.2.2"
+godot = "4.3.0.stable"
 
 # Tests
 junit = "5.14.4"
@@ -88,6 +89,7 @@ androidx-compose-material3 = { module = "androidx.compose.material3:material3" }
 play-services-nearby = { module = "com.google.android.gms:play-services-nearby", version.ref = "nearby" }
 koin-android = { module = "io.insert-koin:koin-android", version.ref = "koin" }
 koin-androidx-compose = { module = "io.insert-koin:koin-androidx-compose", version.ref = "koin" }
+godot-android = { module = "org.godotengine:godot", version.ref = "godot" }
 
 # --- Tests
 junit-bom = { module = "org.junit:junit-bom", version.ref = "junit" }

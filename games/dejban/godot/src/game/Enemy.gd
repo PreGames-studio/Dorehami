@@ -1,0 +1,390 @@
+## دشمن: با انیمیشن ۸ فریمی گام‌برداری/چرخش شنی/ملخ و فیزیک نرم،
+## دقیقاً در خط میانی جاده پیش می‌رود، آسیب و اثرها را می‌گیرد و در پایان مسیر به دژ می‌رسد.
+class_name Enemy
+extends Node2D
+
+signal died(enemy)
+signal reached_keep(enemy)
+
+const BAR_WIDTH := 30.0
+const BAR_HEIGHT := 4.0
+
+## Die-Animation: 6 frames at 8 fps, the last frame holds a moment,
+## then the body fades out and frees itself.
+const RUN_FPS := 14.0
+const DEATH_FPS := 8.0
+const DEATH_HOLD := 0.45
+const DEATH_FADE := 0.30
+
+var def: Dictionary = {}
+var map: GameMap = null
+var wave := 1
+var max_hp := 100.0
+var hp := 100.0
+var base_speed := 50.0
+var speed_mult := 1.0
+var armor := 0.0
+var shield := 0.0
+var reward := 5
+var scale_mult := 1.0
+var flying := false
+var alive := true
+var progress := 0.0
+var lane := 0.0
+
+var burn_dps := 0.0
+var burn_time := 0.0
+var poison_dps := 0.0
+var poison_time := 0.0
+var slow_factor := 0.0
+var slow_time := 0.0
+
+var _sprite: Sprite2D = null
+var _flash := 0.0
+var _bob := 0.0
+var _walk_phase := 0.0
+var _smooth_dir := Vector2.RIGHT
+var _facing_x := 1.0
+var _hit_jolt := 0.0
+var _unit_id := "grunt"
+var _is_vehicle := false
+var _is_heavy := false
+var _frame_h := 48.0
+
+## Sheets: walk (one direction, mirrored), run and death (four directions).
+var _walk_tex: Texture2D = null
+var _walk_frame_h := 48.0
+var _ground_anchor := 19.2      # node origin to ground line in the walk sheet
+var _uses_run := false
+var _anim := "walk"             # walk | run | death
+var _sheet_dir := "front"
+var _dying := false
+var _death_t := 0.0
+
+func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scale: float,
+		wave_index: int, lane_offset: float) -> void:
+	def = enemy_def
+	map = game_map
+	wave = wave_index
+	lane = lane_offset * 0.25
+	_unit_id = String(def.get("id", "grunt"))
+	_is_vehicle = (_unit_id == "armored")
+	_is_heavy = (_unit_id == "commander" or _unit_id == "brute")
+	max_hp = float(def.get("hp", 60.0)) * hp_scale
+	hp = max_hp
+	base_speed = float(def.get("speed", 46.0)) * speed_scale
+	armor = float(def.get("armor", 0.0))
+	shield = float(def.get("shield", 0.0))
+	reward = int(def.get("reward", 5))
+	scale_mult = float(def.get("scale", 1.0))
+	var traits: Array = def.get("traits", [])
+	flying = traits.has("flying")
+	_walk_phase = randf() * TAU
+	_bob = randf() * TAU
+	if map != null:
+		_smooth_dir = map.direction_at(0.0)
+		if absf(_smooth_dir.x) > 0.05:
+			_facing_x = -1.0 if _smooth_dir.x < 0.0 else 1.0
+
+	_sprite = Sprite2D.new()
+	var base_key := String(def.get("sprite", "units/grunt"))
+	var walk_key := base_key + "_walk"
+	if Assets.has_key(walk_key):
+		_walk_tex = Assets.tex(walk_key)
+	else:
+		_walk_tex = Assets.tex(base_key)
+	_sprite.texture = _walk_tex
+	# Fast units (the runner) move with the run sheet; the death sheet is for all.
+	_uses_run = UnitSheets.uses_run(_unit_id, base_speed)
+	_uses_run = _uses_run and Assets.has_key(UnitSheets.tex_key(_unit_id, "run", "front"))
+	_sheet_dir = UnitSheets.direction_name(_smooth_dir)
+	if _sprite.texture != null:
+		_walk_frame_h = float(_sprite.texture.get_height())
+		_frame_h = _walk_frame_h
+		_ground_anchor = 0.40 * _walk_frame_h
+		_sprite.centered = false
+	_sprite.scale = Vector2.ONE * scale_mult
+	add_child(_sprite)
+	_apply_sheet("run" if _uses_run else "walk")
+	_update_transform(0.0)
+
+# ------------------------------------------------------------------ حرکت و انیمیشن چندفریمی نرم
+
+func _process(delta: float) -> void:
+	if _dying:
+		_advance_death(delta)
+		return
+	if not alive or map == null:
+		return
+	if slow_time > 0.0:
+		slow_time -= delta
+		if slow_time <= 0.0:
+			slow_factor = 0.0
+	if burn_time > 0.0:
+		burn_time -= delta
+		_damage_over_time(burn_dps * delta)
+	if poison_time > 0.0:
+		poison_time -= delta
+		_damage_over_time(poison_dps * delta)
+	if not alive:
+		return
+	if _flash > 0.0:
+		_flash = maxf(0.0, _flash - delta * 6.0)
+	if _hit_jolt > 0.0:
+		_hit_jolt = maxf(0.0, _hit_jolt - delta * 7.5)
+	_update_tint()
+
+	var speed := base_speed * speed_mult * (1.0 - clampf(slow_factor, 0.0, 0.95))
+	progress += speed * delta
+	_update_transform(delta, speed)
+	queue_redraw()
+	if progress >= map.total_length:
+		alive = false
+		reached_keep.emit(self)
+
+func _update_transform(delta: float, current_speed := 46.0) -> void:
+	if map == null:
+		return
+	var t := clampf(progress, 0.0, map.total_length)
+	var raw_dir := map.direction_at(t)
+	if delta > 0.0:
+		_smooth_dir = _smooth_dir.lerp(raw_dir, clampf(delta * 10.0, 0.0, 1.0)).normalized()
+	else:
+		_smooth_dir = raw_dir
+	var perp := Vector2(-_smooth_dir.y, _smooth_dir.x)
+	var jolt_vec := -_smooth_dir * (_hit_jolt * 3.8)
+	position = map.point_at(t) + perp * lane + jolt_vec
+	if _sprite == null:
+		return
+
+	if absf(_smooth_dir.x) > 0.06:
+		var target_face := -1.0 if _smooth_dir.x < 0.0 else 1.0
+		if delta > 0.0:
+			_facing_x = lerpf(_facing_x, target_face, clampf(delta * 13.0, 0.0, 1.0))
+		else:
+			_facing_x = target_face
+	var face_sign := -1.0 if _facing_x < 0.0 else 1.0
+	var flip_mag := maxf(0.28, absf(_facing_x))
+	# The run and death sheets are four-directional and are never mirrored;
+	# only the turn squash stays. The walk sheet is mirrored as before.
+	var flip_scale := flip_mag if _anim != "walk" else face_sign * flip_mag
+	var want_dir := UnitSheets.direction_name(_smooth_dir)
+	if want_dir != _sheet_dir:
+		_sheet_dir = want_dir
+		if _uses_run:
+			_apply_sheet("run")
+
+	var road_angle := _smooth_dir.angle()
+	var local_road_rot := road_angle if face_sign > 0.0 else wrapf(road_angle - PI, -PI, PI)
+
+	var stride_rate := clampf(current_speed / 40.0, 0.55, 2.4)
+	# The run sheet is authored at 14 frames per second, so at full speed the
+	# phase turns exactly that fast (the walk sheets keep their own tuning).
+	var run_rate := 0.0
+	if _anim == "run":
+		run_rate = TAU * RUN_FPS / 8.0 * clampf(current_speed / maxf(base_speed, 1.0), 0.6, 1.4)
+	if flying:
+		_bob += delta * 9.5 * stride_rate
+		_walk_phase = _bob
+		var hover_y := sin(_bob * 0.7) * 3.2 - 4.0 * scale_mult
+		var hover_x := cos(_bob * 0.35) * 1.6
+		_sprite.position = Vector2(hover_x, hover_y)
+		var bank := clampf(local_road_rot * 0.38 + sin(_bob * 0.7) * 0.05, -0.32, 0.32)
+		_sprite.rotation = bank
+		var pulse := 1.0 + sin(_bob * 2.0) * 0.025
+		_sprite.scale = Vector2(scale_mult * flip_scale * pulse, scale_mult * (2.0 - pulse))
+	elif _is_vehicle:
+		_walk_phase += delta * 12.0 * stride_rate
+		var rumble := sin(_walk_phase * 2.0) * 0.9
+		var slope_tilt := clampf(local_road_rot * 0.58, -0.52, 0.52)
+		_sprite.position = Vector2(0.0, -absf(rumble) * 0.7)
+		_sprite.rotation = slope_tilt + sin(_walk_phase) * 0.018
+		var v_squash := sin(_walk_phase * 2.0) * 0.024
+		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + v_squash), scale_mult * (1.0 - v_squash))
+	elif _is_heavy:
+		_walk_phase += delta * 8.2 * stride_rate
+		var stomp := absf(sin(_walk_phase))
+		var sway := sin(_walk_phase) * 0.09
+		var squash := cos(_walk_phase * 2.0) * 0.06
+		var slope_lean := clampf(local_road_rot * 0.24, -0.20, 0.20)
+		_sprite.position = Vector2(sin(_walk_phase) * 1.4, -stomp * 3.2 * scale_mult)
+		_sprite.rotation = sway + 0.04 * face_sign + slope_lean
+		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + squash), scale_mult * (1.0 - squash * 0.85))
+	else:
+		_walk_phase += delta * (run_rate if _anim == "run" else 10.8 * stride_rate)
+		var step_hop := absf(sin(_walk_phase))
+		var step_sway := sin(_walk_phase) * 0.085
+		var squash := cos(_walk_phase * 2.0) * 0.05
+		var slope_lean := clampf(local_road_rot * 0.24, -0.20, 0.20)
+		_sprite.position = Vector2(sin(_walk_phase) * 1.2, -step_hop * 2.8 * scale_mult)
+		_sprite.rotation = step_sway + 0.045 * face_sign + slope_lean
+		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + squash), scale_mult * (1.0 - squash * 0.8))
+
+	if _sprite.hframes > 1:
+		var cycle := fposmod(_walk_phase / TAU, 1.0)
+		_sprite.frame = int(floor(cycle * float(_sprite.hframes))) % _sprite.hframes
+
+# ------------------------------------------------------------------ sheets and animation
+
+## Puts the requested sheet on the sprite and aligns the offset with its ground
+## line: the run / death frames are taller than the walk frames, so without this
+## the body would jump when the animation changes.
+func _apply_sheet(anim: String) -> void:
+	if _sprite == null or _walk_tex == null:
+		return
+	var tex: Texture2D = _walk_tex
+	var hframes := 1
+	if Assets.has_key(String(def.get("sprite", "units/grunt")) + "_walk"):
+		hframes = 8
+	if anim != "walk":
+		var key := UnitSheets.tex_key(_unit_id, anim, _sheet_dir)
+		if Assets.has_key(key):
+			tex = Assets.tex(key)
+			if anim == "death":
+				hframes = UnitSheets.DEATH_FRAMES
+		else:
+			anim = "walk"
+	if _sprite.texture != tex:
+		_sprite.texture = tex
+	_sprite.hframes = hframes
+	_anim = anim
+	var fw := float(tex.get_width()) / float(hframes)
+	var offset_y := -_walk_frame_h * 0.52
+	if anim != "walk":
+		offset_y = -(UnitSheets.ground(_unit_id, anim, 0.92 * _walk_frame_h) - _ground_anchor)
+	_sprite.offset = Vector2(-fw * 0.5, offset_y)
+	if anim != "death" and _sprite.frame >= hframes:
+		_sprite.frame = 0
+
+
+## Fallen body: the six frames play once, the last one holds, then it fades.
+func _advance_death(delta: float) -> void:
+	_death_t += delta
+	var last := UnitSheets.DEATH_FRAMES - 1
+	if _sprite != null and _anim == "death" and _sprite.hframes > 1:
+		_sprite.frame = mini(int(_death_t * DEATH_FPS), last)
+	var anim_end := float(last) / DEATH_FPS
+	if _death_t < anim_end + DEATH_HOLD:
+		return
+	if _sprite != null:
+		var fade := clampf((_death_t - anim_end - DEATH_HOLD) / DEATH_FADE, 0.0, 1.0)
+		_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0 - fade)
+		if fade < 1.0:
+			return
+	queue_free()
+
+
+## Is the body falling right now? (used by the headless test)
+func is_dying() -> bool:
+	return _dying
+
+
+## Active sprite animation: walk | run | death (used by the headless test)
+func active_anim() -> String:
+	return _anim
+
+
+func _update_tint() -> void:
+	if _sprite == null:
+		return
+	var tint := Color.WHITE
+	if burn_time > 0.0:
+		tint = Color(1.3, 0.86, 0.66)
+	elif poison_time > 0.0:
+		tint = Color(0.82, 1.22, 0.78)
+	if slow_time > 0.0:
+		tint = tint.lerp(Color(0.7, 0.92, 1.3), 0.5)
+	if _flash > 0.0:
+		tint = tint.lerp(Color(2.0, 2.0, 2.0), _flash)
+	_sprite.modulate = tint
+
+# ------------------------------------------------------------------ آسیب و اثر
+
+func take_damage(amount: float, pierce_armor := false) -> void:
+	if not alive:
+		return
+	var damage := amount
+	if not pierce_armor:
+		damage = maxf(1.0, damage - armor)
+	if shield > 0.0:
+		damage = maxf(1.0, damage * (1.0 - shield))
+	hp -= damage
+	_flash = 1.0
+	_hit_jolt = 1.0
+	queue_redraw()
+	if hp <= 0.0:
+		_die()
+
+func heal(amount: float) -> void:
+	if not alive:
+		return
+	hp = minf(max_hp, hp + amount)
+	queue_redraw()
+
+func _damage_over_time(amount: float) -> void:
+	if not alive:
+		return
+	hp -= amount
+	_flash = maxf(_flash, 0.5)
+	queue_redraw()
+	if hp <= 0.0:
+		_die()
+
+func _die() -> void:
+	if not alive:
+		return
+	alive = false
+	_dying = true
+	_death_t = 0.0
+	# Death sheet of the direction it was walking; the body stays on the ground
+	# and frees itself once the animation and the fade are done.
+	_sheet_dir = UnitSheets.direction_name(_smooth_dir)
+	_apply_sheet("death")
+	if _sprite != null:
+		_sprite.modulate = Color.WHITE
+		_sprite.frame = 0
+	queue_redraw()
+	died.emit(self)
+
+func apply_slow(factor: float, duration: float) -> void:
+	slow_factor = maxf(slow_factor, clampf(factor, 0.0, 0.95))
+	slow_time = maxf(slow_time, duration)
+
+func apply_burn(dps: float, duration: float) -> void:
+	burn_dps = maxf(burn_dps, dps)
+	burn_time = maxf(burn_time, duration)
+
+func apply_poison(dps: float, duration: float) -> void:
+	poison_dps = maxf(poison_dps, dps)
+	poison_time = maxf(poison_time, duration)
+
+func has_trait(feature: String) -> bool:
+	var traits: Array = def.get("traits", [])
+	return traits.has(feature)
+
+func crowd_radius() -> float:
+	return 16.0 * scale_mult
+
+# ------------------------------------------------------------------ نمایش سایه و نوار جان
+
+func _draw() -> void:
+	if not alive or max_hp <= 0.0:
+		return
+	var shadow_y := _frame_h * 0.40 * scale_mult
+	var shadow_scale := 1.0 - 0.14 * absf(sin(_walk_phase)) if not flying else 0.78
+	draw_set_transform(Vector2(0.0, shadow_y), 0.0, Vector2(shadow_scale, 0.38 * shadow_scale))
+	draw_circle(Vector2.ZERO, 13.0 * scale_mult, Color(0, 0, 0, 0.30))
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+	var ratio := clampf(hp / max_hp, 0.0, 1.0)
+	if ratio >= 0.999:
+		return
+	var width := BAR_WIDTH * scale_mult
+	var top := -24.0 * scale_mult
+	draw_rect(Rect2(-width * 0.5 - 1.0, top - 1.0, width + 2.0, BAR_HEIGHT + 2.0), Color(0.02, 0.05, 0.06, 0.72))
+	var color := Style.good
+	if ratio < 0.28:
+		color = Style.bad
+	elif ratio < 0.6:
+		color = Style.gold
+	draw_rect(Rect2(-width * 0.5, top, width * ratio, BAR_HEIGHT), color)

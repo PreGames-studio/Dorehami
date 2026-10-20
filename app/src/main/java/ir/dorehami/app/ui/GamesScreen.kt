@@ -56,7 +56,7 @@ private val games = listOf(
     GameEntry("حکم", "🎴", "۲ تا ۴ نفره • ربات و آنلاین", "games/hokm", GameAccent.Warm, implemented = true),
     GameEntry("شطرنج", "♟️", "تختهٔ سه‌بعدی • بازی نوبتی", "games/chess", GameAccent.Teal, implemented = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", GameAccent.Purple, implemented = true),
-    GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban", GameAccent.Gold),
+    GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban", GameAccent.Gold, implemented = true),
 )
 
 /** Compact two-column game picker over original Dorehami artwork. */
@@ -66,6 +66,7 @@ fun GamesScreen(
     onOpenHokm: () -> Unit = {},
     onOpenChess: () -> Unit = {},
     onPantomime: () -> Unit = {},
+    onOpenDejban: () -> Unit = {},
 ) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
@@ -123,6 +124,7 @@ fun GamesScreen(
                                     game.module == "games/hokm" -> onOpenHokm()
                                     game.module == "games/chess" -> onOpenChess()
                                     game.module == "games/pantohub" -> onPantomime()
+                                    game.module == "games/dejban" -> onOpenDejban()
                                 }
                             },
                         )

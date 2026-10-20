@@ -26,6 +26,9 @@ captures/
 .externalNativeBuild/
 .cxx/
 
+# Godot editor/import cache for the embedded Dezhban project.
+games/dejban/godot/.godot/
+
 # OS junk
 .DS_Store
 Thumbs.db
