@@ -77,6 +77,8 @@ func _ready() -> void:
 	_test_app_icons()
 	print("— بررسی دارایی‌ها…")
 	_test_assets()
+	print("— بررسی شیت‌های افکت…")
+	await _test_fx_sheets()
 	print("— بررسی سلاح‌ها…")
 	_test_weapons()
 	_test_turret_tiers_and_fire()
@@ -355,6 +357,42 @@ func _test_assets() -> void:
 		check(Assets.has_key(String(biome["alt"])), "زمین جایگزین %s گم شده" % biome_key)
 		for prop in biome["props"]:
 			check(Assets.has_key(String(prop)), "دکور گم شده: %s" % prop)
+
+## شیت‌های افکت کارتونی (tools/gen_fx_sheets.py): هشت شیت افقی با فریم‌های ۶۴×۶۴
+## که Fx.sheet_frames آن‌ها را برش می‌دهد. اگر یکی گم شود یا ابعادش با جدول
+## نخواند، جلوه‌های شلیک و انفجار بی‌صدا ناپدید می‌شوند؛ پس این‌جا صریح بررسی می‌شود.
+func _test_fx_sheets() -> void:
+	check(Fx.SHEETS.size() == 8, "باید هشت شیت افکت باشد، هست: %d" % Fx.SHEETS.size())
+	for key in Fx.SHEETS.keys():
+		var sheet_key := String(key)
+		var info: Dictionary = Fx.SHEETS[key]
+		check(Assets.has_key(sheet_key), "شیت افکت در مانیفست نیست: %s" % sheet_key)
+		var texture := Assets.tex(sheet_key)
+		check(texture != null, "شیت افکت بارگذاری نشد: %s" % sheet_key)
+		if texture == null:
+			continue
+		check(texture.get_height() == Fx.FRAME_PX,
+			"ارتفاع شیت %s باید %d پیکسل باشد، هست %d" % [sheet_key, Fx.FRAME_PX, texture.get_height()])
+		check(texture.get_width() == int(info["frames"]) * Fx.FRAME_PX,
+			"عرض شیت %s با %d فریم نمی‌خواند" % [sheet_key, int(info["frames"])])
+		var frames := Fx.sheet_frames(sheet_key)
+		check(frames != null, "فریم‌های شیت ساخته نشد: %s" % sheet_key)
+		if frames != null:
+			check(frames.get_frame_count("play") == int(info["frames"]),
+				"تعداد فریم ساخته‌شدهٔ %s با جدول نمی‌خواند" % sheet_key)
+	# هر جلوه باید واقعاً گره بسازد؛ وگرنه شلیک و انفجار در عمل بی‌جلوه است.
+	var stage := Node2D.new()
+	add_child(stage)
+	Fx.blast(stage, Vector2.ZERO, 1.2)
+	Fx.muzzle(stage, Vector2.ZERO, 0.3, 0.8)
+	Fx.smoke(stage, Vector2.ZERO, 0.6)
+	Fx.flame(stage, Vector2.ZERO, 0.6)
+	Fx.beam(stage, "fx/laser_beam", Vector2.ZERO, Vector2(120.0, 0.0), 0.8)
+	Fx.bolt(stage, Vector2.ZERO, Vector2(80.0, 40.0), 0.8)
+	await get_tree().process_frame
+	check(stage.get_child_count() == 6,
+		"جلوه‌های شیت ساخته نشدند؛ تعداد گره: %d" % stage.get_child_count())
+	stage.queue_free()
 
 # ------------------------------------------------------------------ آیکون‌های اپ
 
