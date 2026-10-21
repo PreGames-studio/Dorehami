@@ -585,7 +585,7 @@ func _test_unit_sheets() -> void:
 			var ground := UnitSheets.ground(id, "death")
 			check(ground > 0.0 and ground < death_tex.get_height(),
 				"خط زمین شیت مرگ %s بیرون از فریم است" % death_key)
-		check(UnitSheets.uses_run(id, speed) == (id == "runner"),
+		check(UnitSheets.uses_run(id, speed) == false,
 			"تشخیص تندپا برای %s درست نیست" % id)
 
 	# جهت‌ها روی صفحه: پایین = رو به دوربین، راست = رو به راست
@@ -594,8 +594,8 @@ func _test_unit_sheets() -> void:
 	check(UnitSheets.direction_name(Vector2(1.0, 0.2)) == "right", "جهت راست باید right باشد")
 	check(UnitSheets.direction_name(Vector2(-1.0, 0.2)) == "left", "جهت چپ باید left باشد")
 
-	# دونده با شیت دویدن راه می‌رود و سرعت‌های کم با همان راه‌رفتن
-	for case in [["runner", "run"], ["grunt", "walk"], ["brute", "walk"]]:
+	# سرباز با شیت راه‌رفتن می‌رود (سرعت کم)
+	for case in [["soldier", "walk"]]:
 		var sheet_enemy := Enemy.new()
 		add_child(sheet_enemy)
 		var enemy_def := Enemies.by_id(String(case[0]))
@@ -800,13 +800,7 @@ func _test_waves() -> void:
 				check(float(group.get("interval", 0.0)) > 0.0, "فاصلهٔ نامعتبر در موج %d نقشهٔ %d" % [wave, index])
 				total += count
 			check(total >= 3, "موج %d نقشهٔ %d کم‌جمعیت است: %d" % [wave, index, total])
-	# هر ۱۰ موج یک غول زرهی می‌آید
-	for wave in [10, 20, 30]:
-		var found := false
-		for group in Enemies.wave_groups(3, wave):
-			if String(group.get("enemy", "")) == "brute":
-				found = true
-		check(found, "غول زرهی در موج %d نیست" % wave)
+
 
 # ------------------------------------------------------------------ تعادل
 

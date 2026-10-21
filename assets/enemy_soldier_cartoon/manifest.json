@@ -1,12 +1,13 @@
 {
   "pack": "cartoon_red_enemy_soldier",
-  "version": 1,
-  "description": "Original chibi tower-defense enemy infantryman; side three-quarter view facing right.",
+  "version": 2,
+  "description": "Original chibi tower-defense enemy infantryman; side view facing right. Hand-painted cartoon set (Kingdom-Rush-inspired), selected from two generated variants per sheet.",
   "character": {
     "teamColor": "bright red",
     "features": [
       "oversized friendly face",
-      "red helmet",
+      "dark maroon rounded helmet with gold star badge",
+      "red uniform jacket with gold buttons and yellow trim",
       "small olive backpack",
       "carbine",
       "thick dark outlines"
@@ -32,7 +33,7 @@
       "alpha": true,
       "fps": 5,
       "loop": true,
-      "notes": "Breathing/sway loop."
+      "notes": "Breathing/sway loop with a subtle blink."
     },
     {
       "file": "soldier_walk.png",
@@ -46,7 +47,7 @@
       "alpha": true,
       "fps": 9,
       "loop": true,
-      "notes": "Frame 8 duplicates frame 1 for the requested seam."
+      "notes": "Frame 8 duplicates frame 1 for the requested seamless loop."
     },
     {
       "file": "soldier_run.png",
@@ -60,7 +61,7 @@
       "alpha": true,
       "fps": 12,
       "loop": true,
-      "notes": "Loop using frame order 1-8; do not duplicate endpoints."
+      "notes": "Loop using frame order 1-8; do not duplicate endpoints. Body leans forward with long strides."
     },
     {
       "file": "soldier_shoot.png",
@@ -74,7 +75,7 @@
       "alpha": true,
       "fps": 10,
       "loop": false,
-      "notes": "One-shot; frames 3-4 show muzzle flash, then shell casing and smoke."
+      "notes": "One-shot; frame 2 small muzzle flash, frame 3 big muzzle flash with recoil, frame 4 shell casing and smoke, frames 5-6 smoke settling back to aim."
     },
     {
       "file": "soldier_death.png",
@@ -88,7 +89,7 @@
       "alpha": true,
       "fps": 8,
       "loop": false,
-      "notes": "One-shot; hold frame 6 after it finishes."
+      "notes": "One-shot; hit reaction, falls backward, helmet flies off, lands with dust, lies motionless. Hold frame 6 after it finishes."
     }
   ],
   "construct3": {

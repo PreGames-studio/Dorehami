@@ -6,7 +6,7 @@
 extends Node2D
 
 const HUD_SCRIPT := "res://src/ui/Hud.gd"
-const HUMANOID_ENEMIES := ["grunt", "runner", "shield", "archer", "healer", "commander"]
+const HUMANOID_ENEMIES := ["soldier"]
 
 var map: GameMap = null
 var keep: Keep = null

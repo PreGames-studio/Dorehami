@@ -47,8 +47,6 @@ var _smooth_dir := Vector2.RIGHT
 var _facing_x := 1.0
 var _hit_jolt := 0.0
 var _unit_id := "grunt"
-var _is_vehicle := false
-var _is_heavy := false
 var _frame_h := 48.0
 
 ## Sheets: walk (one direction, mirrored), run and death (four directions).
@@ -68,8 +66,6 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 	wave = wave_index
 	lane = lane_offset * 0.25
 	_unit_id = String(def.get("id", "grunt"))
-	_is_vehicle = (_unit_id == "armored")
-	_is_heavy = (_unit_id == "commander" or _unit_id == "brute")
 	max_hp = float(def.get("hp", 60.0)) * hp_scale
 	hp = max_hp
 	base_speed = float(def.get("speed", 46.0)) * speed_scale
@@ -193,23 +189,6 @@ func _update_transform(delta: float, current_speed := 46.0) -> void:
 		_sprite.rotation = bank
 		var pulse := 1.0 + sin(_bob * 2.0) * 0.025
 		_sprite.scale = Vector2(scale_mult * flip_scale * pulse, scale_mult * (2.0 - pulse))
-	elif _is_vehicle:
-		_walk_phase += delta * 12.0 * stride_rate
-		var rumble := sin(_walk_phase * 2.0) * 0.9
-		var slope_tilt := clampf(local_road_rot * 0.58, -0.52, 0.52)
-		_sprite.position = Vector2(0.0, -absf(rumble) * 0.7)
-		_sprite.rotation = slope_tilt + sin(_walk_phase) * 0.018
-		var v_squash := sin(_walk_phase * 2.0) * 0.024
-		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + v_squash), scale_mult * (1.0 - v_squash))
-	elif _is_heavy:
-		_walk_phase += delta * 8.2 * stride_rate
-		var stomp := absf(sin(_walk_phase))
-		var sway := sin(_walk_phase) * 0.09
-		var squash := cos(_walk_phase * 2.0) * 0.06
-		var slope_lean := clampf(local_road_rot * 0.24, -0.20, 0.20)
-		_sprite.position = Vector2(sin(_walk_phase) * 1.4, -stomp * 3.2 * scale_mult)
-		_sprite.rotation = sway + 0.04 * face_sign + slope_lean
-		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + squash), scale_mult * (1.0 - squash * 0.85))
 	else:
 		_walk_phase += delta * (run_rate if _anim == "run" else 10.8 * stride_rate)
 		var step_hop := absf(sin(_walk_phase))
