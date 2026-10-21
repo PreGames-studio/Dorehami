@@ -46,7 +46,7 @@ var _walk_phase := 0.0
 var _smooth_dir := Vector2.RIGHT
 var _facing_x := 1.0
 var _hit_jolt := 0.0
-var _unit_id := "grunt"
+var _unit_id := "soldier"
 var _frame_h := 48.0
 
 ## Sheets: walk (one direction, mirrored), run and death (four directions).
@@ -65,7 +65,7 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 	map = game_map
 	wave = wave_index
 	lane = lane_offset * 0.25
-	_unit_id = String(def.get("id", "grunt"))
+	_unit_id = String(def.get("id", "soldier"))
 	max_hp = float(def.get("hp", 60.0)) * hp_scale
 	hp = max_hp
 	base_speed = float(def.get("speed", 46.0)) * speed_scale
@@ -83,7 +83,7 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 			_facing_x = -1.0 if _smooth_dir.x < 0.0 else 1.0
 
 	_sprite = Sprite2D.new()
-	var base_key := String(def.get("sprite", "units/grunt"))
+	var base_key := String(def.get("sprite", "units/soldier"))
 	var walk_key := base_key + "_walk"
 	if Assets.has_key(walk_key):
 		_walk_tex = Assets.tex(walk_key)
@@ -213,7 +213,7 @@ func _apply_sheet(anim: String) -> void:
 		return
 	var tex: Texture2D = _walk_tex
 	var hframes := 1
-	if Assets.has_key(String(def.get("sprite", "units/grunt")) + "_walk"):
+	if Assets.has_key(String(def.get("sprite", "units/soldier")) + "_walk"):
 		hframes = 8
 	if anim != "walk":
 		var key := UnitSheets.tex_key(_unit_id, anim, _sheet_dir)

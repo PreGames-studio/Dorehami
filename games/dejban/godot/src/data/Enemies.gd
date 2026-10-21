@@ -8,7 +8,7 @@ extends RefCounted
 
 const LIST := [
 	{
-		"id": "soldier", "name": "سرباز", "sprite": "units/grunt",
+		"id": "soldier", "name": "سرباز", "sprite": "units/soldier",
 		"hp": 60.0, "speed": 46.0, "armor": 0.0, "shield": 0.0, "reward": 2, "scale": 1.0,
 		"traits": [],
 	},

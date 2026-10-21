@@ -541,7 +541,7 @@ func _test_turret_tiers_and_fire() -> void:
 # ------------------------------------------------------------------ دشمنان
 
 func _test_enemies() -> void:
-	check(Enemies.LIST.size() == 8, "تعداد دشمنان باید ۸ باشد")
+	check(Enemies.LIST.size() == 1, "تعداد دشمنان باید ۱ (فقط سرباز) باشد")
 	check(Enemies.by_id("flyer").is_empty(), "هلیکوپتر (flyer) باید حذف شده باشد")
 	check(Enemies.by_id("warlord").is_empty(), "قطار قرمز (warlord) باید حذف شده باشد")
 	var seen: Array = []
