@@ -1,5 +1,5 @@
 ## پیش‌نمای ساخت هنگام کشیدن برجک:
-## خودِ برجک دفاعی (پایه + توپ بالایی) از لحظهٔ گرفتن تا زمان رها شدن زیر انگشت/نشانگر
+## خودِ سنگر دژبان از لحظهٔ گرفتن تا زمان رها شدن زیر انگشت/نشانگر
 ## کاملاً مرئی است و دایرهٔ برد آن در نواحی مجاز به رنگ سبز و در محدودهٔ ممنوعه به رنگ قرمز دیده می‌شود.
 class_name BuildGhost
 extends Node2D
@@ -12,7 +12,6 @@ var reach := 160.0
 var issue := ""
 
 var _base: Sprite2D = null
-var _head: Sprite2D = null
 
 func _ready() -> void:
 	_ensure_sprites()
@@ -23,11 +22,6 @@ func _ensure_sprites() -> void:
 		_base.position = PIVOT_OFFSET
 		_base.z_index = 1
 		add_child(_base)
-	if _head == null:
-		_head = Sprite2D.new()
-		_head.position = PIVOT_OFFSET
-		_head.z_index = 2
-		add_child(_head)
 
 func set_weapon(weapon_def: Dictionary) -> void:
 	_ensure_sprites()
@@ -35,21 +29,10 @@ func set_weapon(weapon_def: Dictionary) -> void:
 	if weapon.is_empty():
 		visible = false
 		_base.texture = null
-		_head.texture = null
 		queue_redraw()
 		return
-	var wid := String(weapon.get("id", "machine_gun_lv1"))
-	var base_key := "towers/base_%s" % wid
-	_base.texture = Assets.tex(base_key if Assets.has_key(base_key) else "towers/base")
-	var top_key := "towers/top_%s" % wid
-	if Assets.has_key(top_key):
-		_head.texture = Assets.tex(top_key)
-		_head.hframes = 4
-		_head.frame = 0
-	else:
-		_head.texture = Assets.tex("towers/head_%s" % wid)
-		_head.hframes = 1
-		_head.frame = 0
+	var wid := String(weapon.get("id", "sangar"))
+	_base.texture = Assets.tex(Weapons.art_key(wid))
 	_update_sprite_modulate()
 	queue_redraw()
 
@@ -67,8 +50,6 @@ func _update_sprite_modulate() -> void:
 	var mod := Color(1.0, 1.0, 1.0, 0.96) if ok else Color(1.0, 0.62, 0.62, 0.94)
 	if _base != null:
 		_base.modulate = mod
-	if _head != null:
-		_head.modulate = mod
 
 func _draw() -> void:
 	if weapon.is_empty():

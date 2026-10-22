@@ -236,7 +236,7 @@ func weapon_button(weapon: Dictionary) -> Button:
 	icon_and_price.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_child(icon_and_price)
 	# در نوار نبرد خودِ تصویر برجک را نشان می‌دهیم، نه آیکون مدالیِ برگ‌دار.
-	var icon := tex("towers/head_%s" % weapon["id"], 46.0)
+	var icon := tex(Weapons.art_key(String(weapon["id"])), 46.0)
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_and_price.add_child(icon)
