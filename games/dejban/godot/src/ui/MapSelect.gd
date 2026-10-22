@@ -35,8 +35,14 @@ func _build() -> void:
 	var stars := Ui.icon_label("icons/star_small", "", 22, 28.0)
 	_stars_label = stars.get_child(1) as Label
 	top.add_child(stars)
-	var armory := Ui.button("اسلحه‌ها", 18, 46.0, "ghost")
-	armory.custom_minimum_size = Vector2(140, 46)
+	var armory := Ui.button("اسلحه‌ها", 18, 46.0, "online")
+	armory.custom_minimum_size = Vector2(170, 46)
+	# تصویر سنگر به‌عنوان زمینهٔ دکمه (زیر متن) نشان داده می‌شود تا روی صفحهٔ نقشه گنگ نباشد
+	armory.icon = Assets.tex("towers/sangar")
+	armory.expand_icon = true
+	armory.icon_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	armory.add_theme_color_override("font_outline_color", Color(0.04, 0.05, 0.07, 0.95))
+	armory.add_theme_constant_override("outline_size", 5)
 	armory.pressed.connect(func(): Ui.goto_scene("res://scenes/Armory.tscn"))
 	top.add_child(armory)
 

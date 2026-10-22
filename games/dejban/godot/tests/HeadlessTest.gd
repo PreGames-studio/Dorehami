@@ -293,6 +293,17 @@ func _smoke_scenes() -> void:
 			instance._finish_drag(bar_center)
 			check(instance.selected_weapon.is_empty(), "رهاکردن روی دکمهٔ آمادهٔ نوار باید کاشت را لغو کند")
 			instance.selected_weapon = armed_id
+			# انتخاب برجک فقط با گرفتن، کشیدن و رهاکردن است؛ لمس ساده آن را انتخاب نمی‌کند
+			var tower = instance.towers[0]
+			instance.selected_weapon = ""
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
+			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
+			check(instance.selected_tower == null, "لمس ساده روی برجک نباید آن را انتخاب کند")
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
+			instance._handle_build_press(false, built_pos + Vector2(40.0, -14.0))
+			check(instance.selected_tower == tower, "گرفتن و کشیدن روی برجک باید آن را انتخاب کند")
+			instance.select_tower(null)
+			instance.selected_weapon = armed_id
 			# بررسی نمایش کارت شکست هنگام تمام‌شدن جان دژ و کارت پیروزی پس از دفع ۳۰ موج
 			var saved_best := Game.best.duplicate(true)
 			var saved_maps := Game.unlocked_maps.duplicate()
@@ -590,15 +601,15 @@ func _test_unit_sheets() -> void:
 	check(UnitSheets.direction_name(Vector2(1.0, 0.2)) == "right", "جهت راست باید right باشد")
 	check(UnitSheets.direction_name(Vector2(-1.0, 0.2)) == "left", "جهت چپ باید left باشد")
 
-	# سرباز با شیت راه‌رفتن می‌رود (سرعت کم)
-	for case in [["soldier", "walk"]]:
+	# سرباز با شیت دویدن (۸ فریم) می‌رود؛ سر ثابت و پاها حرکت را می‌برند
+	for case in [["soldier", "run"]]:
 		var sheet_enemy := Enemy.new()
 		add_child(sheet_enemy)
 		var enemy_def := Enemies.by_id(String(case[0]))
 		sheet_enemy.setup(enemy_def, null, 1.0, 1.0, 1, 0.0)
 		check(sheet_enemy.active_anim() == String(case[1]),
 			"دشمن %s باید با انیمیشن %s بیاید، هست: %s" % [case[0], case[1], sheet_enemy.active_anim()])
-		check(sheet_enemy._sprite.hframes == 8, "شیت %s باید ۸ فریم داشته باشد" % case[0])
+		check(sheet_enemy._sprite.hframes == UnitSheets.RUN_FRAMES, "شیت %s باید ۸ فریم داشته باشد" % case[0])
 		# مرگ: شیت ۶ فریمی، فریم‌ها یکی‌یکی جلو می‌روند و آخرین فریم می‌ماند
 		sheet_enemy._die()
 		check(sheet_enemy.is_dying(), "با مرگ باید حالت افتادن روشن شود")
