@@ -263,6 +263,36 @@ func _smoke_scenes() -> void:
 			instance.begin_weapon_drag(instance.selected_weapon)
 			instance._finish_drag(road_pt)
 			check(instance.towers.size() == 1, "نباید اجازهٔ رهاکردن برجک داخل محدودهٔ جاده داده شود")
+
+			# لمس روی برجک موجود در حالت آماده نباید سلاح را پاک کند و باید همان را کاشت امتحان کند
+			var armed_id: String = instance.selected_weapon
+			instance.coins = 500
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
+			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
+			check(instance.selected_tower == null and instance.selected_weapon == armed_id,
+				"لمس روی برجک موجود نباید سلاح آماده را پاک کند")
+			check(instance.towers.size() == 1, "کاشت روی برجک موجود مجاز نیست")
+			# کاشت بعدی با لمس ساده در جای آزاد باید کار کند
+			var free_pt := Vector2.ZERO
+			for y in range(120, 620, 40):
+				for x in range(160, 1120, 40):
+					var pt := Vector2(x, y)
+					if pt.distance_to(built_pos) > 120.0 and instance.map.build_issue(pt, instance.occupied).is_empty():
+						free_pt = pt
+						break
+				if free_pt != Vector2.ZERO:
+					break
+			check(free_pt != Vector2.ZERO, "جای آزاد برای آزمون لمس پیدا نشد")
+			instance._handle_build_press(true, free_pt)
+			instance._handle_build_press(false, free_pt)
+			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id,
+				"کاشت با لمس ساده پس از لمس برجک قبلی انجام نشد")
+			# لغو با رها کردن روی دکمهٔ آمادهٔ نوار
+			var bar_center: Vector2 = instance.hud._weapon_panel.get_global_rect().get_center()
+			instance.begin_weapon_drag(armed_id, bar_center)
+			instance._finish_drag(bar_center)
+			check(instance.selected_weapon.is_empty(), "رهاکردن روی دکمهٔ آمادهٔ نوار باید کاشت را لغو کند")
+			instance.selected_weapon = armed_id
 			# بررسی نمایش کارت شکست هنگام تمام‌شدن جان دژ و کارت پیروزی پس از دفع ۳۰ موج
 			var saved_best := Game.best.duplicate(true)
 			var saved_maps := Game.unlocked_maps.duplicate()

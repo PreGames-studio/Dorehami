@@ -31,6 +31,8 @@ var selected_tower = null
 var running := true
 var paused := false
 var _drag_active := false
+## اگر سلاح از قبل آماده بود و کشیدن از روی دکمهٔ نوار شروع شد، رهاکردن روی نوار آن را لغو می‌کند.
+var _disarm_on_release := false
 
 var _world: Node2D = null
 var _ground: Ground = null
@@ -355,6 +357,11 @@ func _in_build_area(world: Vector2) -> bool:
 func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
 	if not running or paused:
 		return
+	# لمس اولِ دکمه چند رویداد پشت‌سرهم می‌فرستد (button_down و gui_input)؛ اگر همان سلاح از قبل
+	# در حال کشیدن است، فقط شروع دوباره نشود تا حالت آماده‌بودن بی‌دلیل عوض نشود.
+	if _drag_active and selected_weapon == id:
+		return
+	_disarm_on_release = selected_weapon == id
 	selected_weapon = id
 	if selected_tower != null and is_instance_valid(selected_tower):
 		selected_tower.set_selected(false)
@@ -373,8 +380,14 @@ func _finish_drag(world: Vector2) -> void:
 	if not _drag_active:
 		return
 	_drag_active = false
+	var disarm := _disarm_on_release
+	_disarm_on_release = false
 	if _in_build_area(world):
 		_try_build(world)
+	elif disarm and hud != null and hud.is_over_weapon_bar(world):
+		# روی همان دکمهٔ آمادهٔ نوار بزن و رها کن تا لغو شود؛ برای انتخاب برجک هم ابتدا همین کار را بکن.
+		_cancel_build_preview()
+		return
 	if ghost != null:
 		ghost.visible = false
 	_refresh_guide()
@@ -387,10 +400,8 @@ func _handle_build_press(pressed: bool, world: Vector2) -> void:
 			_click_world(world)
 		return
 	if pressed:
-		var existing = _tower_at(world)
-		if existing != null:
-			select_tower(existing)
-			return
+		# با سلاح آماده، هر لمسی روی نقشه تلاش کاشت است؛ حتی اگر روی برجک قبلی باشد.
+		# پیش‌تر لمس برجک، سلاح آماده را پاک می‌کرد و کاشت بعدی بی‌اثر می‌ماند.
 		_drag_active = true
 		_refresh_guide()
 		if ghost != null:
