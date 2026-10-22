@@ -853,7 +853,7 @@ func _test_battle_tower_upgrades() -> void:
 
 # ------------------------------------------------------------------ سربازان سنگر
 
-## هر سطح ارتقای سنگر یک سرباز تازه داخل سنگر اضافه می‌کند: سطح ۱ یک سرباز و سطح ۵ پنج سرباز.
+## هر سطح ارتقای سنگر یک سرباز تازه داخل سنگر اضافه می‌کند: سطح ۱ یک سرباز و بیشترین سطح چهار سرباز.
 ## سربازها باید در جای متفاوت و قرینه چیده شوند و با سطح بالاتر هم حذف نشوند.
 func _test_sangar_soldiers() -> void:
 	var tower := Tower.new()
@@ -865,7 +865,7 @@ func _test_sangar_soldiers() -> void:
 		tower.upgrade()
 		check(tower.level == expected and tower._soldiers.size() == expected,
 			"سنگر در سطح %d باید %d سرباز داشته باشد" % [expected, expected])
-	check(tower._soldiers.size() == Balance.MAX_LEVEL, "سنگر در بیشترین سطح باید پنج سرباز داشته باشد")
+	check(tower._soldiers.size() == Balance.MAX_LEVEL, "سنگر در بیشترین سطح باید چهار سرباز داشته باشد")
 	var distinct := true
 	for a in range(tower._soldiers.size()):
 		for b in range(a + 1, tower._soldiers.size()):
