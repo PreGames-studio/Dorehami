@@ -96,6 +96,8 @@ func _ready() -> void:
 	_test_balance()
 	print("— بررسی برد شلیک برجک…")
 	_test_tower_range()
+	print("— بررسی سربازان سنگر…")
+	_test_sangar_soldiers()
 	print("— بررسی صفحهٔ آغازین…")
 	_test_launch_presentation()
 	print("— بررسی پنجرهٔ تأییدیه…")
@@ -482,6 +484,7 @@ func _test_weapons() -> void:
 		var kind := String(weapon.get("kind", ""))
 		check(VALID_KINDS.has(kind), "نوع نامعتبر در سلاح %s: %s" % [id, kind])
 		check(Assets.has_key(Weapons.art_key(id)), "تصویر سنگر %s گم شده" % id)
+		check(Assets.has_key("towers/sangar_soldier"), "تصویر سرباز داخل سنگر گم شده")
 		check(Assets.has_key("towers/muzzle_1") and Assets.has_key("towers/muzzle_2"), "شعلهٔ دهانهٔ سنگر گم شده")
 		if kind == "splash":
 			check(float(weapon.get("splash", 0.0)) > 0.0, "شعاع ناحیه‌ای در %s صفر است" % id)
@@ -805,6 +808,31 @@ func _test_battle_tower_upgrades() -> void:
 			and tower.damage() == max_damage and tower.invested == max_invested,
 			"در سقف سطح، ارتقای %s نباید هزینه یا آسیب را تغییر دهد" % id)
 		tower.free()
+
+# ------------------------------------------------------------------ سربازان سنگر
+
+## هر سطح ارتقای سنگر یک سرباز تازه داخل سنگر اضافه می‌کند: سطح ۱ یک سرباز و سطح ۵ پنج سرباز.
+## سربازها باید در جای متفاوت و قرینه چیده شوند و با سطح بالاتر هم حذف نشوند.
+func _test_sangar_soldiers() -> void:
+	var tower := Tower.new()
+	add_child(tower)
+	tower.setup(Weapons.by_id("sangar"), null)
+	check(tower.soldier_count() == 1 and tower._soldiers.size() == 1,
+		"سنگر در سطح ۱ باید یک سرباز داشته باشد")
+	for expected in range(2, Balance.MAX_LEVEL + 1):
+		tower.upgrade()
+		check(tower.level == expected and tower._soldiers.size() == expected,
+			"سنگر در سطح %d باید %d سرباز داشته باشد" % [expected, expected])
+	check(tower._soldiers.size() == Balance.MAX_LEVEL, "سنگر در بیشترین سطح باید پنج سرباز داشته باشد")
+	var distinct := true
+	for a in range(tower._soldiers.size()):
+		for b in range(a + 1, tower._soldiers.size()):
+			if tower._soldiers[a].position.is_equal_approx(tower._soldiers[b].position):
+				distinct = false
+	check(distinct, "سربازهای داخل سنگر نباید روی هم قرار بگیرند")
+	tower.upgrade()
+	check(tower._soldiers.size() == Balance.MAX_LEVEL, "ارتقا در سقف سطح نباید سرباز اضافه کند")
+	tower.queue_free()
 
 # ------------------------------------------------------------------ برد شلیک برجک
 
