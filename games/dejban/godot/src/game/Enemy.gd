@@ -191,12 +191,19 @@ func _update_transform(delta: float, current_speed := 46.0) -> void:
 		_sprite.scale = Vector2(scale_mult * flip_scale * pulse, scale_mult * (2.0 - pulse))
 	else:
 		_walk_phase += delta * (run_rate if _anim == "run" else 10.8 * stride_rate)
-		var step_hop := absf(sin(_walk_phase))
-		var step_sway := sin(_walk_phase) * 0.085
 		var squash := cos(_walk_phase * 2.0) * 0.05
 		var slope_lean := clampf(local_road_rot * 0.24, -0.20, 0.20)
-		_sprite.position = Vector2(sin(_walk_phase) * 1.2, -step_hop * 2.8 * scale_mult)
-		_sprite.rotation = step_sway + 0.045 * face_sign + slope_lean
+		if _anim == "walk":
+			# خود شیت راه رفتن بالا-پایین شدن بدن و تاب پاها را دارد. اگر کل تصویر
+			# در هر گام جابه‌جا یا چرخانده شود، سر به جلو و عقب می‌لغزد در حالی که
+			# پاها روی زمین ثابت‌اند؛ پس فقط شیب جاده می‌ماند.
+			_sprite.position = Vector2.ZERO
+			_sprite.rotation = 0.045 * face_sign + slope_lean
+		else:
+			var step_hop := absf(sin(_walk_phase))
+			var step_sway := sin(_walk_phase) * 0.085
+			_sprite.position = Vector2(sin(_walk_phase) * 1.2, -step_hop * 2.8 * scale_mult)
+			_sprite.rotation = step_sway + 0.045 * face_sign + slope_lean
 		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + squash), scale_mult * (1.0 - squash * 0.8))
 
 	if _sprite.hframes > 1:
