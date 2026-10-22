@@ -774,8 +774,8 @@ func _test_balance() -> void:
 	check(Balance.START_COINS > 0 and Balance.START_LIVES > 0, "شروع بازی نامعتبر است")
 	check(Balance.level_damage_mult(1) == 1.0, "سطح یک باید ضریب یک داشته باشد")
 	for level in range(2, Balance.MAX_LEVEL + 1):
-		check(is_equal_approx(Balance.level_damage_mult(level), 2.0 * Balance.level_damage_mult(level - 1)),
-			"آسیب سطح %d باید دو برابر سطح قبل باشد" % level)
+		check(is_equal_approx(Balance.level_damage_mult(level) - Balance.level_damage_mult(level - 1), Balance.DAMAGE_STEP_PER_LEVEL),
+			"آسیب سطح %d باید به اندازهٔ گام ثابت تعادل بالا برود" % level)
 	for level in range(1, Balance.MAX_LEVEL):
 		check(Balance.upgrade_cost(65, level) == 65,
 			"ارتقای برجک ۶۵ سکه‌ای باید در همهٔ سطح‌ها ۶۵ سکه باشد")
@@ -797,8 +797,9 @@ func _test_battle_tower_upgrades() -> void:
 				"هزینهٔ ارتقای %s در سطح %d باید برابر کاشت باشد" % [id, level])
 			var previous_damage := tower.damage()
 			tower.upgrade()
-			check(tower.level == level + 1 and is_equal_approx(tower.damage(), previous_damage * 2.0),
-				"ارتقای %s باید آسیب را دو برابر کند" % id)
+			var expected_damage := previous_damage * Balance.level_damage_mult(level + 1) / Balance.level_damage_mult(level)
+			check(tower.level == level + 1 and is_equal_approx(tower.damage(), expected_damage),
+				"ارتقای %s باید آسیب را طبق گام تعادل بالا ببرد" % id)
 			check(tower.invested == placement_cost * tower.level,
 				"هزینهٔ سرمایه‌گذاری‌شدهٔ %s باید شامل قیمت ثابت ارتقاها باشد" % id)
 		var max_damage := tower.damage()
