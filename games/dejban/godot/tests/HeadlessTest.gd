@@ -861,6 +861,14 @@ func _test_sangar_soldiers() -> void:
 			if tower._soldiers[a].position.is_equal_approx(tower._soldiers[b].position):
 				distinct = false
 	check(distinct, "سربازهای داخل سنگر نباید روی هم قرار بگیرند")
+	# خود سنگر باید ثابت بماند؛ فقط سربازها نفس می‌کشند و تکان می‌خورند
+	tower._process(1.0)
+	check(tower._base.scale.is_equal_approx(Vector2.ONE) and tower._base.position.is_equal_approx(Tower.PIVOT_OFFSET),
+		"خود سنگر باید پس از کاشته‌شدن ثابت بماند")
+	var soldier_before: Vector2 = tower._soldiers[0].scale
+	tower._process(0.3)
+	check(not soldier_before.is_equal_approx(tower._soldiers[0].scale), "سربازهای داخل سنگر باید حرکت داشته باشند")
+	check(tower._base.scale.is_equal_approx(Vector2.ONE), "حرکت سرباز نباید سنگر را بزرگ یا کوچک کند")
 	tower.upgrade()
 	check(tower._soldiers.size() == Balance.MAX_LEVEL, "ارتقا در سقف سطح نباید سرباز اضافه کند")
 	tower.queue_free()

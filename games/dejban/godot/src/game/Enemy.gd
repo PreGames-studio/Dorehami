@@ -191,7 +191,8 @@ func _update_transform(delta: float, current_speed := 46.0) -> void:
 		_sprite.scale = Vector2(scale_mult * flip_scale * pulse, scale_mult * (2.0 - pulse))
 	else:
 		_walk_phase += delta * (run_rate if _anim == "run" else 10.8 * stride_rate)
-		var squash := cos(_walk_phase * 2.0) * 0.05
+		# در راه رفتن هیچ بزرگ‌وکوچک شدن عمودی روی تصویر نیست؛ هر تکان بالا-پایین از خود شیت می‌آید و همان‌جا مانده است.
+		var squash := 0.0 if _anim == "walk" else cos(_walk_phase * 2.0) * 0.05
 		var slope_lean := clampf(local_road_rot * 0.24, -0.20, 0.20)
 		if _anim == "walk":
 			# خود شیت راه رفتن بالا-پایین شدن بدن و تاب پاها را دارد. اگر کل تصویر
