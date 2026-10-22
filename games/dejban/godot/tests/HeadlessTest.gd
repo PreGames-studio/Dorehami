@@ -99,6 +99,8 @@ func _ready() -> void:
 	_test_tower_range()
 	print("— بررسی صفحهٔ آغازین…")
 	_test_launch_presentation()
+	print("— بررسی پنجرهٔ تأییدیه…")
+	_test_confirm_dialog()
 	print("— ساخت صحنه‌ها…")
 	await _smoke_scenes()
 	_report()
@@ -214,6 +216,9 @@ func _smoke_scenes() -> void:
 			check(_find_label(texts, "موتور: Godot") < 0, "خط موتور باید از شناسنامه پاک شده باشد")
 			check(_find_label(texts, "فونت: وزیرمتن") < 0, "خط فونت باید از شناسنامه پاک شده باشد")
 		if path.ends_with("Battle.tscn"):
+			check(instance.hud != null and instance.hud._coins_label is Button and instance.hud._lives_label is Button
+				and instance.hud._wave_label is Button and instance.hud._enemies_label is Button,
+				"اطلاعات نوار بالای نبرد باید به‌صورت دکمه نمایش داده شوند")
 			check(instance.hud != null and instance.hud.size.y >= 700.0,
 				"ابعاد HUD نبرد نادرست است: %s" % [instance.hud.size if instance.hud != null else Vector2.ZERO])
 			check(instance.hud != null and instance.hud._weapon_buttons.size() == Game.unlocked_weapons.size(),
@@ -332,6 +337,42 @@ func _report() -> void:
 		for item in failures:
 			printerr("  ✗ %s" % item)
 		get_tree().quit(1)
+
+# ------------------------------------------------------------------ پنجرهٔ تأییدیه
+
+## پنجرهٔ تأییدیهٔ خروج: «بله» اجرا و بسته می‌شود، «انصراف» فقط بسته و on_cancel اجرا می‌شود.
+func _test_confirm_dialog() -> void:
+	var host := Control.new()
+	add_child(host)
+	var asked := [false]
+	var cancelled := [false]
+	var overlay := Ui.confirm(host, "تست", "متن", func(): asked[0] = true, func(): cancelled[0] = true)
+	check(host.get_node_or_null("ConfirmOverlay") == overlay, "پنجرهٔ تأییدیه باید به میزبان اضافه شود")
+	check(Ui.confirm(host, "تست", "متن", func(): pass) == overlay, "پنجرهٔ تأییدیه نباید دوبار باز شود")
+	var accept_button := _find_button(overlay, "بله")
+	var cancel_button := _find_button(overlay, "انصراف")
+	check(accept_button != null and cancel_button != null, "دکمه‌های «بله» و «انصراف» در تأییدیه نیستند")
+	if accept_button != null and cancel_button != null:
+		cancel_button.pressed.emit()
+		check(cancelled[0] and not asked[0] and overlay.is_queued_for_deletion(),
+			"«انصراف» باید پنجره را ببندد و کاری را اجرا نکند")
+		var second_host := Control.new()
+		add_child(second_host)
+		overlay = Ui.confirm(second_host, "تست", "متن", func(): asked[0] = true)
+		accept_button = _find_button(overlay, "بله")
+		accept_button.pressed.emit()
+		check(asked[0] and overlay.is_queued_for_deletion(), "«بله» باید کار را اجرا و پنجره را ببندد")
+		second_host.queue_free()
+	host.queue_free()
+
+func _find_button(node: Node, text: String) -> Button:
+	if node is Button and (node as Button).text == text:
+		return node as Button
+	for child in node.get_children():
+		var found := _find_button(child, text)
+		if found != null:
+			return found
+	return null
 
 # ------------------------------------------------------------------ دارایی‌ها
 

@@ -257,6 +257,67 @@ func weapon_button(weapon: Dictionary) -> Button:
 	node.tooltip_text = "%s سکه برای ساخت" % fa(int(weapon["cost"]))
 	return node
 
+## پنجرهٔ تأییدیه: لایهٔ تیره روی کل صفحه با دو دکمه. «بله» ابتدا پنجره را می‌بندد و
+## سپس on_confirm را اجرا می‌کند؛ «انصراف» فقط پنجره را می‌بندد و on_cancel (اگر باشد)
+## اجرا می‌شود. اگر پنجره از قبل باز باشد، همان را برمی‌گرداند تا دو بار باز نشود.
+func confirm(host: Node, prompt_text: String, body_text: String, on_confirm: Callable, on_cancel := Callable()) -> Control:
+	var existing := host.get_node_or_null("ConfirmOverlay")
+	if existing != null and not existing.is_queued_for_deletion():
+		return existing as Control
+
+	var overlay := Control.new()
+	overlay.name = "ConfirmOverlay"
+	overlay.mouse_filter = Control.MOUSE_FILTER_STOP
+	overlay.set_anchors_preset(Control.PRESET_FULL_RECT)
+
+	var dim := ColorRect.new()
+	dim.color = Color(0.02, 0.05, 0.06, 0.72)
+	dim.mouse_filter = Control.MOUSE_FILTER_STOP
+	dim.set_anchors_preset(Control.PRESET_FULL_RECT)
+	overlay.add_child(dim)
+
+	var card := panel(Color(Style.bg_panel.r, Style.bg_panel.g, Style.bg_panel.b, 0.98), 18, 22.0)
+	card.set_anchors_preset(Control.PRESET_CENTER)
+	card.offset_left = -230.0
+	card.offset_right = 230.0
+	card.offset_top = -132.0
+	card.offset_bottom = 132.0
+	overlay.add_child(card)
+
+	var column_box := column(16)
+	column_box.alignment = BoxContainer.ALIGNMENT_CENTER
+	card.add_child(column_box)
+
+	var heading := title(prompt_text, 28)
+	heading.horizontal_alignment = HORIZONTAL_ALIGNMENT_CENTER
+	column_box.add_child(heading)
+
+	var body := label(body_text, 18, Style.text, HORIZONTAL_ALIGNMENT_CENTER)
+	body.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
+	column_box.add_child(body)
+
+	var buttons := row(12)
+	buttons.alignment = BoxContainer.ALIGNMENT_CENTER
+	column_box.add_child(buttons)
+
+	var cancel := button("انصراف", 20, 50.0, "ghost")
+	cancel.custom_minimum_size = Vector2(190, 50)
+	cancel.pressed.connect(func():
+		overlay.queue_free()
+		if on_cancel.is_valid():
+			on_cancel.call())
+	buttons.add_child(cancel)
+
+	var accept := button("بله", 20, 50.0, "danger")
+	accept.custom_minimum_size = Vector2(190, 50)
+	accept.pressed.connect(func():
+		overlay.queue_free()
+		on_confirm.call())
+	buttons.add_child(accept)
+
+	host.add_child(overlay)
+	return overlay
+
 ## پس‌زمینهٔ تمام‌صفحهٔ منو؛ اگر مسیر تصویر ندهیم از بافت نظامی پیش‌فرض استفاده می‌شود.
 func backdrop(parent: Node, with_keep := true, background_path := "") -> Control:
 	var layer := Control.new()
