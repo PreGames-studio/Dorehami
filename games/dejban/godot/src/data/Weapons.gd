@@ -13,7 +13,7 @@ const LIST := [
 		"id": "sangar", "family": "sangar", "tier_level": 1, "tier_name": "سنگر",
 		"name": "سنگر سرباز",
 		"desc": "سنگر کیسه‌شنی با یک سرباز تیرانداز که دشمنان داخل برد را یکی‌یکی هدف می‌گیرد.",
-		"cost": 120, "star_cost": 0,
+		"cost": 90, "star_cost": 0,
 		"damage": 20.0, "range": 180.0, "cooldown": 0.45,
 		"kind": "single", "shots": 1, "bullet": "dart", "bullet_speed": 700.0,
 		"targeting": "first",

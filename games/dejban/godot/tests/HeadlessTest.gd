@@ -497,6 +497,8 @@ func _test_weapons() -> void:
 	check(String(Weapons.art_key("sangar")) == "towers/sangar", "کلید تصویر سنگر اشتباه است")
 	check(String(Weapons.by_id("sangar").get("kind", "")) == "single", "سنگر باید تک‌تیرانداز باشد")
 	check(Game.is_weapon_unlocked("sangar"), "سنگر باید به‌صورت پیش‌فرض باز باشد")
+	check(int(Weapons.by_id("sangar")["cost"]) <= Balance.START_COINS,
+		"سنگر باید با سکهٔ شروع نبرد قابل خرید باشد؛ وگرنه نبرد بدون برجک گیر می‌کند")
 
 
 # ------------------------------------------------------------------ دشمنان
