@@ -315,10 +315,6 @@ func _spawn_projectile(shot_target, index := 0) -> void:
 	_fx_parent().add_child(projectile)
 	projectile.global_position = position + PIVOT_OFFSET + _muzzle_local(index)
 
-## نقطهٔ لولهٔ تفنگ نسبت به مرکز سنگر، با توجه به جهت سرباز.
-func _muzzle_local() -> Vector2:
-	return Vector2(MUZZLE_OFFSET.x * _sign_x, MUZZLE_OFFSET.y)
-
 ## آسیب یک ضربه روی یک دشمن، همراه با اثرهای سلاح.
 func _hit(enemy, amount: float) -> void:
 	if enemy == null or not is_instance_valid(enemy) or not enemy.alive:
