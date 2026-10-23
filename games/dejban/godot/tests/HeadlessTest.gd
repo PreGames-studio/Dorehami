@@ -762,7 +762,7 @@ func _test_unit_sheets() -> void:
 		# نوار جان باید در لایهٔ بالای اسپرایت و کاملاً بالاتر از لبهٔ بالای سر باشد.
 		check(sheet_enemy._health_bar != null, "نوار جان جدا برای %s ساخته نشده است" % case[0])
 		if sheet_enemy._health_bar != null:
-			var sprite_top := sheet_enemy._sprite.offset.y * sheet_enemy.scale_mult
+			var sprite_top: float = sheet_enemy._sprite.offset.y * sheet_enemy.scale_mult
 			check(sheet_enemy._health_bar.z_index > sheet_enemy._sprite.z_index,
 				"نوار جان %s باید بعد از اسپرایت و روی آن رسم شود" % case[0])
 			check(sheet_enemy._health_bar.position.y + Enemy.BAR_HEIGHT < sprite_top,
@@ -1015,7 +1015,7 @@ func _test_armory_damage_upgrades() -> void:
 		for level in range(1, Balance.ARMORY_MAX_LEVEL + 1):
 			profile.weapon_levels[id] = level
 			var effective_damage := base_damage * profile.weapon_damage_mult(id)
-			var expected_damage := base_damage + float(level) * Balance.ARMORY_DAMAGE_PER_LEVEL
+			var expected_damage: float = base_damage + float(level) * Balance.ARMORY_DAMAGE_PER_LEVEL
 			check(is_equal_approx(effective_damage, expected_damage),
 				"آسیب %s در سطح %d باید %.2f باشد، هست %.2f" % [id, level, expected_damage, effective_damage])
 		profile.weapon_levels[id] = 1

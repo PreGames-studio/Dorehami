@@ -16,7 +16,7 @@ class HealthBar:
 			return
 		draw_rect(Rect2(-bar_width * 0.5 - 1.0, -1.0, bar_width + 2.0, HEIGHT + 2.0),
 			Color(0.02, 0.05, 0.06, 0.72))
-		var color := Style.good
+		var color: Color = Style.good
 		if ratio < 0.28:
 			color = Style.bad
 		elif ratio < 0.6:
@@ -417,7 +417,7 @@ func has_trait(feature: String) -> bool:
 func crowd_radius() -> float:
 	return 16.0 * scale_mult
 
-# ------------------------------------------------------------------ نمایش سایه؛ نوار جان در HealthBar بالای اسپرایت است
+# -------------------------------------------------- نمایش سایه؛ نوار جان در HealthBar بالای اسپرایت است
 
 func _draw() -> void:
 	if not alive or max_hp <= 0.0:
