@@ -5,6 +5,10 @@
 فقط با همین کلیدها کار می‌کند، پس جایگزینی هنر بدون تغییر کد ممکن است:
 
     python3 tools/gen_assets_manifest.py
+
+پک‌های ایزومتریک ۱۲۸×۱۲۸ (شبکهٔ «ردیف = جهت، ستون = فریم») کلیدِ دستهٔ خودشان را
+می‌گیرند تا با هنر قدیمی قاطی نشوند (ISO_PACKS)؛ مثلاً
+assets/sprites/units/iso_tank/tank_move.png ← «units_iso_tank/tank_move».
 """
 
 from __future__ import annotations
@@ -16,6 +20,20 @@ SPRITES = os.path.join(ROOT, "assets", "sprites")
 ICONS = os.path.join(ROOT, "assets", "icons")
 SOUNDS = os.path.join(ROOT, "assets", "sounds")
 TARGET = os.path.join(ROOT, "src", "data", "Assets.gd")
+
+# پوشهٔ پک (نسبت به assets/sprites) ← دستهٔ کلید در مانیفست. فایل‌ها بی‌تغییرِ نام کپی
+# می‌شوند و کلیدشان «دسته/نامِ فایل» است؛ IsoSheet.gd همین کلیدها را برش می‌دهد.
+ISO_PACKS = {
+    "towers_iso": "towers_iso",
+    "units/iso_tank": "units_iso_tank",
+}
+
+# پشتوانهٔ هر دستهٔ ایزومتریک یک شیت با همان شبکهٔ ۸ ردیفی است تا برش جهت‌ها
+# حتی با کلید گم‌شده هم درست بماند.
+ISO_FALLBACKS = {
+    "towers_iso": "towers_iso/machinegun_idle",
+    "units_iso_tank": "units_iso_tank/tank_idle",
+}
 
 HEADER = '''## این فایل با tools/gen_assets_manifest.py ساخته می‌شود؛ دستی ویرایش نکنید.
 ##
@@ -95,6 +113,14 @@ def collect(folder: str) -> list[tuple[str, str]]:
     return rows
 
 
+def iso_key(rel: str) -> str:
+    """کلید منطقی یک تصویر: پوشهٔ پک‌های ایزومتریک با دستهٔ خودشان عوض می‌شود."""
+    for folder, category in ISO_PACKS.items():
+        if rel.startswith(folder + "/"):
+            return category + rel[len(folder):]
+    return rel
+
+
 def collect_sounds() -> list[tuple[str, str]]:
     rows: list[tuple[str, str]] = []
     for root, dirs, files in os.walk(SOUNDS):
@@ -111,7 +137,7 @@ def collect_sounds() -> list[tuple[str, str]]:
 
 
 def main() -> None:
-    sprites = collect("sprites")
+    sprites = [(iso_key(rel), path) for rel, path in collect("sprites")]
     # آیکون‌ها در پوشهٔ خودشان دستهٔ «icons» را می‌سازند: icons/w_bow
     icons = [("icons/" + rel, path) for rel, path in collect("icons")]
     sounds = collect_sounds()
@@ -134,6 +160,14 @@ def main() -> None:
         ('"icons"', '"icons/coin"'),
         ('"icon"', '"icon/app"'),
     ]
+    keys = {key for key, _path in sprites}
+    for category, fallback in ISO_FALLBACKS.items():
+        if fallback not in keys:
+            raise SystemExit("پشتوانهٔ دستهٔ %s در دارایی‌ها نیست: %s" % (category, fallback))
+        fallbacks.append(('"%s"' % category, '"%s"' % fallback))
+    for category in ISO_PACKS.values():
+        if category not in ISO_FALLBACKS:
+            raise SystemExit("دستهٔ ایزومتریک %s پشتوانه ندارد" % category)
     fb_lines = ["\t%s: %s," % (k, v) for k, v in fallbacks]
 
     sound_lines = ['\t"%s": "%s",' % (key, path) for key, path in sounds]

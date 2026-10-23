@@ -180,12 +180,14 @@ func _spawn_enemy(id: String) -> void:
 	var def := Enemies.by_id(id)
 	if def.is_empty():
 		return
-	var enemy := Enemy.new()
+	# دشمن‌های پک ایزومتریک (تانک) با IsoEnemy ساخته می‌شوند؛ سرباز مثل قبل.
+	var enemy: Enemy = IsoEnemy.new() if def.has("iso") else Enemy.new()
 	_units.add_child(enemy)
 	enemy.setup(def, map, Balance.enemy_hp_scale(map.index, wave_index),
 		Balance.enemy_speed_scale(map.index, wave_index), wave_index, _rng.randf_range(-4.0, 4.0))
 	enemy.died.connect(_on_enemy_died)
 	enemy.reached_keep.connect(_on_enemy_reached)
+	enemy.keep_attacked.connect(_on_keep_attacked)
 	enemies.append(enemy)
 
 func _end_wave() -> void:
@@ -271,6 +273,21 @@ func _on_enemy_reached(enemy) -> void:
 	Fx.shake(_world, 8.0, 0.32)
 	Fx.text(_fx_layer, keep.position + Vector2(0.0, -118.0), "-" + Ui.fa(damage), Style.bad, 22)
 	enemy.queue_free()
+
+## تانکِ در حال محاصره با هر شلیک لیزر جان دژ را کم می‌کند، ولی خودش در میدان می‌ماند
+## (برخلاف سربازی که با رسیدن به دژ حذف می‌شود)؛ پس موج تا نابودی‌اش تمام نمی‌شود.
+func _on_keep_attacked(enemy, amount: int) -> void:
+	if not running or keep == null or not is_instance_valid(enemy) or not enemy.alive:
+		return
+	# پرتو قرمز از نوک لیزرِ فریم attack تانک تا بدنهٔ دژ.
+	var hit_point := keep.position + Vector2(0.0, -26.0)
+	if enemy.has_method("laser_tip"):
+		Fx.beam(_fx_layer, "fx/laser_beam", enemy.laser_tip(), hit_point, 0.9, IsoEnemy.LASER_TINT)
+	Fx.impact(_fx_layer, hit_point, 0.5)
+	keep.take_damage(amount)
+	Audio.play("keep_hit")
+	Fx.shake(_world, 5.0, 0.22)
+	Fx.text(_fx_layer, keep.position + Vector2(0.0, -118.0), "-" + Ui.fa(amount), Style.bad, 22)
 
 func _on_keep_damaged(lives_after: int) -> void:
 	lives = lives_after
@@ -395,8 +412,8 @@ func _finish_drag(world: Vector2) -> void:
 		if dragged:
 			_try_build(world)
 		else:
-			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد سنگر نمی‌کارد.
-			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، سنگر را بگیر و بکش", Style.gold, 16)
+			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد برجک نمی‌کارد.
+			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، برجک را بگیر و بکش", Style.gold, 16)
 	elif disarm and hud != null and hud.is_over_weapon_bar(world):
 		# روی همان دکمهٔ آمادهٔ نوار رها شد: لغو کاشت
 		_cancel_build_preview()

@@ -25,12 +25,15 @@ CLASS_FILES = {
     "Maps": "src/data/Maps.gd",
     "GameMap": "src/data/GameMap.gd",
     "Assets": "src/data/Assets.gd",
+    "IsoSheet": "src/data/IsoSheet.gd",
     "Fx": "src/fx/Fx.gd",
     "Game": "src/autoload/Game.gd",
     "Audio": "src/autoload/Audio.gd",
     "Style": "src/autoload/Style.gd",
     "Ui": "src/autoload/Ui.gd",
     "BuildGuide": "src/game/BuildGuide.gd",
+    "Tower": "src/game/Tower.gd",
+    "IsoEnemy": "src/game/IsoEnemy.gd",
 }
 
 MEMBER_PATTERNS = [
@@ -38,6 +41,7 @@ MEMBER_PATTERNS = [
     re.compile(r"^\s*(?:static\s+)?var\s+([A-Za-z_][A-Za-z0-9_]*)"),
     re.compile(r"^\s*(?:static\s+)?func\s+([A-Za-z_][A-Za-z0-9_]*)"),
     re.compile(r"^\s*signal\s+([A-Za-z_][A-Za-z0-9_]*)"),
+    re.compile(r"^\s*class\s+([A-Za-z_][A-Za-z0-9_]*)"),
 ]
 
 # اعضایی که از Object/Node به ارث می‌رسند و در فایل خودمان نیستند
