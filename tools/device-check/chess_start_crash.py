@@ -1,9 +1,10 @@
 #!/usr/bin/env python3
-"""Device smoke test: open Dorehami, walk to the chess setup screen, start a game against the bot.
+"""Device smoke test for chess, the chess-only store, and the Hokm setup/table.
 
-This reproduces the report "pressing «شروع بازی با ربات» crashes and closes the app" on a real
-Android device/emulator, because that path is the only one plain JVM tests cannot cover:
-`GLSurfaceView` + EGL configuration + `SoundPool` all run for the first time here.
+The chess path reproduces the report "pressing «شروع بازی با ربات» crashes and closes the app" on
+an Android device/emulator, where `GLSurfaceView`, EGL configuration, and `SoundPool` really run.
+The store path checks its new navigation owner, and the Hokm path exercises its bundled fonts,
+artwork, Compose theme, and table rendering rather than merely compiling those resources.
 
 Run from a workflow that already installed the debug APK (see `.github/workflows/device-check.yml`):
 
@@ -79,6 +80,33 @@ def tap_text(fragment: str, *, required: bool = True) -> bool:
     return False
 
 
+def expect_text(fragment: str) -> bool:
+    """Confirms navigation reached the intended screen, not merely that a tap was delivered."""
+    current = nodes()
+    if any(fragment in text or fragment in desc for text, desc, _ in current):
+        log(f"✔ screen contains «{fragment}»")
+        return True
+    message = f"expected screen to contain «{fragment}»"
+    failures.append(message)
+    log(message)
+    for text, desc, bounds in current:
+        log(f"    node text={text!r} desc={desc!r} bounds={bounds}")
+    return False
+
+
+def relaunch(section: str) -> bool:
+    """Starts a clean Home → Games flow without relying on game-specific back dialogs."""
+    log(f"relaunching for {section}")
+    sh("adb", "shell", "am", "force-stop", PKG)
+    sh("adb", "shell", "am", "start", "-n", ACTIVITY)
+    time.sleep(6)
+    if not alive():
+        failures.append(f"app died while relaunching for {section}")
+        dump_logs()
+        return False
+    return True
+
+
 def step(name: str, action, settle: float = 1.5) -> bool:
     """Runs one UI step; a dead process or a missing node marks the step failed."""
     if not alive():
@@ -131,21 +159,45 @@ def main() -> int:
         return 1
 
     step("01-games", lambda: tap_text("ورود به بازی"))
-    step("02-chess-setup", lambda: tap_text("شطرنج"))
+    step("02-chess-menu", lambda: tap_text("شطرنج"))
+    step("03-chess-offline", lambda: tap_text("آفلاین"))
+    step("04-chess-solo-setup", lambda: tap_text("بازی تکی"))
     # Level / colour defaults are exactly what a user gets when they just press the big button.
-    step("03-chess-board", lambda: tap_text("شروع بازی با ربات"), settle=6.0)
+    step("05-chess-board", lambda: tap_text("شروع بازی با ربات"), settle=6.0)
 
-    # Play one move if the board came up: tap the human pawn on e2, then e4.
+    # Open the board's view control if the board came up.
     if alive() and not failures:
-        step("04-board-tap", lambda: tap_text("نمای پیش‌فرض", required=False), settle=1.0)
+        step("06-board-tap", lambda: tap_text("نمای پیش‌فرض", required=False), settle=1.0)
 
     time.sleep(1.0)
     if not alive():
-        if not any("03-chess-board" in f for f in failures):
+        if not any("05-chess-board" in f for f in failures):
             failures.append("app crashed after the board was shown")
         dump_logs()
     else:
         log("✅ chess opened and stayed alive")
+
+    # The store must be reachable from chess itself and must return to chess, not Home.
+    if not failures and relaunch("chess store"):
+        step("07-store-games", lambda: tap_text("ورود به بازی"))
+        step("08-store-chess-menu", lambda: tap_text("شطرنج"))
+        step("09-chess-store", lambda: tap_text("فروشگاه شطرنج"))
+        if not failures:
+            expect_text("موجودی کیف‌پول")
+        step("10-store-back-to-chess", lambda: tap_text("بازگشت"))
+        if not failures:
+            expect_text("یک میز، هر طور که دوست داری")
+
+    # Open the actual Hokm UI so missing font/image resources and composition-time crashes are
+    # covered too. Starting the bots also renders the recolored gameplay table on the device.
+    if not failures and relaunch("Hokm"):
+        step("11-hokm-games", lambda: tap_text("ورود به بازی"))
+        step("12-hokm-setup", lambda: tap_text("حکم"), settle=3.0)
+        if not failures:
+            expect_text("بازی اصیل ایرانی")
+        step("13-hokm-table", lambda: tap_text("شروع بازی با ربات‌ها"), settle=7.0)
+        if alive() and not failures:
+            log("✅ chess store navigation and Hokm setup/table stayed alive")
 
     if failures:
         log("FAILURES:")
