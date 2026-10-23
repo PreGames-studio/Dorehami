@@ -25,8 +25,8 @@ import kotlinx.coroutines.withContext
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.put
 
-/** How the local match is played. */
-enum class ChessMode { VS_BOT, PASS_AND_PLAY }
+/** How the table is played. NETWORK is driven by [ChessSessionMatch], never by the local engine. */
+enum class ChessMode { VS_BOT, PASS_AND_PLAY, NETWORK }
 
 /** Colour the human asked for against the bot. */
 enum class ColorChoice { WHITE, BLACK, RANDOM }
@@ -43,6 +43,8 @@ data class ChessOutcome(val title: String, val detail: String, val winnerSide: I
  */
 data class ChessUiState(
     val mode: ChessMode = ChessMode.VS_BOT,
+    /** Offline transport label for a network table; null uses the local mode's default label. */
+    val modeLabel: String? = null,
     val view: TableView? = null,
     val white: ChessPlayerCard = ChessPlayerCard("سفید", Side.WHITE, false),
     val black: ChessPlayerCard = ChessPlayerCard("سیاه", Side.BLACK, false),
@@ -111,6 +113,10 @@ class ChessLocalMatch(
         private val BOT = PlayerId("p_bot")
         private val P1 = PlayerId("p_one")
         private val P2 = PlayerId("p_two")
+    }
+
+    init {
+        require(mode != ChessMode.NETWORK) { "Network tables must use ChessSessionMatch" }
     }
 
     private val players: List<PlayerId> = if (mode == ChessMode.VS_BOT) {
@@ -371,6 +377,7 @@ class ChessLocalMatch(
     private fun activeHuman(): PlayerId? = when (mode) {
         ChessMode.VS_BOT -> HUMAN
         ChessMode.PASS_AND_PLAY -> session.playerOf(session.sideToMove)
+        ChessMode.NETWORK -> null
     }
 
     /**
@@ -395,6 +402,7 @@ class ChessLocalMatch(
         val canUndo = when (mode) {
             ChessMode.VS_BOT -> engine.actions.any { it.player == HUMAN && it.type == ChessModule.ACTION_MOVE }
             ChessMode.PASS_AND_PLAY -> engine.actions.any { it.type == ChessModule.ACTION_MOVE }
+            ChessMode.NETWORK -> false
         }
         val drawQuestion = if (mode == ChessMode.PASS_AND_PLAY && v.drawOfferBy != null && !v.finished) -v.colorOf(v.drawOfferBy) else 0
         _state.value = prev.copy(

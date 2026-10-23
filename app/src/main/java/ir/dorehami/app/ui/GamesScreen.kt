@@ -54,9 +54,13 @@ private enum class GameAccent { Warm, Teal, Purple, Gold }
 
 private val games = listOf(
     GameEntry("حکم", "🎴", "۲ تا ۴ نفره • ربات و آنلاین", "games/hokm", GameAccent.Warm, implemented = true),
-    GameEntry("شطرنج", "♟️", "تختهٔ سه‌بعدی • بازی نوبتی", "games/chess", GameAccent.Teal, implemented = true),
+    GameEntry("شطرنج", "♟️", "تک‌نفره • بلوتوث و هات‌اسپات", "games/chess", GameAccent.Teal, implemented = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", GameAccent.Purple, implemented = true),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban", GameAccent.Gold, implemented = true),
+    GameEntry("منچ", "🎲", "بازی خانوادگی روی تخته", "games/mench", GameAccent.Gold),
+    GameEntry("تخته نرد", "⚫", "تاس، مهره و رقابت دونفره", "games/backgammon", GameAccent.Warm),
+    GameEntry("مونوپولی", "💼", "خریدوفروش و ساخت امپراتوری", "games/monopoly", GameAccent.Teal),
+    GameEntry("مافیا", "🕵️", "نقش‌های پنهان و رأی‌گیری گروهی", "games/mafia", GameAccent.Purple),
 )
 
 /** Compact two-column game picker over original Dorehami artwork. */

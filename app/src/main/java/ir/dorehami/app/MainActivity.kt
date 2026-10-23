@@ -16,6 +16,8 @@ import androidx.compose.ui.unit.LayoutDirection
 import ir.dorehami.app.ui.GamesScreen
 import ir.dorehami.app.ui.HomeScreen
 import ir.dorehami.app.ui.SettingsScreen
+import ir.dorehami.app.ui.StoreScreen
+import ir.dorehami.app.store.CoinWallet
 import ir.dorehami.app.ui.theme.DorehamiTheme
 import ir.dorehami.games.chess.ui.ChessEntry
 import ir.dorehami.games.dejban.ui.DejbanEntry
@@ -27,6 +29,7 @@ sealed interface Screen {
     data object Home : Screen
     data object Games : Screen
     data object Settings : Screen
+    data object ChessStore : Screen
 
     /** Hokm table (`games/hokm`): solo, Bluetooth, online. */
     data object Hokm : Screen
@@ -56,6 +59,8 @@ class MainActivity : ComponentActivity() {
 private fun EntryApp() {
     val context = LocalContext.current
     var screen by remember { mutableStateOf<Screen>(Screen.Home) }
+    val coinWallet = remember(context) { CoinWallet(context) }
+    var wallet by remember { mutableStateOf(coinWallet.snapshot()) }
 
     when (screen) {
         Screen.Home -> HomeScreen(
@@ -72,8 +77,20 @@ private fun EntryApp() {
         )
 
         Screen.Hokm -> HokmEntry(onExit = { screen = Screen.Games })
-        Screen.Chess -> ChessEntry(onExit = { screen = Screen.Games })
+        Screen.Chess -> ChessEntry(
+            onExit = { screen = Screen.Games },
+            onOpenStore = { screen = Screen.ChessStore },
+            ownedStoreItems = wallet.ownedItemIds,
+            coinBalance = wallet.balance,
+        )
         Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home })
+        Screen.ChessStore -> StoreScreen(
+            wallet = wallet,
+            onPurchase = { item ->
+                coinWallet.purchase(item).also { wallet = coinWallet.snapshot() }
+            },
+            onBack = { screen = Screen.Chess },
+        )
         Screen.Pantomime -> PantohubScreen(onBack = { screen = Screen.Games })
     }
 }

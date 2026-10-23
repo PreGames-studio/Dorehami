@@ -72,6 +72,7 @@ core/testkit     ← فیکهای درونحافظه برای تست سریع   
 core/uikit       ← تم Compose، RTL، اجزای مشترک UI                             (وابستگی: Android)
 transport/api    ← «لوله»: GameTransport + رویدادها + پیکربندی                 (وابستگی: protocol)
 transport/nearby ← پیادهسازی بلوتوث/وایفای دایرکت                              (وابستگی: api)
+transport/hotspot ← اتصال مستقیم TCP داخل هات‌اسپات/شبکهٔ محلی، بدون سرور     (وابستگی: api)
 transport/online ← پیادهسازی وبسوکت + کلاینت صف رندوم                          (وابستگی: api)
 games/X/core     ← قواعد یک بازی + ربات + تست                                   (وابستگی: gamesdk)
 games/X/ui       ← صفحههای همان بازی                                           (وابستگی: games/X/core, uikit)
@@ -244,6 +245,9 @@ interface GameTransport {                 // «لوله»
 * **`transport/nearby` (بلوتوث آفلاین):** تبلیغ اتاق با `roomCode` و `capacity` در اطلاعات تبلیغ،
   کشف + اتصال خودکار مهمان، بازچینی فریمها، و مدیریت اذن/خاموشی رادیو (نسخههای جدید API از
   برنامه میخواهند وضعیت رادیو را خودش مدیریت کند ⇒ کد ما شکستِ رادیو را Notice میکند، نه کرش).
+* **`transport/hotspot` (هات‌اسپات/شبکهٔ محلی):** میزبان یک سوکت TCP روی همهٔ رابط‌های محلی باز
+  می‌کند و مهمان با IP و پورت نمایش‌داده‌شده مستقیم وصل می‌شود. پیام‌ها length-prefix دارند و همان
+  `Envelope` کامل به `SessionController` می‌رسند؛ هیچ اینترنت، DNS یا سرور واسطی لازم نیست.
 * **`transport/online`:** وبسوکت با تیکت توکن؛ همان `Envelope`ها. تشخیص قطعی و بازگشت خودکار با
   ریسینک.
 
@@ -404,7 +408,7 @@ games/mygame/ui/
 | قطعیت (سید/ساعت) | `core/gamesdk/Rng.kt`, `Clock.kt`, `Engine.kt` |
 | اطلاعات پنهان | `Emission.Private` + `privateView()` هر بازی |
 | چرخهٔ اتاق و تایمر | `core/session/SessionController.kt` |
-| لولهها | `transport/api/Transport.kt`, `transport/nearby`, `transport/online` |
+| لولهها | `transport/api/Transport.kt`, `transport/nearby`, `transport/hotspot`, `transport/online` |
 | داور آنلاین | `server/rooms/RoomHub.kt`, `Matchmaker.kt`, `routes/ApiRoutes.kt` |
 | اثبات و ذخیرهسازی | `core/gamesdk/Persistence.kt`, `server/store/MatchStore.kt` |
 | سیاست ربات هر بازی | `GameModule.botAction` (مثلاً `games/hokm/…/HokmBots.kt`) |

@@ -1,8 +1,8 @@
-# Device check — runs the app on a real emulator and walks into the chess game.
+# Device check — runs chess, chess-store navigation, and Hokm on a real emulator.
 #
-# Plain JVM tests (checkAll) never touch GLSurfaceView, EGL config choices or SoundPool, so a
-# crash that only happens on a device slips through them. This workflow installs the debug APK on
-# an emulator and reproduces the user path "chess → شروع بازی با ربات".
+# Plain JVM tests (checkAll) never touch GLSurfaceView, EGL config choices, SoundPool, bundled
+# fonts, or Compose resource loading. This workflow installs the debug APK and walks through the
+# chess bot path, the chess-owned store, and the Hokm setup/table while capturing screenshots.
 name: Device check
 
 on:
@@ -19,7 +19,7 @@ permissions:
 
 jobs:
   chess-on-device:
-    name: Chess bot game on an emulator
+    name: Chess, store and Hokm on an emulator
     runs-on: ubuntu-latest
     timeout-minutes: 60
     steps:
@@ -35,8 +35,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build the debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Build an emulator-compatible debug APK
+        run: ./gradlew :app:assembleDebug -Pdorehami.additionalAndroidAbis=x86_64 --stacktrace
+
+      - name: Verify the emulator native library
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          unzip -l "$apk" | grep 'lib/x86_64/libgodot_android.so' || {
+            echo '::error::x86_64 Godot native library missing from emulator APK'
+            exit 1
+          }
 
       - name: Enable KVM
         run: |
@@ -74,12 +82,14 @@ jobs:
           echo "::notice::emulator step outcome: ${{ steps.device.outcome }}"
           python3 tools/device-check/report_annotations.py device-log.txt || true
 
-      - name: Upload screenshots
+      - name: Upload screenshots and device log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: device-screenshots
-          path: device-shots/*.png
+          path: |
+            device-shots/*.png
+            device-log.txt
           if-no-files-found: warn
           retention-days: 14
 
@@ -87,9 +97,10 @@ jobs:
         if: always()
         run: |
           if [ "${{ steps.device.outcome }}" = "success" ]; then
-            echo "## 📱 Chess on a device ✅" >> "$GITHUB_STEP_SUMMARY"
-            echo "بازی شطرنج روی امولاتور باز شد و زنده ماند (اسکرین‌شات‌ها در Artifacts)." >> "$GITHUB_STEP_SUMMARY"
+            echo "## 📱 Chess, store and Hokm on a device ✅" >> "$GITHUB_STEP_SUMMARY"
+            echo "شطرنج، مسیر فروشگاه شطرنج و میز حکم روی امولاتور باز شدند و زنده ماندند (اسکرین‌شات‌ها در Artifacts)." >> "$GITHUB_STEP_SUMMARY"
           else
-            echo "## 📱 Chess on a device ❌" >> "$GITHUB_STEP_SUMMARY"
-            echo "روی امولاتور کرش شد — لاگ کامل در بخش Log همین اجرا (گام «Install and drive the app»)." >> "$GITHUB_STEP_SUMMARY"
+            echo "## 📱 Chess, store and Hokm on a device ❌" >> "$GITHUB_STEP_SUMMARY"
+            echo "حداقل یک مسیر روی امولاتور شکست خورد — لاگ کامل در بخش Log همین اجرا (گام «Install and drive the app»)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi
