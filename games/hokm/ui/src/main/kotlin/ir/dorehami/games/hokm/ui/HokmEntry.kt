@@ -634,14 +634,17 @@ private fun HokmHero(playerCount: Int, target: Int) {
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.72f), RoundedCornerShape(26.dp)),
     ) {
         val narrow = maxWidth < 355.dp
+        // Capture themed colors before entering the non-composable Canvas draw scope.
+        val mint = HokmPalette.mint
+        val gold = HokmPalette.gold
         Canvas(Modifier.fillMaxSize()) {
             drawCircle(
-                color = HokmPalette.mint.copy(alpha = 0.10f + 0.10f * glow),
+                color = mint.copy(alpha = 0.10f + 0.10f * glow),
                 radius = size.width * 0.46f,
                 center = Offset(size.width * 0.06f, size.height * 0.14f),
             )
             drawCircle(
-                color = HokmPalette.gold.copy(alpha = 0.07f),
+                color = gold.copy(alpha = 0.07f),
                 radius = size.width * 0.25f,
                 center = Offset(size.width * 0.93f, size.height * 0.95f),
                 style = Stroke(width = 1.2.dp.toPx()),
@@ -649,7 +652,7 @@ private fun HokmHero(playerCount: Int, target: Int) {
             val step = 32.dp.toPx()
             var x = -size.height
             while (x < size.width) {
-                drawLine(HokmPalette.gold.copy(alpha = 0.045f), Offset(x, 0f), Offset(x + size.height, size.height), 1.dp.toPx())
+                drawLine(gold.copy(alpha = 0.045f), Offset(x, 0f), Offset(x + size.height, size.height), 1.dp.toPx())
                 x += step
             }
         }
