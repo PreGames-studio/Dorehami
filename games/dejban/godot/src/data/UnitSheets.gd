@@ -22,6 +22,7 @@ const DIRS := ["front", "back", "left", "right"]
 ## ارتفاع فریم و خط زمینِ هر نیرو برای انیمیشن‌های دویدن و مرگ.
 const GALLERY := {
 	"soldier": {"run": [64, 45], "death": [64, 45]},
+	"commando": {"run": [64, 45], "death": [64, 45]},
 }
 
 

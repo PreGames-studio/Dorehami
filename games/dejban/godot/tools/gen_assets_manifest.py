@@ -26,6 +26,8 @@ TARGET = os.path.join(ROOT, "src", "data", "Assets.gd")
 ISO_PACKS = {
     "towers_iso": "towers_iso",
     "units/iso_tank": "units_iso_tank",
+    "units/iso_tank_armored": "units_iso_tank_armored",
+    "units/iso_tank_heavy": "units_iso_tank_heavy",
 }
 
 # پشتوانهٔ هر دستهٔ ایزومتریک یک شیت با همان شبکهٔ ۸ ردیفی است تا برش جهت‌ها
@@ -33,6 +35,8 @@ ISO_PACKS = {
 ISO_FALLBACKS = {
     "towers_iso": "towers_iso/machinegun_idle",
     "units_iso_tank": "units_iso_tank/tank_idle",
+    "units_iso_tank_armored": "units_iso_tank_armored/tank_armored_idle",
+    "units_iso_tank_heavy": "units_iso_tank_heavy/tank_heavy_idle",
 }
 
 HEADER = '''## این فایل با tools/gen_assets_manifest.py ساخته می‌شود؛ دستی ویرایش نکنید.

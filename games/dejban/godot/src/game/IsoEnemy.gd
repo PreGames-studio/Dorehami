@@ -22,6 +22,11 @@ const FIRST_SHOT_DELAY := 0.6
 const LASER_TIP := [Vector2(57, -47), Vector2(55, -2), Vector2(-2, 15), Vector2(-56, -2),
 	Vector2(-58, -47), Vector2(-58, -57), Vector2(-3, -76), Vector2(56, -59)]
 const LASER_TINT := Color(2.2, 0.32, 0.26, 1.0)
+const LASER_TINTS := {
+	"tank": Color(2.2, 0.32, 0.26, 1.0),
+	"tank_armored": Color(0.28, 1.55, 2.35, 1.0),
+	"tank_heavy": Color(2.15, 0.36, 2.25, 1.0),
+}
 const DEATH_TIME := 0.7
 
 var family := "tank"
@@ -148,6 +153,11 @@ func _laser_hit() -> void:
 ## نوک پرتو لیزر در مختصات جهان برای جهت فعلی.
 func laser_tip() -> Vector2:
 	return position + (LASER_TIP[dir] as Vector2) * SPRITE_SCALE
+
+
+## رنگ پرتو لیزر مطابق ظاهر هر خانوادهٔ تانک.
+func laser_color() -> Color:
+	return LASER_TINTS.get(family, LASER_TINT)
 
 
 # ------------------------------------------------------------------ مرگ و نمایش

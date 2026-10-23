@@ -601,7 +601,7 @@ func _test_weapons() -> void:
 # ------------------------------------------------------------------ دشمنان
 
 func _test_enemies() -> void:
-	check(Enemies.LIST.size() == 2, "دشمنان باید سرباز و تانک باشند: %d" % Enemies.LIST.size())
+	check(Enemies.LIST.size() == 5, "باید ۵ نیروی دشمن تعریف شده باشد (۲ پیاده + ۳ تانک): %d" % Enemies.LIST.size())
 	check(Enemies.by_id("flyer").is_empty(), "هلیکوپتر (flyer) باید حذف شده باشد")
 	check(Enemies.by_id("warlord").is_empty(), "قطار قرمز (warlord) باید حذف شده باشد")
 	var seen: Array = []
@@ -622,17 +622,40 @@ func _test_enemies() -> void:
 			check(Assets.has_key(String(enemy.get("sprite", "")) + "_walk"), "شیت انیمیشن راه رفتن دشمن %s گم شده" % id)
 		for feature in enemy.get("traits", []):
 			check(VALID_TRAITS.has(String(feature)), "ویژگی ناشناختهٔ %s در دشمن %s" % [feature, id])
-	# تانک: آمار انتخاب‌شده و حملهٔ لیزری به دژ
-	var tank := Enemies.by_id("tank")
-	check(not tank.is_empty(), "تانک در جدول دشمنان نیست")
-	if not tank.is_empty():
-		check(float(tank["hp"]) == 420.0 and float(tank["speed"]) == 28.0 and float(tank["armor"]) == 4.0
-			and int(tank["reward"]) == 12, "آمار تانک باید جان ۴۲۰، سرعت ۲۸، زره ۴ و پاداش ۱۲ باشد")
-		check(String(tank.get("iso", "")) == "tank" and String(tank.get("attack", "")) == "laser",
-			"تانک باید از پک ایزومتریک بیاید و با لیزر حمله کند")
-		check(is_equal_approx(float(tank.get("attack_interval", 0.0)), 2.0) and int(tank.get("keep_damage", 0)) == 1,
-			"تانک باید هر ۲ ثانیه یک جان از دژ کم کند")
-	check(String(Enemies.by_id("soldier").get("attack", "")) == "reach", "سرباز باید مثل قبل با رسیدن به دژ آسیب بزند")
+	# بررسی دقیق آمار و تمایز دیداری هر ۵ نیرو (۲ سرباز + ۳ تانک)
+	var soldier := Enemies.by_id("soldier")
+	var commando := Enemies.by_id("commando")
+	check(not soldier.is_empty() and not commando.is_empty(), "سرباز و تکاور باید هر دو در جدول دشمنان باشند")
+	check(float(soldier["hp"]) == 60.0 and float(commando["hp"]) == 100.0,
+		"جان پایهٔ سرباز باید ۶۰ و تکاور ۱۰۰ باشد")
+	check(float(commando["speed"]) == float(soldier["speed"])
+		and int(commando["reward"]) == int(soldier["reward"])
+		and String(commando["attack"]) == "reach",
+		"تکاور باید رفتار، سرعت و اسکریپت یکسان با سرباز داشته باشد")
+	check(Assets.tex("units/run/commando_front").get_image().get_data()
+		!= Assets.tex("units/run/soldier_front").get_image().get_data(),
+		"ظاهر تکاور باید با سرباز معمولی متفاوت باشد")
+
+	var expected_tanks := [["tank", 420.0], ["tank_armored", 600.0], ["tank_heavy", 800.0]]
+	for spec in expected_tanks:
+		var tid := String(spec[0])
+		var want_hp := float(spec[1])
+		var tdef := Enemies.by_id(tid)
+		check(not tdef.is_empty(), "تانک %s در جدول دشمنان نیست" % tid)
+		if tdef.is_empty():
+			continue
+		check(float(tdef["hp"]) == want_hp and float(tdef["speed"]) == 28.0 and float(tdef["armor"]) == 4.0
+			and int(tdef["reward"]) == 12,
+			"آمار %s باید جان %.0f، سرعت ۲۸، زره ۴ و پاداش ۱۲ باشد" % [tid, want_hp])
+		check(String(tdef.get("iso", "")) == tid and String(tdef.get("attack", "")) == "laser",
+			"تانک %s باید از شیت ایزومتریک خودش بیاید و با لیزر حمله کند" % tid)
+		check(is_equal_approx(float(tdef.get("attack_interval", 0.0)), 2.0) and int(tdef.get("keep_damage", 0)) == 1,
+			"تانک %s باید هر ۲ ثانیه یک جان از دژ کم کند" % tid)
+	var base_tank_bytes := Assets.tex("units_iso_tank/tank_attack").get_image().get_data()
+	var armored_bytes := Assets.tex("units_iso_tank_armored/tank_armored_attack").get_image().get_data()
+	var heavy_bytes := Assets.tex("units_iso_tank_heavy/tank_heavy_attack").get_image().get_data()
+	check(base_tank_bytes != armored_bytes and base_tank_bytes != heavy_bytes and armored_bytes != heavy_bytes,
+		"هر سه تانک باید شیت‌های ظاهری متمایز داشته باشند")
 
 # ------------------------------------------------------------------ نقشه‌ها
 
@@ -673,8 +696,8 @@ func _test_unit_sheets() -> void:
 	check(UnitSheets.direction_name(Vector2(1.0, 0.2)) == "right", "جهت راست باید right باشد")
 	check(UnitSheets.direction_name(Vector2(-1.0, 0.2)) == "left", "جهت چپ باید left باشد")
 
-	# سرباز با شیت دویدن (۸ فریم) می‌رود؛ سر ثابت و پاها حرکت را می‌برند
-	for case in [["soldier", "run"]]:
+	# سرباز و تکاور هر دو با شیت دویدن (۸ فریم) و شیت مرگ (۶ فریم) کار می‌کنند
+	for case in [["soldier", "run"], ["commando", "run"]]:
 		var sheet_enemy := Enemy.new()
 		add_child(sheet_enemy)
 		var enemy_def := Enemies.by_id(String(case[0]))
@@ -867,30 +890,32 @@ func _test_prestige_fixed_cost() -> void:
 
 func _test_waves() -> void:
 	for index in [0, 5, 10, 14]:
+		var seen_Across_waves := {}
 		for wave in range(1, Balance.WAVES + 1):
 			var groups := Enemies.wave_groups(index, wave)
 			check(not groups.is_empty(), "موج %d نقشهٔ %d خالی است" % [wave, index])
 			var total := 0
+			var infantry := 0
+			var tanks := 0
 			for group in groups:
 				var id := String(group.get("enemy", ""))
 				check(not Enemies.by_id(id).is_empty(), "دشمن ناشناخته در موج %d نقشهٔ %d: %s" % [wave, index, id])
+				seen_Across_waves[id] = true
 				var count := int(group.get("count", 0))
 				check(count > 0, "گروه خالی در موج %d نقشهٔ %d" % [wave, index])
 				check(float(group.get("interval", 0.0)) > 0.0, "فاصلهٔ نامعتبر در موج %d نقشهٔ %d" % [wave, index])
 				total += count
+				if Enemies.INFANTRY_IDS.has(id):
+					infantry += count
+				elif Enemies.TANK_IDS.has(id):
+					tanks += count
 			check(total >= 3, "موج %d نقشهٔ %d کم‌جمعیت است: %d" % [wave, index, total])
-			# سربازها مثل قبل‌اند و تانک از موج ۵ می‌آید: ۱ + (موج − ۵) ÷ ۵
-			var soldiers := 0
-			var tanks := 0
-			for group in groups:
-				if String(group.get("enemy", "")) == "soldier":
-					soldiers += int(group.get("count", 0))
-				elif String(group.get("enemy", "")) == "tank":
-					tanks += int(group.get("count", 0))
-			check(soldiers == maxi(1, int(round(float(Balance.wave_count(wave))))),
-				"تعداد سرباز موج %d نباید تغییر کند" % wave)
+			check(infantry == maxi(1, int(round(float(Balance.wave_count(wave))))),
+				"تعداد پیاده‌نظام موج %d نباید تغییر کند" % wave)
 			var expected_tanks := 0 if wave < 5 else 1 + int(float(wave - 5) / 5.0)
 			check(tanks == expected_tanks, "موج %d نقشهٔ %d باید %d تانک داشته باشد، دارد %d" % [wave, index, expected_tanks, tanks])
+		check(seen_Across_waves.size() == Enemies.LIST.size(),
+			"همهٔ ۵ نیروی دشمن باید در طول موج‌های نقشهٔ %d حضور داشته باشند: %s" % [index, seen_Across_waves.keys()])
 	check(Enemies.tank_count(4) == 0 and Enemies.tank_count(5) == 1 and Enemies.tank_count(9) == 1
 		and Enemies.tank_count(10) == 2 and Enemies.tank_count(30) == 6, "جدول تعداد تانک موج‌ها اشتباه است")
 
@@ -1048,6 +1073,8 @@ func _test_iso_sheets() -> void:
 	var folders := {
 		"res://assets/sprites/towers_iso": ["towers_iso", 13],
 		"res://assets/sprites/units/iso_tank": ["units_iso_tank", 4],
+		"res://assets/sprites/units/iso_tank_armored": ["units_iso_tank_armored", 4],
+		"res://assets/sprites/units/iso_tank_heavy": ["units_iso_tank_heavy", 4],
 	}
 	for folder in folders.keys():
 		var prefix := String(folders[folder][0])
@@ -1062,7 +1089,7 @@ func _test_iso_sheets() -> void:
 			check(Assets.has_key(key), "شیت ایزومتریک در مانیفست نیست: %s" % key)
 
 	var expected := IsoSheet.expected_sheets()
-	check(expected.size() == 15, "دوازده شیت برجک و سه شیت تانک انتظار می‌رود: %d" % expected.size())
+	check(expected.size() == 21, "دوازده شیت برجک و نه شیت سه تانک انتظار می‌رود: %d" % expected.size())
 	for key in expected.keys():
 		var sheet_key := String(key)
 		var frames := int(expected[key])
@@ -1092,7 +1119,8 @@ func _test_iso_sheets() -> void:
 		var tex := Assets.tex(String(atlas_key))
 		check(tex != null and tex.get_width() == int(IsoSheet.ATLAS_COLUMNS[atlas_key]) * IsoSheet.FRAME
 			and tex.get_height() == IsoSheet.DIRS * IsoSheet.FRAME, "ابعاد اطلس پیش‌نمایش %s اشتباه است" % atlas_key)
-	check(Assets.FALLBACKS.has("towers_iso") and Assets.FALLBACKS.has("units_iso_tank"),
+	check(Assets.FALLBACKS.has("towers_iso") and Assets.FALLBACKS.has("units_iso_tank")
+		and Assets.FALLBACKS.has("units_iso_tank_armored") and Assets.FALLBACKS.has("units_iso_tank_heavy"),
 		"دسته‌های ایزومتریک باید تصویر جایگزین داشته باشند")
 
 	# جهت از بردار: فشردگی عمق ۰٫۵ و باقی‌ماندهٔ مثبت
@@ -1217,20 +1245,25 @@ func _test_iso_towers() -> void:
 ## تانک: در مسیر move، جهت از مسیر در گام‌های ۴۵ درجه؛ کنار دژ می‌ایستد، idle بین شلیک‌ها،
 ## هر ۲ ثانیه attack با یک جان آسیب، تا نابودی زنده و هدف‌پذیر می‌ماند و موج را باز نگه می‌دارد.
 func _test_tank() -> void:
-	var def := Enemies.by_id("tank")
+	for tid in Enemies.TANK_IDS:
+		_test_single_tank(String(tid))
+
+func _test_single_tank(tid: String) -> void:
+	var def := Enemies.by_id(tid)
 	if def.is_empty():
-		check(false, "تانک برای آزمون پیدا نشد")
+		check(false, "تانک %s برای آزمون پیدا نشد" % tid)
 		return
 	var map := GameMap.build(0)
 	var tank := IsoEnemy.new()
 	add_child(tank)
 	tank.setup(def, map, 1.0, 1.0, 5, 0.0)
-	check(tank.active_anim() == "move", "تانک باید با move حرکت کند، هست %s" % tank.active_anim())
-	check(is_equal_approx(tank.max_hp, 420.0) and is_equal_approx(tank.armor, 4.0) and tank.reward == 12,
-		"آمار تانک از جدول دشمنان خوانده نشد")
+	check(tank.active_anim() == "move", "تانک %s باید با move حرکت کند، هست %s" % [tid, tank.active_anim()])
+	check(is_equal_approx(tank.max_hp, float(def["hp"])) and is_equal_approx(tank.armor, 4.0) and tank.reward == 12,
+		"آمار تانک %s از جدول دشمنان خوانده نشد" % tid)
 	var frame := tank._sprite.texture as AtlasTexture
-	check(frame != null and frame.atlas == Assets.tex(IsoSheet.tank_key("move"))
-		and frame.region.position.y == tank.dir * IsoSheet.FRAME, "تصویر تانک باید ردیف جهتش از شیت move باشد")
+	check(frame != null and frame.atlas == Assets.tex(IsoSheet.tank_key("move", tid))
+		and frame.region.position.y == tank.dir * IsoSheet.FRAME,
+		"تصویر تانک %s باید ردیف جهتش از شیت move خودش باشد" % tid)
 
 	# جهت روی هر تکهٔ مسیر از خود مسیر می‌آید (۸ جهت) و اسپرایت هرگز نمی‌چرخد
 	var seen := {}
