@@ -464,7 +464,7 @@ func _upgrade_preview(weapon: Dictionary, level: int) -> Control:
 	var lines := Ui.column(4)
 	box.add_child(lines)
 	lines.add_child(Ui.label("با ارتقا به سطح %s:" % Ui.fa(level + 1), 16, Style.accent))
-	lines.add_child(_upgrade_row("قدرت شلیک", "+" + Ui.fa_decimal(float(weapon["damage"]) * step, 2)))
+	lines.add_child(_upgrade_row("قدرت شلیک", "+" + Ui.fa(Balance.ARMORY_DAMAGE_PER_LEVEL)))
 	lines.add_child(_upgrade_row("برد", "+" + Ui.fa_decimal(float(weapon["range"]) * step, 1)))
 	lines.add_child(_upgrade_row("سرعت شلیک", "+" + Ui.fa_decimal(step * 100.0, 1) + "٪"))
 	return box
