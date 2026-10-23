@@ -14,6 +14,8 @@ var unlocked_weapons: Array = []
 var weapon_levels: Dictionary = {}
 ## سطح آیتم «افزایش اعتبار» (PRESTIGE BOOST — از ۰ تا ۵۰؛ هر سطح +۱۰ سکهٔ شروع نبرد).
 var prestige_level := 0
+## شمار تبلیغ‌های دیده‌شده برای دریافت بستهٔ «ستاره رایگان» در بازار.
+var free_star_ads_watched := 0
 var nickname := "نگهبان"
 var music_volume := 0.7
 var sfx_volume := 0.9
@@ -39,6 +41,7 @@ func reset_progress() -> void:
 	unlocked_weapons = default_unlocked_weapons()
 	weapon_levels = {}
 	prestige_level = 0
+	free_star_ads_watched = 0
 	best = {}
 	last_map = 0
 	save()
@@ -52,6 +55,7 @@ func fresh_profile() -> Dictionary:
 		"unlocked_weapons": default_unlocked_weapons(),
 		"weapon_levels": {},
 		"prestige_level": 0,
+		"free_star_ads_watched": 0,
 		"nickname": "نگهبان",
 		"music_volume": 0.7,
 		"sfx_volume": 0.9,
@@ -86,6 +90,7 @@ func _apply(data: Dictionary) -> void:
 			if level > 0 and not Weapons.by_id(String(key)).is_empty():
 				weapon_levels[String(key)] = level
 	prestige_level = clampi(int(data.get("prestige_level", 0)), 0, Balance.PRESTIGE_MAX_LEVEL)
+	free_star_ads_watched = maxi(0, int(data.get("free_star_ads_watched", 0)))
 	nickname = String(data.get("nickname", "نگهبان")).substr(0, 16)
 	if nickname.strip_edges().is_empty():
 		nickname = "نگهبان"
@@ -114,6 +119,7 @@ func save() -> void:
 		"unlocked_weapons": unlocked_weapons,
 		"weapon_levels": weapon_levels,
 		"prestige_level": prestige_level,
+		"free_star_ads_watched": free_star_ads_watched,
 		"nickname": nickname,
 		"music_volume": music_volume,
 		"sfx_volume": sfx_volume,
@@ -142,6 +148,20 @@ func add_stars(amount: int) -> void:
 	stars = maxi(0, stars + amount)
 	save()
 	changed.emit()
+
+## ثبت مشاهدهٔ یک تبلیغ برای «ستاره رایگان» بازار: با رسیدن به required_ads، جایزهٔ reward_stars داده
+## و شمارنده به ۰ برمی‌گردد تا دوباره قابل استفاده باشد.
+func record_free_star_ad_watch(required_ads := 2, reward_stars := 5) -> Dictionary:
+	var target := maxi(1, required_ads)
+	free_star_ads_watched += 1
+	var granted := 0
+	if free_star_ads_watched >= target:
+		free_star_ads_watched = 0
+		granted = maxi(1, reward_stars)
+		stars = maxi(0, stars + granted)
+	save()
+	changed.emit()
+	return {"rewarded": granted > 0, "stars_granted": granted, "watched": free_star_ads_watched}
 
 ## فقط نقشهٔ اول رایگان است؛ زنجیرهٔ پیروزی‌ها باید تا نقشهٔ قبلی کامل باشد.
 func is_map_unlocked(index: int) -> bool:

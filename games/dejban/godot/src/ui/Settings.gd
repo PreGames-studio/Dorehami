@@ -129,6 +129,8 @@ func _build() -> void:
 	var about_text := Ui.label(
 		"دژبان — نسخهٔ ۱٫۰٫۰\nسازندگان: مهدی زارعی و گروه PreGames Studio\nارتباط با ما : gf2227@gmail.com",
 		17, Style.text_dim)
+	about_text.name = "AboutText"
+	Ui.apply_font(about_text, Style.font_latin, 17)
 	about_text.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	about_column.add_child(about_text)
 

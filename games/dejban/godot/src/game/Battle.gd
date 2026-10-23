@@ -6,7 +6,7 @@
 extends Node2D
 
 const HUD_SCRIPT := "res://src/ui/Hud.gd"
-const HUMANOID_ENEMIES := ["soldier"]
+const HUMANOID_ENEMIES := ["soldier", "commando"]
 
 var map: GameMap = null
 var keep: Keep = null
@@ -33,11 +33,12 @@ var paused := false
 var _drag_active := false
 ## اگر سلاح از قبل آماده بود و کشیدن از روی دکمهٔ نوار شروع شد، رهاکردن روی نوار آن را لغو می‌کند.
 var _disarm_on_release := false
-## کشیدن برجک برای انتخاب: لمس روی برجک، کشیدن حداقل به اندازهٔ این فاصله، و رهاکردن.
-## لمس ساده روی برجک آن را انتخاب نمی‌کند.
+## حداقل فاصلهٔ کشیدن برای کاشت برجک جدید در فضای آزاد (لمس ساده کاشت نمی‌کند).
+## انتخاب برجکِ کاشته‌شده هم با لمس ساده و هم با کشیدن انجام می‌شود.
 const GRAB_DRAG_DISTANCE := 14.0
 var _grab_tower = null
 var _grab_start := Vector2.ZERO
+var _pressed_empty := false
 ## نقطهٔ شروع کشیدن برای کاشت؛ رهاکردنِ نزدیک به آن کاشت نیست (لمس ساده).
 var _drag_start := Vector2.ZERO
 
@@ -188,6 +189,7 @@ func _spawn_enemy(id: String) -> void:
 	enemy.died.connect(_on_enemy_died)
 	enemy.reached_keep.connect(_on_enemy_reached)
 	enemy.keep_attacked.connect(_on_keep_attacked)
+	enemy.finished_attack.connect(_on_enemy_finished_attack)
 	enemies.append(enemy)
 
 func _end_wave() -> void:
@@ -274,20 +276,23 @@ func _on_enemy_reached(enemy) -> void:
 	Fx.text(_fx_layer, keep.position + Vector2(0.0, -118.0), "-" + Ui.fa(damage), Style.bad, 22)
 	enemy.queue_free()
 
-## تانکِ در حال محاصره با هر شلیک لیزر جان دژ را کم می‌کند، ولی خودش در میدان می‌ماند
-## (برخلاف سربازی که با رسیدن به دژ حذف می‌شود)؛ پس موج تا نابودی‌اش تمام نمی‌شود.
+## تانک با رسیدن به نزدیکی دژ یک بار پرتو لیزر شلیک می‌کند (جان دژ کم می‌شود) و پس از تکمیل همان
+## شلیک، بدون تکرار شلیک و بدون پاداش کشتن از میدان حذف می‌شود.
 func _on_keep_attacked(enemy, amount: int) -> void:
 	if not running or keep == null or not is_instance_valid(enemy) or not enemy.alive:
 		return
-	# پرتو قرمز از نوک لیزرِ فریم attack تانک تا بدنهٔ دژ.
 	var hit_point := keep.position + Vector2(0.0, -26.0)
 	if enemy.has_method("laser_tip"):
-		Fx.beam(_fx_layer, "fx/laser_beam", enemy.laser_tip(), hit_point, 0.9, IsoEnemy.LASER_TINT)
+		var beam_tint: Color = enemy.laser_color() if enemy.has_method("laser_color") else IsoEnemy.LASER_TINT
+		Fx.beam(_fx_layer, "fx/laser_beam", enemy.laser_tip(), hit_point, 0.9, beam_tint)
 	Fx.impact(_fx_layer, hit_point, 0.5)
 	keep.take_damage(amount)
 	Audio.play("keep_hit")
 	Fx.shake(_world, 5.0, 0.22)
 	Fx.text(_fx_layer, keep.position + Vector2(0.0, -118.0), "-" + Ui.fa(amount), Style.bad, 22)
+
+func _on_enemy_finished_attack(enemy) -> void:
+	enemies.erase(enemy)
 
 func _on_keep_damaged(lives_after: int) -> void:
 	lives = lives_after
@@ -327,20 +332,29 @@ func _apply_auras() -> void:
 
 # ------------------------------------------------------------------ ورودی و کشیدن و رهاکردن برجک
 
+## آیا موتور از لمس، رویداد موس شبیه‌سازی می‌کند؟ در این حالت پردازش هم‌زمان
+## رویداد لمس خام و موس شبیه‌سازی‌شده باعث اجرای دوبارهٔ هر لمس و عبور از پنل‌های
+## واسط کاربری می‌شود؛ پس فقط رویداد یکپارچهٔ موس پردازش می‌شود.
+func _emulate_mouse_from_touch() -> bool:
+	return bool(ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", false))
+
 ## ردیابی کشیدن و رهاکردن برجک در سطح کل صفحه، حتی زمانی که لمس از روی دکمهٔ نوار پایین شروع شده است.
 func _input(event: InputEvent) -> void:
 	if not running or paused or not _drag_active or selected_weapon.is_empty():
 		return
 	if event is InputEventMouseMotion:
 		_update_ghost(get_global_mouse_position())
-	elif event is InputEventScreenDrag:
-		var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		_update_ghost(world)
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
 		_finish_drag(get_global_mouse_position())
-	elif event is InputEventScreenTouch and not event.pressed:
-		var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		_finish_drag(world)
+		get_viewport().set_input_as_handled()
+	elif not _emulate_mouse_from_touch():
+		if event is InputEventScreenDrag:
+			var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
+			_update_ghost(world)
+		elif event is InputEventScreenTouch and not event.pressed:
+			var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
+			_finish_drag(world)
+			get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not running or paused:
@@ -350,10 +364,11 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_ghost(get_global_mouse_position())
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_build_press(event.pressed, get_global_mouse_position())
-	elif event is InputEventScreenTouch:
+	elif not _emulate_mouse_from_touch() and event is InputEventScreenTouch:
 		var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		_handle_build_press(event.pressed, world)
-	elif event is InputEventScreenDrag:
+		if hud == null or not hud.has_method("is_over_ui") or not hud.is_over_ui(world):
+			_handle_build_press(event.pressed, world)
+	elif not _emulate_mouse_from_touch() and event is InputEventScreenDrag:
 		if not selected_weapon.is_empty():
 			var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
 			_update_ghost(world)
@@ -371,9 +386,9 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_TAB:
 				cycle_speed()
 
-## آیا نقطه داخل ناحیهٔ آزاد میدان (بیرون از نوار بالا و نوار پایین‌چپ برجک‌ها) است؟
+## آیا نقطه داخل ناحیهٔ آزاد میدان (بیرون از نوار بالا، پنل برجک و نوار پایین‌چپ برجک‌ها) است؟
 func _in_build_area(world: Vector2) -> bool:
-	if hud != null and hud.has_method("is_over_weapon_bar") and hud.is_over_weapon_bar(world):
+	if hud != null and hud.has_method("is_over_ui") and hud.is_over_ui(world):
 		return false
 	return world.y >= Balance.HUD_HEIGHT and GameMap.in_terrain(world)
 
@@ -422,12 +437,15 @@ func _finish_drag(world: Vector2) -> void:
 		ghost.visible = false
 	_refresh_guide()
 
-## لمس روی برجک موجود همیشه ثبت می‌شود: کشیدنِ آن برجک را انتخاب می‌کند (حتی وقتی سلاحی آماده است).
-## با سلاح آماده، لمس روی جای آزاد آغاز کشیدن برای کاشت است؛ لمس ساده کاشت نمی‌کند.
+## لمس یا کشیدن روی برجک کاشته‌شده همیشه همان برجک را انتخاب و پنل ارتقا/فروش را باز می‌کند
+## (حتی زمانی که سلاحی در نوار پایین آماده است).
+## در فضای آزاد، کاشت سلاح آماده فقط با کشیدن انجام می‌شود و لمس خالی هنگام باز بودن پنل
+## برجک، انتخاب را می‌بندد.
 func _handle_build_press(pressed: bool, world: Vector2) -> void:
 	if pressed:
 		_grab_tower = _tower_at(world)
 		_grab_start = world
+		_pressed_empty = _grab_tower == null and selected_weapon.is_empty()
 		if selected_weapon.is_empty() or _grab_tower != null:
 			return
 		_drag_active = true
@@ -440,8 +458,15 @@ func _handle_build_press(pressed: bool, world: Vector2) -> void:
 	if _grab_tower != null:
 		var grabbed = _grab_tower
 		_grab_tower = null
-		if is_instance_valid(grabbed) and world.distance_to(_grab_start) >= GRAB_DRAG_DISTANCE:
+		_pressed_empty = false
+		if is_instance_valid(grabbed):
+			Audio.ui_click()
 			select_tower(grabbed)
+		return
+	if _pressed_empty:
+		_pressed_empty = false
+		if selected_tower != null:
+			select_tower(null)
 		return
 	_finish_drag(world)
 
@@ -453,10 +478,16 @@ func _snap(pos: Vector2) -> Vector2:
 	)
 
 func _tower_at(world: Vector2) -> Variant:
+	var best = null
+	var best_dist := 48.0
 	for tower in towers:
-		if is_instance_valid(tower) and (tower.position + Vector2(0.0, -14.0)).distance_to(world) <= 42.0:
-			return tower
-	return null
+		if not is_instance_valid(tower):
+			continue
+		var dist: float = (tower.position + Vector2(0.0, -24.0)).distance_to(world)
+		if dist <= best_dist:
+			best = tower
+			best_dist = dist
+	return best
 
 func _try_build(world: Vector2) -> void:
 	if world.y < Balance.HUD_HEIGHT:

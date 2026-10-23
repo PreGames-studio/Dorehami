@@ -100,8 +100,8 @@ func _ready() -> void:
 	_test_tower_range()
 	print("— بررسی برجک‌های ایزومتریک…")
 	_test_iso_towers()
-	print("— بررسی تانک و محاصرهٔ دژ…")
-	_test_tank()
+	print("— بررسی تانک و تک‌شلیک به دژ…")
+	await _test_tank()
 	print("— بررسی صفحهٔ آغازین…")
 	_test_launch_presentation()
 	print("— بررسی پنجرهٔ تأییدیه…")
@@ -203,12 +203,40 @@ func _smoke_scenes() -> void:
 			var texts: Array = []
 			_collect_labels(instance, texts)
 			check(_find_label(texts, "بازار") >= 0, "عنوان بازار در صحنهٔ بازار نیست")
+			check(_find_label(texts, "ستاره رایگان") >= 0 and _find_label(texts, "۵ ستاره با دیدن ۲ تبلیغ") >= 0,
+				"گزینهٔ «ستاره رایگان» (۵ ستاره با دیدن ۲ تبلیغ) در بازار نیست")
 			check(_find_label(texts, "۲۰ ستاره") >= 0 and _find_label(texts, "۱۰ هزار تومان") >= 0,
 				"بستهٔ ۲۰ ستاره به قیمت ۱۰ هزار تومان در بازار نیست")
 			check(_find_label(texts, "۸۰ ستاره") >= 0 and _find_label(texts, "۵۰ هزار تومان") >= 0,
 				"بستهٔ ۸۰ ستاره به قیمت ۵۰ هزار تومان در بازار نیست")
 			check(_find_label(texts, "۱۵۰ ستاره") >= 0 and _find_label(texts, "۱۰۰ هزار تومان") >= 0,
 				"بستهٔ ۱۵۰ ستاره به قیمت ۱۰۰ هزار تومان در بازار نیست")
+			var market_screen := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+			check(instance._cards_row != null and instance._cards_row.get_child_count() == 4,
+				"ردیف بازار باید ۴ کارت (ستاره رایگان + ۳ بسته) داشته باشد")
+			for cidx in instance._cards_row.get_child_count():
+				var card_ctrl := instance._cards_row.get_child(cidx) as Control
+				check(card_ctrl != null and market_screen.encloses(card_ctrl.get_global_rect()),
+					"کارت شمارهٔ %d بازار از صفحهٔ ۱۲۸۰×۷۲۰ بیرون زده است: %s" % [cidx, card_ctrl.get_global_rect() if card_ctrl != null else Rect2()])
+			check(instance._notice_label != null and market_screen.encloses(instance._notice_label.get_global_rect()),
+				"نوار پیام پایین بازار از صفحهٔ ۱۲۸۰×۷۲۰ بیرون زده است")
+			var saved_mkt_stars: int = Game.stars
+			var saved_mkt_ads: int = Game.free_star_ads_watched
+			Game.stars = 10
+			Game.free_star_ads_watched = 0
+			instance._refresh_market_ui()
+			var free_btn := instance.find_child("FreeStarButton", true, false) as Button
+			check(free_btn != null, "دکمهٔ مشاهدهٔ تبلیغ ستاره رایگان پیدا نشد")
+			if free_btn != null:
+				free_btn.pressed.emit()
+				check(Game.stars == 10 and Game.free_star_ads_watched == 1,
+					"پس از دیدن تبلیغ اول هنوز نباید ستاره داده شود و شمارنده باید ۱ از ۲ شود")
+				free_btn.pressed.emit()
+				check(Game.stars == 15 and Game.free_star_ads_watched == 0,
+					"پس از دیدن تبلیغ دوم باید دقیقاً ۵ ستارهٔ رایگان اضافه شود و شمارنده صفر شود")
+			Game.stars = saved_mkt_stars
+			Game.free_star_ads_watched = saved_mkt_ads
+			Game.save()
 		if path.ends_with("Settings.tscn"):
 			var texts: Array = []
 			_collect_labels(instance, texts)
@@ -216,6 +244,15 @@ func _smoke_scenes() -> void:
 				"خط سازندگان در شناسنامهٔ تنظیمات نیست")
 			check(_find_label(texts, "ارتباط با ما : gf2227@gmail.com") >= 0,
 				"خط ارتباط با ما در شناسنامهٔ تنظیمات نیست")
+			var about_lbl := instance.find_child("AboutText", true, false) as Label
+			check(about_lbl != null and about_lbl.get_theme_font("font") == Style.font_latin and Style.font_latin != null,
+				"برچسب شناسنامه باید از فونت با ارقام انگلیسی (font_latin) استفاده کند تا gf2227@gmail.com انگلیسی دیده شود")
+			if about_lbl != null and Style.font_latin != null:
+				var ts := TextServerManager.get_primary_interface()
+				var rid: RID = Style.font_latin.get_rids()[0]
+				check(ts.font_get_glyph_index(rid, 17, "2".unicode_at(0), 0) != ts.font_get_glyph_index(rid, 17, "۲".unicode_at(0), 0)
+					and ts.font_get_glyph_index(rid, 17, "7".unicode_at(0), 0) != ts.font_get_glyph_index(rid, 17, "۷".unicode_at(0), 0),
+					"گلیف ارقام 2 و 7 در ایمیل تنظیمات نباید با گلیف فارسی ۲ و ۷ یکی باشد")
 			check(_find_label(texts, "موتور: Godot") < 0, "خط موتور باید از شناسنامه پاک شده باشد")
 			check(_find_label(texts, "فونت: وزیرمتن") < 0, "خط فونت باید از شناسنامه پاک شده باشد")
 		if path.ends_with("Battle.tscn"):
@@ -270,18 +307,19 @@ func _smoke_scenes() -> void:
 			instance._finish_drag(road_pt)
 			check(instance.towers.size() == 1, "نباید اجازهٔ رهاکردن برجک داخل محدودهٔ جاده داده شود")
 
-			# لمس روی برجک موجود در حالت آماده نباید سلاح را پاک کند یا کاشت کند
+			# لمس ساده روی برجک موجود (حتی وقتی سلاح آماده است) باید همان برجک را انتخاب و پنل ارتقا را باز کند
 			var armed_id: String = instance.selected_weapon
+			var first_tower = instance.towers[0]
 			instance.coins = 500
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
-			check(instance.selected_tower == null and instance.selected_weapon == armed_id,
-				"لمس روی برجک موجود نباید سلاح آماده را پاک کند یا برجک را انتخاب کند")
-			check(instance.towers.size() == 1, "کاشت روی برجک موجود مجاز نیست")
-			# لمس ساده در جای آزاد کاشت نمی‌کند
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -24.0))
+			instance._handle_build_press(false, built_pos + Vector2(0.0, -24.0))
+			check(instance.selected_tower == first_tower and instance.selected_weapon.is_empty() and instance.hud._tower_panel.visible,
+				"لمس ساده روی برجک کاشته‌شده باید همان برجک را انتخاب و پنل ارتقا را باز کند")
+			check(instance.towers.size() == 1, "لمس روی برجک موجود نباید برجک تازه بکارد")
+			# لمس روی فضای آزاد هنگامی که پنل برجک باز است باید انتخاب برجک را ببندد
 			var free_pt := Vector2.ZERO
 			for y in range(120, 620, 40):
-				for x in range(160, 1120, 40):
+				for x in range(160, 920, 40):
 					var pt := Vector2(x, y)
 					if pt.distance_to(built_pos) > 120.0 and instance.map.build_issue(pt, instance.occupied).is_empty() and instance.map.build_issue(pt + Vector2(30.0, 0.0), instance.occupied).is_empty():
 						free_pt = pt
@@ -289,6 +327,12 @@ func _smoke_scenes() -> void:
 				if free_pt != Vector2.ZERO:
 					break
 			check(free_pt != Vector2.ZERO, "جای آزاد برای آزمون کاشت پیدا نشد")
+			instance._handle_build_press(true, free_pt)
+			instance._handle_build_press(false, free_pt)
+			check(instance.selected_tower == null and not instance.hud._tower_panel.visible,
+				"لمس فضای خالی باید پنل برجک انتخاب‌شده را ببندد")
+			# لمس ساده در جای آزاد هنگام آماده بودن سلاح، کاشت نمی‌کند
+			instance.selected_weapon = armed_id
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt)
 			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید برجک بکارد")
@@ -302,10 +346,10 @@ func _smoke_scenes() -> void:
 			instance._finish_drag(bar_center)
 			check(instance.selected_weapon.is_empty(), "رهاکردن روی دکمهٔ آمادهٔ نوار باید کاشت را لغو کند")
 			instance.selected_weapon = armed_id
-			# گرفتن و کشیدن برجک، حتی وقتی سلاح آماده است، همان را انتخاب می‌کند و آمادگی را لغو می‌کند
+			# کشیدن روی برجک کاشته‌شده هم همچنان همان برجک را انتخاب می‌کند
 			var tower = instance.towers[0]
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(40.0, -14.0))
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -24.0))
+			instance._handle_build_press(false, built_pos + Vector2(40.0, -24.0))
 			check(instance.selected_tower == tower and instance.selected_weapon.is_empty(), "گرفتن و کشیدن برجک باید آن را انتخاب کند")
 			# ارتقا از همان مسیر واقعی انتخاب (برجک انتخاب‌شده) انجام می‌شود
 			var level_before: int = tower.level
@@ -313,12 +357,14 @@ func _smoke_scenes() -> void:
 			instance.upgrade_selected()
 			check(tower.level == level_before + 1 and instance.coins == 500 - int(tower.weapon["cost"]),
 				"ارتقای برجک انتخاب‌شده باید سطح و سکه را تغییر دهد")
-			# لمس ساده روی برجک، بدون سلاح آماده، آن را انتخاب نمی‌کند
+			# لمس ساده روی برجک بدون سلاح آماده نیز آن را انتخاب می‌کند
 			instance.select_tower(null)
 			instance.selected_weapon = ""
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
-			check(instance.selected_tower == null, "لمس ساده روی برجک نباید آن را انتخاب کند")
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -24.0))
+			instance._handle_build_press(false, built_pos + Vector2(0.0, -24.0))
+			check(instance.selected_tower == tower and instance.hud._tower_panel.visible,
+				"لمس ساده روی برجک بدون سلاح آماده باید پنل ارتقا را باز کند")
+			instance.select_tower(null)
 			instance.selected_weapon = armed_id
 			# بررسی نمایش کارت شکست هنگام تمام‌شدن جان دژ و کارت پیروزی پس از دفع ۳۰ موج
 			var saved_best := Game.best.duplicate(true)
@@ -592,7 +638,7 @@ func _test_weapons() -> void:
 # ------------------------------------------------------------------ دشمنان
 
 func _test_enemies() -> void:
-	check(Enemies.LIST.size() == 2, "دشمنان باید سرباز و تانک باشند: %d" % Enemies.LIST.size())
+	check(Enemies.LIST.size() == 5, "باید ۵ نیروی دشمن تعریف شده باشد (۲ پیاده + ۳ تانک): %d" % Enemies.LIST.size())
 	check(Enemies.by_id("flyer").is_empty(), "هلیکوپتر (flyer) باید حذف شده باشد")
 	check(Enemies.by_id("warlord").is_empty(), "قطار قرمز (warlord) باید حذف شده باشد")
 	var seen: Array = []
@@ -613,17 +659,54 @@ func _test_enemies() -> void:
 			check(Assets.has_key(String(enemy.get("sprite", "")) + "_walk"), "شیت انیمیشن راه رفتن دشمن %s گم شده" % id)
 		for feature in enemy.get("traits", []):
 			check(VALID_TRAITS.has(String(feature)), "ویژگی ناشناختهٔ %s در دشمن %s" % [feature, id])
-	# تانک: آمار انتخاب‌شده و حملهٔ لیزری به دژ
-	var tank := Enemies.by_id("tank")
-	check(not tank.is_empty(), "تانک در جدول دشمنان نیست")
-	if not tank.is_empty():
-		check(float(tank["hp"]) == 420.0 and float(tank["speed"]) == 28.0 and float(tank["armor"]) == 4.0
-			and int(tank["reward"]) == 12, "آمار تانک باید جان ۴۲۰، سرعت ۲۸، زره ۴ و پاداش ۱۲ باشد")
-		check(String(tank.get("iso", "")) == "tank" and String(tank.get("attack", "")) == "laser",
-			"تانک باید از پک ایزومتریک بیاید و با لیزر حمله کند")
-		check(is_equal_approx(float(tank.get("attack_interval", 0.0)), 2.0) and int(tank.get("keep_damage", 0)) == 1,
-			"تانک باید هر ۲ ثانیه یک جان از دژ کم کند")
-	check(String(Enemies.by_id("soldier").get("attack", "")) == "reach", "سرباز باید مثل قبل با رسیدن به دژ آسیب بزند")
+	# بررسی دقیق آمار و تمایز دیداری هر ۵ نیرو (۲ سرباز + ۳ تانک)
+	var soldier := Enemies.by_id("soldier")
+	var commando := Enemies.by_id("commando")
+	check(not soldier.is_empty() and not commando.is_empty(), "سرباز و تکاور باید هر دو در جدول دشمنان باشند")
+	check(float(soldier["hp"]) == 60.0 and float(commando["hp"]) == 100.0,
+		"جان پایهٔ سرباز باید ۶۰ و تکاور ۱۰۰ باشد")
+	check(float(commando["speed"]) == float(soldier["speed"])
+		and int(commando["reward"]) == int(soldier["reward"])
+		and String(commando["attack"]) == "reach",
+		"تکاور باید رفتار، سرعت و اسکریپت یکسان با سرباز داشته باشد")
+	check(_alpha_diff_pixels("units/run/commando_front", "units/run/soldier_front") > 1500,
+		"شکل و سیلوئت تکاور باید واقعاً با سرباز معمولی متفاوت باشد، نه صرفاً تغییر رنگ")
+
+	var expected_tanks := [["tank", 420.0], ["tank_armored", 600.0], ["tank_heavy", 800.0]]
+	for spec in expected_tanks:
+		var tid := String(spec[0])
+		var want_hp := float(spec[1])
+		var tdef := Enemies.by_id(tid)
+		check(not tdef.is_empty(), "تانک %s در جدول دشمنان نیست" % tid)
+		if tdef.is_empty():
+			continue
+		check(float(tdef["hp"]) == want_hp and float(tdef["speed"]) == 28.0 and float(tdef["armor"]) == 4.0
+			and int(tdef["reward"]) == 12,
+			"آمار %s باید جان %.0f، سرعت ۲۸، زره ۴ و پاداش ۱۲ باشد" % [tid, want_hp])
+		check(String(tdef.get("iso", "")) == tid and String(tdef.get("attack", "")) == "laser",
+			"تانک %s باید از شیت ایزومتریک خودش بیاید و با لیزر حمله کند" % tid)
+		check(int(tdef.get("keep_damage", 0)) == 1,
+			"تانک %s باید در تک‌شلیک خود یک جان از دژ کم کند" % tid)
+	check(_alpha_diff_pixels("units_iso_tank/tank_move", "units_iso_tank_armored/tank_armored_move") > 15000
+		and _alpha_diff_pixels("units_iso_tank/tank_move", "units_iso_tank_heavy/tank_heavy_move") > 15000
+		and _alpha_diff_pixels("units_iso_tank_armored/tank_armored_move", "units_iso_tank_heavy/tank_heavy_move") > 15000,
+		"هر سه تانک باید شکل بدنه و سیلوئت ظاهری کاملاً متمایز داشته باشند، نه صرفاً تغییر رنگ")
+
+func _alpha_diff_pixels(key_a: String, key_b: String) -> int:
+	var img_a := Assets.tex(key_a).get_image()
+	var img_b := Assets.tex(key_b).get_image()
+	if img_a == null or img_b == null or img_a.get_size() != img_b.get_size():
+		return -1
+	var diff := 0
+	var w := img_a.get_width()
+	var h := img_a.get_height()
+	for y in range(h):
+		for x in range(w):
+			var ma := img_a.get_pixel(x, y).a > 0.12
+			var mb := img_b.get_pixel(x, y).a > 0.12
+			if ma != mb:
+				diff += 1
+	return diff
 
 # ------------------------------------------------------------------ نقشه‌ها
 
@@ -664,8 +747,8 @@ func _test_unit_sheets() -> void:
 	check(UnitSheets.direction_name(Vector2(1.0, 0.2)) == "right", "جهت راست باید right باشد")
 	check(UnitSheets.direction_name(Vector2(-1.0, 0.2)) == "left", "جهت چپ باید left باشد")
 
-	# سرباز با شیت دویدن (۸ فریم) می‌رود؛ سر ثابت و پاها حرکت را می‌برند
-	for case in [["soldier", "run"]]:
+	# سرباز و تکاور هر دو با شیت دویدن (۸ فریم) و شیت مرگ (۶ فریم) کار می‌کنند
+	for case in [["soldier", "run"], ["commando", "run"]]:
 		var sheet_enemy := Enemy.new()
 		add_child(sheet_enemy)
 		var enemy_def := Enemies.by_id(String(case[0]))
@@ -858,30 +941,32 @@ func _test_prestige_fixed_cost() -> void:
 
 func _test_waves() -> void:
 	for index in [0, 5, 10, 14]:
+		var seen_Across_waves := {}
 		for wave in range(1, Balance.WAVES + 1):
 			var groups := Enemies.wave_groups(index, wave)
 			check(not groups.is_empty(), "موج %d نقشهٔ %d خالی است" % [wave, index])
 			var total := 0
+			var infantry := 0
+			var tanks := 0
 			for group in groups:
 				var id := String(group.get("enemy", ""))
 				check(not Enemies.by_id(id).is_empty(), "دشمن ناشناخته در موج %d نقشهٔ %d: %s" % [wave, index, id])
+				seen_Across_waves[id] = true
 				var count := int(group.get("count", 0))
 				check(count > 0, "گروه خالی در موج %d نقشهٔ %d" % [wave, index])
 				check(float(group.get("interval", 0.0)) > 0.0, "فاصلهٔ نامعتبر در موج %d نقشهٔ %d" % [wave, index])
 				total += count
+				if Enemies.INFANTRY_IDS.has(id):
+					infantry += count
+				elif Enemies.TANK_IDS.has(id):
+					tanks += count
 			check(total >= 3, "موج %d نقشهٔ %d کم‌جمعیت است: %d" % [wave, index, total])
-			# سربازها مثل قبل‌اند و تانک از موج ۵ می‌آید: ۱ + (موج − ۵) ÷ ۵
-			var soldiers := 0
-			var tanks := 0
-			for group in groups:
-				if String(group.get("enemy", "")) == "soldier":
-					soldiers += int(group.get("count", 0))
-				elif String(group.get("enemy", "")) == "tank":
-					tanks += int(group.get("count", 0))
-			check(soldiers == maxi(1, int(round(float(Balance.wave_count(wave))))),
-				"تعداد سرباز موج %d نباید تغییر کند" % wave)
+			check(infantry == maxi(1, int(round(float(Balance.wave_count(wave))))),
+				"تعداد پیاده‌نظام موج %d نباید تغییر کند" % wave)
 			var expected_tanks := 0 if wave < 5 else 1 + int(float(wave - 5) / 5.0)
 			check(tanks == expected_tanks, "موج %d نقشهٔ %d باید %d تانک داشته باشد، دارد %d" % [wave, index, expected_tanks, tanks])
+		check(seen_Across_waves.size() == Enemies.LIST.size(),
+			"همهٔ ۵ نیروی دشمن باید در طول موج‌های نقشهٔ %d حضور داشته باشند: %s" % [index, seen_Across_waves.keys()])
 	check(Enemies.tank_count(4) == 0 and Enemies.tank_count(5) == 1 and Enemies.tank_count(9) == 1
 		and Enemies.tank_count(10) == 2 and Enemies.tank_count(30) == 6, "جدول تعداد تانک موج‌ها اشتباه است")
 
@@ -1039,6 +1124,8 @@ func _test_iso_sheets() -> void:
 	var folders := {
 		"res://assets/sprites/towers_iso": ["towers_iso", 13],
 		"res://assets/sprites/units/iso_tank": ["units_iso_tank", 4],
+		"res://assets/sprites/units/iso_tank_armored": ["units_iso_tank_armored", 4],
+		"res://assets/sprites/units/iso_tank_heavy": ["units_iso_tank_heavy", 4],
 	}
 	for folder in folders.keys():
 		var prefix := String(folders[folder][0])
@@ -1053,7 +1140,7 @@ func _test_iso_sheets() -> void:
 			check(Assets.has_key(key), "شیت ایزومتریک در مانیفست نیست: %s" % key)
 
 	var expected := IsoSheet.expected_sheets()
-	check(expected.size() == 15, "دوازده شیت برجک و سه شیت تانک انتظار می‌رود: %d" % expected.size())
+	check(expected.size() == 21, "دوازده شیت برجک و نه شیت سه تانک انتظار می‌رود: %d" % expected.size())
 	for key in expected.keys():
 		var sheet_key := String(key)
 		var frames := int(expected[key])
@@ -1083,7 +1170,8 @@ func _test_iso_sheets() -> void:
 		var tex := Assets.tex(String(atlas_key))
 		check(tex != null and tex.get_width() == int(IsoSheet.ATLAS_COLUMNS[atlas_key]) * IsoSheet.FRAME
 			and tex.get_height() == IsoSheet.DIRS * IsoSheet.FRAME, "ابعاد اطلس پیش‌نمایش %s اشتباه است" % atlas_key)
-	check(Assets.FALLBACKS.has("towers_iso") and Assets.FALLBACKS.has("units_iso_tank"),
+	check(Assets.FALLBACKS.has("towers_iso") and Assets.FALLBACKS.has("units_iso_tank")
+		and Assets.FALLBACKS.has("units_iso_tank_armored") and Assets.FALLBACKS.has("units_iso_tank_heavy"),
 		"دسته‌های ایزومتریک باید تصویر جایگزین داشته باشند")
 
 	# جهت از بردار: فشردگی عمق ۰٫۵ و باقی‌ماندهٔ مثبت
@@ -1205,23 +1293,29 @@ func _test_iso_towers() -> void:
 
 # ------------------------------------------------------------------ تانک
 
-## تانک: در مسیر move، جهت از مسیر در گام‌های ۴۵ درجه؛ کنار دژ می‌ایستد، idle بین شلیک‌ها،
-## هر ۲ ثانیه attack با یک جان آسیب، تا نابودی زنده و هدف‌پذیر می‌ماند و موج را باز نگه می‌دارد.
+## تانک: در مسیر move، جهت از مسیر در گام‌های ۴۵ درجه؛ کنار دژ می‌ایستد، رو به دژ می‌چرخد،
+## تنها **یک بار** به دژ شلیک می‌کند (یک جان کم می‌شود) و بلافاصله بدون تکرار شلیک حذف می‌شود.
 func _test_tank() -> void:
-	var def := Enemies.by_id("tank")
+	for tid in Enemies.TANK_IDS:
+		_test_single_tank(String(tid))
+	await _test_tank_battle_single_shot()
+
+func _test_single_tank(tid: String) -> void:
+	var def := Enemies.by_id(tid)
 	if def.is_empty():
-		check(false, "تانک برای آزمون پیدا نشد")
+		check(false, "تانک %s برای آزمون پیدا نشد" % tid)
 		return
 	var map := GameMap.build(0)
 	var tank := IsoEnemy.new()
 	add_child(tank)
 	tank.setup(def, map, 1.0, 1.0, 5, 0.0)
-	check(tank.active_anim() == "move", "تانک باید با move حرکت کند، هست %s" % tank.active_anim())
-	check(is_equal_approx(tank.max_hp, 420.0) and is_equal_approx(tank.armor, 4.0) and tank.reward == 12,
-		"آمار تانک از جدول دشمنان خوانده نشد")
+	check(tank.active_anim() == "move", "تانک %s باید با move حرکت کند، هست %s" % [tid, tank.active_anim()])
+	check(is_equal_approx(tank.max_hp, float(def["hp"])) and is_equal_approx(tank.armor, 4.0) and tank.reward == 12,
+		"آمار تانک %s از جدول دشمنان خوانده نشد" % tid)
 	var frame := tank._sprite.texture as AtlasTexture
-	check(frame != null and frame.atlas == Assets.tex(IsoSheet.tank_key("move"))
-		and frame.region.position.y == tank.dir * IsoSheet.FRAME, "تصویر تانک باید ردیف جهتش از شیت move باشد")
+	check(frame != null and frame.atlas == Assets.tex(IsoSheet.tank_key("move", tid))
+		and frame.region.position.y == tank.dir * IsoSheet.FRAME,
+		"تصویر تانک %s باید ردیف جهتش از شیت move خودش باشد" % tid)
 
 	# جهت روی هر تکهٔ مسیر از خود مسیر می‌آید (۸ جهت) و اسپرایت هرگز نمی‌چرخد
 	var seen := {}
@@ -1238,7 +1332,7 @@ func _test_tank() -> void:
 	check(seen.size() >= 2, "مسیر نقشه باید تانک را در بیش از یک جهت ببرد")
 	check(tank._sprite.rotation == 0.0, "تانک باید فقط با ردیف شیت بچرخد، نه چرخش پیوسته")
 
-	# حرکت واقعی با _process و انیمیشن move
+	# حرکت واقعی با _process و انیمیشن move + بررسی کاهش آسیب با زره ۴
 	tank.progress = 0.0
 	var start := tank.progress
 	for step in 10:
@@ -1246,41 +1340,80 @@ func _test_tank() -> void:
 	check(is_equal_approx(snappedf(tank.progress - start, 0.01), snappedf(tank.base_speed, 0.01)),
 		"تانک باید در یک ثانیه به اندازهٔ سرعتش جلو برود")
 	check(tank.active_anim() == "move" and not tank.sieging, "تانک در مسیر باید move باشد")
-
-	# محاصره: کنار دژ می‌ایستد و هر ۲ ثانیه یک جان کم می‌کند
-	var hits := [0]
-	var reached := [false]
-	tank.keep_attacked.connect(func(_enemy, amount): hits[0] += int(amount))
-	tank.reached_keep.connect(func(_enemy): reached[0] = true)
-	tank.progress = tank.siege_progress - 0.5
-	tank._process(0.05)
-	check(tank.sieging and tank.active_anim() == "idle", "تانک کنار دژ باید بایستد و idle شود")
-	check(tank.position.distance_to(map.keep_pos) > 60.0, "تانک باید پیش از دژ بایستد، نه روی آن")
-	check(tank.dir == IsoSheet.dir_from_vector(map.keep_pos - tank.position), "تانک در محاصره باید رو به دژ باشد")
-	var anims := {}
-	for step in 120:   # شش ثانیه
-		tank._process(0.05)
-		anims[tank.active_anim()] = true
-	check(hits[0] == 3, "در شش ثانیه محاصره باید سه شلیک لیزر (هر ۲ ثانیه) بخورد، خورد %d" % hits[0])
-	check(anims.has("attack") and anims.has("idle"), "تانک باید بین attack و idle جابه‌جا شود")
-	check(tank.alive and not reached[0] and is_equal_approx(tank.progress, tank.siege_progress),
-		"تانک در محاصره باید زنده و هدف‌پذیر بماند و حذف نشود")
-	var laser := tank.laser_tip()
-	check((laser - tank.position).dot(map.keep_pos - tank.position) > 0.0
-		and laser.is_equal_approx(tank.position + (IsoEnemy.LASER_TIP[tank.dir] as Vector2) * IsoEnemy.SPRITE_SCALE),
-		"نوک لیزر تانک باید سرِ پرتوِ همان جهت و رو به دژ باشد")
-
-	# زره و نابودی
 	var hp_before := tank.hp
 	tank.take_damage(10.0)
 	check(is_equal_approx(hp_before - tank.hp, 6.0), "زره ۴ تانک باید از آسیب کم شود")
-	var died := [false]
-	tank.died.connect(func(_enemy): died[0] = true)
-	tank.take_damage(99999.0, true)
-	check(died[0] and not tank.alive and tank.is_dying(), "تانک با تمام شدن جان باید نابود شود")
-	for step in 20:
+
+	# رسیدن به دژ: می‌ایستد، فقط **یک بار** شلیک می‌کند و بلافاصله بدون تکرار شلیک حذف می‌شود
+	var hits := [0]
+	var reached := [false]
+	var finished := [false]
+	var died_on_shot := [false]
+	tank.keep_attacked.connect(func(_enemy, amount): hits[0] += int(amount))
+	tank.reached_keep.connect(func(_enemy): reached[0] = true)
+	tank.finished_attack.connect(func(_enemy): finished[0] = true)
+	tank.died.connect(func(_enemy): died_on_shot[0] = true)
+	tank.progress = tank.siege_progress - 0.5
+	tank._process(0.05)
+	check(tank.sieging and tank.active_anim() == "idle", "تانک کنار دژ باید بایستد و پیش از شلیک idle شود")
+	check(tank.position.distance_to(map.keep_pos) > 60.0, "تانک باید پیش از دژ بایستد، نه روی آن")
+	check(tank.dir == IsoSheet.dir_from_vector(map.keep_pos - tank.position), "تانک هنگام شلیک باید رو به دژ باشد")
+	var laser := tank.laser_tip()
+	check((laser - tank.position).dot(map.keep_pos - tank.position) > 0.0
+		and laser.is_equal_approx(tank.position + IsoEnemy.laser_tip_offset(tank.family, tank.dir) * IsoEnemy.SPRITE_SCALE),
+		"نوک لیزر تانک %s باید سرِ پرتوِ همان جهت و رو به دژ باشد" % tid)
+	var anims := {}
+	for step in 120:   # شش ثانیه کامل
 		tank._process(0.05)
-	check(tank.is_queued_for_deletion(), "لاشهٔ تانک باید پس از محو شدن آزاد شود")
+		anims[tank.active_anim()] = true
+	check(hits[0] == 1 and tank.shots_fired == 1,
+		"تانک %s باید دقیقاً یک تیر شلیک کند و دیگر شلیک را تکرار نکند، شلیک شد: %d" % [tid, hits[0]])
+	check(anims.has("attack"), "تانک %s باید انیمیشن شلیک attack را پخش کند" % tid)
+	check(finished[0] and not tank.alive and not died_on_shot[0] and not reached[0] and tank.is_queued_for_deletion(),
+		"تانک %s باید بلافاصله پس از همان یک شلیک، بدون سیگنال مرگ حذف شود" % tid)
+
+	# نابودی در مسیر با شلیک برجک‌ها (پیش از رسیدن به دژ)
+	var doomed := IsoEnemy.new()
+	add_child(doomed)
+	doomed.setup(def, map, 1.0, 1.0, 5, 0.0)
+	var died := [false]
+	doomed.died.connect(func(_enemy): died[0] = true)
+	doomed.take_damage(99999.0, true)
+	check(died[0] and not doomed.alive and doomed.is_dying(), "تانک با تمام شدن جان در مسیر باید نابود شود")
+	for step in 20:
+		doomed._process(0.05)
+	check(doomed.is_queued_for_deletion(), "لاشهٔ تانک باید پس از محو شدن آزاد شود")
+
+## آزمون یکپارچه در خود صحنهٔ نبرد: هر یک از سه تانک پس از یک شلیک به دژ، فقط ۱ جان از قلعه کم می‌کند،
+## بلافاصله از فهرست دشمنان میدان حذف می‌شود، سکهٔ کشتن نمی‌دهد و هرگز شلیک دومی انجام نمی‌دهد.
+func _test_tank_battle_single_shot() -> void:
+	var battle = load("res://scenes/Battle.tscn").instantiate()
+	add_child(battle)
+	await get_tree().process_frame
+	battle.state = "wave"
+	battle.wave_index = 12
+	battle.spawn_queue.clear()
+	battle.enemies.clear()
+	for tid in Enemies.TANK_IDS:
+		var lives_before: int = battle.lives
+		var coins_before: int = battle.coins
+		var kills_before: int = battle.kills
+		battle._spawn_enemy(String(tid))
+		check(battle.enemies.size() == 1, "تانک %s در نبرد ساخته نشد" % tid)
+		var tank: IsoEnemy = battle.enemies[0]
+		tank.progress = tank.siege_progress - 0.5
+		for step in 120:
+			if is_instance_valid(tank):
+				tank._process(0.05)
+		check(battle.lives == lives_before - 1,
+			"تانک %s در نبرد باید فقط یک بار به قلعه شلیک کند (جان قلعه پیش: %d، پس: %d)"
+			% [tid, lives_before, battle.lives])
+		check(battle.enemies.is_empty() and tank.is_queued_for_deletion(),
+			"تانک %s باید پس از تک‌شلیک از فهرست دشمنان میدان حذف شود" % tid)
+		check(battle.kills == kills_before and battle.coins == coins_before,
+			"حذف تانک %s پس از شلیک به قلعه نباید سکه یا شمارش کشتن بدهد" % tid)
+	battle.queue_free()
+	await get_tree().process_frame
 
 
 # ------------------------------------------------------------------ لمس واقعی گوشی
@@ -1309,11 +1442,13 @@ func _touch_drag(from: Vector2, to: Vector2, steps := 4) -> void:
 		await get_tree().process_frame
 	await _touch(to, false)
 
-## انتخاب برجک و دکمه‌های ارتقا/فروش از همان مسیر رویدادهای لمسی گوشی (نه صدا زدن مستقیم توابع).
-## پیش‌تر پنل برجک از پایین صفحه بیرون می‌زد و دکمهٔ «ارتقا» روی گوشی در دسترس نبود؛ این آزمون
-## برای هر برجک و هر سطح بررسی می‌کند که پنل و هر دو دکمه کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ باشند.
+## انتخاب برجک و دکمه‌های ارتقا/فروش در نبرد و زرادخانه از همان مسیر رویدادهای لمسی گوشی
+## (نه صدا زدن مستقیم توابع). لمس ساده و کشیدن روی برجک هر دو پنل را باز می‌کنند، پنل و
+## دکمه‌ها کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ می‌مانند، و لمس داخل پنل به میدان پشتش نشت نمی‌کند.
 func _test_touch_upgrade_flow() -> void:
 	var saved_unlocked: Array = Game.unlocked_weapons.duplicate()
+	var saved_levels: Dictionary = Game.weapon_levels.duplicate(true)
+	var saved_stars: int = Game.stars
 	Game.unlocked_weapons = Weapons.ids().duplicate()
 	var battle = load("res://scenes/Battle.tscn").instantiate()
 	add_child(battle)
@@ -1337,18 +1472,36 @@ func _test_touch_upgrade_flow() -> void:
 		if battle.towers.size() == built_before:
 			continue
 		var tower = battle.towers[-1]
-		battle._cancel_build_preview()
+		var grip: Vector2 = tower.position + Vector2(0.0, -24.0)
+		# ۱) حالت پیش‌فرض بازی: سلاح در نوار پایین آماده است و بازیکن مستقیم روی برجک می‌زند
+		battle.selected_weapon = String(id)
 		await get_tree().process_frame
-		var grip: Vector2 = tower.position + Vector2(0.0, -30.0)
-		# لمس ساده (بدون کشیدن) برجک را انتخاب نمی‌کند؛ انتخاب فقط با گرفتن و کشیدن است.
 		await _touch(grip, true)
 		await _touch(grip, false)
-		check(battle.selected_tower == null, "لمس سادهٔ برجک %s نباید آن را انتخاب کند" % id)
+		check(battle.selected_tower == tower and hud._tower_panel.visible and battle.selected_weapon.is_empty(),
+			"لمس سادهٔ برجک %s هنگام آماده بودن سلاح باید پنل ارتقا را باز کند" % id)
+		# ۲) بستن پنل با لمس فضای خالی و باز کردن دوباره با لمس ساده بدون سلاح آماده
+		await _touch(Vector2(620.0, 60.0), true)
+		await _touch(Vector2(620.0, 60.0), false)
+		check(battle.selected_tower == null and not hud._tower_panel.visible,
+			"لمس فضای خالی باید پنل برجک %s را ببندد" % id)
+		await _touch(grip, true)
+		await _touch(grip, false)
+		check(battle.selected_tower == tower and hud._tower_panel.visible,
+			"لمس سادهٔ برجک %s بدون سلاح آماده باید پنل ارتقا را باز کند" % id)
+		# ۳) کشیدن روی برجک نیز آن را انتخاب می‌کند
+		battle.select_tower(null)
 		await _touch_drag(grip, grip + Vector2(36.0, 0.0))
 		check(battle.selected_tower == tower and hud._tower_panel.visible,
-			"گرفتن و کشیدن برجک %s با لمس باید پنل ارتقا را باز کند" % id)
+			"کشیدن برجک %s با لمس نیز باید پنل ارتقا را باز کند" % id)
 		if battle.selected_tower != tower:
 			continue
+		# ۴) لمس ناحیهٔ خالی داخل پنل برجک نباید پنل را ببندد
+		var panel_top: Vector2 = hud._tower_panel.get_global_rect().position + Vector2(40.0, 24.0)
+		await _touch(panel_top, true)
+		await _touch(panel_top, false)
+		check(battle.selected_tower == tower and hud._tower_panel.visible,
+			"لمس داخل پنل برجک %s نباید پنل را ببندد" % id)
 		for step in range(1, Balance.MAX_LEVEL):
 			await get_tree().process_frame
 			var panel_rect: Rect2 = hud._tower_panel.get_global_rect()
@@ -1383,4 +1536,60 @@ func _test_touch_upgrade_flow() -> void:
 			"زدن دکمهٔ فروش با لمس باید برجک %s را بفروشد و پنل را ببندد" % id)
 	battle.queue_free()
 	await get_tree().process_frame
+
+	# ۵) بررسی لمس و جاشدن کامل پنجرهٔ ارتقای زرادخانه (اسلحه‌ها) در صفحهٔ ۱۲۸۰×۷۲۰
+	# (هم در حالت بدون ستاره با پیام «ستارهٔ کافی ندارید» و هم در حالت ارتقای واقعی با لمس)
+	Game.weapon_levels = {}
+	Game.stars = 0
+	var armory = load("res://scenes/Armory.tscn").instantiate()
+	add_child(armory)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for idx in range(Weapons.count()):
+		var wid := String(Weapons.LIST[idx]["id"])
+		var card: Button = armory._list.get_child(idx + 1)
+		card.pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		check(screen.encloses(armory._panel.get_global_rect()),
+			"پنجرهٔ جزئیات زرادخانه در حالت بدون ستاره نیز باید داخل صفحه باشد (%s): %s"
+			% [wid, armory._panel.get_global_rect()])
+		armory._close_detail()
+	Game.stars = 50
+	armory._refresh_cards()
+	await get_tree().process_frame
+	for idx in range(Weapons.count()):
+		var wid := String(Weapons.LIST[idx]["id"])
+		var card: Button = armory._list.get_child(idx + 1)
+		card.pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var armory_panel_rect: Rect2 = armory._panel.get_global_rect()
+		var armory_up_btn := _find_button_prefix(armory._detail, "ارتقا به سطح")
+		check(armory_up_btn != null, "دکمهٔ ارتقای زرادخانه برای %s ساخته نشد" % wid)
+		if armory_up_btn != null:
+			var armory_btn_rect: Rect2 = armory_up_btn.get_global_rect()
+			print("  armory %s: panel=%s up=%s" % [wid, armory_panel_rect, armory_btn_rect])
+			check(screen.encloses(armory_panel_rect) and screen.encloses(armory_btn_rect),
+				"پنجره و دکمهٔ ارتقای زرادخانه برای %s باید کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ باشند: پنل %s دکمه %s"
+				% [wid, armory_panel_rect, armory_btn_rect])
+			await _touch(armory_btn_rect.get_center(), true)
+			await _touch(armory_btn_rect.get_center(), false)
+			check(Game.weapon_level(wid) == 1, "زدن دکمهٔ ارتقای زرادخانه با لمس باید سطح %s را به ۱ برساند" % wid)
+		armory._close_detail()
+	armory.queue_free()
+	await get_tree().process_frame
+
 	Game.unlocked_weapons = saved_unlocked
+	Game.weapon_levels = saved_levels
+	Game.stars = saved_stars
+	Game.save()
+
+func _find_button_prefix(node: Node, prefix: String) -> Button:
+	if node is Button and (node as Button).text.begins_with(prefix):
+		return node as Button
+	for child in node.get_children():
+		var found := _find_button_prefix(child, prefix)
+		if found != null:
+			return found
+	return null

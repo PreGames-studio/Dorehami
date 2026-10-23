@@ -1,11 +1,10 @@
-## دشمن ایزومتریک (تانک) از شیت‌های شبکه‌ای پک units_iso_tank با هشت جهت.
+## دشمن ایزومتریک (تانک) از شیت‌های شبکه‌ای پک units_iso_* با هشت جهت.
 ##
 ## - در مسیر با حالت «move» پیش می‌رود. جهت از خود مسیر می‌آید و فقط در گام‌های ۴۵ درجه
 ##   (ردیف شیت) عوض می‌شود؛ اسپرایت هیچ‌وقت پیوسته نمی‌چرخد.
-## - کمی پیش از دژ می‌ایستد (محاصره)، رو به دژ می‌چرخد و بین شلیک‌ها «idle» است.
-## - هر attack_interval ثانیه یک بار «attack» را پخش می‌کند؛ لیزر قرمز در خود فریم‌هاست و
-##   در فریم LASER_FRAME پرتو تا دژ کشیده می‌شود و keep_damage جان کم می‌شود (سیگنال keep_attacked).
-## - تا نابود نشود زنده و در فهرست دشمنان می‌ماند، پس برجک‌ها هدفش می‌گیرند و موج تمام نمی‌شود.
+## - کمی پیش از دژ می‌ایستد، رو به دژ می‌چرخد و تنها **یک بار** «attack» را اجرا می‌کند:
+##   در فریم LASER_FRAME پرتو تا دژ کشیده می‌شود و keep_damage جان کم می‌شود (سیگنال keep_attacked)،
+##   و بلافاصله پس از پایان همان انیمیشن تک‌شلیک، بدون تکرار شلیک از میدان حذف می‌شود.
 class_name IsoEnemy
 extends Enemy
 
@@ -13,15 +12,26 @@ extends Enemy
 const SPRITE_SCALE := 0.8
 ## فاصلهٔ ایستادن تا انتهای مسیر (مرکز دژ).
 const SIEGE_STANDOFF := 96.0
-## فریمی از attack که پرتو لیزر کامل است (بیشترین پیکسل قرمز در شیت).
+## فریمی از attack که پرتو لیزر کامل است.
 const LASER_FRAME := 2
-## اولین شلیک پس از رسیدن، زودتر از فاصلهٔ کامل بین شلیک‌ها.
+## مکث کوتاه هدف‌گیری پس از رسیدن به دژ پیش از تک‌شلیک.
 const FIRST_SHOT_DELAY := 0.6
-## نوک پرتو لیزرِ داخل فریم attack برای هر جهت، نسبت به TANK_PIVOT (پیکسل فریم)؛
-## از پیکسل‌های قرمزی که در فریم ۲ هست و در فریم ۰ نیست اندازه گرفته شده است.
+## نوک پرتو لیزرِ داخل فریم attack برای هر جهت، نسبت به TANK_PIVOT (پیکسل فریم).
 const LASER_TIP := [Vector2(57, -47), Vector2(55, -2), Vector2(-2, 15), Vector2(-56, -2),
 	Vector2(-58, -47), Vector2(-58, -57), Vector2(-3, -76), Vector2(56, -59)]
+const LASER_TIPS := {
+	"tank": LASER_TIP,
+	"tank_armored": [Vector2(64, -31), Vector2(48, 2), Vector2(0, 12), Vector2(-48, 2),
+		Vector2(-64, -31), Vector2(-45, -55), Vector2(0, -65), Vector2(45, -55)],
+	"tank_heavy": [Vector2(59, -34), Vector2(46, 2), Vector2(0, 12), Vector2(-46, 2),
+		Vector2(-59, -34), Vector2(-42, -56), Vector2(0, -65), Vector2(42, -56)],
+}
 const LASER_TINT := Color(2.2, 0.32, 0.26, 1.0)
+const LASER_TINTS := {
+	"tank": Color(2.2, 0.32, 0.26, 1.0),
+	"tank_armored": Color(0.28, 1.55, 2.35, 1.0),
+	"tank_heavy": Color(2.35, 1.32, 0.28, 1.0),
+}
 const DEATH_TIME := 0.7
 
 var family := "tank"
@@ -132,22 +142,44 @@ func _siege(delta: float) -> void:
 			_attack_hit = true
 			_laser_hit()
 		if _player.finished():
-			_play("idle")
-	if _attack_cd <= 0.0 and action != "attack":
-		_attack_cd += attack_interval
+			_finish_after_shot()
+			return
+	elif shots_fired == 0 and _attack_cd <= 0.0:
 		_attack_hit = false
 		_play("attack", true)
 
 
-## لحظهٔ رسیدن لیزر: Battle جان دژ را کم می‌کند و پرتو را از laser_tip() تا دژ می‌کشد.
+## لحظهٔ رسیدن تنها شلیک لیزر: Battle جان دژ را کم می‌کند و پرتو را از laser_tip() تا دژ می‌کشد.
 func _laser_hit() -> void:
-	shots_fired += 1
+	if shots_fired > 0:
+		return
+	shots_fired = 1
 	keep_attacked.emit(self, keep_damage)
+
+
+## پس از کامل شدن انیمیشن تک‌شلیک، تانک بدون تکرار شلیک و بدون پاداش کشتن از میدان حذف می‌شود.
+func _finish_after_shot() -> void:
+	if not alive:
+		return
+	alive = false
+	finished_attack.emit(self)
+	queue_free()
+
+
+## آفست نوک لوله/لیزر خانوادهٔ تانک برای جهت داده‌شده (پیکسل فریم).
+static func laser_tip_offset(tank_family: String, direction: int) -> Vector2:
+	var table: Array = LASER_TIPS.get(tank_family, LASER_TIP)
+	return table[posmod(direction, IsoSheet.DIRS)] as Vector2
 
 
 ## نوک پرتو لیزر در مختصات جهان برای جهت فعلی.
 func laser_tip() -> Vector2:
-	return position + (LASER_TIP[dir] as Vector2) * SPRITE_SCALE
+	return position + laser_tip_offset(family, dir) * SPRITE_SCALE
+
+
+## رنگ پرتو لیزر مطابق ظاهر هر خانوادهٔ تانک.
+func laser_color() -> Color:
+	return LASER_TINTS.get(family, LASER_TINT)
 
 
 # ------------------------------------------------------------------ مرگ و نمایش

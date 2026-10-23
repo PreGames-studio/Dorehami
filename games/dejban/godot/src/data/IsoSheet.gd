@@ -43,7 +43,8 @@ const TOWER_MUZZLE := {
 		Vector2(-25, -54), Vector2(-18, -62), Vector2(0, -63), Vector2(18, -62)],
 }
 
-## سه حالت تانک (README پک enemy_tank_iso). فریم‌های attack خودشان لیزر قرمز را دارند.
+## خانواده‌های تانک ایزومتریک و سه حالت مشترکشان. فریم‌های attack خودشان پرتو انرژی را دارند.
+const TANK_FAMILIES := ["tank", "tank_armored", "tank_heavy"]
 const TANK_ACTIONS := {
 	"idle": {"frames": 4, "fps": 8.0, "loop": true},
 	"move": {"frames": 6, "fps": 12.0, "loop": true},
@@ -56,6 +57,8 @@ const TANK_PIVOT := Vector2(64.0, 99.0)
 const ATLAS_COLUMNS := {
 	"towers_iso/atlas_towers_iso": 12,
 	"units_iso_tank/atlas_tank_iso": 3,
+	"units_iso_tank_armored/atlas_tank_armored_iso": 3,
+	"units_iso_tank_heavy/atlas_tank_heavy_iso": 3,
 }
 
 static var _sheets: Dictionary = {}
@@ -73,18 +76,19 @@ static func tower_key(kind: String, action: String) -> String:
 	return "towers_iso/%s_%s" % [kind, action]
 
 
-static func tank_key(action: String) -> String:
-	return "units_iso_tank/tank_%s" % action
+static func tank_key(action: String, family := "tank") -> String:
+	return "units_iso_%s/%s_%s" % [family, family, action]
 
 
-## همهٔ کلیدهای شیت انیمیشنی دو پک (بدون اطلس‌های پیش‌نمایش) همراه با تعداد فریمِ مورد انتظار.
+## همهٔ کلیدهای شیت انیمیشنی پک‌های برجک و تانک‌ها (بدون اطلس‌های پیش‌نمایش) همراه با تعداد فریمِ مورد انتظار.
 static func expected_sheets() -> Dictionary:
 	var out := {}
 	for kind in TOWER_KINDS:
 		for action in TOWER_ACTIONS.keys():
 			out[tower_key(String(kind), String(action))] = int(TOWER_ACTIONS[action]["frames"])
-	for action in TANK_ACTIONS.keys():
-		out[tank_key(String(action))] = int(TANK_ACTIONS[action]["frames"])
+	for family in TANK_FAMILIES:
+		for action in TANK_ACTIONS.keys():
+			out[tank_key(String(action), String(family))] = int(TANK_ACTIONS[action]["frames"])
 	return out
 
 

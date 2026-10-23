@@ -22,6 +22,7 @@ var shadow := Color(0.0, 0.0, 0.0, 0.35)
 
 var theme: Theme
 var font_regular: FontFile
+var font_latin: FontFile
 var font_medium: FontFile
 var font_bold: FontFile
 var grabber: Texture2D
@@ -32,6 +33,7 @@ func _ready() -> void:
 
 func _load_fonts() -> void:
 	font_regular = load("res://assets/fonts/Vazirmatn-FD-Regular.ttf")
+	font_latin = load("res://assets/fonts/Vazirmatn-Regular.ttf")
 	font_medium = load("res://assets/fonts/Vazirmatn-FD-Medium.ttf")
 	font_bold = load("res://assets/fonts/Vazirmatn-FD-Bold.ttf")
 	if font_regular == null:
