@@ -154,8 +154,12 @@ func icon_button(texture: Texture2D, size := 46.0, variant := "normal") -> Butto
 	return node
 
 func tex(key: String, size := 34.0, keep_aspect := true) -> TextureRect:
+	return tex_of(Assets.tex(key), size, keep_aspect)
+
+## مثل tex ولی با خودِ بافت (مثلاً فریم برش‌خوردهٔ یک شیت).
+func tex_of(texture: Texture2D, size := 34.0, keep_aspect := true) -> TextureRect:
 	var node := TextureRect.new()
-	node.texture = Assets.tex(key)
+	node.texture = texture
 	node.custom_minimum_size = Vector2(size, size)
 	node.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	node.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED if keep_aspect else TextureRect.STRETCH_SCALE
@@ -236,7 +240,7 @@ func weapon_button(weapon: Dictionary) -> Button:
 	icon_and_price.alignment = BoxContainer.ALIGNMENT_CENTER
 	content.add_child(icon_and_price)
 	# در نوار نبرد خودِ تصویر برجک را نشان می‌دهیم، نه آیکون مدالیِ برگ‌دار.
-	var icon := tex(Weapons.art_key(String(weapon["id"])), 46.0)
+	var icon := tex_of(Weapons.icon(String(weapon["id"])), 46.0)
 	icon.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
 	icon.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	icon_and_price.add_child(icon)

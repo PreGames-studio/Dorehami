@@ -122,7 +122,7 @@ func _make_styled_card_shell(
 		stage.add_child(weapon_display)
 
 		var turret_tex := TextureRect.new()
-		turret_tex.texture = Assets.tex(Weapons.art_key(weapon_id))
+		turret_tex.texture = Weapons.icon(weapon_id)
 		turret_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		turret_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		turret_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -316,7 +316,7 @@ func _show_detail() -> void:
 	var preview_style := Style.box(Color("#0b1830"), 12, Style.gold_dark, 1, 4.0)
 	preview_frame.add_theme_stylebox_override("panel", preview_style)
 	var preview := TextureRect.new()
-	preview.texture = Assets.tex(Weapons.art_key(id))
+	preview.texture = Weapons.icon(id)
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST

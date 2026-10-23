@@ -136,7 +136,7 @@ const SHEET_AXIS := {
 ## پرتو کش‌آمده بین دو نقطه (لیزر آبی یا صاعقهٔ بنفش)؛ طول از فاصله گرفته می‌شود.
 ## فریم‌ها وسط‌چین‌اند، پس مرکزِ پاره‌خط وسط دو نقطه می‌نشیند و فقط محورِ طول
 ## به اندازهٔ فاصله کش می‌آید؛ ضخامت هم همان `width` می‌ماند.
-static func beam(parent: Node, key: String, from: Vector2, to: Vector2, width := 1.0) -> void:
+static func beam(parent: Node, key: String, from: Vector2, to: Vector2, width := 1.0, tint := Color.WHITE) -> void:
 	var delta := to - from
 	var length := delta.length()
 	if length <= 1.0:
@@ -148,6 +148,7 @@ static func beam(parent: Node, key: String, from: Vector2, to: Vector2, width :=
 		"angle": delta.angle() + (PI * 0.5 if vertical else 0.0),
 		"stretch": stretch,
 		"z": 31,
+		"tint": tint,
 	})
 
 ## صاعقهٔ زنجیره‌ای بین دو دشمن.

@@ -5,6 +5,8 @@ extends Node2D
 
 signal died(enemy)
 signal reached_keep(enemy)
+## دشمنی که کنار دژ می‌ایستد و به آن شلیک می‌کند (تانک IsoEnemy) با هر ضربه این سیگنال را می‌دهد.
+signal keep_attacked(enemy, amount)
 
 const BAR_WIDTH := 30.0
 const BAR_HEIGHT := 4.0
@@ -61,6 +63,12 @@ var _death_t := 0.0
 
 func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scale: float,
 		wave_index: int, lane_offset: float) -> void:
+	_setup_stats(enemy_def, game_map, hp_scale, speed_scale, wave_index, lane_offset)
+	_setup_visual()
+
+## آمار و جای آغاز دشمن از ورودی Enemies؛ بین سرباز و دشمن‌های ایزومتریک مشترک است.
+func _setup_stats(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scale: float,
+		wave_index: int, lane_offset: float) -> void:
 	def = enemy_def
 	map = game_map
 	wave = wave_index
@@ -82,6 +90,8 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 		if absf(_smooth_dir.x) > 0.05:
 			_facing_x = -1.0 if _smooth_dir.x < 0.0 else 1.0
 
+## شیت‌های سرباز (راه‌رفتن، دویدن و مرگ).
+func _setup_visual() -> void:
 	_sprite = Sprite2D.new()
 	var base_key := String(def.get("sprite", "units/soldier"))
 	var walk_key := base_key + "_walk"
@@ -112,6 +122,20 @@ func _process(delta: float) -> void:
 		return
 	if not alive or map == null:
 		return
+	_tick_effects(delta)
+	if not alive:
+		return
+
+	var speed := base_speed * speed_mult * (1.0 - clampf(slow_factor, 0.0, 0.95))
+	progress += speed * delta
+	_update_transform(delta, speed)
+	queue_redraw()
+	if progress >= map.total_length:
+		alive = false
+		reached_keep.emit(self)
+
+## زمان کندی، سوختن و مسمومیت و محوشدن برق ضربه؛ ممکن است دشمن را بکشد.
+func _tick_effects(delta: float) -> void:
 	if slow_time > 0.0:
 		slow_time -= delta
 		if slow_time <= 0.0:
@@ -129,14 +153,6 @@ func _process(delta: float) -> void:
 	if _hit_jolt > 0.0:
 		_hit_jolt = maxf(0.0, _hit_jolt - delta * 7.5)
 	_update_tint()
-
-	var speed := base_speed * speed_mult * (1.0 - clampf(slow_factor, 0.0, 0.95))
-	progress += speed * delta
-	_update_transform(delta, speed)
-	queue_redraw()
-	if progress >= map.total_length:
-		alive = false
-		reached_keep.emit(self)
 
 func _update_transform(delta: float, current_speed := 46.0) -> void:
 	if map == null:

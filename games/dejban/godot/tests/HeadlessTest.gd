@@ -85,6 +85,8 @@ func _ready() -> void:
 	_test_enemies()
 	print("— بررسی شیت‌های دویدن و مرگ…")
 	_test_unit_sheets()
+	print("— بررسی شیت‌های ایزومتریک برجک و تانک…")
+	_test_iso_sheets()
 	print("— بررسی نقشه‌ها…")
 	_test_maps()
 	_test_map_progression()
@@ -98,6 +100,10 @@ func _ready() -> void:
 	_test_tower_range()
 	print("— بررسی سربازان سنگر…")
 	_test_sangar_soldiers()
+	print("— بررسی برجک‌های ایزومتریک…")
+	_test_iso_towers()
+	print("— بررسی تانک و محاصرهٔ دژ…")
+	_test_tank()
 	print("— بررسی صفحهٔ آغازین…")
 	_test_launch_presentation()
 	print("— بررسی پنجرهٔ تأییدیه…")
@@ -520,8 +526,10 @@ func _test_launch_presentation() -> void:
 # ------------------------------------------------------------------ سلاح‌ها
 
 func _test_weapons() -> void:
-	check(Weapons.count() == 1, "فقط یک برجک دفاعی (سنگر) باید تعریف شده باشد: %d" % Weapons.count())
-	check(Weapons.ids() == ["sangar"], "شناسهٔ تنها برجک باید sangar باشد")
+	check(Weapons.count() == 5, "باید پنج برجک (سنگر + چهار برجک ایزومتریک) تعریف شده باشد: %d" % Weapons.count())
+	check(Weapons.ids() == ["sangar", "machinegun", "cannon", "rocket", "laser"],
+		"ترتیب برجک‌ها باید سنگر، مسلسل، خمپاره، موشک و لیزر باشد: %s" % [Weapons.ids()])
+	var iso_kinds: Array = []
 	var seen: Array = []
 	for weapon in Weapons.LIST:
 		var id := String(weapon["id"])
@@ -543,7 +551,30 @@ func _test_weapons() -> void:
 			check(int(weapon.get("chain", 0)) >= 2, "زنجیرهٔ %s کمتر از دو است" % id)
 		if weapon.has("bullet"):
 			check(Assets.has_key("bullets/%s" % String(weapon["bullet"])), "گلولهٔ %s گم شده" % id)
+		check(Audio.WEAPON_SOUND_VARIANTS.has(String(weapon.get("sound", "shot_bolt"))),
+			"صدای شلیک %s در گروه‌های صدا نیست" % id)
+		var kind_iso := Weapons.iso_kind(id)
+		if kind_iso.is_empty():
+			continue
+		# برجک ایزومتریک: خریدنی با ستاره، با هر سه شیت پک و تصویر نمایشیِ برش‌خورده
+		iso_kinds.append(kind_iso)
+		check(IsoSheet.TOWER_KINDS.has(kind_iso), "برجک %s به برجکی از پک towers_iso اشاره نمی‌کند" % id)
+		check(int(weapon.get("star_cost", 0)) > 0, "برجک ایزومتریک %s باید با ستاره خریدنی باشد" % id)
+		check(not Weapons.FREE_IDS.has(id), "برجک ایزومتریک %s نباید رایگان باشد" % id)
+		check(Weapons.art_key(id) == IsoSheet.tower_key(kind_iso, "idle"), "کلید تصویر %s باید شیت idle پک باشد" % id)
+		for action in IsoSheet.TOWER_ACTIONS.keys():
+			check(Assets.has_key(IsoSheet.tower_key(kind_iso, String(action))),
+				"شیت %s برجک %s گم شده" % [action, id])
+		var icon := Weapons.icon(id)
+		check(icon is AtlasTexture and (icon as AtlasTexture).region == IsoSheet.region(Weapons.ICON_DIR, 0),
+			"تصویر نمایشی %s باید فریم ۰ یک جهت باشد، نه کل شیت" % id)
+	iso_kinds.sort()
+	var pack_kinds: Array = IsoSheet.TOWER_KINDS.duplicate()
+	pack_kinds.sort()
+	check(iso_kinds == pack_kinds, "هر چهار برجک پک باید دقیقاً یک بار خریدنی باشند: %s" % [iso_kinds])
 	check(Weapons.by_id("sangar").size() > 0, "سنگر پیدا نشد")
+	check(Weapons.iso_kind("sangar").is_empty() and int(Weapons.by_id("sangar")["star_cost"]) == 0,
+		"سنگر باید همان برجک رایگان قبلی بماند")
 	check(Weapons.by_id("machine_gun_lv1").is_empty(), "سلاح‌های قدیمی باید به‌طور کامل حذف شده باشند")
 	check(Weapons.by_id("omega").is_empty(), "ابرسلاح قدیمی omega باید حذف شده باشد")
 	check(Weapons.by_id("nope").is_empty(), "شناسهٔ ناشناخته باید دیکشنری خالی بدهد")
@@ -558,7 +589,7 @@ func _test_weapons() -> void:
 # ------------------------------------------------------------------ دشمنان
 
 func _test_enemies() -> void:
-	check(Enemies.LIST.size() == 1, "تعداد دشمنان باید ۱ (فقط سرباز) باشد")
+	check(Enemies.LIST.size() == 2, "دشمنان باید سرباز و تانک باشند: %d" % Enemies.LIST.size())
 	check(Enemies.by_id("flyer").is_empty(), "هلیکوپتر (flyer) باید حذف شده باشد")
 	check(Enemies.by_id("warlord").is_empty(), "قطار قرمز (warlord) باید حذف شده باشد")
 	var seen: Array = []
@@ -569,10 +600,27 @@ func _test_enemies() -> void:
 		check(float(enemy.get("hp", 0.0)) > 0.0, "جان نامعتبر در دشمن %s" % id)
 		check(float(enemy.get("speed", 0.0)) > 0.0, "سرعت نامعتبر در دشمن %s" % id)
 		check(int(enemy.get("reward", 0)) > 0, "پاداش نامعتبر در دشمن %s" % id)
-		check(Assets.has_key(String(enemy.get("sprite", ""))), "اسپرایت دشمن %s گم شده" % id)
-		check(Assets.has_key(String(enemy.get("sprite", "")) + "_walk"), "شیت انیمیشن راه رفتن دشمن %s گم شده" % id)
+		check(["reach", "laser"].has(String(enemy.get("attack", ""))), "نوع حملهٔ دشمن %s نامعتبر است" % id)
+		if enemy.has("iso"):
+			for action in IsoSheet.TANK_ACTIONS.keys():
+				check(Assets.has_key("units_iso_%s/%s_%s" % [enemy["iso"], enemy["iso"], action]),
+					"شیت %s دشمن %s گم شده" % [action, id])
+		else:
+			check(Assets.has_key(String(enemy.get("sprite", ""))), "اسپرایت دشمن %s گم شده" % id)
+			check(Assets.has_key(String(enemy.get("sprite", "")) + "_walk"), "شیت انیمیشن راه رفتن دشمن %s گم شده" % id)
 		for feature in enemy.get("traits", []):
 			check(VALID_TRAITS.has(String(feature)), "ویژگی ناشناختهٔ %s در دشمن %s" % [feature, id])
+	# تانک: آمار انتخاب‌شده و حملهٔ لیزری به دژ
+	var tank := Enemies.by_id("tank")
+	check(not tank.is_empty(), "تانک در جدول دشمنان نیست")
+	if not tank.is_empty():
+		check(float(tank["hp"]) == 420.0 and float(tank["speed"]) == 28.0 and float(tank["armor"]) == 4.0
+			and int(tank["reward"]) == 12, "آمار تانک باید جان ۴۲۰، سرعت ۲۸، زره ۴ و پاداش ۱۲ باشد")
+		check(String(tank.get("iso", "")) == "tank" and String(tank.get("attack", "")) == "laser",
+			"تانک باید از پک ایزومتریک بیاید و با لیزر حمله کند")
+		check(is_equal_approx(float(tank.get("attack_interval", 0.0)), 2.0) and int(tank.get("keep_damage", 0)) == 1,
+			"تانک باید هر ۲ ثانیه یک جان از دژ کم کند")
+	check(String(Enemies.by_id("soldier").get("attack", "")) == "reach", "سرباز باید مثل قبل با رسیدن به دژ آسیب بزند")
 
 # ------------------------------------------------------------------ نقشه‌ها
 
@@ -580,6 +628,8 @@ func _test_enemies() -> void:
 
 func _test_unit_sheets() -> void:
 	for enemy in Enemies.LIST:
+		if enemy.has("iso"):
+			continue  # تانک شیت‌های شبکه‌ای خودش را دارد (_test_iso_sheets)
 		var id := String(enemy["id"])
 		var speed := float(enemy.get("speed", 0.0))
 		for dir in UnitSheets.DIRS:
@@ -817,6 +867,20 @@ func _test_waves() -> void:
 				check(float(group.get("interval", 0.0)) > 0.0, "فاصلهٔ نامعتبر در موج %d نقشهٔ %d" % [wave, index])
 				total += count
 			check(total >= 3, "موج %d نقشهٔ %d کم‌جمعیت است: %d" % [wave, index, total])
+			# سربازها مثل قبل‌اند و تانک از موج ۵ می‌آید: ۱ + (موج − ۵) ÷ ۵
+			var soldiers := 0
+			var tanks := 0
+			for group in groups:
+				if String(group.get("enemy", "")) == "soldier":
+					soldiers += int(group.get("count", 0))
+				elif String(group.get("enemy", "")) == "tank":
+					tanks += int(group.get("count", 0))
+			check(soldiers == maxi(1, int(round(float(Balance.wave_count(wave))))),
+				"تعداد سرباز موج %d نباید تغییر کند" % wave)
+			var expected_tanks := 0 if wave < 5 else 1 + int(float(wave - 5) / 5.0)
+			check(tanks == expected_tanks, "موج %d نقشهٔ %d باید %d تانک داشته باشد، دارد %d" % [wave, index, expected_tanks, tanks])
+	check(Enemies.tank_count(4) == 0 and Enemies.tank_count(5) == 1 and Enemies.tank_count(9) == 1
+		and Enemies.tank_count(10) == 2 and Enemies.tank_count(30) == 6, "جدول تعداد تانک موج‌ها اشتباه است")
 
 
 # ------------------------------------------------------------------ تعادل
@@ -996,3 +1060,235 @@ func _test_tower_range() -> void:
 	battle.queue_free()
 	near.queue_free()
 	far.queue_free()
+
+# ------------------------------------------------------------------ شیت‌های ایزومتریک
+
+## همهٔ ۱۷ فایل دو پک ایزومتریک با همان نام در مانیفست‌اند، ابعادشان با جدول IsoSheet
+## می‌خواند و هر هشت جهت هر شیت به‌صورت AtlasTexture با ناحیهٔ درست و تصویر غیرخالی بار می‌شود.
+func _test_iso_sheets() -> void:
+	var folders := {
+		"res://assets/sprites/towers_iso": ["towers_iso", 13],
+		"res://assets/sprites/units/iso_tank": ["units_iso_tank", 4],
+	}
+	for folder in folders.keys():
+		var prefix := String(folders[folder][0])
+		var pngs: Array = []
+		for file in DirAccess.get_files_at(String(folder)):
+			if String(file).ends_with(".png"):
+				pngs.append(String(file))
+		check(pngs.size() == int(folders[folder][1]),
+			"پوشهٔ %s باید %d شیت داشته باشد، دارد %d" % [folder, int(folders[folder][1]), pngs.size()])
+		for file in pngs:
+			var key := "%s/%s" % [prefix, String(file).get_basename()]
+			check(Assets.has_key(key), "شیت ایزومتریک در مانیفست نیست: %s" % key)
+
+	var expected := IsoSheet.expected_sheets()
+	check(expected.size() == 15, "دوازده شیت برجک و سه شیت تانک انتظار می‌رود: %d" % expected.size())
+	for key in expected.keys():
+		var sheet_key := String(key)
+		var frames := int(expected[key])
+		check(Assets.has_key(sheet_key), "شیت ایزومتریک گم شده: %s" % sheet_key)
+		var texture := Assets.tex(sheet_key)
+		check(texture != null, "شیت ایزومتریک بار نشد: %s" % sheet_key)
+		if texture == null:
+			continue
+		check(texture.get_width() == frames * IsoSheet.FRAME and texture.get_height() == IsoSheet.DIRS * IsoSheet.FRAME,
+			"ابعاد %s باید %d×%d باشد، هست %d×%d" % [sheet_key, frames * IsoSheet.FRAME, IsoSheet.DIRS * IsoSheet.FRAME,
+				texture.get_width(), texture.get_height()])
+		var sheet := IsoSheet.open(sheet_key)
+		check(sheet.frames == frames and sheet.rows == IsoSheet.DIRS, "شمار فریم/جهت %s اشتباه خوانده شد" % sheet_key)
+		var source := texture.get_image()
+		for dir in IsoSheet.DIRS:
+			for f in frames:
+				var atlas := sheet.frame(dir, f)
+				var want := Rect2(f * 128, dir * 128, 128, 128)
+				check(atlas != null and atlas.atlas == texture and atlas.region == want,
+					"فریم %d جهت %d از %s ناحیهٔ درست ندارد" % [f, dir, sheet_key])
+				if f == 0 and atlas != null:
+					var img := atlas.get_image()
+					check(img != null and img.get_size() == Vector2i(128, 128) and img.get_used_rect().size.x > 16,
+						"فریم ۰ جهت %d از %s خالی یا نادرست است" % [dir, sheet_key])
+		check(source != null and not source.is_empty(), "تصویر خام %s خوانده نشد" % sheet_key)
+	for atlas_key in IsoSheet.ATLAS_COLUMNS.keys():
+		var tex := Assets.tex(String(atlas_key))
+		check(tex != null and tex.get_width() == int(IsoSheet.ATLAS_COLUMNS[atlas_key]) * IsoSheet.FRAME
+			and tex.get_height() == IsoSheet.DIRS * IsoSheet.FRAME, "ابعاد اطلس پیش‌نمایش %s اشتباه است" % atlas_key)
+	check(Assets.FALLBACKS.has("towers_iso") and Assets.FALLBACKS.has("units_iso_tank"),
+		"دسته‌های ایزومتریک باید تصویر جایگزین داشته باشند")
+
+	# جهت از بردار: فشردگی عمق ۰٫۵ و باقی‌ماندهٔ مثبت
+	var cases := [
+		[Vector2(1, 0), 0], [Vector2(1, 0.5), 1], [Vector2(0, 1), 2], [Vector2(-1, 0.5), 3],
+		[Vector2(-1, 0), 4], [Vector2(-1, -0.5), 5], [Vector2(0, -1), 6], [Vector2(1, -0.5), 7],
+		[Vector2(1, -0.05), 0], [Vector2(1, 0.3), 1], [Vector2(1, -0.3), 7],
+	]
+	for case in cases:
+		var got := IsoSheet.dir_from_vector(case[0])
+		check(got == int(case[1]), "جهت %s باید %d باشد، شد %d" % [case[0], int(case[1]), got])
+	check(IsoSheet.dir_from_vector(Vector2.ZERO, 5) == 5, "بردار صفر باید جهت قبلی را نگه دارد")
+	check(IsoSheet.step_toward(0, 7) == 7 and IsoSheet.step_toward(0, 3) == 1 and IsoSheet.step_toward(6, 1) == 7
+		and IsoSheet.step_toward(4, 4) == 4, "گام چرخش ۴۵ درجه باید از کوتاه‌ترین سمت باشد")
+	for kind in IsoSheet.TOWER_KINDS:
+		check((IsoSheet.TOWER_MUZZLE[kind] as Array).size() == IsoSheet.DIRS, "دهانهٔ برجک %s برای هر هشت جهت نیست" % kind)
+		var base := IsoSheet.base_texture(IsoSheet.tower_key(String(kind), "idle"))
+		check(base != null and base.get_width() == IsoSheet.FRAME, "پایهٔ ثابت برجک %s ساخته نشد" % kind)
+
+# ------------------------------------------------------------------ برجک‌های ایزومتریک
+
+## هر برجک ایزومتریک: پایهٔ ثابت و سرِ گردان؛ سر گام‌به‌گام (۴۵ درجه) رو به هدف می‌چرخد،
+## بدون هدف idle، با هدف aim، با هر شلیک یک‌بار fire و سپس برگشت؛ گلوله و شعلهٔ دهانه
+## همان سامانهٔ قبلی‌اند و از دهانهٔ همان جهت بیرون می‌آیند. سرباز سنگر به آن اضافه نمی‌شود.
+func _test_iso_towers() -> void:
+	for id in Weapons.ids():
+		var weapon := Weapons.by_id(String(id))
+		var kind := Weapons.iso_kind(String(id))
+		if kind.is_empty():
+			continue
+		var battle := StubBattle.new()
+		add_child(battle)
+		var tower := Tower.new()
+		add_child(tower)
+		tower.position = Vector2(400.0, 300.0)
+		tower.setup(weapon, battle)
+		check(tower.is_iso() and tower.iso_kind == kind, "برجک %s باید ایزومتریک ساخته شود" % id)
+		check(tower._base != null and tower._base.texture != null and tower._head != null,
+			"برجک %s پایه و سر ندارد" % id)
+		check(tower.soldier_count() == 0 and tower._soldiers.is_empty(), "برجک %s نباید سرباز سنگر داشته باشد" % id)
+		check(tower.head_action() == "idle", "برجک %s باید با idle شروع کند" % id)
+		var base_tex: Texture2D = tower._base.texture
+		var base_pos: Vector2 = tower._base.position
+
+		# دشمن در غرب (جهت ۴): سر از جهت شروع گام‌به‌گام می‌چرخد
+		var enemy := Enemy.new()
+		add_child(enemy)
+		enemy.alive = true
+		enemy.hp = 9999.0
+		enemy.max_hp = 9999.0
+		enemy.position = tower.position + Vector2(-120.0, 0.0)
+		battle.enemies = [enemy]
+		tower.cooldown_left = 99.0
+		var dirs: Array = [tower.head_dir]
+		for step in 12:
+			tower._process(0.05)
+			if int(dirs[-1]) != tower.head_dir:
+				dirs.append(tower.head_dir)
+		check(tower.head_dir == 4, "سر برجک %s باید رو به غرب (۴) بچرخد، هست %d" % [id, tower.head_dir])
+		var stepwise := true
+		for i in range(1, dirs.size()):
+			if not [1, 7].has(posmod(int(dirs[i]) - int(dirs[i - 1]), 8)):
+				stepwise = false
+		check(stepwise and dirs.size() >= 2, "چرخش سر %s باید گام‌های ۴۵ درجه باشد: %s" % [id, dirs])
+		check(tower.head_action() == "aim", "برجک %s با هدف در برد باید aim باشد، هست %s" % [id, tower.head_action()])
+		var head_tex := tower._head.texture as AtlasTexture
+		check(head_tex != null and head_tex.region.position.y == 4 * IsoSheet.FRAME
+			and head_tex.atlas == Assets.tex(IsoSheet.tower_key(kind, "aim")),
+			"تصویر سر %s باید ردیف جهت ۴ از شیت aim باشد" % id)
+		check(tower._head.rotation == 0.0 and tower._base.rotation == 0.0, "اسپرایت برجک %s نباید پیوسته بچرخد" % id)
+
+		# شلیک: fire یک‌بار، گلوله‌ها از دهانه و شعلهٔ دهانه روشن
+		var before := battle.get_child_count()
+		tower.cooldown_left = 0.0
+		tower._process(0.016)
+		check(tower.head_action() == "fire", "برجک %s هنگام شلیک باید fire باشد" % id)
+		var shots := maxi(1, int(weapon.get("shots", 1)))
+		check(battle.get_child_count() == before + shots, "برجک %s باید %d گلوله بزند" % [id, shots])
+		check(tower._flash != null and tower._flash.visible, "شعلهٔ دهانهٔ %s باید روشن شود" % id)
+		if battle.get_child_count() > before:
+			var shot := battle.get_child(before) as Node2D
+			var tip4: Vector2 = (IsoSheet.TOWER_MUZZLE[kind] as Array)[4]
+			var muzzle: Vector2 = tower.position + (tip4 + Vector2(0.0, IsoSheet.TOWER_PIVOT.y - IsoSheet.TOWER_GROUND_Y)) * Tower.ISO_SCALE
+			check(shot is Projectile and shot.global_position.distance_to(muzzle) <= Tower.ISO_BARREL_SPREAD + 1.0,
+				"گلولهٔ %s باید از دهانهٔ جهت ۴ بیرون بیاید" % id)
+		tower.cooldown_left = 99.0
+		for step in 6:
+			tower._process(0.1)
+		check(tower.head_action() == "aim", "پس از fire برجک %s باید به aim برگردد" % id)
+		enemy.alive = false
+		tower._process(0.05)
+		check(tower.head_action() == "idle", "بدون هدف برجک %s باید idle شود" % id)
+		check(tower._base.texture == base_tex and tower._base.position == base_pos, "پایهٔ برجک %s باید ثابت بماند" % id)
+		tower.upgrade()
+		check(tower.level == 2 and tower._soldiers.is_empty(), "ارتقای %s نباید سرباز اضافه کند" % id)
+		battle.enemies = []
+		tower.queue_free()
+		enemy.queue_free()
+		battle.queue_free()
+
+# ------------------------------------------------------------------ تانک
+
+## تانک: در مسیر move، جهت از مسیر در گام‌های ۴۵ درجه؛ کنار دژ می‌ایستد، idle بین شلیک‌ها،
+## هر ۲ ثانیه attack با یک جان آسیب، تا نابودی زنده و هدف‌پذیر می‌ماند و موج را باز نگه می‌دارد.
+func _test_tank() -> void:
+	var def := Enemies.by_id("tank")
+	if def.is_empty():
+		check(false, "تانک برای آزمون پیدا نشد")
+		return
+	var map := GameMap.build(0)
+	var tank := IsoEnemy.new()
+	add_child(tank)
+	tank.setup(def, map, 1.0, 1.0, 5, 0.0)
+	check(tank.active_anim() == "move", "تانک باید با move حرکت کند، هست %s" % tank.active_anim())
+	check(is_equal_approx(tank.max_hp, 420.0) and is_equal_approx(tank.armor, 4.0) and tank.reward == 12,
+		"آمار تانک از جدول دشمنان خوانده نشد")
+	var frame := tank._sprite.texture as AtlasTexture
+	check(frame != null and frame.atlas == Assets.tex(IsoSheet.tank_key("move"))
+		and frame.region.position.y == tank.dir * IsoSheet.FRAME, "تصویر تانک باید ردیف جهتش از شیت move باشد")
+
+	# جهت روی هر تکهٔ مسیر از خود مسیر می‌آید (۸ جهت) و اسپرایت هرگز نمی‌چرخد
+	var seen := {}
+	var s := 10.0
+	while s < tank.siege_progress - 10.0:
+		tank.progress = s
+		tank._update_transform(0.0)
+		var want := IsoSheet.dir_from_vector(map.direction_at(s))
+		check(tank.dir == want, "جهت تانک در فاصلهٔ %.0f باید %d باشد، هست %d" % [s, want, tank.dir])
+		var tex := tank._sprite.texture as AtlasTexture
+		check(tex != null and int(tex.region.position.y) == want * IsoSheet.FRAME, "ردیف شیت تانک با جهت نمی‌خواند")
+		seen[want] = true
+		s += 24.0
+	check(seen.size() >= 2, "مسیر نقشه باید تانک را در بیش از یک جهت ببرد")
+	check(tank._sprite.rotation == 0.0, "تانک باید فقط با ردیف شیت بچرخد، نه چرخش پیوسته")
+
+	# حرکت واقعی با _process و انیمیشن move
+	tank.progress = 0.0
+	var start := tank.progress
+	for step in 10:
+		tank._process(0.1)
+	check(is_equal_approx(snappedf(tank.progress - start, 0.01), snappedf(tank.base_speed, 0.01)),
+		"تانک باید در یک ثانیه به اندازهٔ سرعتش جلو برود")
+	check(tank.active_anim() == "move" and not tank.sieging, "تانک در مسیر باید move باشد")
+
+	# محاصره: کنار دژ می‌ایستد و هر ۲ ثانیه یک جان کم می‌کند
+	var hits := [0]
+	var reached := [false]
+	tank.keep_attacked.connect(func(_enemy, amount): hits[0] += int(amount))
+	tank.reached_keep.connect(func(_enemy): reached[0] = true)
+	tank.progress = tank.siege_progress - 0.5
+	tank._process(0.05)
+	check(tank.sieging and tank.active_anim() == "idle", "تانک کنار دژ باید بایستد و idle شود")
+	check(tank.position.distance_to(map.keep_pos) > 60.0, "تانک باید پیش از دژ بایستد، نه روی آن")
+	check(tank.dir == IsoSheet.dir_from_vector(map.keep_pos - tank.position), "تانک در محاصره باید رو به دژ باشد")
+	var anims := {}
+	for step in 120:   # شش ثانیه
+		tank._process(0.05)
+		anims[tank.active_anim()] = true
+	check(hits[0] == 3, "در شش ثانیه محاصره باید سه شلیک لیزر (هر ۲ ثانیه) بخورد، خورد %d" % hits[0])
+	check(anims.has("attack") and anims.has("idle"), "تانک باید بین attack و idle جابه‌جا شود")
+	check(tank.alive and not reached[0] and is_equal_approx(tank.progress, tank.siege_progress),
+		"تانک در محاصره باید زنده و هدف‌پذیر بماند و حذف نشود")
+	var laser := tank.laser_tip()
+	check((laser - tank.position).dot(map.keep_pos - tank.position) > 0.0
+		and laser.is_equal_approx(tank.position + (IsoEnemy.LASER_TIP[tank.dir] as Vector2) * IsoEnemy.SPRITE_SCALE),
+		"نوک لیزر تانک باید سرِ پرتوِ همان جهت و رو به دژ باشد")
+
+	# زره و نابودی
+	var hp_before := tank.hp
+	tank.take_damage(10.0)
+	check(is_equal_approx(hp_before - tank.hp, 6.0), "زره ۴ تانک باید از آسیب کم شود")
+	var died := [false]
+	tank.died.connect(func(_enemy): died[0] = true)
+	tank.take_damage(99999.0, true)
+	check(died[0] and not tank.alive and tank.is_dying(), "تانک با تمام شدن جان باید نابود شود")
+	for step in 20:
+		tank._process(0.05)
+	check(tank.is_queued_for_deletion(), "لاشهٔ تانک باید پس از محو شدن آزاد شود")

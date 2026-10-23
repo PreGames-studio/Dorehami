@@ -1,6 +1,8 @@
 ## پیش‌نمای ساخت هنگام کشیدن برجک:
 ## خودِ سنگر دژبان از لحظهٔ گرفتن تا زمان رها شدن زیر انگشت/نشانگر
 ## کاملاً مرئی است و دایرهٔ برد آن در نواحی مجاز به رنگ سبز و در محدودهٔ ممنوعه به رنگ قرمز دیده می‌شود.
+## برای برجک‌های ایزومتریک همان فریمی نشان داده می‌شود که برجک پس از کاشت با آن شروع می‌کند
+## (idle، جهت Weapons.ICON_DIR) و با همان نقطهٔ زمین و اندازهٔ Tower.
 class_name BuildGhost
 extends Node2D
 
@@ -32,7 +34,18 @@ func set_weapon(weapon_def: Dictionary) -> void:
 		queue_redraw()
 		return
 	var wid := String(weapon.get("id", "sangar"))
-	_base.texture = Assets.tex(Weapons.art_key(wid))
+	if Weapons.iso_kind(wid).is_empty():
+		_base.texture = Assets.tex(Weapons.art_key(wid))
+		_base.centered = true
+		_base.offset = Vector2.ZERO
+		_base.position = PIVOT_OFFSET
+		_base.scale = Vector2.ONE
+	else:
+		_base.texture = Weapons.icon(wid)
+		_base.centered = false
+		_base.offset = -Vector2(IsoSheet.FRAME * 0.5, IsoSheet.TOWER_GROUND_Y)
+		_base.position = Vector2.ZERO
+		_base.scale = Vector2.ONE * Tower.ISO_SCALE
 	_update_sprite_modulate()
 	queue_redraw()
 
