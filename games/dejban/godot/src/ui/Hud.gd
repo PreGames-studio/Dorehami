@@ -413,7 +413,7 @@ func refresh() -> void:
 	_countdown_label.visible = not _countdown_label.text.is_empty()
 
 	if not battle.selected_weapon.is_empty():
-		_hint_label.text = "برجک را در هر جای مجاز نقشه رها کن · برای لغو، روی همین دکمه بزن"
+		_hint_label.text = "سنگر را بگیر، تا جای مجاز بکش و رها کن · برای لغو، روی همین دکمه بزن"
 	elif battle.selected_tower != null and is_instance_valid(battle.selected_tower):
 		_hint_label.text = "میان‌بر: U ارتقا · S فروش"
 	else:

@@ -38,6 +38,8 @@ var _disarm_on_release := false
 const GRAB_DRAG_DISTANCE := 14.0
 var _grab_tower = null
 var _grab_start := Vector2.ZERO
+## نقطهٔ شروع کشیدن برای کاشت؛ رهاکردنِ نزدیک به آن کاشت نیست (لمس ساده).
+var _drag_start := Vector2.ZERO
 
 var _world: Node2D = null
 var _ground: Ground = null
@@ -377,6 +379,7 @@ func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
 	if ghost != null:
 		ghost.set_weapon(Weapons.by_id(selected_weapon))
 	var initial_pos := start_world if start_world.x >= 0.0 else get_global_mouse_position()
+	_drag_start = initial_pos
 	_update_ghost(initial_pos)
 	if hud != null:
 		hud.refresh()
@@ -387,37 +390,41 @@ func _finish_drag(world: Vector2) -> void:
 	_drag_active = false
 	var disarm := _disarm_on_release
 	_disarm_on_release = false
+	var dragged := world.distance_to(_drag_start) >= GRAB_DRAG_DISTANCE
 	if _in_build_area(world):
-		_try_build(world)
+		if dragged:
+			_try_build(world)
+		else:
+			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد سنگر نمی‌کارد.
+			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، سنگر را بگیر و بکش", Style.gold, 16)
 	elif disarm and hud != null and hud.is_over_weapon_bar(world):
-		# روی همان دکمهٔ آمادهٔ نوار بزن و رها کن تا لغو شود؛ برای انتخاب برجک هم ابتدا همین کار را بکن.
+		# روی همان دکمهٔ آمادهٔ نوار رها شد: لغو کاشت
 		_cancel_build_preview()
 		return
 	if ghost != null:
 		ghost.visible = false
 	_refresh_guide()
 
-## فشار انگشت/نشانگر پیش‌نما را می‌آورد، کشیدن جابه‌جایش می‌کند و رهاکردن
-## در هر نقطهٔ مجاز نقشه برجک را همان‌جا می‌کارد.
+## لمس روی برجک موجود همیشه ثبت می‌شود: کشیدنِ آن برجک را انتخاب می‌کند (حتی وقتی سلاحی آماده است).
+## با سلاح آماده، لمس روی جای آزاد آغاز کشیدن برای کاشت است؛ لمس ساده کاشت نمی‌کند.
 func _handle_build_press(pressed: bool, world: Vector2) -> void:
-	if selected_weapon.is_empty():
-		if pressed:
-			_grab_tower = _tower_at(world)
-			_grab_start = world
-		elif _grab_tower != null:
-			var grabbed = _grab_tower
-			_grab_tower = null
-			if is_instance_valid(grabbed) and world.distance_to(_grab_start) >= GRAB_DRAG_DISTANCE:
-				select_tower(grabbed)
-		return
 	if pressed:
-		# با سلاح آماده، هر لمسی روی نقشه تلاش کاشت است؛ حتی اگر روی برجک قبلی باشد.
-		# پیش‌تر لمس برجک، سلاح آماده را پاک می‌کرد و کاشت بعدی بی‌اثر می‌ماند.
+		_grab_tower = _tower_at(world)
+		_grab_start = world
+		if selected_weapon.is_empty() or _grab_tower != null:
+			return
 		_drag_active = true
+		_drag_start = world
 		_refresh_guide()
 		if ghost != null:
 			ghost.set_weapon(Weapons.by_id(selected_weapon))
 		_update_ghost(world)
+		return
+	if _grab_tower != null:
+		var grabbed = _grab_tower
+		_grab_tower = null
+		if is_instance_valid(grabbed) and world.distance_to(_grab_start) >= GRAB_DRAG_DISTANCE:
+			select_tower(grabbed)
 		return
 	_finish_drag(world)
 

@@ -264,45 +264,55 @@ func _smoke_scenes() -> void:
 			instance._finish_drag(road_pt)
 			check(instance.towers.size() == 1, "نباید اجازهٔ رهاکردن برجک داخل محدودهٔ جاده داده شود")
 
-			# لمس روی برجک موجود در حالت آماده نباید سلاح را پاک کند و باید همان را کاشت امتحان کند
+			# لمس روی برجک موجود در حالت آماده نباید سلاح را پاک کند یا کاشت کند
 			var armed_id: String = instance.selected_weapon
 			instance.coins = 500
 			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
 			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
 			check(instance.selected_tower == null and instance.selected_weapon == armed_id,
-				"لمس روی برجک موجود نباید سلاح آماده را پاک کند")
+				"لمس روی برجک موجود نباید سلاح آماده را پاک کند یا برجک را انتخاب کند")
 			check(instance.towers.size() == 1, "کاشت روی برجک موجود مجاز نیست")
-			# کاشت بعدی با لمس ساده در جای آزاد باید کار کند
+			# لمس ساده در جای آزاد کاشت نمی‌کند
 			var free_pt := Vector2.ZERO
 			for y in range(120, 620, 40):
 				for x in range(160, 1120, 40):
 					var pt := Vector2(x, y)
-					if pt.distance_to(built_pos) > 120.0 and instance.map.build_issue(pt, instance.occupied).is_empty():
+					if pt.distance_to(built_pos) > 120.0 and instance.map.build_issue(pt, instance.occupied).is_empty() and instance.map.build_issue(pt + Vector2(30.0, 0.0), instance.occupied).is_empty():
 						free_pt = pt
 						break
 				if free_pt != Vector2.ZERO:
 					break
-			check(free_pt != Vector2.ZERO, "جای آزاد برای آزمون لمس پیدا نشد")
+			check(free_pt != Vector2.ZERO, "جای آزاد برای آزمون کاشت پیدا نشد")
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt)
-			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id,
-				"کاشت با لمس ساده پس از لمس برجک قبلی انجام نشد")
+			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید سنگر بکارد")
+			# کاشت با گرفتن، کشیدن و رهاکردن در جای مجاز
+			instance._handle_build_press(true, free_pt)
+			instance._handle_build_press(false, free_pt + Vector2(30.0, 0.0))
+			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id, "کاشت با کشیدن و رهاکردن انجام نشد")
 			# لغو با رها کردن روی دکمهٔ آمادهٔ نوار
 			var bar_center: Vector2 = instance.hud._weapon_panel.get_global_rect().get_center()
 			instance.begin_weapon_drag(armed_id, bar_center)
 			instance._finish_drag(bar_center)
 			check(instance.selected_weapon.is_empty(), "رهاکردن روی دکمهٔ آمادهٔ نوار باید کاشت را لغو کند")
 			instance.selected_weapon = armed_id
-			# انتخاب برجک فقط با گرفتن، کشیدن و رهاکردن است؛ لمس ساده آن را انتخاب نمی‌کند
+			# گرفتن و کشیدن برجک، حتی وقتی سلاح آماده است، همان را انتخاب می‌کند و آمادگی را لغو می‌کند
 			var tower = instance.towers[0]
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
+			instance._handle_build_press(false, built_pos + Vector2(40.0, -14.0))
+			check(instance.selected_tower == tower and instance.selected_weapon.is_empty(), "گرفتن و کشیدن برجک باید آن را انتخاب کند")
+			# ارتقا از همان مسیر واقعی انتخاب (برجک انتخاب‌شده) انجام می‌شود
+			var level_before: int = tower.level
+			instance.coins = 500
+			instance.upgrade_selected()
+			check(tower.level == level_before + 1 and instance.coins == 500 - int(Weapons.by_id("sangar")["cost"]),
+				"ارتقای سنگر از برجک انتخاب‌شده باید سطح و سکه را تغییر دهد")
+			# لمس ساده روی برجک، بدون سلاح آماده، آن را انتخاب نمی‌کند
+			instance.select_tower(null)
 			instance.selected_weapon = ""
 			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
 			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
 			check(instance.selected_tower == null, "لمس ساده روی برجک نباید آن را انتخاب کند")
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(40.0, -14.0))
-			check(instance.selected_tower == tower, "گرفتن و کشیدن روی برجک باید آن را انتخاب کند")
-			instance.select_tower(null)
 			instance.selected_weapon = armed_id
 			# بررسی نمایش کارت شکست هنگام تمام‌شدن جان دژ و کارت پیروزی پس از دفع ۳۰ موج
 			var saved_best := Game.best.duplicate(true)
