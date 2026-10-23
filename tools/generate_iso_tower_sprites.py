@@ -118,24 +118,32 @@ def ngon(cx, cy, rx, ry, n=8, phase=math.pi / 8):
 class Pen:
     """قلم برداری با پرکردن گرادیانی و خط دور ضخیم روی بوم ابرنمونه."""
 
-    def __init__(self, size=FRAME, ss=SS):
+    def __init__(self, size=FRAME, ss=SS, scale=1.0, anchor=(CX, GROUND)):
         self.size, self.s = size, ss
+        self.scale = scale
+        self.anchor = anchor
+        self.k = ss * scale
+        # مقیاس حول لنگر (پیش‌فرض: مرکز افقی و خط زمین) تا محتوا از زمین رشد کند
+        self.tx = anchor[0] * ss - anchor[0] * self.k
+        self.ty = anchor[1] * ss - anchor[1] * self.k
         self.img = Image.new("RGBA", (size * ss, size * ss), (0, 0, 0, 0))
         self.d = ImageDraw.Draw(self.img)
 
     # تبدیل
     def _p(self, pts):
-        return [(x * self.s, y * self.s) for x, y in pts]
+        return [(x * self.k + self.tx, y * self.k + self.ty) for x, y in pts]
 
     def _box(self, b):
-        return [b[0] * self.s, b[1] * self.s, b[2] * self.s, b[3] * self.s]
+        return [b[0] * self.k + self.tx, b[1] * self.k + self.ty,
+                b[2] * self.k + self.tx, b[3] * self.k + self.ty]
 
     def _w(self, w):
+        # ضخامت خط در فضای پیکسل نهایی ثابت می‌ماند (بزرگ‌نمایی هندسه روی آن اثر ندارد)
         return max(1, int(round(w * self.s)))
 
     # پرکردن گرادیانی از یک ماسک
     def _grad(self, mask, stops, box, horizontal=False):
-        x0, y0, x1, y1 = [int(round(v * self.s)) for v in box]
+        x0, y0, x1, y1 = [int(round(v)) for v in self._box(box)]
         x0, y0 = max(0, x0), max(0, y0)
         x1, y1 = min(self.img.width, x1), min(self.img.height, y1)
         if x1 <= x0 or y1 <= y0:
@@ -804,25 +812,30 @@ HEAD_BUILDERS = {
 
 
 class LayerPen:
-    """قلم سبک برای لایهٔ درخشش."""
+    """قلم سبک برای لایهٔ درخشش؛ همان مقیاس و لنگرِ قلم اصلی."""
 
     def __init__(self, img, s):
-        self.img, self.s = img, s
+        self.img = img
+        if hasattr(s, "k"):
+            self.s, self.k, self.tx, self.ty = s.s, s.k, s.tx, s.ty
+        else:
+            self.s, self.k, self.tx, self.ty = s, s, 0.0, 0.0
         self.d = ImageDraw.Draw(img)
 
     def dot(self, cx, cy, r, col, ry=None):
         ry = r if ry is None else ry
-        self.d.ellipse([(cx - r) * self.s, (cy - ry) * self.s,
-                        (cx + r) * self.s, (cy + ry) * self.s], fill=col)
+        self.d.ellipse([cx * self.k - r * self.k + self.tx, cy * self.k - ry * self.k + self.ty,
+                        cx * self.k + r * self.k + self.tx, cy * self.k + ry * self.k + self.ty],
+                       fill=col)
 
     def line(self, pts, col, w):
-        self.d.line([(x * self.s, y * self.s) for x, y in pts], fill=col,
+        self.d.line([(x * self.k + self.tx, y * self.k + self.ty) for x, y in pts], fill=col,
                     width=max(1, int(w * self.s)), joint="curve")
 
 
 def soft_glow(pen, paint, blur=6.0, passes=1):
     layer = Image.new("RGBA", pen.img.size, (0, 0, 0, 0))
-    paint(LayerPen(layer, pen.s))
+    paint(LayerPen(layer, pen))
     layer = layer.filter(ImageFilter.GaussianBlur(blur * pen.s / 2))
     for _ in range(passes):
         pen.img.alpha_composite(layer)

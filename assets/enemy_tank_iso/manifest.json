@@ -1,0 +1,82 @@
+{
+  "pack": "iso-tower-defense-enemy",
+  "enemy": "tank",
+  "nameFa": "تانک سنگین",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "layout": "grid",
+  "alpha": true,
+  "layoutNote": "هر شیت ۸ ردیف (جهت) × N ستون (فریم) از فریم‌های ۱۲۸×۱۲۸ است.",
+  "directions": 8,
+  "directionOrder": [
+    "east",
+    "south-east",
+    "south",
+    "south-west",
+    "west",
+    "north-west",
+    "north",
+    "north-east"
+  ],
+  "directionNote": "ردیف n = جهت n (ساعت‌گرد روی صفحه، گام ۴۵ درجه از شرق)؛ ستون = فریم.",
+  "camera": {
+    "projection": "isometric-2:1",
+    "note": "نمای از بالا و کمی مایل؛ سطح رویی، جلو و کنارهٔ بدنه هم‌زمان دیده می‌شوند.",
+    "depthSquash": 0.5,
+    "groundY": 97.0,
+    "scale": 1.25,
+    "shadowY": 99.0,
+    "pivotNote": "مرکز چرخش بدنه در پیکسل (64, 99) روی زمین است؛ چشم‌ها و لیزر با همین محور می‌چرخند."
+  },
+  "palette": {
+    "ink": "#1b191f",
+    "cream": "#e6dcbc",
+    "creamLight": "#f4edd6",
+    "creamDark": "#a6987b",
+    "dark": "#42474e",
+    "darkLight": "#60666e",
+    "orange": "#ff8a2b",
+    "amber": "#ffc454",
+    "red": "#e23a2e",
+    "laserRed": "#ff7860"
+  },
+  "actions": {
+    "idle": {
+      "file": "tank_idle.png",
+      "frames": 4,
+      "fps": 8,
+      "loop": true,
+      "grid": {
+        "columns": 4,
+        "rows": 8
+      },
+      "layout": "grid-dir-major: row = direction (0..7), column = frame"
+    },
+    "move": {
+      "file": "tank_move.png",
+      "frames": 6,
+      "fps": 12,
+      "loop": true,
+      "grid": {
+        "columns": 6,
+        "rows": 8
+      },
+      "layout": "grid-dir-major: row = direction (0..7), column = frame"
+    },
+    "attack": {
+      "file": "tank_attack.png",
+      "frames": 6,
+      "fps": 14,
+      "loop": false,
+      "grid": {
+        "columns": 6,
+        "rows": 8
+      },
+      "layout": "grid-dir-major: row = direction (0..7), column = frame"
+    }
+  },
+  "atlas": {
+    "image": "atlas_tank_iso.png",
+    "meta": "atlas_tank_iso.json"
+  }
+}
