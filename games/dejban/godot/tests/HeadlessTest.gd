@@ -1130,8 +1130,28 @@ func _test_iso_sheets() -> void:
 		and IsoSheet.step_toward(4, 4) == 4, "گام چرخش ۴۵ درجه باید از کوتاه‌ترین سمت باشد")
 	for kind in IsoSheet.TOWER_KINDS:
 		check((IsoSheet.TOWER_MUZZLE[kind] as Array).size() == IsoSheet.DIRS, "دهانهٔ برجک %s برای هر هشت جهت نیست" % kind)
-		var base := IsoSheet.base_texture(IsoSheet.tower_key(String(kind), "idle"))
-		check(base != null and base.get_width() == IsoSheet.FRAME, "پایهٔ ثابت برجک %s ساخته نشد" % kind)
+		var idle_key := IsoSheet.tower_key(String(kind), "idle")
+		var base := IsoSheet.base_texture(idle_key)
+		check(base is ImageTexture and base.get_width() == IsoSheet.FRAME, "پایهٔ ثابت برجک %s ساخته نشد" % kind)
+		if base is ImageTexture:
+			# پایه فقط پیکسل‌های ماتِ مشترک فریم ۰ هر هشت جهت است (نمونه‌برداری یک‌درمیان)
+			var base_img := base.get_image()
+			var sheet_img := Assets.tex(idle_key).get_image()
+			if sheet_img.is_compressed():
+				sheet_img.decompress()
+			var used := 0
+			var mismatched := 0
+			for y in range(0, IsoSheet.FRAME, 2):
+				for x in range(0, IsoSheet.FRAME, 2):
+					var c := base_img.get_pixel(x, y)
+					if c.a == 0.0:
+						continue
+					used += 1
+					for d in IsoSheet.DIRS:
+						if sheet_img.get_pixel(x, d * IsoSheet.FRAME + y) != c:
+							mismatched += 1
+			check(used > 400 and used < 2000 and mismatched == 0,
+				"پایهٔ ثابت برجک %s باید سکوی مشترک هشت جهت باشد (پیکسل: %d، ناهمخوان: %d)" % [kind, used, mismatched])
 
 # ------------------------------------------------------------------ برجک‌های ایزومتریک
 

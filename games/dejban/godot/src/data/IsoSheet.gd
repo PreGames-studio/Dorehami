@@ -157,20 +157,28 @@ static func base_texture(sheet_key: String) -> Texture2D:
 			img.decompress()
 		if img.get_format() != Image.FORMAT_RGBA8:
 			img.convert(Image.FORMAT_RGBA8)
-		var out := Image.create(FRAME, FRAME, false, Image.FORMAT_RGBA8)
+		# مقایسهٔ خامِ ۳۲ بیتیِ هر پیکسل (به‌جای get_pixel) تا روی گوشی هم سریع باشد.
+		var data := img.get_data()
+		var stride := img.get_width() * 4
+		var dir_step := FRAME * stride
+		var out := PackedByteArray()
+		out.resize(FRAME * FRAME * 4)
+		out.fill(0)
 		for y in FRAME:
+			var row := y * stride
 			for x in FRAME:
-				var c := img.get_pixel(x, y)
-				if c.a < 1.0:
+				var o := row + x * 4
+				if data[o + 3] != 255:
 					continue
+				var c := data.decode_u32(o)
 				var same := true
 				for d in range(1, DIRS):
-					if img.get_pixel(x, d * FRAME + y) != c:
+					if data.decode_u32(o + d * dir_step) != c:
 						same = false
 						break
 				if same:
-					out.set_pixel(x, y, c)
-		result = ImageTexture.create_from_image(out)
+					out.encode_u32((y * FRAME + x) * 4, c)
+		result = ImageTexture.create_from_image(Image.create_from_data(FRAME, FRAME, false, Image.FORMAT_RGBA8, out))
 	_bases[sheet_key] = result
 	return result
 
