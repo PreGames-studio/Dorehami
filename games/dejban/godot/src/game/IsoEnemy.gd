@@ -21,9 +21,9 @@ const LASER_TIP := [Vector2(57, -47), Vector2(55, -2), Vector2(-2, 15), Vector2(
 	Vector2(-58, -47), Vector2(-58, -57), Vector2(-3, -76), Vector2(56, -59)]
 const LASER_TIPS := {
 	"tank": LASER_TIP,
-	"tank_armored": [Vector2(64, -31), Vector2(45, -7), Vector2(0, 3), Vector2(-45, -7),
+	"tank_armored": [Vector2(64, -31), Vector2(48, 2), Vector2(0, 12), Vector2(-48, 2),
 		Vector2(-64, -31), Vector2(-45, -55), Vector2(0, -65), Vector2(45, -55)],
-	"tank_heavy": [Vector2(59, -34), Vector2(42, -12), Vector2(0, -2), Vector2(-42, -12),
+	"tank_heavy": [Vector2(59, -34), Vector2(46, 2), Vector2(0, 12), Vector2(-46, 2),
 		Vector2(-59, -34), Vector2(-42, -56), Vector2(0, -65), Vector2(42, -56)],
 }
 const LASER_TINT := Color(2.2, 0.32, 0.26, 1.0)
