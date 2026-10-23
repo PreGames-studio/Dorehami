@@ -32,6 +32,10 @@ kotlin {
 dependencies {
     implementation(project(":games:chess:core"))
     implementation(project(":core:uikit"))
+    implementation(project(":core:session"))
+    implementation(project(":transport:api"))
+    implementation(project(":transport:nearby"))
+    implementation(project(":transport:hotspot"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
@@ -43,6 +47,7 @@ dependencies {
 
     // On Android the Kotlin plugin does not map kotlin.test to a framework by itself, so the
     // JUnit 5 flavour is named explicitly (the JVM game modules do not need this line).
+    testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit5"))
     testImplementation(platform(libs.junit.bom))

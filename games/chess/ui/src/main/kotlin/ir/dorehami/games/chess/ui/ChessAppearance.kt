@@ -40,27 +40,42 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.dorehami.games.chess.ui.gl.ChessBoardPalette
 
+/** Item ids shared with the app store through [ChessEntry]'s ownership set. */
+object ChessShopItems {
+    const val BOARD_LUXURY = "chess.board.luxury"
+    const val BOARD_TRADITIONAL = "chess.board.traditional"
+    const val PIECES_GLOSSY_METAL = "chess.pieces.glossy-metal"
+}
+
 /** Five frame/table materials; board-square colors remain white and black for all of them. */
-enum class ChessBoardStyle(val title: String) {
+enum class ChessBoardStyle(val title: String, val storeItemId: String? = null) {
     METAL("فلزی"),
     WOOD("چوبی"),
-    LUXURY("لاکچری"),
-    TRADITIONAL("سنتی"),
+    LUXURY("لاکچری", ChessShopItems.BOARD_LUXURY),
+    TRADITIONAL("سنتی", ChessShopItems.BOARD_TRADITIONAL),
     PAPER("کاغذی"),
 }
 
 /** The same two-sided set of pieces in four different material finishes. */
-enum class ChessPieceStyle(val title: String) {
-    GLOSSY_METAL("فلزی براق"),
+enum class ChessPieceStyle(val title: String, val storeItemId: String? = null) {
+    GLOSSY_METAL("فلزی براق", ChessShopItems.PIECES_GLOSSY_METAL),
     MATTE_METAL("فلزی مات"),
     WOOD("چوبی"),
     CLASSIC("کلاسیک"),
 }
 
+internal fun ChessBoardStyle.isUnlocked(ownedItemIds: Set<String>): Boolean =
+    storeItemId == null || storeItemId in ownedItemIds
+
+internal fun ChessPieceStyle.isUnlocked(ownedItemIds: Set<String>): Boolean =
+    storeItemId == null || storeItemId in ownedItemIds
+
 @Composable
 internal fun ChessBoardStylePicker(
     selected: ChessBoardStyle,
     onSelected: (ChessBoardStyle) -> Unit,
+    ownedItemIds: Set<String>,
+    onLocked: () -> Unit,
 ) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.4f
     Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
@@ -81,6 +96,7 @@ internal fun ChessBoardStylePicker(
                     ChessBoardPalette.forAppearance(dark, style, ChessPieceStyle.CLASSIC)
                 }
                 val isSelected = style == selected
+                val unlocked = style.isUnlocked(ownedItemIds)
                 val shape = RoundedCornerShape(17.dp)
                 Column(
                     modifier = Modifier
@@ -93,7 +109,9 @@ internal fun ChessBoardStylePicker(
                             shape = shape,
                         )
                         .semantics { this.selected = isSelected }
-                        .clickable(role = Role.RadioButton) { onSelected(style) }
+                        .clickable(role = Role.RadioButton) {
+                            if (unlocked) onSelected(style) else onLocked()
+                        }
                         .padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -105,6 +123,14 @@ internal fun ChessBoardStylePicker(
                         fontSize = chessSp(12),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     )
+                    if (!unlocked) {
+                        Text(
+                            text = "🔒 فروشگاه",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = chessSp(10),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }
@@ -115,6 +141,8 @@ internal fun ChessBoardStylePicker(
 internal fun ChessPieceStylePicker(
     selected: ChessPieceStyle,
     onSelected: (ChessPieceStyle) -> Unit,
+    ownedItemIds: Set<String>,
+    onLocked: () -> Unit,
 ) {
     val dark = MaterialTheme.colorScheme.background.luminance() < 0.4f
     Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
@@ -130,6 +158,7 @@ internal fun ChessPieceStylePicker(
                     ChessBoardPalette.forAppearance(dark, ChessBoardStyle.WOOD, style)
                 }
                 val isSelected = style == selected
+                val unlocked = style.isUnlocked(ownedItemIds)
                 val shape = RoundedCornerShape(17.dp)
                 Column(
                     modifier = Modifier
@@ -142,7 +171,9 @@ internal fun ChessPieceStylePicker(
                             shape = shape,
                         )
                         .semantics { this.selected = isSelected }
-                        .clickable(role = Role.RadioButton) { onSelected(style) }
+                        .clickable(role = Role.RadioButton) {
+                            if (unlocked) onSelected(style) else onLocked()
+                        }
                         .padding(8.dp),
                     horizontalAlignment = Alignment.CenterHorizontally,
                     verticalArrangement = Arrangement.spacedBy(5.dp),
@@ -154,6 +185,14 @@ internal fun ChessPieceStylePicker(
                         fontSize = chessSp(12),
                         fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Medium,
                     )
+                    if (!unlocked) {
+                        Text(
+                            text = "🔒 فروشگاه",
+                            color = MaterialTheme.colorScheme.primary,
+                            fontSize = chessSp(10),
+                            fontWeight = FontWeight.Bold,
+                        )
+                    }
                 }
             }
         }

@@ -77,4 +77,14 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }
