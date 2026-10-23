@@ -39,8 +39,8 @@ import ir.dorehami.app.store.WalletSnapshot
 import ir.dorehami.uikit.toFa
 
 /**
- * Coin wallet and cosmetic store. Item purchases are local; paid coin packs are explicitly a demo
- * and cannot change the wallet until a verified payment/backend integration is added.
+ * Chess-only coin wallet and cosmetic store. Item purchases are local; paid coin packs are
+ * explicitly a demo and cannot change the wallet until verified payment/backend integration.
  */
 @Composable
 internal fun StoreScreen(
@@ -59,7 +59,7 @@ internal fun StoreScreen(
         )
         Scaffold(
             containerColor = Color.Transparent,
-            topBar = { DorehamiTopBar(title = "فروشگاه", onBack = onBack) },
+            topBar = { DorehamiTopBar(title = "فروشگاه شطرنج", onBack = onBack) },
         ) { innerPadding ->
             Column(
                 modifier = Modifier

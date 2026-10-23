@@ -46,12 +46,15 @@ internal fun ChessMainMenu(
     onOffline: () -> Unit,
     onOnline: () -> Unit,
     onSettings: () -> Unit,
+    onStore: () -> Unit,
+    coinBalance: Long,
     onBack: () -> Unit,
 ) {
     ChessMenuPage(title = "شطرنج", subtitle = "یک میز، هر طور که دوست داری", onBack = onBack) {
         MenuAction("☁", "آنلاین", "اتاق خصوصی، حریف تصادفی و بازی با دوستان — فعلاً نمایشی", onOnline)
         MenuAction("⌁", "آفلاین", "تک‌نفره، دونفره روی یک گوشی، بلوتوث و هات‌اسپات", onOffline)
         MenuAction("⚙", "تنظیمات", "طرح تخته و مهره، صدا، انیمیشن و چرخش خودکار", onSettings)
+        MenuAction("🪙", "فروشگاه شطرنج", "طرح تخته و مهره • ${coinBalance.toFa()} سکه در کیف‌پول", onStore)
         Text(
             text = "برای بازی با دوست در حالت آفلاین، اینترنت لازم نیست.",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -127,14 +130,14 @@ internal fun ChessSettingsScreen(
                 selected = boardStyle,
                 onSelected = onBoardStyle,
                 ownedItemIds = ownedStoreItems,
-                onLocked = { notice = "این طرح در فروشگاه منوی اصلی قابل خرید است." },
+                onLocked = { notice = "این طرح از «فروشگاه شطرنج» در همین منو قابل خرید است." },
             )
             Spacer(Modifier.height(18.dp))
             ChessPieceStylePicker(
                 selected = pieceStyle,
                 onSelected = onPieceStyle,
                 ownedItemIds = ownedStoreItems,
-                onLocked = { notice = "این مهره‌ها در فروشگاه منوی اصلی قابل خرید هستند." },
+                onLocked = { notice = "این مهره‌ها از «فروشگاه شطرنج» در همین منو قابل خرید هستند." },
             )
         }
         notice?.let {

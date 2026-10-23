@@ -4,6 +4,7 @@ import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -20,6 +21,8 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
@@ -28,149 +31,147 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.geometry.Offset
-import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.graphics.luminance
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
-import androidx.compose.material3.Text
 
-/** A shared, high-contrast palette for the Hokm lobby, room and table. */
+/** Semantic aliases kept local to Hokm; every value follows the app's current Material theme. */
 object HokmPalette {
-    val night = Color(0xFF061913)
-    val deepGreen = Color(0xFF09271F)
-    val felt = Color(0xFF0D3B30)
-    val emerald = Color(0xFF14936A)
-    val mint = Color(0xFF75DAB4)
-    val gold = Color(0xFFE8C779)
-    val goldLight = Color(0xFFFFE9A8)
-    val goldDark = Color(0xFF936825)
-    val ivory = Color(0xFFF8F4E9)
-    val text = Color(0xFFF8F5EA)
-    val muted = Color(0xFFB7CCC1)
-    val coral = Color(0xFFE47B69)
-    val panel = Color(0xE6102D25)
-    val panelLight = Color(0xFF19483A)
+    val night: Color @Composable get() = MaterialTheme.colorScheme.background
+    val deepGreen: Color @Composable get() = MaterialTheme.colorScheme.surface
+    val felt: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
+    val emerald: Color @Composable get() = MaterialTheme.colorScheme.secondary
+    val mint: Color @Composable get() = MaterialTheme.colorScheme.secondary
+    val gold: Color @Composable get() = MaterialTheme.colorScheme.primary
+    val goldLight: Color @Composable get() = MaterialTheme.colorScheme.primary
+    val goldDark: Color @Composable get() = MaterialTheme.colorScheme.primaryContainer
+    val ivory: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+    val text: Color @Composable get() = MaterialTheme.colorScheme.onSurface
+    val muted: Color @Composable get() = MaterialTheme.colorScheme.onSurfaceVariant
+    val coral: Color @Composable get() = MaterialTheme.colorScheme.error
+    val panel: Color @Composable get() = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f)
+    val panelLight: Color @Composable get() = MaterialTheme.colorScheme.surfaceVariant
 }
 
 enum class HokmButtonTone { GOLD, EMERALD, GLASS, CORAL }
 
 private data class ButtonPalette(
     val face: List<Color>,
-    val base: Color,
     val outline: Color,
     val foreground: Color,
     val secondary: Color,
 )
 
-private fun buttonPalette(tone: HokmButtonTone): ButtonPalette = when (tone) {
-    HokmButtonTone.GOLD -> ButtonPalette(
-        face = listOf(Color(0xFFFFE9A8), Color(0xFFE4BC61), Color(0xFFC89135)),
-        base = Color(0xFF79501F),
-        outline = Color(0xFFFFF0C1),
-        foreground = Color(0xFF18372B),
-        secondary = Color(0xFF345042),
-    )
-    HokmButtonTone.EMERALD -> ButtonPalette(
-        face = listOf(Color(0xFF39C697), Color(0xFF15966B), Color(0xFF08704F)),
-        base = Color(0xFF06432F),
-        outline = Color(0xFF8AE4BD),
-        foreground = Color.White,
-        secondary = Color(0xFFE0F5EA),
-    )
-    HokmButtonTone.GLASS -> ButtonPalette(
-        face = listOf(Color(0xFF286052), Color(0xFF174638), Color(0xFF10372D)),
-        base = Color(0xFF08251D),
-        outline = Color(0x667DDFC0),
-        foreground = HokmPalette.text,
-        secondary = HokmPalette.muted,
-    )
-    HokmButtonTone.CORAL -> ButtonPalette(
-        face = listOf(Color(0xFFF49A7E), Color(0xFFDA6B59), Color(0xFFB94A47)),
-        base = Color(0xFF773332),
-        outline = Color(0xFFFFC0A4),
-        foreground = Color.White,
-        secondary = Color(0xFFFFE8DF),
-    )
+@Composable
+private fun buttonPalette(tone: HokmButtonTone): ButtonPalette {
+    val scheme = MaterialTheme.colorScheme
+    val dark = scheme.background.luminance() < 0.4f
+    return when (tone) {
+        HokmButtonTone.GOLD -> ButtonPalette(
+            face = if (dark) listOf(Color(0xFFFFD09B), scheme.primary)
+            else listOf(Color(0xFFFF8A3D), scheme.primary),
+            outline = scheme.primary,
+            foreground = scheme.onPrimary,
+            secondary = scheme.onPrimary.copy(alpha = 0.82f),
+        )
+        HokmButtonTone.EMERALD -> ButtonPalette(
+            face = if (dark) listOf(Color(0xFFA5EEE3), scheme.secondary)
+            else listOf(Color(0xFF43BDB2), scheme.secondary),
+            outline = scheme.secondary,
+            foreground = scheme.onSecondary,
+            secondary = scheme.onSecondary.copy(alpha = 0.82f),
+        )
+        HokmButtonTone.GLASS -> ButtonPalette(
+            face = listOf(scheme.surface.copy(alpha = 0.94f), scheme.surfaceVariant.copy(alpha = 0.86f)),
+            outline = scheme.outline.copy(alpha = 0.78f),
+            foreground = scheme.onSurface,
+            secondary = scheme.onSurfaceVariant,
+        )
+        HokmButtonTone.CORAL -> ButtonPalette(
+            face = listOf(scheme.error.copy(alpha = 0.88f), scheme.error),
+            outline = scheme.error,
+            foreground = scheme.onError,
+            secondary = scheme.onError.copy(alpha = 0.82f),
+        )
+    }
 }
 
-/**
- * Subtle, animated felt backdrop. It is deliberately drawn in Compose so it stays crisp and adds
- * no network, font or image dependency to the game.
- */
+/** Hokm artwork with the same warm scrim and orange/teal/purple glows as the app shell. */
 @Composable
 fun HokmBackdrop(modifier: Modifier = Modifier) {
-    Box(
-        modifier.background(
-            Brush.verticalGradient(
-                listOf(Color(0xFF0B3529), HokmPalette.night, Color(0xFF07150F)),
-            ),
-        ),
-    ) {
-        Canvas(Modifier.fillMaxSize()) {
-            val step = 46.dp.toPx()
-            var x = -size.height
-            while (x < size.width + size.height) {
-                drawLine(
-                    color = Color.White.copy(alpha = 0.018f),
-                    start = Offset(x, 0f),
-                    end = Offset(x + size.height, size.height),
-                    strokeWidth = 1.dp.toPx(),
-                )
-                x += step
-            }
-            drawCircle(
-                brush = Brush.radialGradient(
-                    colors = listOf(Color(0x3327C48B), Color.Transparent),
-                    center = Offset(size.width * 0.94f, size.height * 0.08f),
-                    radius = size.maxDimension * 0.74f,
+    val colors = MaterialTheme.colorScheme
+    val dark = colors.background.luminance() < 0.4f
+    Box(modifier = modifier) {
+        Image(
+            painter = painterResource(R.drawable.hokm_backdrop),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            colors.background.copy(alpha = if (dark) 0.52f else 0.16f),
+                            colors.background.copy(alpha = if (dark) 0.38f else 0.14f),
+                            colors.background.copy(alpha = if (dark) 0.66f else 0.36f),
+                        ),
+                    ),
                 ),
-                radius = size.maxDimension * 0.74f,
-                center = Offset(size.width * 0.94f, size.height * 0.08f),
+        )
+        Canvas(Modifier.fillMaxSize()) {
+            val radius = size.minDimension * 0.43f
+            val glows = listOf(
+                Triple(Offset(size.width * 0.02f, size.height * 0.20f), colors.primary, 0.11f),
+                Triple(Offset(size.width * 0.98f, size.height * 0.60f), colors.secondary, 0.10f),
+                Triple(Offset(size.width * 0.72f, size.height * 1.02f), colors.tertiary, 0.09f),
             )
-            drawCircle(
-                color = HokmPalette.gold.copy(alpha = 0.055f),
-                radius = size.width * 0.26f,
-                center = Offset(size.width * 0.08f, size.height * 0.78f),
-                style = Stroke(width = 1.dp.toPx()),
-            )
-            drawCircle(
-                color = HokmPalette.gold.copy(alpha = 0.035f),
-                radius = size.width * 0.19f,
-                center = Offset(size.width * 0.08f, size.height * 0.78f),
-                style = Stroke(width = 1.dp.toPx()),
-            )
+            glows.forEach { (center, color, alpha) ->
+                drawCircle(
+                    brush = Brush.radialGradient(
+                        colors = listOf(color.copy(alpha = alpha), Color.Transparent),
+                        center = center,
+                        radius = radius,
+                    ),
+                    center = center,
+                    radius = radius,
+                )
+            }
         }
     }
 }
 
-/** Raised glass panel used for menus and lobby cards. */
+/** Lightly tinted glass panel, shared by the setup flow, room lobby and table overlays. */
 @Composable
 fun HokmGlassPanel(
     modifier: Modifier = Modifier,
     contentPadding: Dp = 16.dp,
     content: @Composable ColumnScope.() -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
+    val shape = RoundedCornerShape(24.dp)
     Column(
         modifier
-            .shadow(12.dp, RoundedCornerShape(22.dp))
-            .clip(RoundedCornerShape(22.dp))
-            .background(Brush.verticalGradient(listOf(Color(0xEE174438), Color(0xF20B251E))))
-            .border(1.dp, Color(0x667CDBB4), RoundedCornerShape(22.dp))
+            .clip(shape)
+            .background(scheme.surface.copy(alpha = 0.86f))
+            .border(1.dp, scheme.outline.copy(alpha = 0.68f), shape)
             .padding(contentPadding),
         content = content,
     )
 }
 
-/**
- * A tactile button with a visible lower lip, reflective gradient and a small press-in animation.
- * Keep this component for every game action so the whole Hokm flow has one visual language.
- */
+/** Rounded tonal action with a short press response and the app's button geometry. */
 @Composable
 fun Hokm3DButton(
     text: String,
@@ -187,7 +188,7 @@ fun Hokm3DButton(
     onClick: () -> Unit,
 ) {
     val palette = buttonPalette(tone)
-    val shape = RoundedCornerShape(17.dp)
+    val shape = RoundedCornerShape(19.dp)
     val interaction = remember { MutableInteractionSource() }
     val isPressed by interaction.collectIsPressedAsState()
     val pressDepth by animateFloatAsState(
@@ -203,84 +204,69 @@ fun Hokm3DButton(
         else -> 13.dp
     }
 
-    Box(
+    Row(
         modifier = modifier
-            .height(height + 5.dp)
-            .alpha(if (enabled) 1f else 0.58f),
-    ) {
-        Box(
-            Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(height)
-                .clip(shape)
-                .background(palette.base),
-        )
-        Row(
-            modifier = Modifier
-                .align(Alignment.TopCenter)
-                .fillMaxWidth()
-                .height(height)
-                .offset(y = (pressDepth * 4f).dp)
-                .shadow((8f * (1f - pressDepth)).dp, shape)
-                .clip(shape)
-                .background(Brush.verticalGradient(palette.face))
-                .border(1.dp, palette.outline, shape)
-                .clickable(
-                    interactionSource = interaction,
-                    indication = null,
-                    enabled = enabled,
-                    role = Role.Button,
-                    onClickLabel = text,
-                ) {
-                    onSound?.invoke()
-                    onClick()
-                }
-                .padding(horizontal = horizontalPadding, vertical = 5.dp),
-            horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            if (leading != null) {
-                Text(
-                    text = leading,
-                    color = leadingColor ?: foreground,
-                    fontSize = if (height < 48.dp) 18.sp else 22.sp,
-                    fontWeight = FontWeight.Bold,
-                    textAlign = TextAlign.Center,
-                )
-            }
-            Column(
-                horizontalAlignment = Alignment.CenterHorizontally,
-                verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+            .height(height)
+            .offset(y = (pressDepth * 1.5f).dp)
+            .alpha(if (enabled) 1f else 0.52f)
+            .shadow(if (enabled) 4.dp else 0.dp, shape)
+            .clip(shape)
+            .background(Brush.verticalGradient(palette.face))
+            .border(1.dp, palette.outline.copy(alpha = 0.72f), shape)
+            .clickable(
+                interactionSource = interaction,
+                indication = null,
+                enabled = enabled,
+                role = Role.Button,
+                onClickLabel = text,
             ) {
+                onSound?.invoke()
+                onClick()
+            }
+            .padding(horizontal = horizontalPadding, vertical = 5.dp),
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        if (leading != null) {
+            Text(
+                text = leading,
+                color = leadingColor ?: foreground,
+                fontSize = if (height < 48.dp) 18.sp else 22.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+        }
+        Column(
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        ) {
+            Text(
+                text = text,
+                color = foreground,
+                fontSize = if (height < 48.dp) 13.sp else 15.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+            )
+            if (subtitle != null) {
                 Text(
-                    text = text,
-                    color = foreground,
-                    fontSize = if (height < 48.dp) 13.sp else 15.sp,
-                    fontWeight = FontWeight.Bold,
+                    text = subtitle,
+                    color = mutedForeground,
+                    fontSize = 10.sp,
+                    fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
                     maxLines = 1,
                 )
-                if (subtitle != null) {
-                    Text(
-                        text = subtitle,
-                        color = mutedForeground,
-                        fontSize = 10.sp,
-                        fontWeight = FontWeight.Medium,
-                        textAlign = TextAlign.Center,
-                        maxLines = 1,
-                    )
-                }
             }
-            if (trailing != null) {
-                Text(
-                    text = trailing,
-                    color = foreground,
-                    fontSize = 17.sp,
-                    fontWeight = FontWeight.Black,
-                    textAlign = TextAlign.Center,
-                )
-            }
+        }
+        if (trailing != null) {
+            Text(
+                text = trailing,
+                color = foreground,
+                fontSize = 17.sp,
+                fontWeight = FontWeight.Black,
+                textAlign = TextAlign.Center,
+            )
         }
     }
 }
@@ -307,17 +293,18 @@ fun HokmPill(
     }
 }
 
-/** Wrapper that keeps a background beneath a group of cards without making every panel opaque. */
+/** Quiet inset surface used for secondary information, not a second competing panel style. */
 @Composable
 fun HokmInsetPanel(
     modifier: Modifier = Modifier,
     content: @Composable BoxScope.() -> Unit,
 ) {
+    val scheme = MaterialTheme.colorScheme
     Box(
         modifier
             .clip(RoundedCornerShape(20.dp))
-            .background(Color(0x66112620))
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(20.dp))
+            .background(scheme.surfaceVariant.copy(alpha = 0.58f))
+            .border(1.dp, scheme.outline.copy(alpha = 0.38f), RoundedCornerShape(20.dp))
             .padding(14.dp),
         content = content,
     )

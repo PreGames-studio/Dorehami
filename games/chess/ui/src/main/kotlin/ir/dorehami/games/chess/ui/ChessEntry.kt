@@ -24,13 +24,16 @@ import kotlinx.coroutines.cancel
 private enum class ChessDestination { MENU, OFFLINE, ONLINE, SETTINGS, SOLO_SETUP, PASS_SETUP, ROOM }
 
 /**
- * Chess entry flow: online (demo), offline (solo/local/Bluetooth/hotspot), and appearance settings.
- * [ownedStoreItems] is supplied by the app's offline wallet; the chess module has no app dependency.
+ * Chess entry flow: online (demo), offline (solo/local/Bluetooth/hotspot), appearance settings,
+ * and the chess-only cosmetic store. [ownedStoreItems] and [coinBalance] are supplied by the
+ * app's offline wallet; the chess module has no app dependency.
  */
 @Composable
 fun ChessEntry(
     onExit: () -> Unit,
+    onOpenStore: () -> Unit = {},
     ownedStoreItems: Set<String> = emptySet(),
+    coinBalance: Long = 0,
 ) {
     val context = LocalContext.current
     val preferences = remember(context) { context.getSharedPreferences("chess-ui-settings", 0) }
@@ -142,6 +145,8 @@ fun ChessEntry(
                     onOffline = { destination = ChessDestination.OFFLINE },
                     onOnline = { destination = ChessDestination.ONLINE },
                     onSettings = { destination = ChessDestination.SETTINGS },
+                    onStore = onOpenStore,
+                    coinBalance = coinBalance,
                     onBack = onExit,
                 )
                 ChessDestination.OFFLINE -> ChessOfflineMenu(

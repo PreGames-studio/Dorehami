@@ -29,7 +29,7 @@ sealed interface Screen {
     data object Home : Screen
     data object Games : Screen
     data object Settings : Screen
-    data object Store : Screen
+    data object ChessStore : Screen
 
     /** Hokm table (`games/hokm`): solo, Bluetooth, online. */
     data object Hokm : Screen
@@ -66,8 +66,6 @@ private fun EntryApp() {
         Screen.Home -> HomeScreen(
             onEnterGame = { screen = Screen.Games },
             onSettings = { screen = Screen.Settings },
-            onStore = { screen = Screen.Store },
-            coinBalance = wallet.balance,
         )
 
         Screen.Games -> GamesScreen(
@@ -81,15 +79,17 @@ private fun EntryApp() {
         Screen.Hokm -> HokmEntry(onExit = { screen = Screen.Games })
         Screen.Chess -> ChessEntry(
             onExit = { screen = Screen.Games },
+            onOpenStore = { screen = Screen.ChessStore },
             ownedStoreItems = wallet.ownedItemIds,
+            coinBalance = wallet.balance,
         )
         Screen.Settings -> SettingsScreen(onBack = { screen = Screen.Home })
-        Screen.Store -> StoreScreen(
+        Screen.ChessStore -> StoreScreen(
             wallet = wallet,
             onPurchase = { item ->
                 coinWallet.purchase(item).also { wallet = coinWallet.snapshot() }
             },
-            onBack = { screen = Screen.Home },
+            onBack = { screen = Screen.Chess },
         )
         Screen.Pantomime -> PantohubScreen(onBack = { screen = Screen.Games })
     }

@@ -31,15 +31,12 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.dorehami.app.R
-import ir.dorehami.uikit.toFa
 
 /** First screen of the app: bespoke artwork, the game-picker action, and settings. */
 @Composable
 fun HomeScreen(
     onEnterGame: () -> Unit,
     onSettings: () -> Unit,
-    onStore: () -> Unit,
-    coinBalance: Long = 0,
 ) {
     val colors = MaterialTheme.colorScheme
     val glass = colors.surface.copy(alpha = 0.68f)
@@ -152,35 +149,6 @@ fun HomeScreen(
                                 text = "تنظیمات",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold,
-                            )
-                        }
-                    }
-                    OutlinedButton(
-                        onClick = onStore,
-                        modifier = Modifier
-                            .fillMaxWidth()
-                            .heightIn(min = 52.dp),
-                        shape = RoundedCornerShape(19.dp),
-                        border = BorderStroke(1.dp, colors.outline.copy(alpha = 0.9f)),
-                        colors = ButtonDefaults.outlinedButtonColors(
-                            contentColor = colors.secondary,
-                            containerColor = Color.Transparent,
-                        ),
-                    ) {
-                        Row(
-                            horizontalArrangement = Arrangement.spacedBy(8.dp),
-                            verticalAlignment = Alignment.CenterVertically,
-                        ) {
-                            Text("🪙", style = MaterialTheme.typography.titleMedium)
-                            Text(
-                                text = "فروشگاه",
-                                style = MaterialTheme.typography.titleSmall,
-                                fontWeight = FontWeight.Bold,
-                            )
-                            Text(
-                                text = "• ${coinBalance.toFa()} سکه",
-                                style = MaterialTheme.typography.labelMedium,
-                                color = colors.onSurfaceVariant,
                             )
                         }
                     }

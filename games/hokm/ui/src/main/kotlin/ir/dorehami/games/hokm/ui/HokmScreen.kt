@@ -49,6 +49,7 @@ import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -88,17 +89,17 @@ import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
 import kotlin.math.abs
 
-/** Table palette: tournament-green baize, walnut rim, brass accents. */
+/** Dark table chrome uses the app's own orange, teal, purple and aubergine surface colors. */
 private object Table {
-    val feltLight = Color(0xFF2F8A4E)
-    val feltDark = Color(0xFF0F3D22)
+    val feltLight = Color(0xFF177E78)
+    val feltDark = Color(0xFF1E1A26)
     val rimLight = Color(0xFF8B5A2B)
-    val rimDark = Color(0xFF3E2410)
-    val brass = Color(0xFFD9B55A)
-    val chip = Color(0x99000000)
-    val turnGlow = Color(0xFFFFE082)
-    val ours = Color(0xFF64B5F6)
-    val theirs = Color(0xFFEF9A9A)
+    val rimDark = Color(0xFF2A2433)
+    val brass = Color(0xFFFFB86B)
+    val chip = Color(0xD91E1A26)
+    val turnGlow = Color(0xFFFFB86B)
+    val ours = Color(0xFF5FD3C7)
+    val theirs = Color(0xFFC9A5FF)
 }
 
 /**
@@ -383,9 +384,9 @@ fun HokmScreen(
                         onDismissRequest = { confirmExit = false },
                         title = { Text("خروج از بازی؟", textAlign = TextAlign.Right) },
                         text = { Text("اگر بیرون بروی این بازی از دست می‌رود.", textAlign = TextAlign.Right) },
-                        containerColor = HokmPalette.deepGreen,
-                        titleContentColor = HokmPalette.goldLight,
-                        textContentColor = HokmPalette.text,
+                        containerColor = MaterialTheme.colorScheme.surface,
+                        titleContentColor = MaterialTheme.colorScheme.primary,
+                        textContentColor = MaterialTheme.colorScheme.onSurface,
                         confirmButton = {
                             Hokm3DButton(
                                 text = "خروج",
@@ -425,6 +426,8 @@ private fun TableBackground() {
         modifier = Modifier.fillMaxSize(),
     )
     Canvas(Modifier.fillMaxSize()) {
+        // A light teal wash brings the existing felt into the app's palette without hiding its grain.
+        drawRect(Color(0xFF0E8F87).copy(alpha = 0.14f))
         drawRect(
             Brush.radialGradient(
                 colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)),
@@ -714,8 +717,8 @@ private fun ScoreBar(
             modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(16.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xDD12372D), Color(0xE608211A))))
-                .border(1.dp, Color.White.copy(alpha = 0.12f), RoundedCornerShape(16.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xE62A2433), Color(0xF21E1A26))))
+                .border(1.dp, Color(0xFF9A90A8).copy(alpha = 0.42f), RoundedCornerShape(16.dp))
                 .clickable(onClick = onSheet)
                 .padding(horizontal = 8.dp, vertical = 5.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -829,7 +832,11 @@ private fun HokmChooser(
             Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
                 Suit.entries.forEach { suit ->
                     val count = hand.count { it.suit == suit }
-                    val suitColor = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFF27B78) else HokmPalette.ivory
+                    val suitColor = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
+                        MaterialTheme.colorScheme.error
+                    } else {
+                        HokmPalette.text
+                    }
                     Hokm3DButton(
                         text = suit.titleFa,
                         subtitle = "${count.toFa()} برگ",
@@ -855,7 +862,7 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
                 .padding(16.dp)
                 .fillMaxWidth(0.94f),
             shape = RoundedCornerShape(24.dp),
-            color = Color(0xE6102A1A),
+            color = Color(0xF22A2433),
             border = androidx.compose.foundation.BorderStroke(1.dp, Table.brass.copy(alpha = 0.6f)),
         ) {
             Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
@@ -924,7 +931,7 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
             Column(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xF2102A1A), Color(0xF21B3F2A))))
+                    .background(Brush.horizontalGradient(listOf(Color(0xF22A2433), Color(0xF23A3346))))
                     .border(1.5.dp, Table.brass, RoundedCornerShape(20.dp))
                     .padding(horizontal = 26.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
@@ -983,9 +990,9 @@ private fun GameOverDialog(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         AlertDialog(
             onDismissRequest = {},
-            containerColor = HokmPalette.deepGreen,
-            titleContentColor = HokmPalette.goldLight,
-            textContentColor = HokmPalette.text,
+            containerColor = MaterialTheme.colorScheme.surface,
+            titleContentColor = MaterialTheme.colorScheme.primary,
+            textContentColor = MaterialTheme.colorScheme.onSurface,
             title = {
                 Text(
                     if (won) (if (state.isTeamGame) "🏆 بردیم!" else "🏆 بردی!") else (if (state.isTeamGame) "این بار باختیم" else "این بار $winnerName برد"),
@@ -1426,7 +1433,7 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                 Modifier
                     .fillMaxWidth(0.88f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Brush.verticalGradient(listOf(Color(0xFF164537), Color(0xFF09251D))))
+                    .background(Brush.verticalGradient(listOf(Color(0xFF2A2433), Color(0xFF1E1A26))))
                     .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                     .padding(16.dp),

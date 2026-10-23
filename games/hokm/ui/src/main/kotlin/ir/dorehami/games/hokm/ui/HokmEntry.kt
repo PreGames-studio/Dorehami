@@ -37,6 +37,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -55,7 +56,6 @@ import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
@@ -84,6 +84,13 @@ const val DEFAULT_SERVER_URL = "http://10.0.2.2:8080"
 /** Entry point of the Hokm feature: a premium lobby, then the same table in all play modes. */
 @Composable
 fun HokmEntry(onExit: () -> Unit) {
+    HokmTheme {
+        HokmEntryContent(onExit)
+    }
+}
+
+@Composable
+private fun HokmEntryContent(onExit: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { HokmPrefs(context) }
     var started by rememberSaveable { mutableStateOf(false) }
@@ -414,13 +421,15 @@ private fun HokmSetupScreen(
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                     colors = OutlinedTextFieldDefaults.colors(
-                        focusedTextColor = HokmPalette.text,
-                        unfocusedTextColor = HokmPalette.text,
-                        focusedBorderColor = HokmPalette.gold,
-                        unfocusedBorderColor = Color(0x6677C7A5),
-                        focusedLabelColor = HokmPalette.goldLight,
-                        unfocusedLabelColor = HokmPalette.muted,
-                        cursorColor = HokmPalette.goldLight,
+                        focusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+                        focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+                        focusedBorderColor = MaterialTheme.colorScheme.primary,
+                        unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+                        focusedLabelColor = MaterialTheme.colorScheme.primary,
+                        unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+                        cursorColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
                 Spacer(Modifier.height(14.dp))
@@ -530,9 +539,9 @@ private fun HokmSetupScreen(
                 onDismissRequest = { confirmResetStats = false },
                 title = { Text("پاک‌کردن کارنامه؟") },
                 text = { Text("آمار بردها و دست‌های ثبت‌شده برای همیشه پاک می‌شود.") },
-                containerColor = HokmPalette.deepGreen,
-                titleContentColor = HokmPalette.goldLight,
-                textContentColor = HokmPalette.text,
+                containerColor = MaterialTheme.colorScheme.surface,
+                titleContentColor = MaterialTheme.colorScheme.primary,
+                textContentColor = MaterialTheme.colorScheme.onSurface,
                 confirmButton = {
                     Hokm3DButton(
                         text = "پاک کن",
@@ -567,13 +576,13 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
         Box(
             Modifier
                 .size(42.dp)
-                .shadow(7.dp, CircleShape)
+                .shadow(4.dp, CircleShape)
                 .clip(CircleShape)
-                .background(Brush.linearGradient(listOf(HokmPalette.goldLight, HokmPalette.goldDark)))
-                .border(1.dp, Color.White.copy(alpha = 0.65f), CircleShape),
+                .background(MaterialTheme.colorScheme.primary)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.55f), CircleShape),
             contentAlignment = Alignment.Center,
         ) {
-            Text("د", color = HokmPalette.deepGreen, fontSize = 21.sp, fontWeight = FontWeight.Black)
+            Text("د", color = MaterialTheme.colorScheme.onPrimary, fontSize = 21.sp, fontWeight = FontWeight.Black)
         }
         Spacer(Modifier.width(10.dp))
         Column(Modifier.weight(1f)) {
@@ -612,10 +621,17 @@ private fun HokmHero(playerCount: Int, target: Int) {
         Modifier
             .fillMaxWidth()
             .height(225.dp)
-            .shadow(16.dp, RoundedCornerShape(26.dp))
+            .shadow(6.dp, RoundedCornerShape(26.dp))
             .clip(RoundedCornerShape(26.dp))
-            .background(Brush.linearGradient(listOf(Color(0xFF1A7A59), Color(0xFF0F503C), Color(0xFF0A3328))))
-            .border(1.dp, HokmPalette.gold.copy(alpha = 0.62f), RoundedCornerShape(26.dp)),
+            .background(
+                Brush.linearGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.88f),
+                    ),
+                ),
+            )
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.72f), RoundedCornerShape(26.dp)),
     ) {
         val narrow = maxWidth < 355.dp
         Canvas(Modifier.fillMaxSize()) {
@@ -633,7 +649,7 @@ private fun HokmHero(playerCount: Int, target: Int) {
             val step = 32.dp.toPx()
             var x = -size.height
             while (x < size.width) {
-                drawLine(Color.White.copy(alpha = 0.025f), Offset(x, 0f), Offset(x + size.height, size.height), 1.dp.toPx())
+                drawLine(HokmPalette.gold.copy(alpha = 0.045f), Offset(x, 0f), Offset(x + size.height, size.height), 1.dp.toPx())
                 x += step
             }
         }
@@ -643,19 +659,19 @@ private fun HokmHero(playerCount: Int, target: Int) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                HokmPill("بازی اصیل ایرانی", icon = "✦", color = HokmPalette.goldLight)
+                HokmPill("بازی اصیل ایرانی", icon = "✦", color = HokmPalette.gold)
                 Spacer(Modifier.height(10.dp))
-                Text("حُکم", color = HokmPalette.ivory, fontSize = if (narrow) 36.sp else 42.sp, fontWeight = FontWeight.Black)
+                Text("حُکم", color = HokmPalette.text, fontSize = if (narrow) 36.sp else 42.sp, fontWeight = FontWeight.Black)
                 Text(
-                    "یک میز سبز، یک دست هیجان",
-                    color = Color.White.copy(alpha = 0.89f),
+                    "یک دست ورق، یک دورهمی گرم",
+                    color = HokmPalette.muted,
                     fontSize = if (narrow) 12.sp else 13.sp,
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HokmPill("${playerCount.toFa()} نفره", icon = "♟", color = HokmPalette.ivory)
-                    HokmPill("تا ${target.toFa()}", icon = "★", color = HokmPalette.goldLight)
+                    HokmPill("${playerCount.toFa()} نفره", icon = "♟", color = HokmPalette.mint)
+                    HokmPill("تا ${target.toFa()}", icon = "★", color = HokmPalette.gold)
                 }
             }
             Spacer(Modifier.width(if (narrow) 2.dp else 8.dp))
@@ -712,8 +728,8 @@ private fun SettingToggle(
         modifier
             .height(68.dp)
             .clip(RoundedCornerShape(15.dp))
-            .background(Color(0xFF12372D))
-            .border(1.dp, Color(0x447DD6B4), RoundedCornerShape(15.dp))
+            .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f))
+            .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(15.dp))
             .toggleable(value = checked, role = Role.Switch) { onClick() }
             .padding(horizontal = 10.dp, vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
@@ -733,8 +749,8 @@ private fun SettingToggle(
                 .width(39.dp)
                 .height(23.dp)
                 .clip(CircleShape)
-                .background(if (checked) HokmPalette.emerald else Color(0xFF40564D))
-                .border(1.dp, Color.White.copy(alpha = 0.28f), CircleShape),
+                .background(if (checked) MaterialTheme.colorScheme.secondary else MaterialTheme.colorScheme.surfaceVariant)
+                .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.62f), CircleShape),
             contentAlignment = Alignment.CenterStart,
         ) {
             Box(
@@ -743,7 +759,7 @@ private fun SettingToggle(
                     .size(18.dp)
                     .shadow(3.dp, CircleShape)
                     .clip(CircleShape)
-                    .background(if (checked) HokmPalette.goldLight else Color(0xFFD8DFD9)),
+                    .background(if (checked) MaterialTheme.colorScheme.onSecondary else MaterialTheme.colorScheme.onSurfaceVariant),
             )
         }
     }
