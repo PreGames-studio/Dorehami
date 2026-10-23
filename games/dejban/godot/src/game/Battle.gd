@@ -189,6 +189,7 @@ func _spawn_enemy(id: String) -> void:
 	enemy.died.connect(_on_enemy_died)
 	enemy.reached_keep.connect(_on_enemy_reached)
 	enemy.keep_attacked.connect(_on_keep_attacked)
+	enemy.finished_attack.connect(_on_enemy_finished_attack)
 	enemies.append(enemy)
 
 func _end_wave() -> void:
@@ -275,12 +276,11 @@ func _on_enemy_reached(enemy) -> void:
 	Fx.text(_fx_layer, keep.position + Vector2(0.0, -118.0), "-" + Ui.fa(damage), Style.bad, 22)
 	enemy.queue_free()
 
-## تانکِ در حال محاصره با هر شلیک لیزر جان دژ را کم می‌کند، ولی خودش در میدان می‌ماند
-## (برخلاف سربازی که با رسیدن به دژ حذف می‌شود)؛ پس موج تا نابودی‌اش تمام نمی‌شود.
+## تانک با رسیدن به نزدیکی دژ یک بار پرتو لیزر شلیک می‌کند (جان دژ کم می‌شود) و پس از تکمیل همان
+## شلیک، بدون تکرار شلیک و بدون پاداش کشتن از میدان حذف می‌شود.
 func _on_keep_attacked(enemy, amount: int) -> void:
 	if not running or keep == null or not is_instance_valid(enemy) or not enemy.alive:
 		return
-	# پرتو قرمز از نوک لیزرِ فریم attack تانک تا بدنهٔ دژ.
 	var hit_point := keep.position + Vector2(0.0, -26.0)
 	if enemy.has_method("laser_tip"):
 		var beam_tint: Color = enemy.laser_color() if enemy.has_method("laser_color") else IsoEnemy.LASER_TINT
@@ -290,6 +290,9 @@ func _on_keep_attacked(enemy, amount: int) -> void:
 	Audio.play("keep_hit")
 	Fx.shake(_world, 5.0, 0.22)
 	Fx.text(_fx_layer, keep.position + Vector2(0.0, -118.0), "-" + Ui.fa(amount), Style.bad, 22)
+
+func _on_enemy_finished_attack(enemy) -> void:
+	enemies.erase(enemy)
 
 func _on_keep_damaged(lives_after: int) -> void:
 	lives = lives_after

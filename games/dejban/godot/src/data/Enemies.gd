@@ -6,7 +6,7 @@
 ##   reward  سکهٔ هر کشتن     traits  ویژگی‌های ویژه
 ##   iso     خانوادهٔ شیت ایزومتریک؛ چنین دشمنی با IsoEnemy ساخته می‌شود
 ##   attack  نوع حمله به دژ: «reach» = رسیدن و کم‌کردن جان،
-##           «laser» = ایستادن کنار دژ و شلیک لیزر هر attack_interval ثانیه با keep_damage جان
+##           «laser» = ایستادن کنار دژ، شلیک تنها یک پرتو با keep_damage جان و حذف فوری از میدان
 class_name Enemies
 extends RefCounted
 

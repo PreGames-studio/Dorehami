@@ -100,8 +100,8 @@ func _ready() -> void:
 	_test_tower_range()
 	print("— بررسی برجک‌های ایزومتریک…")
 	_test_iso_towers()
-	print("— بررسی تانک و محاصرهٔ دژ…")
-	_test_tank()
+	print("— بررسی تانک و تک‌شلیک به دژ…")
+	await _test_tank()
 	print("— بررسی صفحهٔ آغازین…")
 	_test_launch_presentation()
 	print("— بررسی پنجرهٔ تأییدیه…")
@@ -632,9 +632,8 @@ func _test_enemies() -> void:
 		and int(commando["reward"]) == int(soldier["reward"])
 		and String(commando["attack"]) == "reach",
 		"تکاور باید رفتار، سرعت و اسکریپت یکسان با سرباز داشته باشد")
-	check(Assets.tex("units/run/commando_front").get_image().get_data()
-		!= Assets.tex("units/run/soldier_front").get_image().get_data(),
-		"ظاهر تکاور باید با سرباز معمولی متفاوت باشد")
+	check(_alpha_diff_pixels("units/run/commando_front", "units/run/soldier_front") > 1500,
+		"شکل و سیلوئت تکاور باید واقعاً با سرباز معمولی متفاوت باشد، نه صرفاً تغییر رنگ")
 
 	var expected_tanks := [["tank", 420.0], ["tank_armored", 600.0], ["tank_heavy", 800.0]]
 	for spec in expected_tanks:
@@ -649,13 +648,28 @@ func _test_enemies() -> void:
 			"آمار %s باید جان %.0f، سرعت ۲۸، زره ۴ و پاداش ۱۲ باشد" % [tid, want_hp])
 		check(String(tdef.get("iso", "")) == tid and String(tdef.get("attack", "")) == "laser",
 			"تانک %s باید از شیت ایزومتریک خودش بیاید و با لیزر حمله کند" % tid)
-		check(is_equal_approx(float(tdef.get("attack_interval", 0.0)), 2.0) and int(tdef.get("keep_damage", 0)) == 1,
-			"تانک %s باید هر ۲ ثانیه یک جان از دژ کم کند" % tid)
-	var base_tank_bytes := Assets.tex("units_iso_tank/tank_attack").get_image().get_data()
-	var armored_bytes := Assets.tex("units_iso_tank_armored/tank_armored_attack").get_image().get_data()
-	var heavy_bytes := Assets.tex("units_iso_tank_heavy/tank_heavy_attack").get_image().get_data()
-	check(base_tank_bytes != armored_bytes and base_tank_bytes != heavy_bytes and armored_bytes != heavy_bytes,
-		"هر سه تانک باید شیت‌های ظاهری متمایز داشته باشند")
+		check(int(tdef.get("keep_damage", 0)) == 1,
+			"تانک %s باید در تک‌شلیک خود یک جان از دژ کم کند" % tid)
+	check(_alpha_diff_pixels("units_iso_tank/tank_move", "units_iso_tank_armored/tank_armored_move") > 15000
+		and _alpha_diff_pixels("units_iso_tank/tank_move", "units_iso_tank_heavy/tank_heavy_move") > 15000
+		and _alpha_diff_pixels("units_iso_tank_armored/tank_armored_move", "units_iso_tank_heavy/tank_heavy_move") > 15000,
+		"هر سه تانک باید شکل بدنه و سیلوئت ظاهری کاملاً متمایز داشته باشند، نه صرفاً تغییر رنگ")
+
+func _alpha_diff_pixels(key_a: String, key_b: String) -> int:
+	var img_a := Assets.tex(key_a).get_image()
+	var img_b := Assets.tex(key_b).get_image()
+	if img_a == null or img_b == null or img_a.get_size() != img_b.get_size():
+		return -1
+	var diff := 0
+	var w := img_a.get_width()
+	var h := img_a.get_height()
+	for y in range(h):
+		for x in range(w):
+			var ma := img_a.get_pixel(x, y).a > 0.12
+			var mb := img_b.get_pixel(x, y).a > 0.12
+			if ma != mb:
+				diff += 1
+	return diff
 
 # ------------------------------------------------------------------ نقشه‌ها
 
@@ -1242,11 +1256,12 @@ func _test_iso_towers() -> void:
 
 # ------------------------------------------------------------------ تانک
 
-## تانک: در مسیر move، جهت از مسیر در گام‌های ۴۵ درجه؛ کنار دژ می‌ایستد، idle بین شلیک‌ها،
-## هر ۲ ثانیه attack با یک جان آسیب، تا نابودی زنده و هدف‌پذیر می‌ماند و موج را باز نگه می‌دارد.
+## تانک: در مسیر move، جهت از مسیر در گام‌های ۴۵ درجه؛ کنار دژ می‌ایستد، رو به دژ می‌چرخد،
+## تنها **یک بار** به دژ شلیک می‌کند (یک جان کم می‌شود) و بلافاصله بدون تکرار شلیک حذف می‌شود.
 func _test_tank() -> void:
 	for tid in Enemies.TANK_IDS:
 		_test_single_tank(String(tid))
+	await _test_tank_battle_single_shot()
 
 func _test_single_tank(tid: String) -> void:
 	var def := Enemies.by_id(tid)
@@ -1280,7 +1295,7 @@ func _test_single_tank(tid: String) -> void:
 	check(seen.size() >= 2, "مسیر نقشه باید تانک را در بیش از یک جهت ببرد")
 	check(tank._sprite.rotation == 0.0, "تانک باید فقط با ردیف شیت بچرخد، نه چرخش پیوسته")
 
-	# حرکت واقعی با _process و انیمیشن move
+	# حرکت واقعی با _process و انیمیشن move + بررسی کاهش آسیب با زره ۴
 	tank.progress = 0.0
 	var start := tank.progress
 	for step in 10:
@@ -1288,41 +1303,80 @@ func _test_single_tank(tid: String) -> void:
 	check(is_equal_approx(snappedf(tank.progress - start, 0.01), snappedf(tank.base_speed, 0.01)),
 		"تانک باید در یک ثانیه به اندازهٔ سرعتش جلو برود")
 	check(tank.active_anim() == "move" and not tank.sieging, "تانک در مسیر باید move باشد")
-
-	# محاصره: کنار دژ می‌ایستد و هر ۲ ثانیه یک جان کم می‌کند
-	var hits := [0]
-	var reached := [false]
-	tank.keep_attacked.connect(func(_enemy, amount): hits[0] += int(amount))
-	tank.reached_keep.connect(func(_enemy): reached[0] = true)
-	tank.progress = tank.siege_progress - 0.5
-	tank._process(0.05)
-	check(tank.sieging and tank.active_anim() == "idle", "تانک کنار دژ باید بایستد و idle شود")
-	check(tank.position.distance_to(map.keep_pos) > 60.0, "تانک باید پیش از دژ بایستد، نه روی آن")
-	check(tank.dir == IsoSheet.dir_from_vector(map.keep_pos - tank.position), "تانک در محاصره باید رو به دژ باشد")
-	var anims := {}
-	for step in 120:   # شش ثانیه
-		tank._process(0.05)
-		anims[tank.active_anim()] = true
-	check(hits[0] == 3, "در شش ثانیه محاصره باید سه شلیک لیزر (هر ۲ ثانیه) بخورد، خورد %d" % hits[0])
-	check(anims.has("attack") and anims.has("idle"), "تانک باید بین attack و idle جابه‌جا شود")
-	check(tank.alive and not reached[0] and is_equal_approx(tank.progress, tank.siege_progress),
-		"تانک در محاصره باید زنده و هدف‌پذیر بماند و حذف نشود")
-	var laser := tank.laser_tip()
-	check((laser - tank.position).dot(map.keep_pos - tank.position) > 0.0
-		and laser.is_equal_approx(tank.position + (IsoEnemy.LASER_TIP[tank.dir] as Vector2) * IsoEnemy.SPRITE_SCALE),
-		"نوک لیزر تانک باید سرِ پرتوِ همان جهت و رو به دژ باشد")
-
-	# زره و نابودی
 	var hp_before := tank.hp
 	tank.take_damage(10.0)
 	check(is_equal_approx(hp_before - tank.hp, 6.0), "زره ۴ تانک باید از آسیب کم شود")
-	var died := [false]
-	tank.died.connect(func(_enemy): died[0] = true)
-	tank.take_damage(99999.0, true)
-	check(died[0] and not tank.alive and tank.is_dying(), "تانک با تمام شدن جان باید نابود شود")
-	for step in 20:
+
+	# رسیدن به دژ: می‌ایستد، فقط **یک بار** شلیک می‌کند و بلافاصله بدون تکرار شلیک حذف می‌شود
+	var hits := [0]
+	var reached := [false]
+	var finished := [false]
+	var died_on_shot := [false]
+	tank.keep_attacked.connect(func(_enemy, amount): hits[0] += int(amount))
+	tank.reached_keep.connect(func(_enemy): reached[0] = true)
+	tank.finished_attack.connect(func(_enemy): finished[0] = true)
+	tank.died.connect(func(_enemy): died_on_shot[0] = true)
+	tank.progress = tank.siege_progress - 0.5
+	tank._process(0.05)
+	check(tank.sieging and tank.active_anim() == "idle", "تانک کنار دژ باید بایستد و پیش از شلیک idle شود")
+	check(tank.position.distance_to(map.keep_pos) > 60.0, "تانک باید پیش از دژ بایستد، نه روی آن")
+	check(tank.dir == IsoSheet.dir_from_vector(map.keep_pos - tank.position), "تانک هنگام شلیک باید رو به دژ باشد")
+	var laser := tank.laser_tip()
+	check((laser - tank.position).dot(map.keep_pos - tank.position) > 0.0
+		and laser.is_equal_approx(tank.position + IsoEnemy.laser_tip_offset(tank.family, tank.dir) * IsoEnemy.SPRITE_SCALE),
+		"نوک لیزر تانک %s باید سرِ پرتوِ همان جهت و رو به دژ باشد" % tid)
+	var anims := {}
+	for step in 120:   # شش ثانیه کامل
 		tank._process(0.05)
-	check(tank.is_queued_for_deletion(), "لاشهٔ تانک باید پس از محو شدن آزاد شود")
+		anims[tank.active_anim()] = true
+	check(hits[0] == 1 and tank.shots_fired == 1,
+		"تانک %s باید دقیقاً یک تیر شلیک کند و دیگر شلیک را تکرار نکند، شلیک شد: %d" % [tid, hits[0]])
+	check(anims.has("attack"), "تانک %s باید انیمیشن شلیک attack را پخش کند" % tid)
+	check(finished[0] and not tank.alive and not died_on_shot[0] and not reached[0] and tank.is_queued_for_deletion(),
+		"تانک %s باید بلافاصله پس از همان یک شلیک، بدون سیگنال مرگ حذف شود" % tid)
+
+	# نابودی در مسیر با شلیک برجک‌ها (پیش از رسیدن به دژ)
+	var doomed := IsoEnemy.new()
+	add_child(doomed)
+	doomed.setup(def, map, 1.0, 1.0, 5, 0.0)
+	var died := [false]
+	doomed.died.connect(func(_enemy): died[0] = true)
+	doomed.take_damage(99999.0, true)
+	check(died[0] and not doomed.alive and doomed.is_dying(), "تانک با تمام شدن جان در مسیر باید نابود شود")
+	for step in 20:
+		doomed._process(0.05)
+	check(doomed.is_queued_for_deletion(), "لاشهٔ تانک باید پس از محو شدن آزاد شود")
+
+## آزمون یکپارچه در خود صحنهٔ نبرد: هر یک از سه تانک پس از یک شلیک به دژ، فقط ۱ جان از قلعه کم می‌کند،
+## بلافاصله از فهرست دشمنان میدان حذف می‌شود، سکهٔ کشتن نمی‌دهد و هرگز شلیک دومی انجام نمی‌دهد.
+func _test_tank_battle_single_shot() -> void:
+	var battle = load("res://scenes/Battle.tscn").instantiate()
+	add_child(battle)
+	await get_tree().process_frame
+	battle.state = "wave"
+	battle.wave_index = 12
+	battle.spawn_queue.clear()
+	battle.enemies.clear()
+	for tid in Enemies.TANK_IDS:
+		var lives_before: int = battle.lives
+		var coins_before: int = battle.coins
+		var kills_before: int = battle.kills
+		battle._spawn_enemy(String(tid))
+		check(battle.enemies.size() == 1, "تانک %s در نبرد ساخته نشد" % tid)
+		var tank: IsoEnemy = battle.enemies[0]
+		tank.progress = tank.siege_progress - 0.5
+		for step in 120:
+			if is_instance_valid(tank):
+				tank._process(0.05)
+		check(battle.lives == lives_before - 1,
+			"تانک %s در نبرد باید فقط یک بار به قلعه شلیک کند (جان قلعه پیش: %d، پس: %d)"
+			% [tid, lives_before, battle.lives])
+		check(battle.enemies.is_empty() and tank.is_queued_for_deletion(),
+			"تانک %s باید پس از تک‌شلیک از فهرست دشمنان میدان حذف شود" % tid)
+		check(battle.kills == kills_before and battle.coins == coins_before,
+			"حذف تانک %s پس از شلیک به قلعه نباید سکه یا شمارش کشتن بدهد" % tid)
+	battle.queue_free()
+	await get_tree().process_frame
 
 
 # ------------------------------------------------------------------ لمس واقعی گوشی

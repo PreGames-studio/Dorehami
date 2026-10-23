@@ -5,8 +5,10 @@ extends Node2D
 
 signal died(enemy)
 signal reached_keep(enemy)
-## دشمنی که کنار دژ می‌ایستد و به آن شلیک می‌کند (تانک IsoEnemy) با هر ضربه این سیگنال را می‌دهد.
+## دشمنی که کنار دژ می‌ایستد و به آن شلیک می‌کند (تانک IsoEnemy) با شلیک به دژ این سیگنال را می‌دهد.
 signal keep_attacked(enemy, amount)
+## پس از تکمیل تنها شلیک تانک به دژ صادر می‌شود تا تانک بی‌درنگ و بدون پاداش کشتن از میدان حذف شود.
+signal finished_attack(enemy)
 
 const BAR_WIDTH := 30.0
 const BAR_HEIGHT := 4.0
