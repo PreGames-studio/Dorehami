@@ -18,6 +18,13 @@ android {
             // The embedded Godot runtime ships a huge native library per ABI.
             // Ship only arm64-v8a (every modern phone) so the APK stays sane.
             abiFilters += "arm64-v8a"
+            // Device-check CI can build a separate emulator-compatible APK with
+            // -Pdorehami.additionalAndroidAbis=x86_64 without changing shipped/default APKs.
+            providers.gradleProperty("dorehami.additionalAndroidAbis").orNull
+                ?.split(',')
+                ?.map(String::trim)
+                ?.filter(String::isNotEmpty)
+                ?.forEach { abiFilters += it }
         }
     }
 
@@ -77,4 +84,14 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
 
     debugImplementation(libs.androidx.compose.ui.tooling)
+
+    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

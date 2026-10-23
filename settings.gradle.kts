@@ -26,6 +26,7 @@ include(
     ":core:uikit",
     ":transport:api",
     ":transport:nearby",
+    ":transport:hotspot",
     ":transport:online",
     ":games:hokm:core",
     ":games:hokm:ui",

@@ -24,6 +24,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.OutlinedTextFieldDefaults
 import androidx.compose.material3.Text
@@ -39,7 +40,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Brush
-import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
@@ -257,13 +257,15 @@ private fun OnlineChoose(
 
 @Composable
 private fun roomFieldColors() = OutlinedTextFieldDefaults.colors(
-    focusedTextColor = HokmPalette.text,
-    unfocusedTextColor = HokmPalette.text,
-    focusedBorderColor = HokmPalette.gold,
-    unfocusedBorderColor = Color(0x6677C7A5),
-    focusedLabelColor = HokmPalette.goldLight,
-    unfocusedLabelColor = HokmPalette.muted,
-    cursorColor = HokmPalette.goldLight,
+    focusedTextColor = MaterialTheme.colorScheme.onSurface,
+    unfocusedTextColor = MaterialTheme.colorScheme.onSurface,
+    focusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+    unfocusedContainerColor = MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.45f),
+    focusedBorderColor = MaterialTheme.colorScheme.primary,
+    unfocusedBorderColor = MaterialTheme.colorScheme.outline,
+    focusedLabelColor = MaterialTheme.colorScheme.primary,
+    unfocusedLabelColor = MaterialTheme.colorScheme.onSurfaceVariant,
+    cursorColor = MaterialTheme.colorScheme.primary,
 )
 
 @Composable
@@ -306,12 +308,19 @@ private fun Lobby(flow: RoomFlow, state: RoomStage.Lobby, playerCount: Int, onTa
             Modifier
                 .fillMaxWidth()
                 .clip(RoundedCornerShape(18.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xFF174B3B), Color(0xFF0B2A21))))
-                .border(1.dp, HokmPalette.gold.copy(alpha = 0.55f), RoundedCornerShape(18.dp))
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            MaterialTheme.colorScheme.surfaceVariant,
+                            MaterialTheme.colorScheme.surface,
+                        ),
+                    ),
+                )
+                .border(1.dp, MaterialTheme.colorScheme.primary.copy(alpha = 0.62f), RoundedCornerShape(18.dp))
                 .padding(vertical = 12.dp, horizontal = 12.dp),
             contentAlignment = Alignment.Center,
         ) {
-            Text(state.code, color = HokmPalette.goldLight, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 6.sp)
+            Text(state.code, color = MaterialTheme.colorScheme.primary, fontSize = 38.sp, fontWeight = FontWeight.Black, letterSpacing = 6.sp)
         }
         Spacer(Modifier.height(10.dp))
         Text(state.hint, color = HokmPalette.muted, fontSize = 12.sp, lineHeight = 19.sp, textAlign = TextAlign.Center)
@@ -360,8 +369,16 @@ private fun SeatRow(seat: Int, member: Member?, isMe: Boolean) {
         Modifier
             .fillMaxWidth()
             .clip(RoundedCornerShape(14.dp))
-            .background(if (isMe) HokmPalette.gold.copy(alpha = 0.14f) else Color(0xFF12372D))
-            .border(1.dp, if (isMe) HokmPalette.gold.copy(alpha = 0.75f) else Color.White.copy(alpha = 0.08f), RoundedCornerShape(14.dp))
+            .background(
+                if (isMe) MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.62f)
+                else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
+            )
+            .border(
+                1.dp,
+                if (isMe) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                RoundedCornerShape(14.dp),
+            )
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
@@ -372,9 +389,20 @@ private fun SeatRow(seat: Int, member: Member?, isMe: Boolean) {
                 .clip(CircleShape)
                 .background(
                     Brush.linearGradient(
-                        if (member == null) listOf(Color(0xFF50635B), Color(0xFF2A3A34))
-                        else if (member.isBot) listOf(Color(0xFF4E9179), Color(0xFF1A624C))
-                        else listOf(Color(0xFFE5C877), Color(0xFFAE7A31)),
+                        when {
+                            member == null -> listOf(
+                                MaterialTheme.colorScheme.surfaceVariant,
+                                MaterialTheme.colorScheme.surfaceVariant,
+                            )
+                            member.isBot -> listOf(
+                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f),
+                                MaterialTheme.colorScheme.secondary,
+                            )
+                            else -> listOf(
+                                MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                                MaterialTheme.colorScheme.primary,
+                            )
+                        },
                     ),
                 ),
             contentAlignment = Alignment.Center,
@@ -385,7 +413,11 @@ private fun SeatRow(seat: Int, member: Member?, isMe: Boolean) {
                     member.isBot -> "♟"
                     else -> member.player.displayName.take(1)
                 },
-                color = HokmPalette.night,
+                color = when {
+                    member == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                    member.isBot -> MaterialTheme.colorScheme.onSecondary
+                    else -> MaterialTheme.colorScheme.onPrimary
+                },
                 fontWeight = FontWeight.Black,
             )
         }

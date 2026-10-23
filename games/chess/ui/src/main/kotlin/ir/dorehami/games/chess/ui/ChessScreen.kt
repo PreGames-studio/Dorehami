@@ -90,6 +90,7 @@ fun ChessScreen(
     onExit: () -> Unit,
     boardStyle: ChessBoardStyle = ChessBoardStyle.WOOD,
     pieceStyle: ChessPieceStyle = ChessPieceStyle.CLASSIC,
+    playAgainLabel: String = "دوباره",
 ) {
     var confirmExit by remember { mutableStateOf(false) }
     var confirmUndo by remember { mutableStateOf(false) }
@@ -143,6 +144,7 @@ fun ChessScreen(
         Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
             TopBar(
                 mode = state.mode,
+                modeLabel = state.modeLabel,
                 thinking = state.botThinking,
                 onExit = { confirmExit = true },
                 onMoves = { showMoves = true },
@@ -232,14 +234,14 @@ fun ChessScreen(
         MovesDialog(san = state.view?.san ?: emptyList(), onDismiss = { showMoves = false })
     }
     state.outcome?.let { o ->
-        OutcomeDialog(o, onPlayAgain = onPlayAgain, onExit = onExit)
+        OutcomeDialog(o, onPlayAgain = onPlayAgain, onExit = onExit, playAgainLabel = playAgainLabel)
     }
 }
 
 // ------------------------------------------------------------------ chrome
 
 @Composable
-private fun TopBar(mode: ChessMode, thinking: Boolean, onExit: () -> Unit, onMoves: () -> Unit) {
+private fun TopBar(mode: ChessMode, modeLabel: String?, thinking: Boolean, onExit: () -> Unit, onMoves: () -> Unit) {
     Row(
         Modifier
             .fillMaxWidth()
@@ -261,7 +263,7 @@ private fun TopBar(mode: ChessMode, thinking: Boolean, onExit: () -> Unit, onMov
             Spacer(Modifier.width(6.dp))
         }
         Text(
-            if (mode == ChessMode.PASS_AND_PLAY) "دو نفره روی یک گوشی" else "تک‌نفره",
+            modeLabel ?: if (mode == ChessMode.PASS_AND_PLAY) "دو نفره روی یک گوشی" else "تک‌نفره",
             color = MaterialTheme.colorScheme.onSurfaceVariant,
             fontSize = chessSp(10),
             modifier = Modifier
@@ -463,7 +465,7 @@ private fun MovesDialog(san: List<String>, onDismiss: () -> Unit) {
 }
 
 @Composable
-private fun OutcomeDialog(outcome: ChessOutcome, onPlayAgain: () -> Unit, onExit: () -> Unit) {
+private fun OutcomeDialog(outcome: ChessOutcome, onPlayAgain: () -> Unit, onExit: () -> Unit, playAgainLabel: String) {
     AlertDialog(
         onDismissRequest = onExit,
         title = { Text(outcome.title, fontWeight = FontWeight.Black, fontSize = chessSp(20)) },
@@ -482,7 +484,7 @@ private fun OutcomeDialog(outcome: ChessOutcome, onPlayAgain: () -> Unit, onExit
                 Text(outcome.detail + who, color = MaterialTheme.colorScheme.onSurfaceVariant, fontSize = chessSp(14))
             }
         },
-        confirmButton = { ChessGradientButton(text = "دوباره", onClick = onPlayAgain) },
+        confirmButton = { ChessGradientButton(text = playAgainLabel, onClick = onPlayAgain) },
         dismissButton = { TextButton(onClick = onExit) { Text("خروج") } },
     )
 }

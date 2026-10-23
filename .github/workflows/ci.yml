@@ -52,6 +52,7 @@ jobs:
 
           # Totals straight from the JUnit XML each test task wrote.
           per, tot, bad = {}, 0, 0
+          test_failures = []
           for f in glob.glob("**/build/test-results/**/*.xml", recursive=True):
               try:
                   root = ET.parse(f).getroot()
@@ -62,6 +63,15 @@ jobs:
               acc = per.setdefault(f.split("/build/")[0], [0, 0, 0])
               acc[0] += n; acc[1] += fl; acc[2] += sk
               tot += n; bad += fl
+              for case in root.iter("testcase"):
+                  failure = case.find("failure")
+                  if failure is None:
+                      failure = case.find("error")
+                  if failure is not None:
+                      detail = (failure.get("message", "") + " " + (failure.text or "")).replace("\\n", " ")
+                      test_failures.append(
+                          f"TEST {case.get('classname', '')}.{case.get('name', '')}: {detail[:650]}"
+                      )
 
           # A successful aggregate build must still prove that its critical suites ran.
           expected = {"server", "games/hokm/ui"}
@@ -86,6 +96,7 @@ jobs:
                       break
                   if l.strip():
                       report.append(l.strip())
+          report.extend(test_failures)
           report = report[-8:]
           good = ok and tot > 0 and not bad and not missing
           head = (f"checkAll: {tot} tests, {bad} failing, {len(per)} module(s) with results"
