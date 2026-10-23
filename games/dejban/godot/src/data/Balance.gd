@@ -68,7 +68,7 @@ static func upgrade_cost(base_cost: int, _level: int) -> int:
 	return base_cost
 
 ## افزایش آسیب در هر سطح ارتقا (به ازای هر سطح، این کسر از آسیب پایه اضافه می‌شود).
-## سطح ۱ = ضریب ۱، سطح ۴ = ۱٫۷۵ برابر پایه. سنگر با چهار سرباز در سطح ۴ حدود ۵٫۶ برابر DPS پایه است.
+## سطح ۱ = ضریب ۱، سطح ۴ = ۱٫۷۵ برابر پایه.
 const DAMAGE_STEP_PER_LEVEL := 0.25
 
 static func level_damage_mult(level: int) -> float:

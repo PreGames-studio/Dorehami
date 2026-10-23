@@ -98,8 +98,6 @@ const MANIFEST := {
 	"towers/base": "res://assets/sprites/towers/base.png",
 	"towers/muzzle_1": "res://assets/sprites/towers/muzzle_1.png",
 	"towers/muzzle_2": "res://assets/sprites/towers/muzzle_2.png",
-	"towers/sangar": "res://assets/sprites/towers/sangar.png",
-	"towers/sangar_soldier": "res://assets/sprites/towers/sangar_soldier.png",
 	"ui/armory_background": "res://assets/sprites/ui/armory_background.png",
 	"ui/card_prestige": "res://assets/sprites/ui/card_prestige.png",
 	"ui/card_weapon_base": "res://assets/sprites/ui/card_weapon_base.png",

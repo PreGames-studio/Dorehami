@@ -1,7 +1,7 @@
 ## عکس نبرد برای بررسی چشمی پک‌های ایزومتریک (ابزار توسعه؛ بخشی از روند بازی نیست).
 ##
 ## خود صحنهٔ نبرد بازی (scenes/Battle.tscn) با نوار ساخت کامل باز می‌شود؛ چهار برجک ایزومتریک
-## و سنگر از همان مسیر ساخت بازی (Battle._try_build) کنار جاده کاشته می‌شوند، چند تانک و
+## از همان مسیر ساخت بازی (Battle._try_build) کنار جاده کاشته می‌شوند، چند تانک و
 ## سرباز با Battle._spawn_enemy روی مسیر قرار می‌گیرند (یک تانک در حال محاصرهٔ دژ) و پس از
 ## چند لحظه بازیِ واقعی، از viewport خود بازی عکس PNG گرفته می‌شود.
 ##
@@ -34,7 +34,6 @@ func _ready() -> void:
 	_battle.coins = 99999
 	var spots := _tower_spots(map)
 	var order: Array = ISO_ORDER.duplicate()
-	order.append("sangar")
 	for i in mini(order.size(), spots.size()):
 		_battle.selected_weapon = String(order[i])
 		_battle._try_build(spots[i])

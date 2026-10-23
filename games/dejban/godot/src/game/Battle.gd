@@ -412,8 +412,8 @@ func _finish_drag(world: Vector2) -> void:
 		if dragged:
 			_try_build(world)
 		else:
-			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد سنگر نمی‌کارد.
-			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، سنگر را بگیر و بکش", Style.gold, 16)
+			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد برجک نمی‌کارد.
+			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، برجک را بگیر و بکش", Style.gold, 16)
 	elif disarm and hud != null and hud.is_over_weapon_bar(world):
 		# روی همان دکمهٔ آمادهٔ نوار رها شد: لغو کاشت
 		_cancel_build_preview()

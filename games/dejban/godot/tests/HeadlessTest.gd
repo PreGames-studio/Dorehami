@@ -98,8 +98,6 @@ func _ready() -> void:
 	_test_balance()
 	print("— بررسی برد شلیک برجک…")
 	_test_tower_range()
-	print("— بررسی سربازان سنگر…")
-	_test_sangar_soldiers()
 	print("— بررسی برجک‌های ایزومتریک…")
 	_test_iso_towers()
 	print("— بررسی تانک و محاصرهٔ دژ…")
@@ -188,8 +186,8 @@ func _smoke_scenes() -> void:
 				check(plus == 3, "سه فاکتور ارتقا با مقدار افزایش نمایش داده نشده‌اند: %d" % plus)
 			instance._close_detail()
 			check(not instance._overlay.visible, "پنجرهٔ اسلحه بسته نشد")
-			# کارت سنگر باید در زرادخانه باز و بدون قفل ستاره باشد
-			check(Game.is_weapon_unlocked("sangar"), "سنگر باید در زرادخانه از ابتدا باز باشد")
+			# کارت مسلسل سنگین (برجک رایگان) باید در زرادخانه باز و بدون قفل ستاره باشد
+			check(Game.is_weapon_unlocked("machinegun"), "مسلسل سنگین باید در زرادخانه از ابتدا باز باشد")
 
 			# تست کارکرد آیتم افزایش اعتبار (+۱۰ سکه به سکهٔ شروع نبرد به ازای هر سطح)
 			var old_p_lvl := Game.prestige_level
@@ -251,7 +249,7 @@ func _smoke_scenes() -> void:
 						check(instance.ghost != null and instance.ghost.visible,
 							"برجک در لحظهٔ شروع کشیدن از روی نوار ابزار باید مرئی باشد")
 						check(instance.ghost._base != null and instance.ghost._base.texture != null,
-							"تصویر سنگر در لحظهٔ کشیدن باید بارگذاری شده باشد")
+							"تصویر برجک در لحظهٔ کشیدن باید بارگذاری شده باشد")
 						instance._update_ghost(pt)
 						check(instance.ghost.visible and instance.ghost.ok,
 							"برجک در حین کشیدن روی نقطهٔ مجاز باید مرئی و سبز باشد")
@@ -293,7 +291,7 @@ func _smoke_scenes() -> void:
 			check(free_pt != Vector2.ZERO, "جای آزاد برای آزمون کاشت پیدا نشد")
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt)
-			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید سنگر بکارد")
+			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید برجک بکارد")
 			# کاشت با گرفتن، کشیدن و رهاکردن در جای مجاز
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt + Vector2(30.0, 0.0))
@@ -313,8 +311,8 @@ func _smoke_scenes() -> void:
 			var level_before: int = tower.level
 			instance.coins = 500
 			instance.upgrade_selected()
-			check(tower.level == level_before + 1 and instance.coins == 500 - int(Weapons.by_id("sangar")["cost"]),
-				"ارتقای سنگر از برجک انتخاب‌شده باید سطح و سکه را تغییر دهد")
+			check(tower.level == level_before + 1 and instance.coins == 500 - int(tower.weapon["cost"]),
+				"ارتقای برجک انتخاب‌شده باید سطح و سکه را تغییر دهد")
 			# لمس ساده روی برجک، بدون سلاح آماده، آن را انتخاب نمی‌کند
 			instance.select_tower(null)
 			instance.selected_weapon = ""
@@ -528,9 +526,9 @@ func _test_launch_presentation() -> void:
 # ------------------------------------------------------------------ سلاح‌ها
 
 func _test_weapons() -> void:
-	check(Weapons.count() == 5, "باید پنج برجک (سنگر + چهار برجک ایزومتریک) تعریف شده باشد: %d" % Weapons.count())
-	check(Weapons.ids() == ["sangar", "machinegun", "cannon", "rocket", "laser"],
-		"ترتیب برجک‌ها باید سنگر، مسلسل، خمپاره، موشک و لیزر باشد: %s" % [Weapons.ids()])
+	check(Weapons.count() == 4, "باید چهار برجک ایزومتریک تعریف شده باشد (سنگر حذف شده): %d" % Weapons.count())
+	check(Weapons.ids() == ["machinegun", "cannon", "rocket", "laser"],
+		"ترتیب برجک‌ها باید مسلسل، خمپاره، موشک و لیزر باشد: %s" % [Weapons.ids()])
 	var iso_kinds: Array = []
 	var seen: Array = []
 	for weapon in Weapons.LIST:
@@ -544,9 +542,8 @@ func _test_weapons() -> void:
 		check(float(weapon.get("cooldown", 0.0)) > 0.0, "فاصلهٔ شلیک نامعتبر در سلاح %s" % id)
 		var kind := String(weapon.get("kind", ""))
 		check(VALID_KINDS.has(kind), "نوع نامعتبر در سلاح %s: %s" % [id, kind])
-		check(Assets.has_key(Weapons.art_key(id)), "تصویر سنگر %s گم شده" % id)
-		check(Assets.has_key("towers/sangar_soldier"), "تصویر سرباز داخل سنگر گم شده")
-		check(Assets.has_key("towers/muzzle_1") and Assets.has_key("towers/muzzle_2"), "شعلهٔ دهانهٔ سنگر گم شده")
+		check(Assets.has_key(Weapons.art_key(id)), "تصویر برجک %s گم شده" % id)
+		check(Assets.has_key("towers/muzzle_1") and Assets.has_key("towers/muzzle_2"), "شعلهٔ دهانهٔ پشتیبان برجک گم شده")
 		if kind == "splash":
 			check(float(weapon.get("splash", 0.0)) > 0.0, "شعاع ناحیه‌ای در %s صفر است" % id)
 		if kind == "chain":
@@ -556,13 +553,14 @@ func _test_weapons() -> void:
 		check(Audio.WEAPON_SOUND_VARIANTS.has(String(weapon.get("sound", "shot_bolt"))),
 			"صدای شلیک %s در گروه‌های صدا نیست" % id)
 		var kind_iso := Weapons.iso_kind(id)
+		check(not kind_iso.is_empty(), "همهٔ برجک‌ها باید ایزومتریک باشند: %s" % id)
 		if kind_iso.is_empty():
 			continue
-		# برجک ایزومتریک: خریدنی با ستاره، با هر سه شیت پک و تصویر نمایشیِ برش‌خورده
+		# برجک ایزومتریک: رایگان (فقط مسلسل) یا خریدنی با ستاره، با هر سه شیت پک و تصویر نمایشیِ برش‌خورده
 		iso_kinds.append(kind_iso)
 		check(IsoSheet.TOWER_KINDS.has(kind_iso), "برجک %s به برجکی از پک towers_iso اشاره نمی‌کند" % id)
-		check(int(weapon.get("star_cost", 0)) > 0, "برجک ایزومتریک %s باید با ستاره خریدنی باشد" % id)
-		check(not Weapons.FREE_IDS.has(id), "برجک ایزومتریک %s نباید رایگان باشد" % id)
+		check((int(weapon.get("star_cost", 0)) == 0) == Weapons.FREE_IDS.has(id),
+			"فقط برجک رایگان بدون ستاره است و بقیه با ستاره خریدنی‌اند: %s" % id)
 		check(Weapons.art_key(id) == IsoSheet.tower_key(kind_iso, "idle"), "کلید تصویر %s باید شیت idle پک باشد" % id)
 		for action in IsoSheet.TOWER_ACTIONS.keys():
 			check(Assets.has_key(IsoSheet.tower_key(kind_iso, String(action))),
@@ -574,18 +572,21 @@ func _test_weapons() -> void:
 	var pack_kinds: Array = IsoSheet.TOWER_KINDS.duplicate()
 	pack_kinds.sort()
 	check(iso_kinds == pack_kinds, "هر چهار برجک پک باید دقیقاً یک بار خریدنی باشند: %s" % [iso_kinds])
-	check(Weapons.by_id("sangar").size() > 0, "سنگر پیدا نشد")
-	check(Weapons.iso_kind("sangar").is_empty() and int(Weapons.by_id("sangar")["star_cost"]) == 0,
-		"سنگر باید همان برجک رایگان قبلی بماند")
+	check(Weapons.by_id("sangar").is_empty(), "سنگر باید از فهرست برجک‌ها حذف شده باشد")
+	check(not Assets.has_key("towers/sangar") and not Assets.has_key("towers/sangar_soldier"),
+		"تصویرهای سنگر و سرباز سنگر باید از پروژه حذف شده باشند")
 	check(Weapons.by_id("machine_gun_lv1").is_empty(), "سلاح‌های قدیمی باید به‌طور کامل حذف شده باشند")
 	check(Weapons.by_id("omega").is_empty(), "ابرسلاح قدیمی omega باید حذف شده باشد")
 	check(Weapons.by_id("nope").is_empty(), "شناسهٔ ناشناخته باید دیکشنری خالی بدهد")
-	check(Weapons.FREE_IDS == ["sangar"], "سنگر باید تنها برجک رایگان باشد")
-	check(String(Weapons.art_key("sangar")) == "towers/sangar", "کلید تصویر سنگر اشتباه است")
-	check(String(Weapons.by_id("sangar").get("kind", "")) == "single", "سنگر باید تک‌تیرانداز باشد")
-	check(Game.is_weapon_unlocked("sangar"), "سنگر باید به‌صورت پیش‌فرض باز باشد")
-	check(int(Weapons.by_id("sangar")["cost"]) <= Balance.START_COINS,
-		"سنگر باید با سکهٔ شروع نبرد قابل خرید باشد؛ وگرنه نبرد بدون برجک گیر می‌کند")
+	check(Weapons.FREE_IDS == ["machinegun"], "مسلسل سنگین باید تنها برجک رایگان باشد")
+	check(int(Weapons.by_id("machinegun")["star_cost"]) == 0 and int(Weapons.by_id("machinegun")["cost"]) == 100,
+		"مسلسل سنگین باید بدون ستاره و با همان قیمت ۱۰۰ سکه باشد")
+	check(int(Weapons.by_id("cannon")["star_cost"]) == 5 and int(Weapons.by_id("rocket")["star_cost"]) == 7
+		and int(Weapons.by_id("laser")["star_cost"]) == 9, "ستارهٔ خمپاره، موشک و لیزر نباید عوض شود (۵، ۷، ۹)")
+	check(Game.is_weapon_unlocked("machinegun"), "مسلسل سنگین باید به‌صورت پیش‌فرض باز باشد")
+	check(Game.default_unlocked_weapons() == ["machinegun"], "برجک‌های باز پیش‌فرض باید فقط مسلسل باشد")
+	check(int(Weapons.by_id("machinegun")["cost"]) <= Balance.START_COINS,
+		"برجک رایگان باید با سکهٔ شروع نبرد قابل خرید باشد؛ وگرنه نبرد بدون برجک گیر می‌کند")
 
 
 # ------------------------------------------------------------------ دشمنان
@@ -927,47 +928,14 @@ func _test_battle_tower_upgrades() -> void:
 			"در سقف سطح، ارتقای %s نباید هزینه یا آسیب را تغییر دهد" % id)
 		tower.free()
 
-# ------------------------------------------------------------------ سربازان سنگر
-
-## هر سطح ارتقای سنگر یک سرباز تازه داخل سنگر اضافه می‌کند: سطح ۱ یک سرباز و بیشترین سطح چهار سرباز.
-## سربازها باید در جای متفاوت و قرینه چیده شوند و با سطح بالاتر هم حذف نشوند.
-func _test_sangar_soldiers() -> void:
-	var tower := Tower.new()
-	add_child(tower)
-	tower.setup(Weapons.by_id("sangar"), null)
-	check(tower.soldier_count() == 1 and tower._soldiers.size() == 1,
-		"سنگر در سطح ۱ باید یک سرباز داشته باشد")
-	for expected in range(2, Balance.MAX_LEVEL + 1):
-		tower.upgrade()
-		check(tower.level == expected and tower._soldiers.size() == expected,
-			"سنگر در سطح %d باید %d سرباز داشته باشد" % [expected, expected])
-	check(tower._soldiers.size() == Balance.MAX_LEVEL, "سنگر در بیشترین سطح باید چهار سرباز داشته باشد")
-	var distinct := true
-	for a in range(tower._soldiers.size()):
-		for b in range(a + 1, tower._soldiers.size()):
-			if tower._soldiers[a].position.is_equal_approx(tower._soldiers[b].position):
-				distinct = false
-	check(distinct, "سربازهای داخل سنگر نباید روی هم قرار بگیرند")
-	# خود سنگر باید ثابت بماند؛ فقط سربازها نفس می‌کشند و تکان می‌خورند
-	tower._process(1.0)
-	check(tower._base.scale.is_equal_approx(Vector2.ONE) and tower._base.position.is_equal_approx(Tower.PIVOT_OFFSET),
-		"خود سنگر باید پس از کاشته‌شدن ثابت بماند")
-	var soldier_before: Vector2 = tower._soldiers[0].scale
-	tower._process(0.3)
-	check(not soldier_before.is_equal_approx(tower._soldiers[0].scale), "سربازهای داخل سنگر باید حرکت داشته باشند")
-	check(tower._base.scale.is_equal_approx(Vector2.ONE), "حرکت سرباز نباید سنگر را بزرگ یا کوچک کند")
-	tower.upgrade()
-	check(tower._soldiers.size() == Balance.MAX_LEVEL, "ارتقا در سقف سطح نباید سرباز اضافه کند")
-	tower.queue_free()
-
 # ------------------------------------------------------------------ برد شلیک برجک
 
 ## برجک نباید بیرون از برد خودش شلیک کند: نه هدفی بیرون از برد بگیرد و نه هدفی
 ## که از برد بیرون رفته را نگه دارد. پیش‌تر هدف تا مرگِ دشمن نگه داشته می‌شد و
 ## برجک بعد از خروجِ دشمن از دایرهٔ برد هم به او شلیک می‌کرد.
 func _test_tower_range() -> void:
-	var weapon := Weapons.by_id("sangar")
-	check(not weapon.is_empty(), "سنگر برای سنجش برد پیدا نشد")
+	var weapon := Weapons.by_id(String(Weapons.FREE_IDS[0]))
+	check(not weapon.is_empty(), "برجک رایگان برای سنجش برد پیدا نشد")
 	if weapon.is_empty():
 		return
 
@@ -1026,10 +994,10 @@ func _test_tower_range() -> void:
 	tower._process(0.016)
 	check(tower.target == null, "دشمن مرده نباید هدف بماند")
 
-	# تیرهای اضافی سلاح چندشلیک (نسخهٔ آزمایشی سنگر با ۴ تیر) هم نباید بیرون از برد را بزنند
+	# تیرهای اضافی سلاح چندشلیک (نسخهٔ آزمایشی برجک رایگان با ۴ تیر) هم نباید بیرون از برد را بزنند
 	var volley: Dictionary = weapon.duplicate()
 	volley["shots"] = 4
-	check(not volley.is_empty(), "نسخهٔ چندشلیک سنگر برای سنجش ساخته نشد")
+	check(not volley.is_empty(), "نسخهٔ چندشلیک برجک برای سنجش ساخته نشد")
 	if not volley.is_empty():
 		var multi := Tower.new()
 		add_child(multi)
@@ -1159,7 +1127,7 @@ func _test_iso_sheets() -> void:
 
 ## هر برجک ایزومتریک: پایهٔ ثابت و سرِ گردان؛ سر گام‌به‌گام (۴۵ درجه) رو به هدف می‌چرخد،
 ## بدون هدف idle، با هدف aim، با هر شلیک یک‌بار fire و سپس برگشت؛ گلوله و شعلهٔ دهانه
-## همان سامانهٔ قبلی‌اند و از دهانهٔ همان جهت بیرون می‌آیند. سرباز سنگر به آن اضافه نمی‌شود.
+## همان سامانهٔ قبلی‌اند و از دهانهٔ همان جهت بیرون می‌آیند.
 func _test_iso_towers() -> void:
 	for id in Weapons.ids():
 		var weapon := Weapons.by_id(String(id))
@@ -1175,7 +1143,6 @@ func _test_iso_towers() -> void:
 		check(tower.is_iso() and tower.iso_kind == kind, "برجک %s باید ایزومتریک ساخته شود" % id)
 		check(tower._base != null and tower._base.texture != null and tower._head != null,
 			"برجک %s پایه و سر ندارد" % id)
-		check(tower.soldier_count() == 0 and tower._soldiers.is_empty(), "برجک %s نباید سرباز سنگر داشته باشد" % id)
 		check(tower.head_action() == "idle", "برجک %s باید با idle شروع کند" % id)
 		var base_tex: Texture2D = tower._base.texture
 		var base_pos: Vector2 = tower._base.position
@@ -1230,7 +1197,7 @@ func _test_iso_towers() -> void:
 		check(tower.head_action() == "idle", "بدون هدف برجک %s باید idle شود" % id)
 		check(tower._base.texture == base_tex and tower._base.position == base_pos, "پایهٔ برجک %s باید ثابت بماند" % id)
 		tower.upgrade()
-		check(tower.level == 2 and tower._soldiers.is_empty(), "ارتقای %s نباید سرباز اضافه کند" % id)
+		check(tower.level == 2, "ارتقای %s باید سطح برجک را بالا ببرد" % id)
 		battle.enemies = []
 		tower.queue_free()
 		enemy.queue_free()
@@ -1342,7 +1309,9 @@ func _touch_drag(from: Vector2, to: Vector2, steps := 4) -> void:
 		await get_tree().process_frame
 	await _touch(to, false)
 
-## انتخاب برجک و زدن دکمهٔ ارتقا از همان مسیر رویدادهای لمسی گوشی (نه صدا زدن مستقیم توابع).
+## انتخاب برجک و دکمه‌های ارتقا/فروش از همان مسیر رویدادهای لمسی گوشی (نه صدا زدن مستقیم توابع).
+## پیش‌تر پنل برجک از پایین صفحه بیرون می‌زد و دکمهٔ «ارتقا» روی گوشی در دسترس نبود؛ این آزمون
+## برای هر برجک و هر سطح بررسی می‌کند که پنل و هر دو دکمه کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ باشند.
 func _test_touch_upgrade_flow() -> void:
 	var saved_unlocked: Array = Game.unlocked_weapons.duplicate()
 	Game.unlocked_weapons = Weapons.ids().duplicate()
@@ -1350,18 +1319,15 @@ func _test_touch_upgrade_flow() -> void:
 	add_child(battle)
 	await get_tree().process_frame
 	await get_tree().process_frame
-	battle.coins = 5000
-	print("  vp=%s final=%s" % [get_viewport().get_visible_rect().size, get_viewport().get_final_transform()])
+	var screen := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+	var hud = battle.hud
+	battle.coins = 9000
 	for id in Weapons.ids():
 		var built_before: int = battle.towers.size()
 		for y in range(140, 560, 40):
-			for x in range(160, 1100, 40):
+			for x in range(160, 900, 40):
 				var pt := Vector2(x, y)
-				var far := true
-				for other in battle.towers:
-					if other.position.distance_to(pt) < 150.0:
-						far = false
-				if far and battle.map.build_issue(pt, battle.occupied).is_empty():
+				if battle.map.build_issue(pt, battle.occupied).is_empty():
 					battle.selected_weapon = String(id)
 					battle._try_build(pt)
 					break
@@ -1373,31 +1339,48 @@ func _test_touch_upgrade_flow() -> void:
 		var tower = battle.towers[-1]
 		battle._cancel_build_preview()
 		await get_tree().process_frame
-		# ۱) لمس سادهٔ برجک (بدون کشیدن)
-		await _touch(tower.position + Vector2(0.0, -30.0), true)
-		var grabbed_on_press: bool = battle._grab_tower == tower
-		await _touch(tower.position + Vector2(0.0, -30.0), false)
-		var tap_selected: bool = battle.selected_tower == tower
-		# ۲) گرفتن و کشیدن روی برجک
-		battle.select_tower(null)
-		await _touch_drag(tower.position + Vector2(0.0, -30.0), tower.position + Vector2(36.0, -30.0))
-		var drag_selected: bool = battle.selected_tower == tower
+		var grip: Vector2 = tower.position + Vector2(0.0, -30.0)
+		# لمس ساده (بدون کشیدن) برجک را انتخاب نمی‌کند؛ انتخاب فقط با گرفتن و کشیدن است.
+		await _touch(grip, true)
+		await _touch(grip, false)
+		check(battle.selected_tower == null, "لمس سادهٔ برجک %s نباید آن را انتخاب کند" % id)
+		await _touch_drag(grip, grip + Vector2(36.0, 0.0))
+		check(battle.selected_tower == tower and hud._tower_panel.visible,
+			"گرفتن و کشیدن برجک %s با لمس باید پنل ارتقا را باز کند" % id)
+		if battle.selected_tower != tower:
+			continue
+		for step in range(1, Balance.MAX_LEVEL):
+			await get_tree().process_frame
+			var panel_rect: Rect2 = hud._tower_panel.get_global_rect()
+			var up_rect: Rect2 = hud._upgrade_button.get_global_rect()
+			var sell_rect: Rect2 = hud._sell_button.get_global_rect()
+			if step == 1:
+				print("  %s: panel=%s up=%s sell=%s" % [id, panel_rect, up_rect, sell_rect])
+			check(screen.encloses(panel_rect) and screen.encloses(up_rect) and screen.encloses(sell_rect),
+				"پنل و دکمه‌های برجک %s در سطح %d باید کامل داخل صفحه باشند: پنل %s ارتقا %s فروش %s"
+				% [id, tower.level, panel_rect, up_rect, sell_rect])
+			check(not hud._upgrade_button.disabled, "دکمهٔ ارتقای %s با سکهٔ کافی نباید غیرفعال باشد" % id)
+			var level_before: int = tower.level
+			var coins_before: int = battle.coins
+			await _touch(up_rect.get_center(), true)
+			await _touch(up_rect.get_center(), false)
+			check(tower.level == level_before + 1 and battle.coins == coins_before - int(tower.weapon["cost"]),
+				"زدن دکمهٔ ارتقا با لمس باید برجک %s را از سطح %d یک سطح بالا ببرد" % [id, level_before])
 		await get_tree().process_frame
-		var button: Button = battle.hud._upgrade_button
-		var panel_ok: bool = battle.hud._tower_panel.visible
-		var rect: Rect2 = button.get_global_rect()
-		var level_before: int = tower.level
-		var coins_before: int = battle.coins
-		await _touch(rect.get_center(), true)
-		await _touch(rect.get_center(), false)
-		print("  %s: grab=%s tap_sel=%s drag_sel=%s panel=%s btn_dis=%s rect=%s lvl %d->%d coins %d->%d mouse=%s" % [
-			id, grabbed_on_press, tap_selected, drag_selected, panel_ok, button.disabled, rect,
-			level_before, tower.level, coins_before, battle.coins, get_viewport().get_mouse_position()])
-		check(drag_selected and panel_ok, "گرفتن و کشیدن برجک %s با لمس باید پنل ارتقا را باز کند" % id)
-		check(tower.level == level_before + 1 and battle.coins == coins_before - tower.weapon["cost"],
-			"زدن دکمهٔ ارتقا با لمس باید برجک %s را یک سطح بالا ببرد" % id)
-		battle.select_tower(null)
+		check(tower.max_level() and hud._upgrade_button.disabled and hud._upgrade_button.text == "بالاترین سطح",
+			"در بیشترین سطح دکمهٔ ارتقای %s باید «بالاترین سطح» و غیرفعال باشد" % id)
+		var max_sell: Rect2 = hud._sell_button.get_global_rect()
+		check(screen.encloses(hud._tower_panel.get_global_rect()) and screen.encloses(max_sell),
+			"پنل برجک %s در بیشترین سطح باید کامل داخل صفحه باشد" % id)
+		# فروش با لمس روی دکمهٔ «فروش»
+		var refund: int = tower.sell_value()
+		var coins_now: int = battle.coins
+		var count_before: int = battle.towers.size()
+		await _touch(max_sell.get_center(), true)
+		await _touch(max_sell.get_center(), false)
+		check(battle.towers.size() == count_before - 1 and battle.coins == coins_now + refund
+			and battle.selected_tower == null and not hud._tower_panel.visible,
+			"زدن دکمهٔ فروش با لمس باید برجک %s را بفروشد و پنل را ببندد" % id)
 	battle.queue_free()
 	await get_tree().process_frame
 	Game.unlocked_weapons = saved_unlocked
-
