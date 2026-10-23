@@ -278,12 +278,12 @@ func _build_overlay() -> void:
 	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
 	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_overlay.add_child(center)
-	_panel = Ui.panel(Style.bg_panel, 18, 16.0)
+	_panel = Ui.panel(Style.bg_panel, 18, 14.0)
 	_panel.custom_minimum_size = Vector2(540, 0)
 	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
-	_panel.add_theme_stylebox_override("panel", Style.box(Style.bg_panel, 18, Style.gold_dark, 2, 16.0))
+	_panel.add_theme_stylebox_override("panel", Style.box(Style.bg_panel, 18, Style.gold_dark, 2, 14.0))
 	center.add_child(_panel)
-	_detail = Ui.column(8)
+	_detail = Ui.column(6)
 	_panel.add_child(_detail)
 	_overlay.visible = false
 
@@ -318,7 +318,7 @@ func _show_detail() -> void:
 	var header := Ui.row(12)
 	_detail.add_child(header)
 	var preview_frame := PanelContainer.new()
-	preview_frame.custom_minimum_size = Vector2(88, 74)
+	preview_frame.custom_minimum_size = Vector2(78, 66)
 	var preview_style := Style.box(Color("#0b1830"), 12, Style.gold_dark, 1, 4.0)
 	preview_frame.add_theme_stylebox_override("panel", preview_style)
 	var preview := TextureRect.new()
@@ -326,7 +326,7 @@ func _show_detail() -> void:
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	preview.custom_minimum_size = Vector2(80, 66)
+	preview.custom_minimum_size = Vector2(70, 58)
 	if not unlocked:
 		preview.modulate = Color(0.65, 0.70, 0.76, 1.0)
 	preview_frame.add_child(preview)
@@ -443,11 +443,15 @@ func _show_prestige_detail() -> void:
 		_detail.add_child(Ui.label("به بالاترین سطح رسیده است", 18, Style.good, HORIZONTAL_ALIGNMENT_CENTER))
 
 
+func _refresh_detail_deferred() -> void:
+	_refresh_cards()
+	if _overlay != null and _overlay.visible and not _selected_id.is_empty():
+		_show_detail()
+
 func _upgrade_prestige_item() -> void:
 	if Game.upgrade_prestige():
 		Audio.play("upgrade")
-		_refresh_cards()
-		_show_detail()
+		_refresh_detail_deferred.call_deferred()
 	else:
 		Audio.play("deny")
 
@@ -475,16 +479,14 @@ func _upgrade_row(title: String, delta: String) -> Control:
 func _upgrade(id: String) -> void:
 	if Game.upgrade_weapon(id):
 		Audio.play("upgrade")
-		_refresh_cards()
-		_show_detail()
+		_refresh_detail_deferred.call_deferred()
 	else:
 		Audio.play("deny")
 
 func _unlock(id: String) -> void:
 	if Game.unlock_weapon(id):
 		Audio.play("unlock")
-		_refresh_cards()
-		_show_detail()
+		_refresh_detail_deferred.call_deferred()
 	else:
 		Audio.play("deny")
 

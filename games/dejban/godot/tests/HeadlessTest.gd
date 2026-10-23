@@ -1414,11 +1414,25 @@ func _test_touch_upgrade_flow() -> void:
 	await get_tree().process_frame
 
 	# ۵) بررسی لمس و جاشدن کامل پنجرهٔ ارتقای زرادخانه (اسلحه‌ها) در صفحهٔ ۱۲۸۰×۷۲۰
+	# (هم در حالت بدون ستاره با پیام «ستارهٔ کافی ندارید» و هم در حالت ارتقای واقعی با لمس)
 	Game.weapon_levels = {}
-	Game.stars = 50
+	Game.stars = 0
 	var armory = load("res://scenes/Armory.tscn").instantiate()
 	add_child(armory)
 	await get_tree().process_frame
+	await get_tree().process_frame
+	for idx in range(Weapons.count()):
+		var wid := String(Weapons.LIST[idx]["id"])
+		var card: Button = armory._list.get_child(idx + 1)
+		card.pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		check(screen.encloses(armory._panel.get_global_rect()),
+			"پنجرهٔ جزئیات زرادخانه در حالت بدون ستاره نیز باید داخل صفحه باشد (%s): %s"
+			% [wid, armory._panel.get_global_rect()])
+		armory._close_detail()
+	Game.stars = 50
+	armory._refresh_cards()
 	await get_tree().process_frame
 	for idx in range(Weapons.count()):
 		var wid := String(Weapons.LIST[idx]["id"])
