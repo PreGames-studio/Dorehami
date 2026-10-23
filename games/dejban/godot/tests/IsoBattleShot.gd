@@ -3,7 +3,8 @@
 ## خود صحنهٔ نبرد بازی (scenes/Battle.tscn) با نوار ساخت کامل باز می‌شود؛ چهار برجک ایزومتریک
 ## از همان مسیر ساخت بازی (Battle._try_build) کنار جاده کاشته می‌شوند، چند تانک و
 ## سرباز با Battle._spawn_enemy روی مسیر قرار می‌گیرند (یک تانک در حال محاصرهٔ دژ) و پس از
-## چند لحظه بازیِ واقعی، از viewport خود بازی عکس PNG گرفته می‌شود.
+## چند لحظه بازیِ واقعی، از viewport خود بازی عکس PNG گرفته می‌شود؛ پیش از عکس آخر برجک مسلسل
+## انتخاب می‌شود تا پنل ارتقا و فروش هم دیده شود.
 ##
 ##   godot --path games/dejban/godot --fixed-fps 30 res://tests/iso_battle_shot.tscn -- out.png [map]
 ##
@@ -52,9 +53,14 @@ func _ready() -> void:
 	var t := 0.0
 	var index := 0
 	var stem := out.get_basename()
+	var panel_opened := false
 	while index < SHOT_TIMES.size():
 		await get_tree().process_frame
 		t += get_process_delta_time()
+		# پیش از عکس آخر، برجک مسلسل انتخاب می‌شود تا پنل ارتقا/فروش هم در عکس دیده شود
+		if not panel_opened and index == SHOT_TIMES.size() - 1 and t >= float(SHOT_TIMES[index]) - 0.2 and not _battle.towers.is_empty():
+			_battle.select_tower(_battle.towers[0])
+			panel_opened = true
 		if t >= float(SHOT_TIMES[index]):
 			await RenderingServer.frame_post_draw
 			var image := get_viewport().get_texture().get_image()
