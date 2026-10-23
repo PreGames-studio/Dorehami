@@ -35,7 +35,7 @@ class HotspotTransportTest {
             }
             host.send(hostPeer, "پاسخ میزبان")
             val answer = incomingGuest.await()
-            assertEquals(hostPeer, answer.from)
+            assertEquals(HotspotTransport.HOST_PEER, answer.from)
             assertEquals("پاسخ میزبان", answer.text)
         } finally {
             guest.close()
