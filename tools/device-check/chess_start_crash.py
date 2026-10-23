@@ -150,8 +150,10 @@ def main() -> int:
     if install.returncode != 0 or "Success" not in (install.stdout + install.stderr):
         message = f"install failed (exit {install.returncode}): {install.stdout} {install.stderr}"
         failures.append(message)
-        log(message)
         dump_logs()
+        # Keep the actionable error after noisy logcat output so GitHub's annotation limit cannot
+        # hide it; this also includes stderr when adb prints no separate failure line.
+        log(message)
         return 1
 
     sh("adb", "logcat", "-c")
