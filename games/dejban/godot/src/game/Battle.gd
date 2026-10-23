@@ -31,6 +31,15 @@ var selected_tower = null
 var running := true
 var paused := false
 var _drag_active := false
+## اگر سلاح از قبل آماده بود و کشیدن از روی دکمهٔ نوار شروع شد، رهاکردن روی نوار آن را لغو می‌کند.
+var _disarm_on_release := false
+## کشیدن برجک برای انتخاب: لمس روی برجک، کشیدن حداقل به اندازهٔ این فاصله، و رهاکردن.
+## لمس ساده روی برجک آن را انتخاب نمی‌کند.
+const GRAB_DRAG_DISTANCE := 14.0
+var _grab_tower = null
+var _grab_start := Vector2.ZERO
+## نقطهٔ شروع کشیدن برای کاشت؛ رهاکردنِ نزدیک به آن کاشت نیست (لمس ساده).
+var _drag_start := Vector2.ZERO
 
 var _world: Node2D = null
 var _ground: Ground = null
@@ -355,6 +364,11 @@ func _in_build_area(world: Vector2) -> bool:
 func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
 	if not running or paused:
 		return
+	# لمس اولِ دکمه چند رویداد پشت‌سرهم می‌فرستد (button_down و gui_input)؛ اگر همان سلاح از قبل
+	# در حال کشیدن است، فقط شروع دوباره نشود تا حالت آماده‌بودن بی‌دلیل عوض نشود.
+	if _drag_active and selected_weapon == id:
+		return
+	_disarm_on_release = selected_weapon == id
 	selected_weapon = id
 	if selected_tower != null and is_instance_valid(selected_tower):
 		selected_tower.set_selected(false)
@@ -365,6 +379,7 @@ func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
 	if ghost != null:
 		ghost.set_weapon(Weapons.by_id(selected_weapon))
 	var initial_pos := start_world if start_world.x >= 0.0 else get_global_mouse_position()
+	_drag_start = initial_pos
 	_update_ghost(initial_pos)
 	if hud != null:
 		hud.refresh()
@@ -373,29 +388,43 @@ func _finish_drag(world: Vector2) -> void:
 	if not _drag_active:
 		return
 	_drag_active = false
+	var disarm := _disarm_on_release
+	_disarm_on_release = false
+	var dragged := world.distance_to(_drag_start) >= GRAB_DRAG_DISTANCE
 	if _in_build_area(world):
-		_try_build(world)
+		if dragged:
+			_try_build(world)
+		else:
+			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد سنگر نمی‌کارد.
+			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، سنگر را بگیر و بکش", Style.gold, 16)
+	elif disarm and hud != null and hud.is_over_weapon_bar(world):
+		# روی همان دکمهٔ آمادهٔ نوار رها شد: لغو کاشت
+		_cancel_build_preview()
+		return
 	if ghost != null:
 		ghost.visible = false
 	_refresh_guide()
 
-## فشار انگشت/نشانگر پیش‌نما را می‌آورد، کشیدن جابه‌جایش می‌کند و رهاکردن
-## در هر نقطهٔ مجاز نقشه برجک را همان‌جا می‌کارد.
+## لمس روی برجک موجود همیشه ثبت می‌شود: کشیدنِ آن برجک را انتخاب می‌کند (حتی وقتی سلاحی آماده است).
+## با سلاح آماده، لمس روی جای آزاد آغاز کشیدن برای کاشت است؛ لمس ساده کاشت نمی‌کند.
 func _handle_build_press(pressed: bool, world: Vector2) -> void:
-	if selected_weapon.is_empty():
-		if pressed:
-			_click_world(world)
-		return
 	if pressed:
-		var existing = _tower_at(world)
-		if existing != null:
-			select_tower(existing)
+		_grab_tower = _tower_at(world)
+		_grab_start = world
+		if selected_weapon.is_empty() or _grab_tower != null:
 			return
 		_drag_active = true
+		_drag_start = world
 		_refresh_guide()
 		if ghost != null:
 			ghost.set_weapon(Weapons.by_id(selected_weapon))
 		_update_ghost(world)
+		return
+	if _grab_tower != null:
+		var grabbed = _grab_tower
+		_grab_tower = null
+		if is_instance_valid(grabbed) and world.distance_to(_grab_start) >= GRAB_DRAG_DISTANCE:
+			select_tower(grabbed)
 		return
 	_finish_drag(world)
 
@@ -405,12 +434,6 @@ func _snap(pos: Vector2) -> Vector2:
 		clampf(pos.x, 18.0, Balance.WORLD_SIZE.x - 18.0),
 		clampf(pos.y, Balance.HUD_HEIGHT + 6.0, Balance.WORLD_SIZE.y - 18.0)
 	)
-
-func _click_world(world: Vector2) -> void:
-	if world.y < Balance.HUD_HEIGHT:
-		return
-	var tower = _tower_at(world)
-	select_tower(tower)
 
 func _tower_at(world: Vector2) -> Variant:
 	for tower in towers:

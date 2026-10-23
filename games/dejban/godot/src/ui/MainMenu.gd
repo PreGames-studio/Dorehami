@@ -71,7 +71,7 @@ func _build() -> void:
 	menu.add_child(settings)
 
 	var quit := Ui.button("خروج از بازی", 20, 48.0, "ghost")
-	quit.pressed.connect(_on_quit)
+	quit.pressed.connect(_request_quit)
 	menu.add_child(quit)
 
 	# پنل پیشرفت
@@ -109,6 +109,11 @@ func _on_multiplayer() -> void:
 	tween.tween_interval(1.4)
 	tween.tween_property(notice, "modulate:a", 0.0, 0.4)
 	tween.tween_callback(notice.queue_free)
+
+## خروج از بازی فقط بعد از تأیید کاربر انجام می‌شود.
+func _request_quit() -> void:
+	Audio.ui_click()
+	Ui.confirm(self, "خروج از بازی؟", "بازی بسته می‌شود و پیشرفت شما ذخیره می‌شود.", _on_quit)
 
 func _on_quit() -> void:
 	Audio.ui_back()

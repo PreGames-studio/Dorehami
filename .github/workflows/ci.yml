@@ -112,6 +112,8 @@ jobs:
   build-apk:
     name: Build debug APK
     runs-on: ubuntu-latest
+    permissions:
+      contents: write   # only used by the arena/* preview-release step below
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -213,3 +215,24 @@ jobs:
             unzip -l "$apk" | grep -E "assets/dezhban\.pck|lib/[^ ]+/libgodot_android\.so"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      # Branch previews: on arena/* branches the verified APK is also published to a
+      # per-branch prerelease, so it has a plain direct download URL. main is untouched.
+      - name: Publish branch APK preview release
+        if: startsWith(github.ref, 'refs/heads/arena/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          branch=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          sha=$(git rev-parse --short=7 HEAD)
+          tag="preview-${branch}"
+          cp "$apk" "Dorehami-debug.apk"
+          cp "$apk" "Dorehami-debug-${branch}-${sha}.apk"
+          notes="APK دیباگ برنچ ${GITHUB_REF_NAME} در کامیت ${sha}. لینک ثابت: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/Dorehami-debug.apk"
+          gh release view "$tag" >/dev/null 2>&1 || \
+            gh release create "$tag" --prerelease --title "Preview: ${GITHUB_REF_NAME}" --target "${GITHUB_SHA}" --notes "$notes"
+          gh release upload "$tag" "Dorehami-debug.apk" "Dorehami-debug-${branch}-${sha}.apk" --clobber
+          gh release edit "$tag" --notes "$notes" --target "${GITHUB_SHA}" >/dev/null 2>&1 || true
+          echo "published: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/Dorehami-debug.apk"

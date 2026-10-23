@@ -126,7 +126,7 @@ def main() -> None:
         ('"ground"', '"ground/grass"'),
         ('"maps"', '"maps/map_01"'),
         ('"props"', '"props/rock_small"'),
-        ('"units"', '"units/grunt"'),
+        ('"units"', '"units/soldier"'),
         ('"structures"', '"structures/keep"'),
         ('"towers"', '"towers/base"'),
         ('"bullets"', '"bullets/stone"'),

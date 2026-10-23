@@ -122,7 +122,7 @@ func _make_styled_card_shell(
 		stage.add_child(weapon_display)
 
 		var turret_tex := TextureRect.new()
-		turret_tex.texture = Assets.tex("towers/head_%s" % weapon_id)
+		turret_tex.texture = Assets.tex(Weapons.art_key(weapon_id))
 		turret_tex.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 		turret_tex.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 		turret_tex.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -214,14 +214,10 @@ func _prestige_card() -> Button:
 func _weapon_card(weapon: Dictionary) -> Button:
 	var id := String(weapon["id"])
 	var unlocked := Game.is_weapon_unlocked(id)
-	var is_iap := bool(weapon.get("iap_only", false))
-	var iap_price := String(weapon.get("iap_price_text", "۱۰۰٬۰۰۰ تومان"))
 	var lvl := Game.weapon_level(id)
 	var max_lvl := Balance.ARMORY_MAX_LEVEL
 
-	var level_str := "سطح %s / %s" % [Ui.fa(lvl), Ui.fa(max_lvl)] if unlocked else (
-		"قفل · %s" % iap_price if is_iap else "قفل · %s ستاره" % Ui.fa(int(weapon["star_cost"]))
-	)
+	var level_str := "سطح %s / %s" % [Ui.fa(lvl), Ui.fa(max_lvl)] if unlocked else "قفل · %s ستاره" % Ui.fa(int(weapon["star_cost"]))
 	var ratio := (float(lvl) / float(max_lvl)) if unlocked else 0.0
 	var bonus_str := "آسیب %s · برد %s · ساخت %s سکه" % [
 		Ui.fa(round(float(weapon["damage"]))),
@@ -237,9 +233,6 @@ func _weapon_card(weapon: Dictionary) -> Button:
 		else:
 			cost_str = "کامل"
 			act_str = "حداکثر"
-	elif is_iap:
-		cost_str = "۱۰۰هزار ت"
-		act_str = "خرید ویژه"
 	else:
 		cost_str = "%s ⭐" % Ui.fa(int(weapon["star_cost"]))
 		act_str = "خرید"
@@ -323,7 +316,7 @@ func _show_detail() -> void:
 	var preview_style := Style.box(Color("#0b1830"), 12, Style.gold_dark, 1, 4.0)
 	preview_frame.add_theme_stylebox_override("panel", preview_style)
 	var preview := TextureRect.new()
-	preview.texture = Assets.tex("towers/head_%s" % id)
+	preview.texture = Assets.tex(Weapons.art_key(id))
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
@@ -375,21 +368,13 @@ func _show_detail() -> void:
 			_detail.add_child(upgrade)
 		else:
 			_detail.add_child(Ui.label("به بالاترین سطح رسیده است", 19, Style.good, HORIZONTAL_ALIGNMENT_CENTER))
-	elif bool(weapon.get("iap_only", false)):
-		var iap_price := String(weapon.get("iap_price_text", "۱۰۰٬۰۰۰ تومان"))
-		_detail.add_child(Ui.label("قدرت ویژه: ۱۰ برابر قوی‌ترین سلاح بازی", 17, Style.gold, HORIZONTAL_ALIGNMENT_CENTER))
-		var iap_btn := Ui.button("خرید درون‌برنامه‌ای — %s" % iap_price, 19, 52.0, "primary")
-		iap_btn.pressed.connect(_buy_iap.bind(id))
-		_detail.add_child(iap_btn)
-		_detail.add_child(Ui.label("قیمت خرید مستقیم: %s (بدون نیاز به ستاره)" % iap_price,
-			15, Style.accent, HORIZONTAL_ALIGNMENT_CENTER))
 	else:
 		var cost := int(weapon["star_cost"])
 		var unlock := Ui.button("خرید سلاح — %s ستاره" % Ui.fa(cost), 19, 52.0, "primary")
 		unlock.disabled = Game.stars < cost
 		unlock.pressed.connect(_unlock.bind(id))
 		_detail.add_child(unlock)
-	if (not unlocked and not bool(weapon.get("iap_only", false))) or (unlocked and Game.can_upgrade_weapon(id)):
+	if (not unlocked) or (unlocked and Game.can_upgrade_weapon(id)):
 		var cost := Game.weapon_upgrade_cost(id) if unlocked else int(weapon["star_cost"])
 		if Game.stars < cost:
 			_detail.add_child(Ui.label("ستارهٔ کافی ندارید", 16, Style.bad, HORIZONTAL_ALIGNMENT_CENTER))
@@ -492,10 +477,6 @@ func _unlock(id: String) -> void:
 		_show_detail()
 	else:
 		Audio.play("deny")
-
-func _buy_iap(_id: String) -> void:
-	# آمادهٔ اتصال به درگاه پرداخت درون‌برنامه‌ای (۱۰۰٬۰۰۰ تومان)
-	Audio.play("deny")
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_ESCAPE:

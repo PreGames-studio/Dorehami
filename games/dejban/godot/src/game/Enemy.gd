@@ -46,7 +46,7 @@ var _walk_phase := 0.0
 var _smooth_dir := Vector2.RIGHT
 var _facing_x := 1.0
 var _hit_jolt := 0.0
-var _unit_id := "grunt"
+var _unit_id := "soldier"
 var _frame_h := 48.0
 
 ## Sheets: walk (one direction, mirrored), run and death (four directions).
@@ -65,7 +65,7 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 	map = game_map
 	wave = wave_index
 	lane = lane_offset * 0.25
-	_unit_id = String(def.get("id", "grunt"))
+	_unit_id = String(def.get("id", "soldier"))
 	max_hp = float(def.get("hp", 60.0)) * hp_scale
 	hp = max_hp
 	base_speed = float(def.get("speed", 46.0)) * speed_scale
@@ -83,7 +83,7 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 			_facing_x = -1.0 if _smooth_dir.x < 0.0 else 1.0
 
 	_sprite = Sprite2D.new()
-	var base_key := String(def.get("sprite", "units/grunt"))
+	var base_key := String(def.get("sprite", "units/soldier"))
 	var walk_key := base_key + "_walk"
 	if Assets.has_key(walk_key):
 		_walk_tex = Assets.tex(walk_key)
@@ -91,8 +91,8 @@ func setup(enemy_def: Dictionary, game_map: GameMap, hp_scale: float, speed_scal
 		_walk_tex = Assets.tex(base_key)
 	_sprite.texture = _walk_tex
 	# Fast units (the runner) move with the run sheet; the death sheet is for all.
-	_uses_run = UnitSheets.uses_run(_unit_id, base_speed)
-	_uses_run = _uses_run and Assets.has_key(UnitSheets.tex_key(_unit_id, "run", "front"))
+	# شیت دویدن: قد و خط زمین آن ثابت است، پس سر بالا-پایین نمی‌شود و پاها حرکت را می‌برند.
+	_uses_run = Assets.has_key(UnitSheets.tex_key(_unit_id, "run", "front"))
 	_sheet_dir = UnitSheets.direction_name(_smooth_dir)
 	if _sprite.texture != null:
 		_walk_frame_h = float(_sprite.texture.get_height())
@@ -191,12 +191,20 @@ func _update_transform(delta: float, current_speed := 46.0) -> void:
 		_sprite.scale = Vector2(scale_mult * flip_scale * pulse, scale_mult * (2.0 - pulse))
 	else:
 		_walk_phase += delta * (run_rate if _anim == "run" else 10.8 * stride_rate)
-		var step_hop := absf(sin(_walk_phase))
-		var step_sway := sin(_walk_phase) * 0.085
-		var squash := cos(_walk_phase * 2.0) * 0.05
+		# در راه رفتن هیچ بزرگ‌وکوچک شدن عمودی روی تصویر نیست؛ هر تکان بالا-پایین از خود شیت می‌آید و همان‌جا مانده است.
+		var squash := 0.0 if (_anim == "walk" or _anim == "run") else cos(_walk_phase * 2.0) * 0.05
 		var slope_lean := clampf(local_road_rot * 0.24, -0.20, 0.20)
-		_sprite.position = Vector2(sin(_walk_phase) * 1.2, -step_hop * 2.8 * scale_mult)
-		_sprite.rotation = step_sway + 0.045 * face_sign + slope_lean
+		if _anim == "walk" or _anim == "run":
+			# خود شیت راه رفتن بالا-پایین شدن بدن و تاب پاها را دارد. اگر کل تصویر
+			# در هر گام جابه‌جا یا چرخانده شود، سر به جلو و عقب می‌لغزد در حالی که
+			# پاها روی زمین ثابت‌اند؛ پس فقط شیب جاده می‌ماند.
+			_sprite.position = Vector2.ZERO
+			_sprite.rotation = 0.045 * face_sign + slope_lean
+		else:
+			var step_hop := absf(sin(_walk_phase))
+			var step_sway := sin(_walk_phase) * 0.085
+			_sprite.position = Vector2(sin(_walk_phase) * 1.2, -step_hop * 2.8 * scale_mult)
+			_sprite.rotation = step_sway + 0.045 * face_sign + slope_lean
 		_sprite.scale = Vector2(scale_mult * flip_scale * (1.0 + squash), scale_mult * (1.0 - squash * 0.8))
 
 	if _sprite.hframes > 1:
@@ -213,7 +221,7 @@ func _apply_sheet(anim: String) -> void:
 		return
 	var tex: Texture2D = _walk_tex
 	var hframes := 1
-	if Assets.has_key(String(def.get("sprite", "units/grunt")) + "_walk"):
+	if Assets.has_key(String(def.get("sprite", "units/soldier")) + "_walk"):
 		hframes = 8
 	if anim != "walk":
 		var key := UnitSheets.tex_key(_unit_id, anim, _sheet_dir)
@@ -221,6 +229,8 @@ func _apply_sheet(anim: String) -> void:
 			tex = Assets.tex(key)
 			if anim == "death":
 				hframes = UnitSheets.DEATH_FRAMES
+			elif anim == "run":
+				hframes = UnitSheets.RUN_FRAMES
 		else:
 			anim = "walk"
 	if _sprite.texture != tex:
@@ -228,8 +238,9 @@ func _apply_sheet(anim: String) -> void:
 	_sprite.hframes = hframes
 	_anim = anim
 	var fw := float(tex.get_width()) / float(hframes)
+	# راه‌رفتن و دویدن هر دو قد و خط زمین یکسان دارند؛ مرگ خط زمین جدا دارد.
 	var offset_y := -_walk_frame_h * 0.52
-	if anim != "walk":
+	if anim == "death":
 		offset_y = -(UnitSheets.ground(_unit_id, anim, 0.92 * _walk_frame_h) - _ground_anchor)
 	_sprite.offset = Vector2(-fw * 0.5, offset_y)
 	if anim != "death" and _sprite.frame >= hframes:

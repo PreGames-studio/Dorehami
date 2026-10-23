@@ -157,33 +157,16 @@ func _sync_unlocked_maps() -> void:
 func is_weapon_unlocked(id: String) -> bool:
 	return unlocked_weapons.has(id)
 
-func is_weapon_iap(id: String) -> bool:
-	return bool(Weapons.by_id(id).get("iap_only", false))
-
 func unlock_weapon(id: String) -> bool:
 	if is_weapon_unlocked(id):
 		return true
 	var weapon := Weapons.by_id(id)
 	if weapon.is_empty():
 		return false
-	if bool(weapon.get("iap_only", false)):
-		return false
 	var cost := int(weapon.get("star_cost", 0))
 	if stars < cost:
 		return false
 	stars -= cost
-	unlocked_weapons.append(id)
-	save()
-	changed.emit()
-	return true
-
-## بازگشایی سلاح ویژهٔ خرید درون‌برنامه‌ای پس از تأیید درگاه پرداخت.
-func unlock_iap_weapon(id: String) -> bool:
-	if is_weapon_unlocked(id):
-		return true
-	var weapon := Weapons.by_id(id)
-	if weapon.is_empty() or not bool(weapon.get("iap_only", false)):
-		return false
 	unlocked_weapons.append(id)
 	save()
 	changed.emit()

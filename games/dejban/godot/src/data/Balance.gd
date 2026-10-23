@@ -16,7 +16,7 @@ const HUD_HEIGHT := 54.0
 const START_COINS := 100
 const START_LIVES := 20
 const SELL_RATIO := 0.6
-const MAX_LEVEL := 5
+const MAX_LEVEL := 4
 
 # --- ارتقای سلاح در زرادخانه (با ستاره)
 ## سقف ارتقای هر سلاح. سطح k با k ستاره خریده می‌شود (جمعاً ۴۶۵ ستاره برای سقف).
@@ -67,9 +67,12 @@ static func wave_count(wave: int) -> int:
 static func upgrade_cost(base_cost: int, _level: int) -> int:
 	return base_cost
 
-## آسیب هر سطح دو برابر سطح قبل است (۱، ۲، ۴، ۸، ۱۶ برابر پایه).
+## افزایش آسیب در هر سطح ارتقا (به ازای هر سطح، این کسر از آسیب پایه اضافه می‌شود).
+## سطح ۱ = ضریب ۱، سطح ۴ = ۱٫۷۵ برابر پایه. سنگر با چهار سرباز در سطح ۴ حدود ۵٫۶ برابر DPS پایه است.
+const DAMAGE_STEP_PER_LEVEL := 0.25
+
 static func level_damage_mult(level: int) -> float:
-	return pow(2.0, clampi(level, 1, MAX_LEVEL) - 1)
+	return 1.0 + DAMAGE_STEP_PER_LEVEL * float(clampi(level, 1, MAX_LEVEL) - 1)
 
 static func level_range_mult(level: int) -> float:
 	return 1.0 + 0.055 * (level - 1)

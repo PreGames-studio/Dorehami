@@ -1,4 +1,4 @@
-## واسط میدان نبرد: نوار بالا (سکه، جان، موج، سرعت، توقف)، نوار پایین
+## واسط میدان نبرد: ردیف دکمه‌های بالا (سکه، جان، موج، سرعت، توقف، منو)، نوار پایین
 ## (انتخاب سلاح برای ساخت)، پنل برجک انتخاب‌شده (ارتقا و فروش) و لایه‌های
 ## پایان نبرد و توقف. این گره فقط نمایش می‌دهد؛ همهٔ کارها را Battle انجام می‌دهد.
 extends Control
@@ -7,12 +7,12 @@ const RESULT_CARD_SIZE := Vector2(640.0, 360.0)
 
 var battle = null
 
-var _coins_label: Label = null
-var _lives_label: Label = null
-var _wave_label: Label = null
-var _enemies_label: Label = null
+var _coins_label: Button = null
+var _lives_label: Button = null
+var _wave_label: Button = null
+var _enemies_label: Button = null
 var _speed_button: Button = null
-var _countdown_label: Label = null
+var _countdown_label: Button = null
 var _start_button: Button = null
 var _hint_label: Label = null
 var _banner: Label = null
@@ -58,47 +58,34 @@ func _anchor(node: Control, preset: int) -> void:
 	node.set_anchors_preset(preset)
 
 func _build_top_bar() -> void:
-	var bar := PanelContainer.new()
-	bar.add_theme_stylebox_override("panel", Style.box(Color(Style.bg_panel.r, Style.bg_panel.g, Style.bg_panel.b, 0.78), 0, Style.line, 1, 6.0))
-	# نوار پشت‌زمینه است، نه سد راه لمس زمین؛ فقط خودِ دکمه‌ها ورودی می‌گیرند.
-	bar.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_anchor(bar, Control.PRESET_TOP_WIDE)
-	bar.offset_left = 0
-	bar.offset_right = 0
-	bar.offset_top = 0
-	bar.offset_bottom = 54
-
-	var row := Ui.row(14)
+	# ردیف بالا پس‌زمینه ندارد؛ هر آیتم خودش یک دکمه است. خود ردیف ورودی نمی‌گیرد
+	# تا فاصلهٔ بین دکمه‌ها لمس را به نقشه بدهد.
+	var row := Ui.row(8)
 	row.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	bar.add_child(row)
+	_anchor(row, Control.PRESET_TOP_WIDE)
+	row.offset_left = 12
+	row.offset_right = -12
+	row.offset_top = 8
+	row.offset_bottom = 46
 
-	var coins_box := Ui.icon_label("icons/coin", Ui.fa(0), 20, 24.0)
-	coins_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_coins_label = coins_box.get_child(1) as Label
-	row.add_child(coins_box)
+	_coins_label = _info_button("icons/coin", Ui.fa(0))
+	row.add_child(_coins_label)
 
-	var lives_box := Ui.icon_label("icons/heart", Ui.fa(0), 20, 24.0)
-	lives_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_lives_label = lives_box.get_child(1) as Label
-	row.add_child(lives_box)
+	_lives_label = _info_button("icons/heart", Ui.fa(0))
+	row.add_child(_lives_label)
 
-	var wave_box := Ui.icon_label("icons/wave", "", 20, 24.0)
-	wave_box.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_wave_label = wave_box.get_child(1) as Label
-	row.add_child(wave_box)
+	_wave_label = _info_button("icons/wave", "")
+	row.add_child(_wave_label)
 
-	_enemies_label = Ui.label("", 17, Style.text_dim)
-	_enemies_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_enemies_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_enemies_label = _info_button("", "")
 	row.add_child(_enemies_label)
 
 	var sp1 := Ui.spacer()
 	sp1.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	row.add_child(sp1)
 
-	_countdown_label = Ui.label("", 17, Style.text)
-	_countdown_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
-	_countdown_label.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
+	_countdown_label = _info_button("", "")
+	_countdown_label.visible = false
 	row.add_child(_countdown_label)
 
 	_start_button = Ui.button("شروع موج", 17, 38.0, "primary")
@@ -122,8 +109,19 @@ func _build_top_bar() -> void:
 
 	var exit_button := Ui.button("منو", 17, 38.0, "ghost")
 	exit_button.custom_minimum_size = Vector2(78, 38)
-	exit_button.pressed.connect(_on_exit)
+	exit_button.pressed.connect(_request_exit)
 	row.add_child(exit_button)
+
+## دکمهٔ نمایشی برای اطلاعات نوار بالا (سکه، جان، موج...). لمس نمی‌گیرد و فقط نشان می‌دهد.
+func _info_button(icon_key: String, text: String) -> Button:
+	var node := Ui.button(text, 17, 38.0, "ghost")
+	node.custom_minimum_size = Vector2(0, 38)
+	node.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	if not icon_key.is_empty():
+		node.icon = Assets.tex(icon_key)
+		node.expand_icon = true
+		node.add_theme_constant_override("icon_max_width", 22)
+	return node
 
 func _build_weapon_bar() -> void:
 	_weapon_panel = PanelContainer.new()
@@ -267,7 +265,7 @@ func _build_pause_overlay() -> void:
 	restart.pressed.connect(func(): _on_restart())
 	column.add_child(restart)
 	var menu := Ui.button("بازگشت به اطلس نقشه‌ها", 20, 48.0, "ghost")
-	menu.pressed.connect(_on_exit)
+	menu.pressed.connect(_request_exit)
 	column.add_child(menu)
 	_pause_overlay.visible = false
 
@@ -412,9 +410,10 @@ func refresh() -> void:
 		_countdown_label.text = "موج %s در جریان است" % Ui.fa(battle.wave_index)
 	else:
 		_countdown_label.text = ""
+	_countdown_label.visible = not _countdown_label.text.is_empty()
 
 	if not battle.selected_weapon.is_empty():
-		_hint_label.text = "برجک را بگیر و در هر جای مجاز نقشه (بیرون از جاده و برج‌های دیگر) رها کن"
+		_hint_label.text = "سنگر را بگیر، تا جای مجاز بکش و رها کن · برای لغو، روی همین دکمه بزن"
 	elif battle.selected_tower != null and is_instance_valid(battle.selected_tower):
 		_hint_label.text = "میان‌بر: U ارتقا · S فروش"
 	else:
@@ -604,6 +603,19 @@ func _on_upgrade() -> void:
 func _on_sell() -> void:
 	if battle != null:
 		battle.sell_selected()
+
+## خروج از نبرد فقط بعد از تأیید کاربر انجام می‌شود. نبرد در حین پرسش متوقف می‌ماند.
+func _request_exit() -> void:
+	if battle == null or not is_instance_valid(battle):
+		return
+	Audio.ui_click()
+	if not battle.paused:
+		get_tree().paused = true
+	Ui.confirm(self, "خروج از نبرد؟", "نبرد فعلی تمام می‌شود و به اطلس نقشه‌ها برمی‌گردی.", _on_exit, _resume_after_prompt)
+
+func _resume_after_prompt() -> void:
+	if battle != null and is_instance_valid(battle) and not battle.paused:
+		get_tree().paused = false
 
 func _on_exit() -> void:
 	Audio.ui_back()

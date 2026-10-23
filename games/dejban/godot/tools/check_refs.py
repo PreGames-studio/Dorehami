@@ -31,8 +31,6 @@ CLASS_FILES = {
     "Style": "src/autoload/Style.gd",
     "Ui": "src/autoload/Ui.gd",
     "BuildGuide": "src/game/BuildGuide.gd",
-    "TurretWeapons": "src/data/TurretWeapons.gd",
-    "TurretFire": "src/game/TurretFire.gd",
 }
 
 MEMBER_PATTERNS = [

@@ -1,11 +1,21 @@
-## برجک دفاعی با پایهٔ ثابت (`_base`) و بخش بالایی ۴ فریمی چرخان (`_head`):
-## دارای انیمیشن دیدبانی، چرخش نرم ۳۶۰ درجه، فریم‌های اختصاصی شلیک/شعله/صاعقه/چرخش لوله و لگد فنری.
+## سنگر دژبان: سنگر کیسه‌شنی (`_base`) با یک سرباز تیرانداز به ازای هر سطح ارتقا.
+## سربازها فرزند `_base` هستند تا با تغییر جهت و تکان شلیک همراه سنگر بچرخند؛
+## هر سرباز در هر شلیک یک گلوله می‌زند و شعلهٔ دهانهٔ تفنگ از همان سرباز بیرون می‌آید.
 class_name Tower
 extends Node2D
 
 signal sold(tower)
 
 const PIVOT_OFFSET := Vector2(0.0, -18.0)
+## نوک لولهٔ تفنگ سرباز نسبت به مرکز سنگر (در حالت رو به راست؛ با جهت، قرینه می‌شود).
+const MUZZLE_OFFSET := Vector2(50.0, -8.0)
+## اندازهٔ هر سرباز و فاصلهٔ افقی آن‌ها در مختصات سنگر (پیش از مقیاس برجک).
+const SOLDIER_HEIGHT := 40.0
+const SOLDIER_SPACING := 26.0
+## خط دیوار کیسه‌شن جلو (بالای آن) نسبت به مرکز سنگر؛ پای سرباز روی این خط می‌نشیند.
+const SOLDIER_WALL_Y := -6.0
+## نوک لوله نسبت به مرکز سرباز، به کسری از اندازهٔ تصویر سرباز.
+const RIFLE_TIP_FRACTION := Vector2(0.48, 0.12)
 
 var battle = null
 var weapon: Dictionary = {}
@@ -18,18 +28,19 @@ var target = null
 var aim_angle := 0.0
 
 var _base: Sprite2D = null
-var _head: Sprite2D = null
+var _soldiers: Array[Sprite2D] = []
 var _flash: Node2D = null
 var _flash_anim: AnimatedSprite2D = null
 var _flash_time := 0.0
 ## مدت نمایش شعلهٔ دهانه؛ با شیت انیمیشنی طولانی‌تر از تصویر ایستاست.
 var _flash_duration := 0.09
-var _recoil := 0.0
+## پس‌زدن هر سرباز جدا: هنگام شلیک همان سرباز فشرده می‌شود و کم‌کم برمی‌گردد.
+var _soldier_kick: Array[float] = []
 var _ring := 0.0
 var _idle_phase := 0.0
 var _deploy_t := 0.0
 var _facing := 1.0
-var _turret_rot := 0.0
+var _sign_x := 1.0
 var _shot_count := 0
 
 func setup(weapon_def: Dictionary, battle_ref, start_level := 1) -> void:
@@ -40,28 +51,15 @@ func setup(weapon_def: Dictionary, battle_ref, start_level := 1) -> void:
 	_idle_phase = randf() * TAU
 	_deploy_t = 0.0
 
-	var wid := String(weapon.get("id", "machine_gun_lv1"))
+	var wid := _weapon_id()
 
-	# ۱) پایهٔ ثابت برجک (بدون چرخش)
+	# تصویر یکپارچهٔ سنگر (کیسه‌شن + سرباز داخل آن)
 	_base = Sprite2D.new()
-	var base_key := "towers/base_%s" % wid
-	_base.texture = Assets.tex(base_key if Assets.has_key(base_key) else "towers/base")
+	_base.texture = Assets.tex(Weapons.art_key(wid))
 	_base.position = PIVOT_OFFSET
 	_base.z_index = 1
 	add_child(_base)
-
-	# ۲) قسمت بالایی ۴ فریمی چرخان (فریم ۰ و ۱: آماده/دیدبانی، فریم ۲ و ۳: شلیک و لگد لوله)
-	_head = Sprite2D.new()
-	var top_key := "towers/top_%s" % wid
-	if Assets.has_key(top_key):
-		_head.texture = Assets.tex(top_key)
-		_head.hframes = 4
-	else:
-		_head.texture = Assets.tex("towers/head_%s" % wid)
-		_head.hframes = 1
-	_head.position = PIVOT_OFFSET
-	_head.z_index = 2
-	add_child(_head)
+	_sync_soldiers()
 
 	# شعلهٔ دهانه: اگر شیت کارتونی چهارفریمی موجود باشد همان را می‌چرخانیم،
 	# وگرنه مثل قبل دو تصویر ایستای towers/muzzle_1 و _2 را یکی‌یکی نشان می‌دهیم.
@@ -85,6 +83,74 @@ func setup(weapon_def: Dictionary, battle_ref, start_level := 1) -> void:
 		_flash = static_flash
 		_flash_duration = 0.09
 
+# ------------------------------------------------------------------ سربازان سنگر
+
+## تعداد سربازان داخل سنگر برابر سطح ارتقای فعلی است (سطح ۱ = یک سرباز تا سطح ۴ = چهار سرباز).
+func soldier_count() -> int:
+	return level
+
+## جای ثابت سرباز شمارهٔ i از n سرباز، متقارن در دهانهٔ سنگر.
+func _soldier_home(i: int, n: int) -> Vector2:
+	return Vector2((float(i) - float(n - 1) * 0.5) * SOLDIER_SPACING, SOLDIER_WALL_Y - SOLDIER_HEIGHT * 0.5)
+
+## سربازهای داخل سنگر را با سطح هم‌اندازه می‌کند و همه را به‌طور متقارن در دهانهٔ سنگر می‌چیند.
+## اگر سنگر هنوز ساخته نشده باشد (مثلاً در تست‌های بدون صحنه) کاری نمی‌کند.
+func _sync_soldiers() -> void:
+	if _base == null:
+		return
+	var tex := Assets.tex("towers/sangar_soldier")
+	if tex == null:
+		return
+	var want := soldier_count()
+	while _soldiers.size() < want:
+		var soldier := Sprite2D.new()
+		soldier.texture = tex
+		soldier.scale = Vector2.ONE * (SOLDIER_HEIGHT / float(tex.get_height()))
+		_base.add_child(soldier)
+		_soldiers.append(soldier)
+		_soldier_kick.append(0.0)
+	while _soldiers.size() > want:
+		var extra: Sprite2D = _soldiers.pop_back()
+		extra.queue_free()
+		_soldier_kick.pop_back()
+	for i in _soldiers.size():
+		_soldiers[i].position = _soldier_home(i, want)
+
+## نفس‌کشیدن آرام، رو به دشمن چرخیدن و پس‌زدن هر سرباز. سربازها با فاز متفاوت حرکت می‌کنند تا یکنواخت نباشند.
+func _animate_soldiers(delta: float, sign_x: float) -> void:
+	var n := _soldiers.size()
+	var flip := maxf(0.28, absf(_facing))
+	for i in n:
+		var soldier: Sprite2D = _soldiers[i]
+		if soldier == null or soldier.texture == null:
+			continue
+		var kick := _soldier_kick[i] if i < _soldier_kick.size() else 0.0
+		if i < _soldier_kick.size():
+			_soldier_kick[i] = maxf(0.0, kick - delta * 5.0)
+		var phase := _idle_phase + float(i) * 1.9
+		var breath := sin(phase * 1.3) * 0.025
+		var base_s := SOLDIER_HEIGHT / float(soldier.texture.get_height())
+		soldier.scale = Vector2(base_s * sign_x * flip * (1.0 - kick * 0.06), base_s * (1.0 + breath - kick * 0.04))
+		soldier.position = _soldier_home(i, n) + Vector2(-sign_x * kick * 3.0, kick * 1.5)
+
+## پس‌زدن همان سربازی که گلوله‌اش را شلیک کرد.
+func _kick_soldier(index: int) -> void:
+	if _soldier_kick.is_empty():
+		return
+	_soldier_kick[index % _soldier_kick.size()] = 1.0
+
+## نقطهٔ نوک لولهٔ سرباز شمارهٔ index نسبت به PIVOT_OFFSET (مختصات محلی برجک).
+## با جهت سنگر و تکان شلیک همراه است، پس شعله و گلوله دقیقاً از تفنگ همان سرباز بیرون می‌آیند.
+func _muzzle_local(index := 0) -> Vector2:
+	if _base == null or _soldiers.is_empty():
+		return Vector2(MUZZLE_OFFSET.x * _sign_x, MUZZLE_OFFSET.y)
+	var soldier: Sprite2D = _soldiers[index % _soldiers.size()]
+	# کسرِ تصویر سرباز از گوشهٔ بالا-چپ است؛ سرباز مرکزی کشیده می‌شود و ممکن است آینه باشد.
+	var size := soldier.texture.get_size() * soldier.scale.abs()
+	var mirror := signf(soldier.scale.x)
+	var tip := soldier.position + Vector2((RIFLE_TIP_FRACTION.x - 0.5) * size.x * mirror, (RIFLE_TIP_FRACTION.y - 0.5) * size.y)
+	return (_base.position - PIVOT_OFFSET) + tip * _base.scale
+
 # ------------------------------------------------------------------ ویژگی‌های سطح
 
 func damage() -> float:
@@ -93,7 +159,7 @@ func damage() -> float:
 ## برد شلیک یک سلاح در سطح داده‌شده. هم خود برجک و هم دایرهٔ پیش‌نمایش پیش از
 ## ساخت، از همین یک حساب استفاده می‌کنند تا بردِ نشان‌داده‌شده با برد واقعی یکی باشد.
 static func range_for(weapon_def: Dictionary, level: int) -> float:
-	var wid := String(weapon_def.get("id", "machine_gun_lv1"))
+	var wid := String(weapon_def.get("id", "sangar"))
 	return float(weapon_def.get("range", 160.0)) * Balance.level_range_mult(level) * Game.weapon_range_mult(wid)
 
 func attack_range() -> float:
@@ -103,7 +169,7 @@ func interval() -> float:
 	return maxf(0.12, float(weapon.get("cooldown", 0.8)) * Balance.level_rate_mult(level) * Game.weapon_interval_mult(_weapon_id()))
 
 func _weapon_id() -> String:
-	return String(weapon.get("id", "machine_gun_lv1"))
+	return String(weapon.get("id", "sangar"))
 
 func upgrade_cost() -> int:
 	return Balance.upgrade_cost(int(weapon.get("cost", 60)), level)
@@ -119,6 +185,7 @@ func upgrade() -> void:
 		return
 	invested += upgrade_cost()
 	level += 1
+	_sync_soldiers()
 	_deploy_t = 0.25
 	queue_redraw()
 
@@ -137,8 +204,6 @@ func _process(delta: float) -> void:
 		_flash_time -= delta
 		if _flash_time <= 0.0 and _flash != null:
 			_flash.visible = false
-	if _recoil > 0.0:
-		_recoil = maxf(0.0, _recoil - delta * 4.8)
 	if _ring > 0.0:
 		_ring = maxf(0.0, _ring - delta)
 		queue_redraw()
@@ -161,43 +226,17 @@ func _process(delta: float) -> void:
 		var target_dir := -1.0 if aim_cos < 0.0 else 1.0
 		_facing = lerpf(_facing, target_dir, clampf(delta * 13.0, 0.0, 1.0))
 	var sign_x := -1.0 if _facing < 0.0 else 1.0
+	_sign_x = sign_x
 
-	# زاویهٔ چرخش قسمت بالایی تا ±۷۰ درجه به سمت بالا/پایینِ هدف (با حفظ سقف برجک رو به بالا)
-	var raw_local_rot := aim_angle if sign_x > 0.0 else wrapf(aim_angle - PI, -PI, PI)
-	var desired_rot := clampf(raw_local_rot, -1.22, 1.22)
-	_turret_rot = lerp_angle(_turret_rot, desired_rot, clampf(delta * 14.0, 0.0, 1.0))
-
-	var base_scale := 1.0 + 0.05 * float(level - 1)
-	var pop := 1.0
-	if _deploy_t < 1.0:
-		pop = 1.0 + sin(_deploy_t * PI) * 0.25 * (1.0 - _deploy_t * 0.5)
-
-	# ۱) پایهٔ ثابت برجک (بدون چرخش، فقط جذب ضربهٔ شلیک)
+	# خود سنگر ثابت است و فقط در هنگام کاشته‌شدن یک‌بار بزرگ می‌شود؛ حرکت از سربازهای داخلش می‌آید.
 	if _base != null:
-		var base_shock := sin(_recoil * PI) * 0.035
+		var pop := 1.0
+		if _deploy_t < 1.0:
+			pop = 1.0 + sin(_deploy_t * PI) * 0.25 * (1.0 - _deploy_t * 0.5)
 		_base.rotation = 0.0
+		_base.scale = Vector2.ONE * pop
 		_base.position = PIVOT_OFFSET
-		_base.scale = Vector2(base_scale * pop * (1.0 + base_shock), base_scale * pop * (1.0 - base_shock))
-
-	# ۲) قسمت بالایی چرخان + انتخاب فریم انیمیشن شلیک/آماده‌باش
-	if _head != null:
-		if _head.hframes >= 4:
-			if _recoil > 0.52:
-				_head.frame = 2
-			elif _recoil > 0.16:
-				_head.frame = 3
-			else:
-				_head.frame = int(floor(fposmod(_idle_phase * 1.6, 2.0))) % 2
-		var breath := sin(_idle_phase * 1.3) * 0.018
-		var kick_squash := sin(_recoil * PI) * 0.15
-		var sx := base_scale * pop * (1.0 + kick_squash - breath * 0.4)
-		var sy := base_scale * pop * (1.0 - kick_squash * 0.65 + breath)
-		var flip_smooth := maxf(0.28, absf(_facing))
-		_head.scale = Vector2(sx * sign_x * flip_smooth, sy)
-		_head.rotation = _turret_rot - (_recoil * 0.15)
-		var kick_offset := -Vector2.RIGHT.rotated(aim_angle) * (_recoil * 6.2)
-		var turn_lift := Vector2(0.0, -(1.0 - absf(_facing)) * 2.2)
-		_head.position = PIVOT_OFFSET + kick_offset + turn_lift
+	_animate_soldiers(delta, sign_x)
 
 	if cooldown_left <= 0.0 and _is_in_range(target):
 		_fire()
@@ -258,36 +297,16 @@ func _fire() -> void:
 					_hit(enemy, damage())
 			Fx.ring(_fx_parent(), position, attack_range() * 0.55, Color(1, 1, 1, 0.35), 0.35)
 		_:
-			if String(weapon.get("id", "")) == "omega":
-				_ring = 0.32
-				queue_redraw()
-				Fx.ring(_fx_parent(), position, attack_range() * 0.45, Color(1.0, 0.85, 0.30, 0.45), 0.35)
-			_spawn_fire_fx()
-			var shots := maxi(1, int(weapon.get("shots", 1)))
+			# هر سرباز داخل سنگر یک گلوله در هر شلیک می‌زند؛ اگر دشمن کمتری در برد باشد،
+			# گلوله‌های اضافی به همان دشمن هدف‌گیری می‌شوند.
+			var shots := maxi(1, int(weapon.get("shots", 1))) * maxi(1, soldier_count())
 			var targets := _shot_targets(shots)
+			if not targets.is_empty():
+				var first = targets[0]
+				while targets.size() < shots:
+					targets.append(first)
 			for i in targets.size():
-				_spawn_projectile(targets[i])
-
-## جلوهٔ اختصاصی هر خانوادهٔ سلاح در لحظهٔ شلیک (شیت‌های tools/gen_fx_sheets.py):
-## توپ سنگین دود دهانه، لیزر پرتو آبی، تسلا قوس بنفش و ابرسلاح شعلهٔ کیهانی می‌گیرد.
-func _spawn_fire_fx() -> void:
-	var family := String(weapon.get("family", ""))
-	var muzzle_pos := position + PIVOT_OFFSET + Vector2.RIGHT.rotated(aim_angle) * 26.0
-	var parent := _fx_parent()
-	match family:
-		"cannon":
-			Fx.smoke(parent, muzzle_pos, 0.55 + 0.05 * float(level - 1))
-		"laser":
-			if target != null and is_instance_valid(target):
-				var aim_point: Vector2 = (target as Node2D).position + Vector2(0.0, -12.0)
-				Fx.beam(parent, "fx/laser_beam", muzzle_pos, aim_point, 0.55 + 0.06 * float(level - 1))
-		"tesla":
-			if target != null and is_instance_valid(target):
-				var coil_point: Vector2 = (target as Node2D).position + Vector2(0.0, -12.0)
-				Fx.bolt(parent, muzzle_pos, coil_point, 0.6 + 0.05 * float(level - 1))
-		_:
-			if String(weapon.get("id", "")) == "omega":
-				Fx.flame(parent, position + Vector2(0.0, -14.0), 1.1)
+				_spawn_projectile(targets[i], i)
 
 func _shot_targets(count: int) -> Array:
 	var out: Array = []
@@ -308,13 +327,14 @@ func _shot_targets(count: int) -> Array:
 			out.append(enemy)
 	return out
 
-func _spawn_projectile(shot_target) -> void:
+func _spawn_projectile(shot_target, index := 0) -> void:
 	if shot_target == null or not is_instance_valid(shot_target):
 		return
 	var projectile = Projectile.new()
 	projectile.setup(self, shot_target, damage())
 	_fx_parent().add_child(projectile)
-	projectile.global_position = position + PIVOT_OFFSET + Vector2.RIGHT.rotated(aim_angle) * 22.0
+	projectile.global_position = position + PIVOT_OFFSET + _muzzle_local(index)
+	_kick_soldier(index)
 
 ## آسیب یک ضربه روی یک دشمن، همراه با اثرهای سلاح.
 func _hit(enemy, amount: float) -> void:
@@ -333,21 +353,9 @@ func _apply_effects(enemy) -> void:
 	if weapon.has("poison"):
 		enemy.apply_poison(float(weapon["poison"]) * (1.0 + 0.18 * (level - 1)), float(weapon.get("poison_time", 4.0)))
 
+## سرباز تفنگ‌دار با صدای تیر خشک شلیک می‌کند.
 func _sound_key() -> String:
-	var fam := String(weapon.get("family", ""))
-	match fam:
-		"machine_gun":
-			return "shot_bolt"
-		"cannon":
-			return "shot_stone"
-		"missile":
-			return "shot_heavy"
-		"laser", "tesla":
-			return "shot_spark"
-		"omega":
-			return "shot_fire"
-		_:
-			return "shot_heavy"
+	return "shot_bolt"
 
 func _fx_parent() -> Node:
 	if battle == null:
@@ -355,13 +363,12 @@ func _fx_parent() -> Node:
 	return battle.fx_layer()
 
 func _show_flash() -> void:
-	_recoil = 1.0
 	_shot_count += 1
 	if _flash == null:
 		return
 	_flash.visible = true
 	_flash.rotation = aim_angle
-	_flash.position = PIVOT_OFFSET + Vector2.RIGHT.rotated(aim_angle) * 26.0
+	_flash.position = PIVOT_OFFSET + _muzzle_local(_shot_count)
 	if _flash_anim != null:
 		# شیت افکت اندازهٔ ثابت ۶۴ پیکسلی دارد؛ با سطح کمی بزرگ‌تر می‌شود.
 		_flash_anim.scale = Vector2.ONE * (0.92 + 0.06 * float(level - 1))
