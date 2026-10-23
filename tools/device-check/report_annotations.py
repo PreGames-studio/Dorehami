@@ -10,7 +10,9 @@ from __future__ import annotations
 import re
 import sys
 
-MAX_ANNOTATIONS = 45
+# GitHub keeps only the first ten error annotations in a step. Reserve that budget for the
+# actionable harness/navigation messages instead of dozens of noisy emulator OpenGL lines.
+MAX_ANNOTATIONS = 10
 MAX_LINE = 900
 
 INTERESTING = re.compile(
@@ -34,13 +36,14 @@ def main() -> int:
 
     lines = text.splitlines()
     hits = [line for line in lines if INTERESTING.search(line) and line.strip()]
-    # The crash block is always at the end; show the tail first, then the head.
-    tail = hits[-MAX_ANNOTATIONS:]
-    head = hits[:2]
-    shown = head + [f"... ({len(hits)} matching lines total) ..."] + tail
+    device = [line for line in hits if "[device-check]" in line]
+    system = [line for line in hits if "[device-check]" not in line]
+    # Keep seven recent harness lines (including the final failure), one count, and two crash/
+    # graphics lines. This fits GitHub's ten-error budget without hiding the actual failure.
+    shown = device[-7:] + [f"... ({len(hits)} matching lines total) ..."] + system[-2:]
 
     print(f"::notice::device log: {len(lines)} lines, {len(hits)} interesting")
-    for line in shown[: MAX_ANNOTATIONS + 3]:
+    for line in shown[:MAX_ANNOTATIONS]:
         print("::error::" + escape(line))
     if not hits:
         for line in lines[-3:]:
