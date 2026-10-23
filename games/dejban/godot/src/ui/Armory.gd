@@ -9,6 +9,7 @@ const PRESTIGE_ID := "prestige_boost"
 var _stars_label: Label = null
 var _list: GridContainer = null
 var _overlay: Control = null
+var _panel: PanelContainer = null
 var _detail: VBoxContainer = null
 var _selected_id := ""
 
@@ -219,9 +220,12 @@ func _weapon_card(weapon: Dictionary) -> Button:
 
 	var level_str := "سطح %s / %s" % [Ui.fa(lvl), Ui.fa(max_lvl)] if unlocked else "قفل · %s ستاره" % Ui.fa(int(weapon["star_cost"]))
 	var ratio := (float(lvl) / float(max_lvl)) if unlocked else 0.0
+	var cur_damage := float(weapon["damage"]) * Game.weapon_damage_mult(id)
+	var cur_range := float(weapon["range"]) * Game.weapon_range_mult(id)
+	var dmg_text := Ui.fa(round(cur_damage)) if is_equal_approx(cur_damage, round(cur_damage)) else Ui.fa_decimal(cur_damage, 1)
 	var bonus_str := "آسیب %s · برد %s · ساخت %s سکه" % [
-		Ui.fa(round(float(weapon["damage"]))),
-		Ui.fa(round(float(weapon["range"]))),
+		dmg_text,
+		Ui.fa(round(cur_range)),
 		Ui.fa(int(weapon["cost"])),
 	]
 	var cost_str := ""
@@ -269,16 +273,18 @@ func _build_overlay() -> void:
 	dim.mouse_filter = Control.MOUSE_FILTER_STOP
 	dim.gui_input.connect(_on_dim_input)
 	_overlay.add_child(dim)
-	var panel := Ui.panel(Style.bg_panel, 18, 22.0)
-	panel.add_theme_stylebox_override("panel", Style.box(Style.bg_panel, 18, Style.gold_dark, 2, 22.0))
-	panel.set_anchors_preset(Control.PRESET_CENTER)
-	panel.offset_left = -270
-	panel.offset_right = 270
-	panel.offset_top = -316
-	panel.offset_bottom = 316
-	_overlay.add_child(panel)
-	_detail = Ui.column(12)
-	panel.add_child(_detail)
+	# ظرف مرکزچین تضمین می‌کند پنجرهٔ جزئیات و دکمهٔ ارتقا همیشه کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ بمانند.
+	var center := CenterContainer.new()
+	center.set_anchors_and_offsets_preset(Control.PRESET_FULL_RECT)
+	center.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_overlay.add_child(center)
+	_panel = Ui.panel(Style.bg_panel, 18, 16.0)
+	_panel.custom_minimum_size = Vector2(540, 0)
+	_panel.mouse_filter = Control.MOUSE_FILTER_STOP
+	_panel.add_theme_stylebox_override("panel", Style.box(Style.bg_panel, 18, Style.gold_dark, 2, 16.0))
+	center.add_child(_panel)
+	_detail = Ui.column(8)
+	_panel.add_child(_detail)
 	_overlay.visible = false
 
 func _on_dim_input(event: InputEvent) -> void:
@@ -312,7 +318,7 @@ func _show_detail() -> void:
 	var header := Ui.row(12)
 	_detail.add_child(header)
 	var preview_frame := PanelContainer.new()
-	preview_frame.custom_minimum_size = Vector2(104, 88)
+	preview_frame.custom_minimum_size = Vector2(88, 74)
 	var preview_style := Style.box(Color("#0b1830"), 12, Style.gold_dark, 1, 4.0)
 	preview_frame.add_theme_stylebox_override("panel", preview_style)
 	var preview := TextureRect.new()
@@ -320,64 +326,68 @@ func _show_detail() -> void:
 	preview.expand_mode = TextureRect.EXPAND_IGNORE_SIZE
 	preview.stretch_mode = TextureRect.STRETCH_KEEP_ASPECT_CENTERED
 	preview.texture_filter = CanvasItem.TEXTURE_FILTER_NEAREST
-	preview.custom_minimum_size = Vector2(96, 80)
+	preview.custom_minimum_size = Vector2(80, 66)
 	if not unlocked:
 		preview.modulate = Color(0.65, 0.70, 0.76, 1.0)
 	preview_frame.add_child(preview)
 	header.add_child(preview_frame)
-	var heading := Ui.column(3)
+	var heading := Ui.column(2)
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(heading)
-	heading.add_child(Ui.title(String(weapon["name"]), 27))
-	heading.add_child(Ui.label("در دسترس" if unlocked else "هنوز باز نشده", 16,
+	heading.add_child(Ui.title(String(weapon["name"]), 25))
+	heading.add_child(Ui.label("در دسترس" if unlocked else "هنوز باز نشده", 15,
 		Style.good if unlocked else Style.gold))
-	var close := Ui.button("×", 24, 40.0, "ghost")
+	var close := Ui.button("×", 22, 38.0, "ghost")
 	close.custom_minimum_size.x = 42
 	close.pressed.connect(_close_detail)
 	header.add_child(close)
 	_detail.add_child(Ui.hline())
-	var desc := Ui.label(String(weapon.get("desc", "")), 18, Style.text_dim)
+	var desc := Ui.label(String(weapon.get("desc", "")), 16, Style.text_dim)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
-	var stats := Ui.panel(Style.bg_panel_light, 12, 14.0)
+	var stats := Ui.panel(Style.bg_panel_light, 12, 10.0)
 	_detail.add_child(stats)
-	var lines := Ui.column(7)
+	var lines := Ui.column(4)
 	stats.add_child(lines)
-	lines.add_child(Ui.label("آسیب: %s       برد: %s" % [Ui.fa(round(float(weapon["damage"]))),
-		Ui.fa(round(float(weapon["range"])))], 18, Style.text))
-	lines.add_child(Ui.label("فاصلهٔ شلیک: %s ثانیه" % Ui.fa_decimal(float(weapon["cooldown"]), 2), 18, Style.text))
-	lines.add_child(Ui.label("هزینهٔ ساخت در نبرد: %s سکه" % Ui.fa(int(weapon["cost"])), 18, Style.gold))
+	var eff_dmg := float(weapon["damage"]) * Game.weapon_damage_mult(id)
+	var eff_rng := float(weapon["range"]) * Game.weapon_range_mult(id)
+	var eff_cd := float(weapon["cooldown"]) * Game.weapon_interval_mult(id)
+	var eff_dmg_str := Ui.fa(round(eff_dmg)) if is_equal_approx(eff_dmg, round(eff_dmg)) else Ui.fa_decimal(eff_dmg, 1)
+	lines.add_child(Ui.label("آسیب: %s       برد: %s" % [eff_dmg_str,
+		Ui.fa(round(eff_rng))], 16, Style.text))
+	lines.add_child(Ui.label("فاصلهٔ شلیک: %s ثانیه" % Ui.fa_decimal(eff_cd, 2), 16, Style.text))
+	lines.add_child(Ui.label("هزینهٔ ساخت در نبرد: %s سکه" % Ui.fa(int(weapon["cost"])), 16, Style.gold))
 	_detail.add_child(Ui.hline())
 	if unlocked:
 		var level := Game.weapon_level(id)
 		_detail.add_child(Ui.label("سطح زرادخانه: %s از %s" % [Ui.fa(level),
-			Ui.fa(Balance.ARMORY_MAX_LEVEL)], 18, Style.accent))
+			Ui.fa(Balance.ARMORY_MAX_LEVEL)], 17, Style.accent))
 		var bar := ProgressBar.new()
 		bar.max_value = Balance.ARMORY_MAX_LEVEL
 		bar.value = level
 		bar.show_percentage = false
-		bar.custom_minimum_size.y = 12
+		bar.custom_minimum_size.y = 10
 		_detail.add_child(bar)
 		if Game.can_upgrade_weapon(id):
 			_detail.add_child(_upgrade_preview(weapon, level))
 			var cost := Game.weapon_upgrade_cost(id)
 			var upgrade := Ui.button("ارتقا به سطح %s — %s ستاره" % [Ui.fa(level + 1), Ui.fa(cost)],
-				19, 52.0, "primary")
+				18, 48.0, "primary")
 			upgrade.disabled = Game.stars < cost
 			upgrade.pressed.connect(_upgrade.bind(id))
 			_detail.add_child(upgrade)
 		else:
-			_detail.add_child(Ui.label("به بالاترین سطح رسیده است", 19, Style.good, HORIZONTAL_ALIGNMENT_CENTER))
+			_detail.add_child(Ui.label("به بالاترین سطح رسیده است", 18, Style.good, HORIZONTAL_ALIGNMENT_CENTER))
 	else:
 		var cost := int(weapon["star_cost"])
-		var unlock := Ui.button("خرید سلاح — %s ستاره" % Ui.fa(cost), 19, 52.0, "primary")
+		var unlock := Ui.button("خرید سلاح — %s ستاره" % Ui.fa(cost), 18, 48.0, "primary")
 		unlock.disabled = Game.stars < cost
 		unlock.pressed.connect(_unlock.bind(id))
 		_detail.add_child(unlock)
 	if (not unlocked) or (unlocked and Game.can_upgrade_weapon(id)):
 		var cost := Game.weapon_upgrade_cost(id) if unlocked else int(weapon["star_cost"])
 		if Game.stars < cost:
-			_detail.add_child(Ui.label("ستارهٔ کافی ندارید", 16, Style.bad, HORIZONTAL_ALIGNMENT_CENTER))
+			_detail.add_child(Ui.label("ستارهٔ کافی ندارید", 15, Style.bad, HORIZONTAL_ALIGNMENT_CENTER))
 
 
 func _show_prestige_detail() -> void:
@@ -385,52 +395,52 @@ func _show_prestige_detail() -> void:
 	var max_lvl := Balance.PRESTIGE_MAX_LEVEL
 	var header := Ui.row(12)
 	_detail.add_child(header)
-	header.add_child(Ui.tex("icons/prestige_boost", 72))
-	var heading := Ui.column(3)
+	header.add_child(Ui.tex("icons/prestige_boost", 64))
+	var heading := Ui.column(2)
 	heading.size_flags_horizontal = Control.SIZE_EXPAND_FILL
 	header.add_child(heading)
-	heading.add_child(Ui.title("افزایش اعتبار (PRESTIGE BOOST)", 25))
-	heading.add_child(Ui.label("پاداش دائم شروع نبرد در تمام نقشه‌ها", 16, Style.good))
-	var close := Ui.button("×", 24, 40.0, "ghost")
+	heading.add_child(Ui.title("افزایش اعتبار (PRESTIGE BOOST)", 23))
+	heading.add_child(Ui.label("پاداش دائم شروع نبرد در تمام نقشه‌ها", 15, Style.good))
+	var close := Ui.button("×", 22, 38.0, "ghost")
 	close.custom_minimum_size.x = 42
 	close.pressed.connect(_close_detail)
 	header.add_child(close)
 	_detail.add_child(Ui.hline())
-	var desc := Ui.label("با هر سطح ارتقای این آیتم، ۱۰ سکه به سکه‌های اولیهٔ شروع بازی در ابتدای هر نقشه اضافه می‌شود.", 18, Style.text_dim)
+	var desc := Ui.label("با هر سطح ارتقای این آیتم، ۱۰ سکه به سکه‌های اولیهٔ شروع بازی در ابتدای هر نقشه اضافه می‌شود.", 16, Style.text_dim)
 	desc.autowrap_mode = TextServer.AUTOWRAP_WORD_SMART
 	_detail.add_child(desc)
-	var stats := Ui.panel(Style.bg_panel_light, 12, 14.0)
+	var stats := Ui.panel(Style.bg_panel_light, 12, 10.0)
 	_detail.add_child(stats)
-	var lines := Ui.column(7)
+	var lines := Ui.column(4)
 	stats.add_child(lines)
-	lines.add_child(Ui.label("بونوس فعلی: +%s سکهٔ شروع نبرد" % Ui.fa(Game.prestige_starting_coins()), 18, Style.good))
-	lines.add_child(Ui.label("سکهٔ شروع هر نقشه: %s سکه" % Ui.fa(Balance.START_COINS + Game.prestige_starting_coins()), 18, Style.gold))
+	lines.add_child(Ui.label("بونوس فعلی: +%s سکهٔ شروع نبرد" % Ui.fa(Game.prestige_starting_coins()), 16, Style.good))
+	lines.add_child(Ui.label("سکهٔ شروع هر نقشه: %s سکه" % Ui.fa(Balance.START_COINS + Game.prestige_starting_coins()), 16, Style.gold))
 	_detail.add_child(Ui.hline())
-	_detail.add_child(Ui.label("سطح فعلی: %s از %s" % [Ui.fa(lvl), Ui.fa(max_lvl)], 18, Style.accent))
+	_detail.add_child(Ui.label("سطح فعلی: %s از %s" % [Ui.fa(lvl), Ui.fa(max_lvl)], 17, Style.accent))
 	var bar := ProgressBar.new()
 	bar.max_value = max_lvl
 	bar.value = lvl
 	bar.show_percentage = false
-	bar.custom_minimum_size.y = 12
+	bar.custom_minimum_size.y = 10
 	_detail.add_child(bar)
 	if Game.can_upgrade_prestige():
-		var box := Ui.panel(Style.bg_panel_light, 12, 12.0)
-		box.add_theme_stylebox_override("panel", Style.box(Style.bg_panel_light, 12, Style.good, 1, 12.0))
-		var p_lines := Ui.column(6)
+		var box := Ui.panel(Style.bg_panel_light, 12, 10.0)
+		box.add_theme_stylebox_override("panel", Style.box(Style.bg_panel_light, 12, Style.good, 1, 10.0))
+		var p_lines := Ui.column(4)
 		box.add_child(p_lines)
-		p_lines.add_child(Ui.label("با ارتقا به سطح %s:" % Ui.fa(lvl + 1), 17, Style.accent))
+		p_lines.add_child(Ui.label("با ارتقا به سطح %s:" % Ui.fa(lvl + 1), 16, Style.accent))
 		p_lines.add_child(_upgrade_row("سکهٔ شروع هر نقشه", "+%s" % Ui.fa(Balance.PRESTIGE_COINS_PER_LEVEL)))
 		_detail.add_child(box)
 		var cost := Game.prestige_upgrade_cost()
 		var up_btn := Ui.button("ارتقا به سطح %s — %s ستاره" % [Ui.fa(lvl + 1), Ui.fa(cost)],
-			19, 52.0, "primary")
+			18, 48.0, "primary")
 		up_btn.disabled = Game.stars < cost
 		up_btn.pressed.connect(_upgrade_prestige_item)
 		_detail.add_child(up_btn)
 		if Game.stars < cost:
-			_detail.add_child(Ui.label("ستارهٔ کافی ندارید", 16, Style.bad, HORIZONTAL_ALIGNMENT_CENTER))
+			_detail.add_child(Ui.label("ستارهٔ کافی ندارید", 15, Style.bad, HORIZONTAL_ALIGNMENT_CENTER))
 	else:
-		_detail.add_child(Ui.label("به بالاترین سطح رسیده است", 19, Style.good, HORIZONTAL_ALIGNMENT_CENTER))
+		_detail.add_child(Ui.label("به بالاترین سطح رسیده است", 18, Style.good, HORIZONTAL_ALIGNMENT_CENTER))
 
 
 func _upgrade_prestige_item() -> void:
@@ -445,11 +455,11 @@ func _upgrade_prestige_item() -> void:
 ## پیش‌نمایش ارتقا: هر فاکتور و مقدار افزایشش با یک سطح بالاتر.
 func _upgrade_preview(weapon: Dictionary, level: int) -> Control:
 	var step := Balance.ARMORY_STEP
-	var box := Ui.panel(Style.bg_panel_light, 12, 12.0)
-	box.add_theme_stylebox_override("panel", Style.box(Style.bg_panel_light, 12, Style.good, 1, 12.0))
-	var lines := Ui.column(6)
+	var box := Ui.panel(Style.bg_panel_light, 12, 10.0)
+	box.add_theme_stylebox_override("panel", Style.box(Style.bg_panel_light, 12, Style.good, 1, 10.0))
+	var lines := Ui.column(4)
 	box.add_child(lines)
-	lines.add_child(Ui.label("با ارتقا به سطح %s:" % Ui.fa(level + 1), 17, Style.accent))
+	lines.add_child(Ui.label("با ارتقا به سطح %s:" % Ui.fa(level + 1), 16, Style.accent))
 	lines.add_child(_upgrade_row("قدرت شلیک", "+" + Ui.fa_decimal(float(weapon["damage"]) * step, 2)))
 	lines.add_child(_upgrade_row("برد", "+" + Ui.fa_decimal(float(weapon["range"]) * step, 1)))
 	lines.add_child(_upgrade_row("سرعت شلیک", "+" + Ui.fa_decimal(step * 100.0, 1) + "٪"))
@@ -458,8 +468,8 @@ func _upgrade_preview(weapon: Dictionary, level: int) -> Control:
 func _upgrade_row(title: String, delta: String) -> Control:
 	var row := Ui.row(8)
 	row.add_child(Ui.spacer())
-	row.add_child(Ui.label(title, 17, Style.text))
-	row.add_child(Ui.label(delta, 17, Style.good))
+	row.add_child(Ui.label(title, 16, Style.text))
+	row.add_child(Ui.label(delta, 16, Style.good))
 	return row
 
 func _upgrade(id: String) -> void:

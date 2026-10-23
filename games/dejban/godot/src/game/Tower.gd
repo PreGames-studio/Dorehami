@@ -373,10 +373,19 @@ func _show_flash() -> void:
 	_flash_time = _flash_duration
 
 func _draw() -> void:
-	# تصویر برجک ایزومتریک سایهٔ خودش را دارد؛ اینجا فقط دایرهٔ برد برجک انتخاب‌شده کشیده می‌شود.
+	# نشان سطح ارتقا زیر پایهٔ برجک تا برجک‌های ارتقایافته در میدان هم قابل تشخیص باشند.
+	if level > 1:
+		var count: int = level
+		var step := 10.5
+		var start_x := -0.5 * step * float(count - 1)
+		for i in count:
+			var c := Vector2(start_x + float(i) * step, 11.0)
+			draw_circle(c, 4.4, Color(0.06, 0.08, 0.10, 0.90))
+			draw_circle(c, 2.9, Color(1.0, 0.82, 0.24, 1.0))
 	if not selected:
 		return
 	var reach := attack_range()
+	draw_arc(Vector2(0.0, -4.0), 31.0, 0.0, TAU, 36, Color(1.0, 0.84, 0.32, 0.90), 2.5, true)
 	draw_circle(Vector2.ZERO, reach, Color(0.35, 0.75, 0.85, 0.10))
 	draw_arc(Vector2.ZERO, reach, 0.0, TAU, 48, Color(0.45, 0.85, 0.95, 0.75), 2.0, true)
 	if _ring > 0.0:

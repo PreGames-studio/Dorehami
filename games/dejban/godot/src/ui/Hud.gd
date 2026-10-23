@@ -158,7 +158,9 @@ func _build_weapon_bar() -> void:
 	_weapon_bar.size_flags_vertical = Control.SIZE_SHRINK_CENTER
 	scroll.add_child(_weapon_bar)
 
-	_hint_label = Ui.label("", 16, Style.text_dim, HORIZONTAL_ALIGNMENT_LEFT)
+	_hint_label = Ui.label("", 16, Style.text, HORIZONTAL_ALIGNMENT_LEFT)
+	_hint_label.add_theme_color_override("font_outline_color", Color(0.04, 0.06, 0.08, 0.92))
+	_hint_label.add_theme_constant_override("outline_size", 5)
 	_hint_label.mouse_filter = Control.MOUSE_FILTER_IGNORE
 	_anchor(_hint_label, Control.PRESET_BOTTOM_LEFT)
 	_hint_label.offset_left = 16
@@ -202,6 +204,13 @@ func is_over_weapon_bar(world: Vector2) -> bool:
 		return false
 	return _weapon_panel.get_global_rect().has_point(world)
 
+func is_over_ui(world: Vector2) -> bool:
+	if is_over_weapon_bar(world):
+		return true
+	if _tower_panel != null and _tower_panel.visible and _tower_panel.get_global_rect().has_point(world):
+		return true
+	return false
+
 ## پنل برجک انتخاب‌شده: سمت راست، درست زیر نوار بالا. عرضش ثابت است و فقط رو به پایین (و اگر
 ## لازم شد رو به چپ) بزرگ می‌شود تا دکمه‌های «ارتقا» و «فروش» همیشه داخل صفحه بمانند. پیش‌تر
 ## وسطِ لبهٔ راست بود و با متن چندخطی، دکمه‌ها از پایین صفحه بیرون می‌زدند و ارتقا ممکن نبود.
@@ -210,7 +219,7 @@ const TOWER_PANEL_TOP := 70.0
 
 func _build_tower_panel() -> void:
 	_tower_panel = Ui.panel(Color(Style.bg_panel.r, Style.bg_panel.g, Style.bg_panel.b, 0.95), 16, 14.0)
-	_tower_panel.mouse_filter = Control.MOUSE_FILTER_IGNORE
+	_tower_panel.mouse_filter = Control.MOUSE_FILTER_STOP
 	_anchor(_tower_panel, Control.PRESET_TOP_RIGHT)
 	_tower_panel.grow_horizontal = Control.GROW_DIRECTION_BEGIN
 	_tower_panel.grow_vertical = Control.GROW_DIRECTION_END
@@ -435,11 +444,11 @@ func refresh() -> void:
 	_countdown_label.visible = not _countdown_label.text.is_empty()
 
 	if not battle.selected_weapon.is_empty():
-		_hint_label.text = "برجک را بگیر، تا جای مجاز بکش و رها کن · برای لغو، روی همین دکمه بزن"
+		_hint_label.text = "برای کاشت برجک را بکش و رها کن · برای ارتقا روی برجک کاشته‌شده بزن"
 	elif battle.selected_tower != null and is_instance_valid(battle.selected_tower):
-		_hint_label.text = "میان‌بر: U ارتقا · S فروش"
+		_hint_label.text = "از پنل راست برجک را ارتقا بده یا بفروش"
 	else:
-		_hint_label.text = "برای ساخت، یک برجک را از نوار پایین بگیر و در نقشه رها کن"
+		_hint_label.text = "برای ساخت از نوار پایین بکش · برای ارتقا روی برجک کاشته‌شده بزن"
 
 	for id in _weapon_buttons.keys():
 		var button: Button = _weapon_buttons[id]
@@ -584,14 +593,15 @@ func _on_weapon_button_down(id: String, button: Control) -> void:
 func _on_weapon_button_gui_input(event: InputEvent, id: String, button: Control) -> void:
 	if battle == null or not is_instance_valid(battle):
 		return
-	if event is InputEventScreenTouch:
+	var emulate_mouse := bool(ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", false))
+	if not emulate_mouse and event is InputEventScreenTouch:
 		var screen_pos: Vector2 = button.get_global_transform_with_canvas() * event.position
 		var world: Vector2 = battle.get_canvas_transform().affine_inverse() * screen_pos
 		if event.pressed:
 			battle.begin_weapon_drag(id, world)
 		else:
 			battle._finish_drag(world)
-	elif event is InputEventScreenDrag:
+	elif not emulate_mouse and event is InputEventScreenDrag:
 		var screen_pos: Vector2 = button.get_global_transform_with_canvas() * event.position
 		var world: Vector2 = battle.get_canvas_transform().affine_inverse() * screen_pos
 		if battle.selected_weapon != id or not battle._drag_active:

@@ -73,4 +73,14 @@ tasks.configureEach {
 dependencies {
     implementation(libs.androidx.fragment)
     implementation(libs.godot.android)
+
+    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

@@ -270,18 +270,19 @@ func _smoke_scenes() -> void:
 			instance._finish_drag(road_pt)
 			check(instance.towers.size() == 1, "نباید اجازهٔ رهاکردن برجک داخل محدودهٔ جاده داده شود")
 
-			# لمس روی برجک موجود در حالت آماده نباید سلاح را پاک کند یا کاشت کند
+			# لمس ساده روی برجک موجود (حتی وقتی سلاح آماده است) باید همان برجک را انتخاب و پنل ارتقا را باز کند
 			var armed_id: String = instance.selected_weapon
+			var first_tower = instance.towers[0]
 			instance.coins = 500
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
-			check(instance.selected_tower == null and instance.selected_weapon == armed_id,
-				"لمس روی برجک موجود نباید سلاح آماده را پاک کند یا برجک را انتخاب کند")
-			check(instance.towers.size() == 1, "کاشت روی برجک موجود مجاز نیست")
-			# لمس ساده در جای آزاد کاشت نمی‌کند
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -24.0))
+			instance._handle_build_press(false, built_pos + Vector2(0.0, -24.0))
+			check(instance.selected_tower == first_tower and instance.selected_weapon.is_empty() and instance.hud._tower_panel.visible,
+				"لمس ساده روی برجک کاشته‌شده باید همان برجک را انتخاب و پنل ارتقا را باز کند")
+			check(instance.towers.size() == 1, "لمس روی برجک موجود نباید برجک تازه بکارد")
+			# لمس روی فضای آزاد هنگامی که پنل برجک باز است باید انتخاب برجک را ببندد
 			var free_pt := Vector2.ZERO
 			for y in range(120, 620, 40):
-				for x in range(160, 1120, 40):
+				for x in range(160, 920, 40):
 					var pt := Vector2(x, y)
 					if pt.distance_to(built_pos) > 120.0 and instance.map.build_issue(pt, instance.occupied).is_empty() and instance.map.build_issue(pt + Vector2(30.0, 0.0), instance.occupied).is_empty():
 						free_pt = pt
@@ -289,6 +290,12 @@ func _smoke_scenes() -> void:
 				if free_pt != Vector2.ZERO:
 					break
 			check(free_pt != Vector2.ZERO, "جای آزاد برای آزمون کاشت پیدا نشد")
+			instance._handle_build_press(true, free_pt)
+			instance._handle_build_press(false, free_pt)
+			check(instance.selected_tower == null and not instance.hud._tower_panel.visible,
+				"لمس فضای خالی باید پنل برجک انتخاب‌شده را ببندد")
+			# لمس ساده در جای آزاد هنگام آماده بودن سلاح، کاشت نمی‌کند
+			instance.selected_weapon = armed_id
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt)
 			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید برجک بکارد")
@@ -302,10 +309,10 @@ func _smoke_scenes() -> void:
 			instance._finish_drag(bar_center)
 			check(instance.selected_weapon.is_empty(), "رهاکردن روی دکمهٔ آمادهٔ نوار باید کاشت را لغو کند")
 			instance.selected_weapon = armed_id
-			# گرفتن و کشیدن برجک، حتی وقتی سلاح آماده است، همان را انتخاب می‌کند و آمادگی را لغو می‌کند
+			# کشیدن روی برجک کاشته‌شده هم همچنان همان برجک را انتخاب می‌کند
 			var tower = instance.towers[0]
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(40.0, -14.0))
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -24.0))
+			instance._handle_build_press(false, built_pos + Vector2(40.0, -24.0))
 			check(instance.selected_tower == tower and instance.selected_weapon.is_empty(), "گرفتن و کشیدن برجک باید آن را انتخاب کند")
 			# ارتقا از همان مسیر واقعی انتخاب (برجک انتخاب‌شده) انجام می‌شود
 			var level_before: int = tower.level
@@ -313,12 +320,14 @@ func _smoke_scenes() -> void:
 			instance.upgrade_selected()
 			check(tower.level == level_before + 1 and instance.coins == 500 - int(tower.weapon["cost"]),
 				"ارتقای برجک انتخاب‌شده باید سطح و سکه را تغییر دهد")
-			# لمس ساده روی برجک، بدون سلاح آماده، آن را انتخاب نمی‌کند
+			# لمس ساده روی برجک بدون سلاح آماده نیز آن را انتخاب می‌کند
 			instance.select_tower(null)
 			instance.selected_weapon = ""
-			instance._handle_build_press(true, built_pos + Vector2(0.0, -14.0))
-			instance._handle_build_press(false, built_pos + Vector2(0.0, -14.0))
-			check(instance.selected_tower == null, "لمس ساده روی برجک نباید آن را انتخاب کند")
+			instance._handle_build_press(true, built_pos + Vector2(0.0, -24.0))
+			instance._handle_build_press(false, built_pos + Vector2(0.0, -24.0))
+			check(instance.selected_tower == tower and instance.hud._tower_panel.visible,
+				"لمس ساده روی برجک بدون سلاح آماده باید پنل ارتقا را باز کند")
+			instance.select_tower(null)
 			instance.selected_weapon = armed_id
 			# بررسی نمایش کارت شکست هنگام تمام‌شدن جان دژ و کارت پیروزی پس از دفع ۳۰ موج
 			var saved_best := Game.best.duplicate(true)
@@ -1309,11 +1318,13 @@ func _touch_drag(from: Vector2, to: Vector2, steps := 4) -> void:
 		await get_tree().process_frame
 	await _touch(to, false)
 
-## انتخاب برجک و دکمه‌های ارتقا/فروش از همان مسیر رویدادهای لمسی گوشی (نه صدا زدن مستقیم توابع).
-## پیش‌تر پنل برجک از پایین صفحه بیرون می‌زد و دکمهٔ «ارتقا» روی گوشی در دسترس نبود؛ این آزمون
-## برای هر برجک و هر سطح بررسی می‌کند که پنل و هر دو دکمه کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ باشند.
+## انتخاب برجک و دکمه‌های ارتقا/فروش در نبرد و زرادخانه از همان مسیر رویدادهای لمسی گوشی
+## (نه صدا زدن مستقیم توابع). لمس ساده و کشیدن روی برجک هر دو پنل را باز می‌کنند، پنل و
+## دکمه‌ها کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ می‌مانند، و لمس داخل پنل به میدان پشتش نشت نمی‌کند.
 func _test_touch_upgrade_flow() -> void:
 	var saved_unlocked: Array = Game.unlocked_weapons.duplicate()
+	var saved_levels: Dictionary = Game.weapon_levels.duplicate(true)
+	var saved_stars: int = Game.stars
 	Game.unlocked_weapons = Weapons.ids().duplicate()
 	var battle = load("res://scenes/Battle.tscn").instantiate()
 	add_child(battle)
@@ -1337,18 +1348,36 @@ func _test_touch_upgrade_flow() -> void:
 		if battle.towers.size() == built_before:
 			continue
 		var tower = battle.towers[-1]
-		battle._cancel_build_preview()
+		var grip: Vector2 = tower.position + Vector2(0.0, -24.0)
+		# ۱) حالت پیش‌فرض بازی: سلاح در نوار پایین آماده است و بازیکن مستقیم روی برجک می‌زند
+		battle.selected_weapon = String(id)
 		await get_tree().process_frame
-		var grip: Vector2 = tower.position + Vector2(0.0, -30.0)
-		# لمس ساده (بدون کشیدن) برجک را انتخاب نمی‌کند؛ انتخاب فقط با گرفتن و کشیدن است.
 		await _touch(grip, true)
 		await _touch(grip, false)
-		check(battle.selected_tower == null, "لمس سادهٔ برجک %s نباید آن را انتخاب کند" % id)
+		check(battle.selected_tower == tower and hud._tower_panel.visible and battle.selected_weapon.is_empty(),
+			"لمس سادهٔ برجک %s هنگام آماده بودن سلاح باید پنل ارتقا را باز کند" % id)
+		# ۲) بستن پنل با لمس فضای خالی و باز کردن دوباره با لمس ساده بدون سلاح آماده
+		await _touch(Vector2(620.0, 60.0), true)
+		await _touch(Vector2(620.0, 60.0), false)
+		check(battle.selected_tower == null and not hud._tower_panel.visible,
+			"لمس فضای خالی باید پنل برجک %s را ببندد" % id)
+		await _touch(grip, true)
+		await _touch(grip, false)
+		check(battle.selected_tower == tower and hud._tower_panel.visible,
+			"لمس سادهٔ برجک %s بدون سلاح آماده باید پنل ارتقا را باز کند" % id)
+		# ۳) کشیدن روی برجک نیز آن را انتخاب می‌کند
+		battle.select_tower(null)
 		await _touch_drag(grip, grip + Vector2(36.0, 0.0))
 		check(battle.selected_tower == tower and hud._tower_panel.visible,
-			"گرفتن و کشیدن برجک %s با لمس باید پنل ارتقا را باز کند" % id)
+			"کشیدن برجک %s با لمس نیز باید پنل ارتقا را باز کند" % id)
 		if battle.selected_tower != tower:
 			continue
+		# ۴) لمس ناحیهٔ خالی داخل پنل برجک نباید پنل را ببندد
+		var panel_top: Vector2 = hud._tower_panel.get_global_rect().position + Vector2(40.0, 24.0)
+		await _touch(panel_top, true)
+		await _touch(panel_top, false)
+		check(battle.selected_tower == tower and hud._tower_panel.visible,
+			"لمس داخل پنل برجک %s نباید پنل را ببندد" % id)
 		for step in range(1, Balance.MAX_LEVEL):
 			await get_tree().process_frame
 			var panel_rect: Rect2 = hud._tower_panel.get_global_rect()
@@ -1383,4 +1412,46 @@ func _test_touch_upgrade_flow() -> void:
 			"زدن دکمهٔ فروش با لمس باید برجک %s را بفروشد و پنل را ببندد" % id)
 	battle.queue_free()
 	await get_tree().process_frame
+
+	# ۵) بررسی لمس و جاشدن کامل پنجرهٔ ارتقای زرادخانه (اسلحه‌ها) در صفحهٔ ۱۲۸۰×۷۲۰
+	Game.weapon_levels = {}
+	Game.stars = 50
+	var armory = load("res://scenes/Armory.tscn").instantiate()
+	add_child(armory)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	for idx in range(Weapons.count()):
+		var wid := String(Weapons.LIST[idx]["id"])
+		var card: Button = armory._list.get_child(idx + 1)
+		card.pressed.emit()
+		await get_tree().process_frame
+		await get_tree().process_frame
+		var armory_panel_rect: Rect2 = armory._panel.get_global_rect()
+		var armory_up_btn := _find_button_prefix(armory._detail, "ارتقا به سطح")
+		check(armory_up_btn != null, "دکمهٔ ارتقای زرادخانه برای %s ساخته نشد" % wid)
+		if armory_up_btn != null:
+			var armory_btn_rect: Rect2 = armory_up_btn.get_global_rect()
+			print("  armory %s: panel=%s up=%s" % [wid, armory_panel_rect, armory_btn_rect])
+			check(screen.encloses(armory_panel_rect) and screen.encloses(armory_btn_rect),
+				"پنجره و دکمهٔ ارتقای زرادخانه برای %s باید کامل داخل صفحهٔ ۱۲۸۰×۷۲۰ باشند: پنل %s دکمه %s"
+				% [wid, armory_panel_rect, armory_btn_rect])
+			await _touch(armory_btn_rect.get_center(), true)
+			await _touch(armory_btn_rect.get_center(), false)
+			check(Game.weapon_level(wid) == 1, "زدن دکمهٔ ارتقای زرادخانه با لمس باید سطح %s را به ۱ برساند" % wid)
+		armory._close_detail()
+	armory.queue_free()
+	await get_tree().process_frame
+
 	Game.unlocked_weapons = saved_unlocked
+	Game.weapon_levels = saved_levels
+	Game.stars = saved_stars
+	Game.save()
+
+func _find_button_prefix(node: Node, prefix: String) -> Button:
+	if node is Button and (node as Button).text.begins_with(prefix):
+		return node as Button
+	for child in node.get_children():
+		var found := _find_button_prefix(child, prefix)
+		if found != null:
+			return found
+	return null
