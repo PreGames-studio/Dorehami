@@ -110,6 +110,8 @@ func _ready() -> void:
 	_test_confirm_dialog()
 	print("— ساخت صحنه‌ها…")
 	await _smoke_scenes()
+	print("— بررسی انتخاب و ارتقای برجک با لمس واقعی…")
+	await _test_touch_upgrade_flow()
 	_report()
 
 ## هر صحنه را می‌سازد، دو فریم زنده نگه می‌دارد و آزاد می‌کند.
@@ -1312,3 +1314,90 @@ func _test_tank() -> void:
 	for step in 20:
 		tank._process(0.05)
 	check(tank.is_queued_for_deletion(), "لاشهٔ تانک باید پس از محو شدن آزاد شود")
+
+
+# ------------------------------------------------------------------ لمس واقعی گوشی
+
+## یک رویداد لمس مثل اندروید؛ Godot از آن کلیک موس هم می‌سازد (emulate_mouse_from_touch).
+func _touch(pos: Vector2, pressed: bool) -> void:
+	var ev := InputEventScreenTouch.new()
+	ev.index = 0
+	ev.pressed = pressed
+	ev.position = get_viewport().get_final_transform() * pos
+	Input.parse_input_event(ev)
+	await get_tree().process_frame
+	await get_tree().process_frame
+
+func _touch_drag(from: Vector2, to: Vector2, steps := 4) -> void:
+	await _touch(from, true)
+	var last := from
+	for i in range(1, steps + 1):
+		var p := from.lerp(to, float(i) / float(steps))
+		var ev := InputEventScreenDrag.new()
+		ev.index = 0
+		ev.position = get_viewport().get_final_transform() * p
+		ev.relative = p - last
+		last = p
+		Input.parse_input_event(ev)
+		await get_tree().process_frame
+	await _touch(to, false)
+
+## انتخاب برجک و زدن دکمهٔ ارتقا از همان مسیر رویدادهای لمسی گوشی (نه صدا زدن مستقیم توابع).
+func _test_touch_upgrade_flow() -> void:
+	var saved_unlocked: Array = Game.unlocked_weapons.duplicate()
+	Game.unlocked_weapons = Weapons.ids().duplicate()
+	var battle = load("res://scenes/Battle.tscn").instantiate()
+	add_child(battle)
+	await get_tree().process_frame
+	await get_tree().process_frame
+	battle.coins = 5000
+	print("  vp=%s final=%s" % [get_viewport().get_visible_rect().size, get_viewport().get_final_transform()])
+	for id in Weapons.ids():
+		var built_before: int = battle.towers.size()
+		for y in range(140, 560, 40):
+			for x in range(160, 1100, 40):
+				var pt := Vector2(x, y)
+				var far := true
+				for other in battle.towers:
+					if other.position.distance_to(pt) < 150.0:
+						far = false
+				if far and battle.map.build_issue(pt, battle.occupied).is_empty():
+					battle.selected_weapon = String(id)
+					battle._try_build(pt)
+					break
+			if battle.towers.size() > built_before:
+				break
+		check(battle.towers.size() == built_before + 1, "برجک %s برای آزمون لمس ساخته نشد" % id)
+		if battle.towers.size() == built_before:
+			continue
+		var tower = battle.towers[-1]
+		battle._cancel_build_preview()
+		await get_tree().process_frame
+		# ۱) لمس سادهٔ برجک (بدون کشیدن)
+		await _touch(tower.position + Vector2(0.0, -30.0), true)
+		var grabbed_on_press: bool = battle._grab_tower == tower
+		await _touch(tower.position + Vector2(0.0, -30.0), false)
+		var tap_selected: bool = battle.selected_tower == tower
+		# ۲) گرفتن و کشیدن روی برجک
+		battle.select_tower(null)
+		await _touch_drag(tower.position + Vector2(0.0, -30.0), tower.position + Vector2(36.0, -30.0))
+		var drag_selected: bool = battle.selected_tower == tower
+		await get_tree().process_frame
+		var button: Button = battle.hud._upgrade_button
+		var panel_ok: bool = battle.hud._tower_panel.visible
+		var rect: Rect2 = button.get_global_rect()
+		var level_before: int = tower.level
+		var coins_before: int = battle.coins
+		await _touch(rect.get_center(), true)
+		await _touch(rect.get_center(), false)
+		print("  %s: grab=%s tap_sel=%s drag_sel=%s panel=%s btn_dis=%s rect=%s lvl %d->%d coins %d->%d mouse=%s" % [
+			id, grabbed_on_press, tap_selected, drag_selected, panel_ok, button.disabled, rect,
+			level_before, tower.level, coins_before, battle.coins, Input.get_mouse_position()])
+		check(drag_selected and panel_ok, "گرفتن و کشیدن برجک %s با لمس باید پنل ارتقا را باز کند" % id)
+		check(tower.level == level_before + 1 and battle.coins == coins_before - tower.weapon["cost"],
+			"زدن دکمهٔ ارتقا با لمس باید برجک %s را یک سطح بالا ببرد" % id)
+		battle.select_tower(null)
+	battle.queue_free()
+	await get_tree().process_frame
+	Game.unlocked_weapons = saved_unlocked
+
