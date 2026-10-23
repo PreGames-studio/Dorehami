@@ -18,6 +18,13 @@ android {
             // The embedded Godot runtime ships a huge native library per ABI.
             // Ship only arm64-v8a (every modern phone) so the APK stays sane.
             abiFilters += "arm64-v8a"
+            // Device-check CI can build a separate emulator-compatible APK with
+            // -Pdorehami.additionalAndroidAbis=x86_64 without changing shipped/default APKs.
+            providers.gradleProperty("dorehami.additionalAndroidAbis").orNull
+                ?.split(',')
+                ?.map(String::trim)
+                ?.filter(String::isNotEmpty)
+                ?.forEach { abiFilters += it }
         }
     }
 

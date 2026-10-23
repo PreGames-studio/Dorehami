@@ -35,8 +35,16 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
-      - name: Build the debug APK
-        run: ./gradlew :app:assembleDebug --stacktrace
+      - name: Build an emulator-compatible debug APK
+        run: ./gradlew :app:assembleDebug -Pdorehami.additionalAndroidAbis=x86_64 --stacktrace
+
+      - name: Verify the emulator native library
+        run: |
+          apk=app/build/outputs/apk/debug/app-debug.apk
+          unzip -l "$apk" | grep 'lib/x86_64/libgodot_android.so' || {
+            echo '::error::x86_64 Godot native library missing from emulator APK'
+            exit 1
+          }
 
       - name: Enable KVM
         run: |
