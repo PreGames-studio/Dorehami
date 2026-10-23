@@ -96,6 +96,8 @@ func _ready() -> void:
 	_test_waves()
 	print("— بررسی تعادل…")
 	_test_balance()
+	print("— بررسی افزایش ثابت آسیب در زرادخانه…")
+	_test_armory_damage_upgrades()
 	print("— بررسی برد شلیک برجک…")
 	_test_tower_range()
 	print("— بررسی برجک‌های ایزومتریک…")
@@ -178,6 +180,7 @@ func _smoke_scenes() -> void:
 			if Game.can_upgrade_weapon(first_id):
 				check(_find_label(texts, "با ارتقا به سطح") >= 0, "پیش‌نمایش ارتقا در جزئیات سلاح نیست")
 				check(_find_label(texts, "قدرت شلیک") >= 0, "فاکتورهای ارتقا در جزئیات سلاح نیستند")
+				check(_find_label(texts, "+۱") >= 0, "پیش‌نمایش قدرت شلیک باید افزایش ثابت +۱ را نشان بدهد")
 				# فقط مقدار افزایش هر فاکتور (سبز و با نشان «+») باید بیاید.
 				var plus := 0
 				for text in texts:
@@ -756,6 +759,17 @@ func _test_unit_sheets() -> void:
 		check(sheet_enemy.active_anim() == String(case[1]),
 			"دشمن %s باید با انیمیشن %s بیاید، هست: %s" % [case[0], case[1], sheet_enemy.active_anim()])
 		check(sheet_enemy._sprite.hframes == UnitSheets.RUN_FRAMES, "شیت %s باید ۸ فریم داشته باشد" % case[0])
+		# نوار جان باید در لایهٔ بالای اسپرایت و کاملاً بالاتر از لبهٔ بالای سر باشد.
+		check(sheet_enemy._health_bar != null, "نوار جان جدا برای %s ساخته نشده است" % case[0])
+		if sheet_enemy._health_bar != null:
+			var sprite_top: float = sheet_enemy._sprite.offset.y * sheet_enemy.scale_mult
+			check(sheet_enemy._health_bar.z_index > sheet_enemy._sprite.z_index,
+				"نوار جان %s باید بعد از اسپرایت و روی آن رسم شود" % case[0])
+			check(sheet_enemy._health_bar.position.y + Enemy.BAR_HEIGHT < sprite_top,
+				"نوار جان %s باید کاملاً بالای سر باشد، نه پشت آن" % case[0])
+			sheet_enemy.take_damage(10.0)
+			check(is_equal_approx(sheet_enemy._health_bar.ratio, sheet_enemy.hp / sheet_enemy.max_hp),
+				"نوار جان %s پس از آسیب به‌روز نمی‌شود" % case[0])
 		# مرگ: شیت ۶ فریمی، فریم‌ها یکی‌یکی جلو می‌روند و آخرین فریم می‌ماند
 		sheet_enemy._die()
 		check(sheet_enemy.is_dying(), "با مرگ باید حالت افتادن روشن شود")
@@ -987,6 +1001,28 @@ func _test_balance() -> void:
 	check(Balance.stars_for(25, 30, true) == 4, "نقشه‌های آخر باید ستارهٔ پیروزی هم بدهند")
 	check(Balance.enemy_hp_scale(20, 20) > Balance.enemy_hp_scale(0, 1), "مقیاس جان نقشه‌ها رشد نمی‌کند")
 	check(Fx.frames_for("explosion").get_frame_count("explosion") > 3, "فریم‌های انفجار ناقص است")
+
+## هر سطح زرادخانه باید دقیقاً یک واحد به آسیب پایه اضافه کند؛ برای مسلسل یعنی ۸ → ۹ → ۱۰.
+func _test_armory_damage_upgrades() -> void:
+	var profile := RunTestProfile.new()
+	profile._apply(profile.fresh_profile())
+	for weapon in Weapons.LIST:
+		var id := String(weapon["id"])
+		var base_damage := float(weapon["damage"])
+		profile.weapon_levels[id] = 0
+		check(is_equal_approx(base_damage * profile.weapon_damage_mult(id), base_damage),
+			"آسیب %s در سطح صفر زرادخانه باید همان آسیب پایه باشد" % id)
+		for level in range(1, Balance.ARMORY_MAX_LEVEL + 1):
+			profile.weapon_levels[id] = level
+			var effective_damage := base_damage * profile.weapon_damage_mult(id)
+			var expected_damage: float = base_damage + float(level) * Balance.ARMORY_DAMAGE_PER_LEVEL
+			check(is_equal_approx(effective_damage, expected_damage),
+				"آسیب %s در سطح %d باید %.2f باشد، هست %.2f" % [id, level, expected_damage, effective_damage])
+		profile.weapon_levels[id] = 1
+		check(is_equal_approx(profile.weapon_range_mult(id), 1.0 + Balance.ARMORY_STEP)
+			and is_equal_approx(profile.weapon_interval_mult(id), 1.0 / (1.0 + Balance.ARMORY_STEP)),
+			"تغییر آسیب %s نباید گام برد و سرعت شلیک را عوض کند" % id)
+	profile.free()
 
 ## قیمت و آسیب واقعی همهٔ برجک‌ها باید از همان قواعد ارتقای داخل نبرد پیروی کنند.
 func _test_battle_tower_upgrades() -> void:

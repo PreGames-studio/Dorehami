@@ -3,6 +3,26 @@
 class_name Enemy
 extends Node2D
 
+## نوار جان در گرهٔ جدا و بالاتر از اسپرایت رسم می‌شود تا زیر سر سرباز پنهان نماند.
+class HealthBar:
+	extends Node2D
+
+	const HEIGHT := 4.0
+	var ratio := 1.0
+	var bar_width := 30.0
+
+	func _draw() -> void:
+		if ratio >= 0.999:
+			return
+		draw_rect(Rect2(-bar_width * 0.5 - 1.0, -1.0, bar_width + 2.0, HEIGHT + 2.0),
+			Color(0.02, 0.05, 0.06, 0.72))
+		var color: Color = Style.good
+		if ratio < 0.28:
+			color = Style.bad
+		elif ratio < 0.6:
+			color = Style.gold
+		draw_rect(Rect2(-bar_width * 0.5, 0.0, bar_width * ratio, HEIGHT), color)
+
 signal died(enemy)
 signal reached_keep(enemy)
 ## دشمنی که کنار دژ می‌ایستد و به آن شلیک می‌کند (تانک IsoEnemy) با شلیک به دژ این سیگنال را می‌دهد.
@@ -12,6 +32,7 @@ signal finished_attack(enemy)
 
 const BAR_WIDTH := 30.0
 const BAR_HEIGHT := 4.0
+const HEALTH_BAR_GAP := 8.0
 
 ## Die-Animation: 6 frames at 8 fps, the last frame holds a moment,
 ## then the body fades out and frees itself.
@@ -44,6 +65,7 @@ var slow_factor := 0.0
 var slow_time := 0.0
 
 var _sprite: Sprite2D = null
+var _health_bar: HealthBar = null
 var _flash := 0.0
 var _bob := 0.0
 var _walk_phase := 0.0
@@ -114,6 +136,12 @@ func _setup_visual() -> void:
 	_sprite.scale = Vector2.ONE * scale_mult
 	add_child(_sprite)
 	_apply_sheet("run" if _uses_run else "walk")
+	_health_bar = HealthBar.new()
+	_health_bar.z_index = 1
+	_health_bar.bar_width = BAR_WIDTH * scale_mult
+	_health_bar.position.y = health_bar_top()
+	add_child(_health_bar)
+	_update_health_bar()
 	_update_transform(0.0)
 
 # ------------------------------------------------------------------ حرکت و انیمیشن چندفریمی نرم
@@ -127,6 +155,7 @@ func _process(delta: float) -> void:
 	_tick_effects(delta)
 	if not alive:
 		return
+	_update_health_bar()
 
 	var speed := base_speed * speed_mult * (1.0 - clampf(slow_factor, 0.0, 0.95))
 	progress += speed * delta
@@ -306,6 +335,17 @@ func _update_tint() -> void:
 		tint = tint.lerp(Color(2.0, 2.0, 2.0), _flash)
 	_sprite.modulate = tint
 
+## لبهٔ بالای شیت فعلی با کمی فاصله؛ کل نوار بالای سر قرار می‌گیرد، نه روی تصویر.
+func health_bar_top() -> float:
+	return (-_walk_frame_h * 0.52 - HEALTH_BAR_GAP) * scale_mult
+
+func _update_health_bar() -> void:
+	if _health_bar == null:
+		return
+	_health_bar.ratio = clampf(hp / max_hp, 0.0, 1.0) if max_hp > 0.0 else 0.0
+	_health_bar.visible = alive and max_hp > 0.0
+	_health_bar.queue_redraw()
+
 # ------------------------------------------------------------------ آسیب و اثر
 
 func take_damage(amount: float, pierce_armor := false) -> void:
@@ -319,6 +359,7 @@ func take_damage(amount: float, pierce_armor := false) -> void:
 	hp -= damage
 	_flash = 1.0
 	_hit_jolt = 1.0
+	_update_health_bar()
 	queue_redraw()
 	if hp <= 0.0:
 		_die()
@@ -327,6 +368,7 @@ func heal(amount: float) -> void:
 	if not alive:
 		return
 	hp = minf(max_hp, hp + amount)
+	_update_health_bar()
 	queue_redraw()
 
 func _damage_over_time(amount: float) -> void:
@@ -334,6 +376,7 @@ func _damage_over_time(amount: float) -> void:
 		return
 	hp -= amount
 	_flash = maxf(_flash, 0.5)
+	_update_health_bar()
 	queue_redraw()
 	if hp <= 0.0:
 		_die()
@@ -344,6 +387,7 @@ func _die() -> void:
 	alive = false
 	_dying = true
 	_death_t = 0.0
+	_update_health_bar()
 	# Death sheet of the direction it was walking; the body stays on the ground
 	# and frees itself once the animation and the fade are done.
 	_sheet_dir = UnitSheets.direction_name(_smooth_dir)
@@ -373,7 +417,7 @@ func has_trait(feature: String) -> bool:
 func crowd_radius() -> float:
 	return 16.0 * scale_mult
 
-# ------------------------------------------------------------------ نمایش سایه و نوار جان
+# -------------------------------------------------- نمایش سایه؛ نوار جان در HealthBar بالای اسپرایت است
 
 func _draw() -> void:
 	if not alive or max_hp <= 0.0:
@@ -383,16 +427,3 @@ func _draw() -> void:
 	draw_set_transform(Vector2(0.0, shadow_y), 0.0, Vector2(shadow_scale, 0.38 * shadow_scale))
 	draw_circle(Vector2.ZERO, 13.0 * scale_mult, Color(0, 0, 0, 0.30))
 	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
-
-	var ratio := clampf(hp / max_hp, 0.0, 1.0)
-	if ratio >= 0.999:
-		return
-	var width := BAR_WIDTH * scale_mult
-	var top := -24.0 * scale_mult
-	draw_rect(Rect2(-width * 0.5 - 1.0, top - 1.0, width + 2.0, BAR_HEIGHT + 2.0), Color(0.02, 0.05, 0.06, 0.72))
-	var color := Style.good
-	if ratio < 0.28:
-		color = Style.bad
-	elif ratio < 0.6:
-		color = Style.gold
-	draw_rect(Rect2(-width * 0.5, top, width * ratio, BAR_HEIGHT), color)

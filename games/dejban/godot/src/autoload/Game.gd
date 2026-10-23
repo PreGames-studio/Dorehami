@@ -238,9 +238,13 @@ func upgrade_prestige() -> bool:
 	changed.emit()
 	return true
 
-## ضریب‌های نبرد: آسیب و برد بزرگ‌تر می‌شوند و فاصلهٔ شلیک کوچک‌تر (شلیک تندتر).
+## ضریب آسیب زرادخانه: هر سطح دقیقاً ۱ واحد به آسیب پایهٔ سلاح اضافه می‌کند.
+## تقسیم بر آسیب پایه، این افزایش ثابت را برای مصرف‌کننده‌های فعلی به ضریب تبدیل می‌کند.
 func weapon_damage_mult(id: String) -> float:
-	return 1.0 + Balance.ARMORY_STEP * float(weapon_level(id))
+	var base_damage := float(Weapons.by_id(id).get("damage", 1.0))
+	return 1.0 + Balance.ARMORY_DAMAGE_PER_LEVEL * float(weapon_level(id)) / base_damage
+
+## برد بزرگ‌تر می‌شود و فاصلهٔ شلیک کوچک‌تر (شلیک تندتر).
 
 func weapon_range_mult(id: String) -> float:
 	return 1.0 + Balance.ARMORY_STEP * float(weapon_level(id))
