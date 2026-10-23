@@ -71,15 +71,30 @@ def nodes() -> list[tuple[str, str, tuple[int, int, int, int]]]:
     return out
 
 
-def tap_text(fragment: str, *, required: bool = True) -> bool:
-    for text, desc, (x1, y1, x2, y2) in nodes():
-        if fragment in text or fragment in desc:
-            if x2 - x1 < 4 or y2 - y1 < 4:
-                continue
-            x, y = (x1 + x2) // 2, (y1 + y2) // 2
-            log(f"tap «{fragment}» at ({x},{y}) — node text={text!r}")
-            sh("adb", "shell", "input", "tap", str(x), str(y))
-            return True
+def scroll_down() -> None:
+    """Scrolls a Compose verticalScroll container by using the current display dimensions."""
+    size = sh("adb", "shell", "wm", "size").stdout
+    match = re.search(r"(\d+)x(\d+)", size)
+    width, height = (int(match.group(1)), int(match.group(2))) if match else (1080, 1920)
+    x = width // 2
+    sh("adb", "shell", "input", "swipe", str(x), str(int(height * 0.76)), str(x), str(int(height * 0.34)), "450")
+    time.sleep(0.8)
+
+
+def tap_text(fragment: str, *, required: bool = True, scroll: bool = False) -> bool:
+    attempts = 5 if scroll else 1
+    for attempt in range(attempts):
+        for text, desc, (x1, y1, x2, y2) in nodes():
+            if fragment in text or fragment in desc:
+                if x2 - x1 < 4 or y2 - y1 < 4:
+                    continue
+                x, y = (x1 + x2) // 2, (y1 + y2) // 2
+                log(f"tap «{fragment}» at ({x},{y}) — node text={text!r}")
+                sh("adb", "shell", "input", "tap", str(x), str(y))
+                return True
+        if attempt + 1 < attempts:
+            log(f"scrolling to find «{fragment}»")
+            scroll_down()
     message = f"could not find «{fragment}» on screen"
     log(message)
     if required:
@@ -180,7 +195,7 @@ def main() -> int:
     step("03-chess-offline", lambda: tap_text("آفلاین"))
     step("04-chess-solo-setup", lambda: tap_text("بازی تکی"))
     # Level / colour defaults are exactly what a user gets when they just press the big button.
-    step("05-chess-board", lambda: tap_text("شروع بازی با ربات"), settle=6.0)
+    step("05-chess-board", lambda: tap_text("شروع بازی با ربات", scroll=True), settle=6.0)
 
     # Open the board's view control if the board came up.
     if alive() and not failures:
@@ -198,7 +213,7 @@ def main() -> int:
     if not failures and relaunch("chess store"):
         step("07-store-games", lambda: tap_text("ورود به بازی"))
         step("08-store-chess-menu", lambda: tap_text("شطرنج"))
-        step("09-chess-store", lambda: tap_text("فروشگاه شطرنج"))
+        step("09-chess-store", lambda: tap_text("فروشگاه شطرنج", scroll=True))
         if not failures:
             expect_text("موجودی کیف‌پول")
         step("10-store-back-to-chess", lambda: tap_text("بازگشت"))
@@ -212,7 +227,7 @@ def main() -> int:
         step("12-hokm-setup", lambda: tap_text("حکم"), settle=3.0)
         if not failures:
             expect_text("بازی اصیل ایرانی")
-        step("13-hokm-table", lambda: tap_text("شروع بازی با ربات‌ها"), settle=7.0)
+        step("13-hokm-table", lambda: tap_text("شروع بازی با ربات‌ها", scroll=True), settle=7.0)
         if alive() and not failures:
             log("✅ chess store navigation and Hokm setup/table stayed alive")
 
