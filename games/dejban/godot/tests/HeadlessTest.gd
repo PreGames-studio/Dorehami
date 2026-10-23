@@ -216,6 +216,15 @@ func _smoke_scenes() -> void:
 				"خط سازندگان در شناسنامهٔ تنظیمات نیست")
 			check(_find_label(texts, "ارتباط با ما : gf2227@gmail.com") >= 0,
 				"خط ارتباط با ما در شناسنامهٔ تنظیمات نیست")
+			var about_lbl := instance.find_child("AboutText", true, false) as Label
+			check(about_lbl != null and about_lbl.get_theme_font("font") == Style.font_latin and Style.font_latin != null,
+				"برچسب شناسنامه باید از فونت با ارقام انگلیسی (font_latin) استفاده کند تا gf2227@gmail.com انگلیسی دیده شود")
+			if about_lbl != null and Style.font_latin != null:
+				var ts := TextServerManager.get_primary_interface()
+				var rid: RID = Style.font_latin.get_rids()[0]
+				check(ts.font_get_glyph_index(rid, 17, "2".unicode_at(0), 0) != ts.font_get_glyph_index(rid, 17, "۲".unicode_at(0), 0)
+					and ts.font_get_glyph_index(rid, 17, "7".unicode_at(0), 0) != ts.font_get_glyph_index(rid, 17, "۷".unicode_at(0), 0),
+					"گلیف ارقام 2 و 7 در ایمیل تنظیمات نباید با گلیف فارسی ۲ و ۷ یکی باشد")
 			check(_find_label(texts, "موتور: Godot") < 0, "خط موتور باید از شناسنامه پاک شده باشد")
 			check(_find_label(texts, "فونت: وزیرمتن") < 0, "خط فونت باید از شناسنامه پاک شده باشد")
 		if path.ends_with("Battle.tscn"):
