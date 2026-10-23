@@ -1392,7 +1392,7 @@ func _test_touch_upgrade_flow() -> void:
 		await _touch(rect.get_center(), false)
 		print("  %s: grab=%s tap_sel=%s drag_sel=%s panel=%s btn_dis=%s rect=%s lvl %d->%d coins %d->%d mouse=%s" % [
 			id, grabbed_on_press, tap_selected, drag_selected, panel_ok, button.disabled, rect,
-			level_before, tower.level, coins_before, battle.coins, Input.get_mouse_position()])
+			level_before, tower.level, coins_before, battle.coins, get_viewport().get_mouse_position()])
 		check(drag_selected and panel_ok, "گرفتن و کشیدن برجک %s با لمس باید پنل ارتقا را باز کند" % id)
 		check(tower.level == level_before + 1 and battle.coins == coins_before - tower.weapon["cost"],
 			"زدن دکمهٔ ارتقا با لمس باید برجک %s را یک سطح بالا ببرد" % id)
