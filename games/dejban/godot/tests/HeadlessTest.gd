@@ -218,6 +218,8 @@ func _smoke_scenes() -> void:
 				var card_ctrl := instance._cards_row.get_child(cidx) as Control
 				check(card_ctrl != null and market_screen.encloses(card_ctrl.get_global_rect()),
 					"کارت شمارهٔ %d بازار از صفحهٔ ۱۲۸۰×۷۲۰ بیرون زده است: %s" % [cidx, card_ctrl.get_global_rect() if card_ctrl != null else Rect2()])
+			check(instance._notice_label != null and market_screen.encloses(instance._notice_label.get_global_rect()),
+				"نوار پیام پایین بازار از صفحهٔ ۱۲۸۰×۷۲۰ بیرون زده است")
 			var saved_mkt_stars: int = Game.stars
 			var saved_mkt_ads: int = Game.free_star_ads_watched
 			Game.stars = 10
