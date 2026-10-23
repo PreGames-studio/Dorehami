@@ -1,0 +1,229 @@
+{
+  "pack": "iso-tower-defense",
+  "frameWidth": 128,
+  "frameHeight": 128,
+  "layout": "grid",
+  "alpha": true,
+  "layoutNote": "هر شیت ۸ ردیف (جهت) × N ستون (فریم) از فریم‌های ۱۲۸×۱۲۸ است.",
+  "directions": 8,
+  "directionOrder": [
+    "east",
+    "south-east",
+    "south",
+    "south-west",
+    "west",
+    "north-west",
+    "north",
+    "north-east"
+  ],
+  "directionNote": "ردیف n = جهت n (ساعت‌گرد روی صفحه، گام ۴۵ درجه از شرق)؛ ستون = فریم.",
+  "camera": {
+    "projection": "isometric-2:1",
+    "note": "نمای از بالا و کمی مایل؛ ارتفاع روی محور y صفحه و عمق با ضریب ۰٫۵ فشرده می‌شود.",
+    "depthSquash": 0.5,
+    "groundY": 97.0,
+    "pivotX": 64.0,
+    "pivotNote": "محور چرخش سر در پیکسل (64, 75) است و با هر فریم ثابت می‌ماند."
+  },
+  "palette": {
+    "ink": "#1b191f",
+    "olive": "#5b6b41",
+    "oliveLight": "#839460",
+    "navy": "#28495f",
+    "navyLight": "#46708a",
+    "steel": "#859098",
+    "steelDark": "#58616a",
+    "concrete": "#74756b",
+    "orange": "#ff8a2b",
+    "amber": "#ffc24a",
+    "red": "#d8452f",
+    "laserGreen": "#6cff8a",
+    "laserPale": "#ceffd8"
+  },
+  "towers": [
+    {
+      "id": "machinegun",
+      "nameFa": "مسلسل سنگین",
+      "accent": "#ff8a2b",
+      "pivot": [
+        64.0,
+        75
+      ],
+      "muzzleHint": "دهانه با چرخش سر می‌چرخد؛ افکت شلیک روی فریم‌هاست.",
+      "actions": {
+        "idle": {
+          "file": "machinegun_idle.png",
+          "frames": 4,
+          "fps": 10,
+          "loop": true,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "aim": {
+          "file": "machinegun_aim.png",
+          "frames": 2,
+          "fps": 12,
+          "loop": true,
+          "grid": {
+            "columns": 2,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "fire": {
+          "file": "machinegun_fire.png",
+          "frames": 4,
+          "fps": 14,
+          "loop": false,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        }
+      }
+    },
+    {
+      "id": "laser",
+      "nameFa": "توپ لیزر",
+      "accent": "#6cff8a",
+      "pivot": [
+        64.0,
+        75
+      ],
+      "muzzleHint": "دهانه با چرخش سر می‌چرخد؛ افکت شلیک روی فریم‌هاست.",
+      "actions": {
+        "idle": {
+          "file": "laser_idle.png",
+          "frames": 4,
+          "fps": 10,
+          "loop": true,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "aim": {
+          "file": "laser_aim.png",
+          "frames": 2,
+          "fps": 12,
+          "loop": true,
+          "grid": {
+            "columns": 2,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "fire": {
+          "file": "laser_fire.png",
+          "frames": 4,
+          "fps": 14,
+          "loop": false,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        }
+      }
+    },
+    {
+      "id": "rocket",
+      "nameFa": "سکوی موشک",
+      "accent": "#d8452f",
+      "pivot": [
+        64.0,
+        75
+      ],
+      "muzzleHint": "دهانه با چرخش سر می‌چرخد؛ افکت شلیک روی فریم‌هاست.",
+      "actions": {
+        "idle": {
+          "file": "rocket_idle.png",
+          "frames": 4,
+          "fps": 10,
+          "loop": true,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "aim": {
+          "file": "rocket_aim.png",
+          "frames": 2,
+          "fps": 12,
+          "loop": true,
+          "grid": {
+            "columns": 2,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "fire": {
+          "file": "rocket_fire.png",
+          "frames": 4,
+          "fps": 14,
+          "loop": false,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        }
+      }
+    },
+    {
+      "id": "cannon",
+      "nameFa": "توپ سنگین",
+      "accent": "#ffc24a",
+      "pivot": [
+        64.0,
+        75
+      ],
+      "muzzleHint": "دهانه با چرخش سر می‌چرخد؛ افکت شلیک روی فریم‌هاست.",
+      "actions": {
+        "idle": {
+          "file": "cannon_idle.png",
+          "frames": 4,
+          "fps": 10,
+          "loop": true,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "aim": {
+          "file": "cannon_aim.png",
+          "frames": 2,
+          "fps": 12,
+          "loop": true,
+          "grid": {
+            "columns": 2,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        },
+        "fire": {
+          "file": "cannon_fire.png",
+          "frames": 4,
+          "fps": 14,
+          "loop": false,
+          "grid": {
+            "columns": 4,
+            "rows": 8
+          },
+          "layout": "grid-dir-major: row = direction (0..7), column = frame"
+        }
+      }
+    }
+  ],
+  "atlas": {
+    "image": "atlas_towers_iso.png",
+    "meta": "atlas_towers_iso.json"
+  }
+}
