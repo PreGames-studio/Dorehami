@@ -39,8 +39,17 @@ def log(msg: str) -> None:
 def screenshot(name: str) -> None:
     os.makedirs(SHOTS, exist_ok=True)
     path = os.path.join(SHOTS, f"{name}.png")
+    # PNG is binary; the shared text-mode `sh` helper would try to decode it as UTF-8.
+    result = subprocess.run(
+        ["adb", "exec-out", "screencap", "-p"],
+        capture_output=True,
+        timeout=120,
+    )
+    if result.returncode != 0:
+        failures.append(f"screenshot {name} failed: {result.stderr.decode(errors='replace')}")
+        return
     with open(path, "wb") as fh:
-        fh.write(sh("adb", "exec-out", "screencap", "-p").stdout.encode("utf-8", "surrogateescape"))
+        fh.write(result.stdout)
 
 
 def alive() -> bool:
