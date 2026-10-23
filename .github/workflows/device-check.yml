@@ -74,12 +74,14 @@ jobs:
           echo "::notice::emulator step outcome: ${{ steps.device.outcome }}"
           python3 tools/device-check/report_annotations.py device-log.txt || true
 
-      - name: Upload screenshots
+      - name: Upload screenshots and device log
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: device-screenshots
-          path: device-shots/*.png
+          path: |
+            device-shots/*.png
+            device-log.txt
           if-no-files-found: warn
           retention-days: 14
 
@@ -92,4 +94,5 @@ jobs:
           else
             echo "## 📱 Chess, store and Hokm on a device ❌" >> "$GITHUB_STEP_SUMMARY"
             echo "حداقل یک مسیر روی امولاتور شکست خورد — لاگ کامل در بخش Log همین اجرا (گام «Install and drive the app»)." >> "$GITHUB_STEP_SUMMARY"
+            exit 1
           fi

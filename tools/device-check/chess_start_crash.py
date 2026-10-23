@@ -143,9 +143,15 @@ def main() -> int:
     log(f"device: {sh('adb', 'shell', 'getprop', 'ro.product.model').stdout.strip()} / API {sh('adb', 'shell', 'getprop', 'ro.build.version.sdk').stdout.strip()}")
 
     install = sh("adb", "install", "-r", "-t", apk, timeout=300)
-    log(install.stdout.strip() or install.stderr.strip())
-    if "Success" not in install.stdout:
-        failures.append(f"install failed: {install.stdout} {install.stderr}")
+    if install.stdout.strip():
+        log(f"install stdout: {install.stdout.strip()}")
+    if install.stderr.strip():
+        log(f"install stderr: {install.stderr.strip()}")
+    if install.returncode != 0 or "Success" not in (install.stdout + install.stderr):
+        message = f"install failed (exit {install.returncode}): {install.stdout} {install.stderr}"
+        failures.append(message)
+        log(message)
+        dump_logs()
         return 1
 
     sh("adb", "logcat", "-c")
