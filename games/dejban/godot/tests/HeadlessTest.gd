@@ -203,12 +203,38 @@ func _smoke_scenes() -> void:
 			var texts: Array = []
 			_collect_labels(instance, texts)
 			check(_find_label(texts, "بازار") >= 0, "عنوان بازار در صحنهٔ بازار نیست")
+			check(_find_label(texts, "ستاره رایگان") >= 0 and _find_label(texts, "۵ ستاره با دیدن ۲ تبلیغ") >= 0,
+				"گزینهٔ «ستاره رایگان» (۵ ستاره با دیدن ۲ تبلیغ) در بازار نیست")
 			check(_find_label(texts, "۲۰ ستاره") >= 0 and _find_label(texts, "۱۰ هزار تومان") >= 0,
 				"بستهٔ ۲۰ ستاره به قیمت ۱۰ هزار تومان در بازار نیست")
 			check(_find_label(texts, "۸۰ ستاره") >= 0 and _find_label(texts, "۵۰ هزار تومان") >= 0,
 				"بستهٔ ۸۰ ستاره به قیمت ۵۰ هزار تومان در بازار نیست")
 			check(_find_label(texts, "۱۵۰ ستاره") >= 0 and _find_label(texts, "۱۰۰ هزار تومان") >= 0,
 				"بستهٔ ۱۵۰ ستاره به قیمت ۱۰۰ هزار تومان در بازار نیست")
+			var market_screen := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
+			check(instance._cards_row != null and instance._cards_row.get_child_count() == 4,
+				"ردیف بازار باید ۴ کارت (ستاره رایگان + ۳ بسته) داشته باشد")
+			for cidx in instance._cards_row.get_child_count():
+				var card_ctrl := instance._cards_row.get_child(cidx) as Control
+				check(card_ctrl != null and market_screen.encloses(card_ctrl.get_global_rect()),
+					"کارت شمارهٔ %d بازار از صفحهٔ ۱۲۸۰×۷۲۰ بیرون زده است: %s" % [cidx, card_ctrl.get_global_rect() if card_ctrl != null else Rect2()])
+			var saved_mkt_stars: int = Game.stars
+			var saved_mkt_ads: int = Game.free_star_ads_watched
+			Game.stars = 10
+			Game.free_star_ads_watched = 0
+			instance._refresh_market_ui()
+			var free_btn := instance.find_child("FreeStarButton", true, false) as Button
+			check(free_btn != null, "دکمهٔ مشاهدهٔ تبلیغ ستاره رایگان پیدا نشد")
+			if free_btn != null:
+				free_btn.pressed.emit()
+				check(Game.stars == 10 and Game.free_star_ads_watched == 1,
+					"پس از دیدن تبلیغ اول هنوز نباید ستاره داده شود و شمارنده باید ۱ از ۲ شود")
+				free_btn.pressed.emit()
+				check(Game.stars == 15 and Game.free_star_ads_watched == 0,
+					"پس از دیدن تبلیغ دوم باید دقیقاً ۵ ستارهٔ رایگان اضافه شود و شمارنده صفر شود")
+			Game.stars = saved_mkt_stars
+			Game.free_star_ads_watched = saved_mkt_ads
+			Game.save()
 		if path.ends_with("Settings.tscn"):
 			var texts: Array = []
 			_collect_labels(instance, texts)
