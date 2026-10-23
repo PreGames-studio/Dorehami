@@ -84,6 +84,9 @@ func _tower_spots(map: GameMap) -> Array:
 				var cell: Vector2 = _battle._snap(p + n * side * dist)
 				if not map.build_issue(cell, occupied).is_empty():
 					continue
+				# بیرون از نوار بالا و پنل ساخت پایین تا برجک در عکس دیده شود
+				if cell.y < 140.0 or cell.y > 575.0 or cell.x < 50.0 or cell.x > 1230.0:
+					continue
 				var clear := true
 				for other in out:
 					if (other as Vector2).distance_to(cell) < 110.0:

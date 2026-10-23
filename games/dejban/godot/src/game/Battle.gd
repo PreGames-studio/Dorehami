@@ -282,7 +282,7 @@ func _on_keep_attacked(enemy, amount: int) -> void:
 	# پرتو قرمز از نوک لیزرِ فریم attack تانک تا بدنهٔ دژ.
 	var hit_point := keep.position + Vector2(0.0, -26.0)
 	if enemy.has_method("laser_tip"):
-		Fx.beam(_fx_layer, "fx/laser_beam", enemy.laser_tip(), hit_point, 0.55, IsoEnemy.LASER_TINT)
+		Fx.beam(_fx_layer, "fx/laser_beam", enemy.laser_tip(), hit_point, 0.9, IsoEnemy.LASER_TINT)
 	Fx.impact(_fx_layer, hit_point, 0.5)
 	keep.take_damage(amount)
 	Audio.play("keep_hit")

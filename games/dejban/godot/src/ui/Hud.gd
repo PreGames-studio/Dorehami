@@ -19,6 +19,7 @@ var _banner: Label = null
 var _toast_label: Label = null
 var _weapon_panel: PanelContainer = null
 var _weapon_bar: HBoxContainer = null
+var _weapon_title: Label = null
 var _weapon_buttons: Dictionary = {}
 var _tower_panel: PanelContainer = null
 var _tower_title: Label = null
@@ -141,6 +142,7 @@ func _build_weapon_bar() -> void:
 	title.custom_minimum_size = Vector2(82, 0)
 	title.vertical_alignment = VERTICAL_ALIGNMENT_CENTER
 	row.add_child(title)
+	_weapon_title = title
 
 	var scroll := ScrollContainer.new()
 	scroll.layout_direction = Control.LAYOUT_DIRECTION_LTR
@@ -181,8 +183,15 @@ func _populate_weapon_buttons() -> void:
 		button.gui_input.connect(_on_weapon_button_gui_input.bind(weapon_id, button))
 		_weapon_bar.add_child(button)
 		_weapon_buttons[weapon_id] = button
-	var count := maxi(1, _weapon_buttons.size())
-	var desired_w := clampf(110.0 + float(count) * 112.0, 260.0, 760.0)
+	# عرض پنل از اندازهٔ واقعی عنوان و دکمه‌ها (فاصلهٔ ۸ و حاشیهٔ ۲×۸) تا هر پنج برجک بدون اسکرول دیده شوند.
+	var title_w := 82.0
+	if _weapon_title != null:
+		title_w = maxf(title_w, _weapon_title.get_combined_minimum_size().x)
+	var bar_w := 0.0
+	for button in _weapon_buttons.values():
+		bar_w += maxf(108.0, (button as Control).get_combined_minimum_size().x) + 8.0
+	bar_w = maxf(108.0, bar_w - 8.0)
+	var desired_w := clampf(16.0 + title_w + 8.0 + bar_w + 6.0, 260.0, 800.0)
 	if _weapon_panel != null:
 		_weapon_panel.offset_left = 12
 		_weapon_panel.offset_right = 12.0 + desired_w
