@@ -27,16 +27,16 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.platform.LocalContext
 import ir.dorehami.games.pantohub.GameMoment
-import ir.dorehami.games.pantohub.GameSettings
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.PantohubEngine
+import ir.dorehami.games.pantohub.PlayMode
 import ir.dorehami.games.pantohub.ui.data.PantohubRepository
 import ir.dorehami.games.pantohub.ui.data.WordBankSummary
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 
-private enum class PantoPage { MODE, HOME, SETUP, GAME, HISTORY, SETTINGS, SOLO }
+private enum class PantoPage { MODE, HOME, PLAY_MODE, SETUP, GAME, HISTORY, SETTINGS, SOLO }
 
 /** Native, offline-first pantomime area attached to the existing Android game picker. */
 @Composable
@@ -58,6 +58,7 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
     var page by remember { mutableStateOf(PantoPage.MODE) }
     var returnPage by remember { mutableStateOf(PantoPage.MODE) }
     var activeGame by remember { mutableStateOf<GameState?>(null) }
+    var selectedPlayMode by remember { mutableStateOf(PlayMode.SPEEDY) }
     var bankSummary by remember { mutableStateOf<WordBankSummary?>(null) }
     var loading by remember { mutableStateOf(true) }
     var storageError by remember { mutableStateOf<String?>(null) }
@@ -80,6 +81,7 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
         page = when (page) {
             PantoPage.HISTORY, PantoPage.SETTINGS -> returnPage
             PantoPage.HOME, PantoPage.SOLO -> PantoPage.MODE
+            PantoPage.SETUP -> PantoPage.PLAY_MODE
             else -> PantoPage.HOME
         }
     }
@@ -124,14 +126,23 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
             loading = loading,
             activeGame = activeGame,
             storageError = storageError,
-            onNewGame = { page = PantoPage.SETUP },
+            onNewGame = { page = PantoPage.PLAY_MODE },
             onContinue = { page = PantoPage.GAME },
             onSettings = { openPage(PantoPage.SETTINGS) },
         )
 
+        PantoPage.PLAY_MODE -> PantohubPlayModeScreen(
+            onBack = { page = PantoPage.HOME },
+            onSelect = { mode ->
+                selectedPlayMode = mode
+                page = PantoPage.SETUP
+            },
+        )
+
         PantoPage.SETUP -> GameSetupScreen(
             repository = repository,
-            onBack = { page = PantoPage.HOME },
+            playMode = selectedPlayMode,
+            onBack = { page = PantoPage.PLAY_MODE },
             onStart = { state ->
                 scope.launch {
                     val result = runCatching { withContext(Dispatchers.IO) { repository.startNewGame(state) } }
@@ -154,7 +165,7 @@ private fun PantohubScreenContent(onBack: () -> Unit, onMotionChange: (Boolean) 
                     PantohubButton(
                         text = "ساخت بازی جدید",
                         emoji = "✨",
-                        onClick = { page = PantoPage.SETUP },
+                        onClick = { page = PantoPage.PLAY_MODE },
                         modifier = Modifier.fillMaxWidth(),
                     )
                 }
@@ -223,7 +234,7 @@ private fun PantohubHome(
                 Spacer(Modifier.height(16.dp))
                 if (activeGame != null && activeGame.phase.name != "FINISHED") {
                     PantohubButton(
-                        text = "ادامهٔ بازی «${activeGame.name}»",
+                        text = "ادامهٔ بازی «${activeGame.name}» (${activeGame.settings.playMode.labelFa})",
                         emoji = "▶️",
                         onClick = onContinue,
                         modifier = Modifier.fillMaxWidth(),
@@ -254,6 +265,36 @@ private fun PantohubHome(
                 modifier = Modifier.fillMaxWidth(),
             )
         }
+    }
+}
+
+@Composable
+private fun PantohubPlayModeScreen(onBack: () -> Unit, onSelect: (PlayMode) -> Unit) {
+    PantohubPageFrame(title = "نوع بازی گروهی", onBack = onBack, imageRes = R.drawable.pantohub_bg_party) {
+        Card(modifier = Modifier.fillMaxWidth(), shape = RoundedCornerShape(24.dp)) {
+            Text(
+                text = "بازی گروهی را به کدام شکل اجرا می‌کنید؟",
+                modifier = Modifier.padding(20.dp),
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold,
+            )
+        }
+        ModeChoiceCard(
+            emoji = "⚡",
+            title = "بازی سرعتی",
+            description = "تا پایان زمان هر نوبت، پشت‌سرهم واژه اجرا کنید و حدس بزنید تا بیشترین امتیاز را جمع کنید.",
+            buttonLabel = "انتخاب بازی سرعتی",
+            style = PantohubButtonStyle.Primary,
+            onClick = { onSelect(PlayMode.SPEEDY) },
+        )
+        ModeChoiceCard(
+            emoji = "🎯",
+            title = "بازی عادی",
+            description = "پیش از هر نوبت موضوع و سطح دشواری را انتخاب کنید؛ با یک حدس درست یا اتمام زمان، نوبت تمام شده و به تیم بعد می‌رسد.",
+            buttonLabel = "انتخاب بازی عادی",
+            style = PantohubButtonStyle.Secondary,
+            onClick = { onSelect(PlayMode.NORMAL) },
+        )
     }
 }
 

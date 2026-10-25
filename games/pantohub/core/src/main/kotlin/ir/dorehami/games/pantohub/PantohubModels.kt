@@ -105,8 +105,20 @@ enum class SpecialCard(val titleFa: String, val descriptionFa: String) {
     EXTRA_TIME("۱۵ ثانیه فرصت", "۱۵ ثانیه به زمان همین نوبت اضافه می‌شود."),
 }
 
+/**
+ * How a group match flows. [SPEEDY] keeps guessing words back-to-back until the turn timer ends;
+ * [NORMAL] lets the performer pick difficulty and category before each turn and ends the turn as
+ * soon as one word is guessed right (skips keep the turn going).
+ */
+@Serializable
+enum class PlayMode(val labelFa: String) {
+    SPEEDY("سرعتی"),
+    NORMAL("عادی"),
+}
+
 @Serializable
 data class GameSettings(
+    val playMode: PlayMode = PlayMode.SPEEDY,
     val turnSeconds: Int = 60,
     val roundsPerTeam: Int = 3,
     val allowedDifficulties: Set<Difficulty> = Difficulty.entries.toSet(),
@@ -179,6 +191,11 @@ data class TurnProgress(
     val remainingMs: Long,
     val currentWord: WordRecord? = null,
     val wordRevealed: Boolean = false,
+    /**
+     * True once the performer has seen [currentWord] at least once, even if it is covered again.
+     * Allows recording the guess from the shared covered screen while rejecting unseen words.
+     */
+    val wordSeen: Boolean = false,
     val skippedWords: Int = 0,
     val scoreEarned: Int = 0,
     val activeCards: Set<SpecialCard> = emptySet(),
