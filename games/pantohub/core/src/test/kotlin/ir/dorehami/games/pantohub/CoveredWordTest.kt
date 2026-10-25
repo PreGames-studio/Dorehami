@@ -74,7 +74,7 @@ class CoveredWordTest {
         state = accepted(PantohubEngine.apply(state, GameAction.StartTurn(state.version, word("r1"), GameMoment(0L, 1_000L))))
         state = accepted(PantohubEngine.apply(state, GameAction.RevealWord(state.version, GameMoment(500L, 1_500L))))
 
-        val recovered = PantohubEngine.recoverAfterProcessRestart(state, nowEpochMs = 5_000L)
+        val recovered = PantohubEngine.recoverAfterProcessRestart(state, moment = GameMoment(0L, 5_000L))
         assertEquals(GamePhase.PAUSED, recovered.phase)
         assertEquals(false, recovered.currentTurn?.wordRevealed)
         assertEquals(true, recovered.currentTurn?.wordSeen)
