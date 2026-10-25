@@ -1,8 +1,8 @@
 package ir.dorehami.games.pantohub
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertIs
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertInstanceOf
+import org.junit.jupiter.api.Test
 
 class CoveredWordTest {
     private val teams = listOf(
@@ -12,11 +12,11 @@ class CoveredWordTest {
 
     private fun word(id: String) = WordRecord(
         id = id,
-        text = "واژه $id",
-        normalizedText = WordBankRules.normalizePersian("واژه $id"),
-        category = "animals",
+        text = "گربه",
         difficulty = Difficulty.MEDIUM,
-        phraseType = PhraseType.SINGLE_WORD,
+        category = WordCategories.ANIMALS,
+        type = PhraseType.WORD,
+        validated = true,
     )
 
     private fun accepted(result: GameActionResult): GameState = (result as GameActionResult.Accepted).state
@@ -31,7 +31,8 @@ class CoveredWordTest {
         speedy = accepted(PantohubEngine.apply(speedy, GameAction.StartTurn(speedy.version, word("w1"), GameMoment(0L, 1_000L))))
 
         // Before reveal, ResolveWord is rejected.
-        assertIs<GameActionResult.Rejected>(
+        assertInstanceOf(
+            GameActionResult.Rejected::class.java,
             PantohubEngine.apply(speedy, GameAction.ResolveWord(speedy.version, WordOutcome.CORRECT, word("w2"), GameMoment(100L, 1_100L))),
         )
 

@@ -1,9 +1,9 @@
 package ir.dorehami.games.pantohub
 
-import kotlin.test.Test
-import kotlin.test.assertEquals
-import kotlin.test.assertFalse
-import kotlin.test.assertTrue
+import org.junit.jupiter.api.Assertions.assertEquals
+import org.junit.jupiter.api.Assertions.assertFalse
+import org.junit.jupiter.api.Assertions.assertTrue
+import org.junit.jupiter.api.Test
 
 class PlayModeTest {
     private val teams = listOf(
@@ -13,11 +13,11 @@ class PlayModeTest {
 
     private fun word(id: String, difficulty: Difficulty = Difficulty.MEDIUM) = WordRecord(
         id = id,
-        text = "واژه $id",
-        normalizedText = WordBankRules.normalizePersian("واژه $id"),
-        category = "objects",
+        text = "واژهٔ فارسی",
         difficulty = difficulty,
-        phraseType = PhraseType.SINGLE_WORD,
+        category = WordCategories.OBJECTS,
+        type = PhraseType.WORD,
+        validated = true,
     )
 
     @Test
