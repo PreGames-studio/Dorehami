@@ -64,8 +64,14 @@ Compose/2.5D است، Unity «زیادی سنگین» تشخیص داده شده
 
 ## ۵. آزمون و شواهد
 
-محیط محلی Java/Android SDK ندارد؛ شاهد `checkAll` و APK از CI گرفته میشود و پس از اتمام
-run در دفتر اجرای `ROADMAP.md` و اینجا ثبت خواهد شد. تستهای JVM نوشتهشده: خنثیبودن در
+محیط محلی Java/Android SDK ندارد؛ شاهد [CI run `40387444277`](https://github.com/PreGames-studio/Dorehami/actions/runs/40387444277)
+روی `74452bb` سبز شد: هر دو job (`checkAll` و `Build debug APK`) موفق،
+`checkAll: 182 tests, 0 failing, 12 module(s) with results` و artifact APK بارگذاری شد.
+خط پایهٔ نوبت قبل ([run `40377977666`](https://github.com/PreGames-studio/Dorehami/actions/runs/40377977666)
+روی `fc1ebf9`) برابر ۱۷۴ تست / ۰ شکست / ۱۲ ماژول بود؛ یعنی **دقیقاً ۸ تست تازهٔ
+`HokmReflectionTest` اجرا و پاس شدند**. لاگ کامل job بهعلت محدودیت دسترسی به
+`results-receiver.actions.githubusercontent.com` دانلود نشد؛ شاهد، annotation رسمی step
+«Report test results» و نتیجهٔ jobهاست. تستهای JVM نوشتهشده: خنثیبودن در
 سکون/خاموشی، تقارن، کرانها، NaN/∞، آلفای کارت dimmed، آستانههای کیفیت، ترتیب بودجه و
 قطعیت. رندر Compose، لمس، سنسور واقعی، TalkBack، FPS/حافظه و چرخش صفحه روی دستگاه
 همچنان آزمون نشدهاند.
