@@ -45,6 +45,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import ir.dorehami.games.hokm.ui.GoldParticleRing
 import ir.dorehami.games.hokm.ui.Hokm3DButton
 import ir.dorehami.games.hokm.ui.HokmBackdrop
 import ir.dorehami.games.hokm.ui.HokmButtonTone
@@ -301,6 +302,7 @@ private fun Lobby(flow: RoomFlow, state: RoomStage.Lobby, playerCount: Int, onTa
     val clientState by state.client.state.collectAsState()
     val members = clientState.room?.members?.sortedBy { it.seat } ?: emptyList()
     val humans = members.count { !it.isBot }
+    var readyBurst by remember { mutableStateOf(0) }
     HokmGlassPanel(Modifier.fillMaxWidth(), contentPadding = 18.dp) {
         Text("کد اتاق", color = HokmPalette.muted, fontSize = 12.sp)
         Spacer(Modifier.height(2.dp))
@@ -347,16 +349,24 @@ private fun Lobby(flow: RoomFlow, state: RoomStage.Lobby, playerCount: Int, onTa
             )
         } else {
             val ready = members.firstOrNull { it.player.id == clientState.me }?.ready == true
-            Hokm3DButton(
-                text = if (ready) "آماده‌ام ✓" else "اعلام آمادگی",
-                subtitle = "میزبان پس از آماده‌شدن، بازی را شروع می‌کند",
-                leading = "✓",
-                tone = if (ready) HokmButtonTone.EMERALD else HokmButtonTone.GOLD,
-                modifier = Modifier.fillMaxWidth(),
-                height = 58.dp,
-                onSound = onTap,
-                onClick = { flow.setReady(!ready) },
-            )
+            // Rotating gold particle ring and one micro-burst per tap; the button keeps its 3D press depth.
+            Box(Modifier.fillMaxWidth().height(74.dp), contentAlignment = Alignment.Center) {
+                GoldParticleRing(
+                    modifier = Modifier.fillMaxSize(),
+                    dotCount = 22,
+                    burstToken = readyBurst,
+                )
+                Hokm3DButton(
+                    text = if (ready) "آماده‌ام ✓" else "اعلام آمادگی",
+                    subtitle = "میزبان پس از آماده‌شدن، بازی را شروع می‌کند",
+                    leading = "✓",
+                    tone = if (ready) HokmButtonTone.EMERALD else HokmButtonTone.GOLD,
+                    modifier = Modifier.fillMaxWidth(0.94f),
+                    height = 58.dp,
+                    onSound = onTap,
+                    onClick = { flow.setReady(!ready); readyBurst++ },
+                )
+            }
             Spacer(Modifier.height(8.dp))
             Text("منتظر شروع از طرف میزبان…", color = HokmPalette.muted, fontSize = 11.sp, textAlign = TextAlign.Center)
         }
@@ -374,52 +384,59 @@ private fun SeatRow(seat: Int, member: Member?, isMe: Boolean) {
                 else MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.58f),
             )
             .border(
-                1.dp,
-                if (isMe) MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
-                else MaterialTheme.colorScheme.outline.copy(alpha = 0.38f),
+                if (member?.ready == true) 2.dp else 1.dp,
+                when {
+                    member?.ready == true -> HokmPalette.gold
+                    isMe -> MaterialTheme.colorScheme.primary.copy(alpha = 0.72f)
+                    else -> MaterialTheme.colorScheme.outline.copy(alpha = 0.38f)
+                },
                 RoundedCornerShape(14.dp),
             )
             .padding(horizontal = 12.dp, vertical = 9.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Box(
-            Modifier
-                .size(36.dp)
-                .shadow(4.dp, CircleShape)
-                .clip(CircleShape)
-                .background(
-                    Brush.linearGradient(
-                        when {
-                            member == null -> listOf(
-                                MaterialTheme.colorScheme.surfaceVariant,
-                                MaterialTheme.colorScheme.surfaceVariant,
-                            )
-                            member.isBot -> listOf(
-                                MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f),
-                                MaterialTheme.colorScheme.secondary,
-                            )
-                            else -> listOf(
-                                MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
-                                MaterialTheme.colorScheme.primary,
-                            )
-                        },
+        // Ready players get an illuminated frame around the avatar; static when motion is off.
+        Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+            if (member?.ready == true) GoldParticleRing(Modifier.fillMaxSize(), dotCount = 12)
+            Box(
+                Modifier
+                    .size(36.dp)
+                    .shadow(4.dp, CircleShape)
+                    .clip(CircleShape)
+                    .background(
+                        Brush.linearGradient(
+                            when {
+                                member == null -> listOf(
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                    MaterialTheme.colorScheme.surfaceVariant,
+                                )
+                                member.isBot -> listOf(
+                                    MaterialTheme.colorScheme.secondary.copy(alpha = 0.72f),
+                                    MaterialTheme.colorScheme.secondary,
+                                )
+                                else -> listOf(
+                                    MaterialTheme.colorScheme.primary.copy(alpha = 0.72f),
+                                    MaterialTheme.colorScheme.primary,
+                                )
+                            },
+                        ),
                     ),
-                ),
-            contentAlignment = Alignment.Center,
-        ) {
-            Text(
-                when {
-                    member == null -> "·"
-                    member.isBot -> "♟"
-                    else -> member.player.displayName.take(1)
-                },
-                color = when {
-                    member == null -> MaterialTheme.colorScheme.onSurfaceVariant
-                    member.isBot -> MaterialTheme.colorScheme.onSecondary
-                    else -> MaterialTheme.colorScheme.onPrimary
-                },
-                fontWeight = FontWeight.Black,
-            )
+                contentAlignment = Alignment.Center,
+            ) {
+                Text(
+                    when {
+                        member == null -> "·"
+                        member.isBot -> "♟"
+                        else -> member.player.displayName.take(1)
+                    },
+                    color = when {
+                        member == null -> MaterialTheme.colorScheme.onSurfaceVariant
+                        member.isBot -> MaterialTheme.colorScheme.onSecondary
+                        else -> MaterialTheme.colorScheme.onPrimary
+                    },
+                    fontWeight = FontWeight.Black,
+                )
+            }
         }
         Spacer(Modifier.size(10.dp))
         Column(Modifier.weight(1f)) {

@@ -1,5 +1,6 @@
 package ir.dorehami.games.hokm.ui
 
+import android.provider.Settings
 import androidx.activity.compose.BackHandler
 import androidx.compose.animation.AnimatedVisibility
 import androidx.compose.animation.expandVertically
@@ -99,6 +100,19 @@ private fun HokmEntryContent(onExit: () -> Unit) {
     var playerCount by rememberSaveable { mutableStateOf(prefs.playerCount) }
     var soundOn by rememberSaveable { mutableStateOf(prefs.soundOn) }
     var hapticsOn by rememberSaveable { mutableStateOf(prefs.hapticsOn) }
+    var motionName by rememberSaveable { mutableStateOf(prefs.motionLevel) }
+    // Android's own "remove animations" setting silently downgrades FULL to REDUCED.
+    val systemReducedMotion = remember {
+        runCatching {
+            Settings.Global.getFloat(context.contentResolver, Settings.Global.ANIMATOR_DURATION_SCALE, 1f) <= 0f
+        }.getOrDefault(false)
+    }
+    val preferredMotion = HokmMotionLevel.fromStored(motionName)
+    val effectiveMotion = if (systemReducedMotion && preferredMotion == HokmMotionLevel.FULL) {
+        HokmMotionLevel.REDUCED
+    } else {
+        preferredMotion
+    }
     var botLevel by rememberSaveable { mutableStateOf(prefs.botLevel) }
     var matchKey by rememberSaveable { mutableStateOf(0) }
     var roomMode by rememberSaveable { mutableStateOf<String?>(null) }
@@ -117,52 +131,56 @@ private fun HokmEntryContent(onExit: () -> Unit) {
         }
     }
 
-    when {
-        roomMode != null -> HokmRoom(
-            mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
-            playerName = name,
-            playerCount = playerCount,
-            targetPoints = target,
-            soundOn = soundOn,
-            hapticsOn = hapticsOn,
-            serverUrl = serverUrl,
-            onServerUrl = { serverUrl = it; prefs.serverUrl = it },
-            onFinished = onFinished,
-            onExit = { roomMode = null },
-        )
+    HokmMotionProvider(effectiveMotion) {
+        when {
+            roomMode != null -> HokmRoom(
+                mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
+                playerName = name,
+                playerCount = playerCount,
+                targetPoints = target,
+                soundOn = soundOn,
+                hapticsOn = hapticsOn,
+                serverUrl = serverUrl,
+                onServerUrl = { serverUrl = it; prefs.serverUrl = it },
+                onFinished = onFinished,
+                onExit = { roomMode = null },
+            )
 
-        !started -> HokmSetupScreen(
-            name = name,
-            onName = { name = it; prefs.name = it },
-            target = target,
-            onTarget = { target = it; prefs.targetPoints = it },
-            playerCount = playerCount,
-            onPlayerCount = { playerCount = it; prefs.playerCount = it },
-            soundOn = soundOn,
-            onSound = { soundOn = it; prefs.soundOn = it },
-            hapticsOn = hapticsOn,
-            onHaptics = { hapticsOn = it; prefs.hapticsOn = it },
-            botLevel = botLevel,
-            onBotLevel = { botLevel = it; prefs.botLevel = it },
-            stats = stats,
-            onResetStats = { prefs.resetStats(); stats = prefs.stats },
-            onStart = { started = true },
-            onMode = { roomMode = if (it == RoomMode.BLUETOOTH) "bt" else "online" },
-            onBack = onExit,
-        )
+            !started -> HokmSetupScreen(
+                name = name,
+                onName = { name = it; prefs.name = it },
+                target = target,
+                onTarget = { target = it; prefs.targetPoints = it },
+                playerCount = playerCount,
+                onPlayerCount = { playerCount = it; prefs.playerCount = it },
+                soundOn = soundOn,
+                onSound = { soundOn = it; prefs.soundOn = it },
+                hapticsOn = hapticsOn,
+                onHaptics = { hapticsOn = it; prefs.hapticsOn = it },
+                motion = effectiveMotion,
+                onMotion = { motionName = it.name; prefs.motionLevel = it.name },
+                botLevel = botLevel,
+                onBotLevel = { botLevel = it; prefs.botLevel = it },
+                stats = stats,
+                onResetStats = { prefs.resetStats(); stats = prefs.stats },
+                onStart = { started = true },
+                onMode = { roomMode = if (it == RoomMode.BLUETOOTH) "bt" else "online" },
+                onBack = onExit,
+            )
 
-        else -> HokmSoloGame(
-            key = matchKey,
-            playerName = name,
-            playerCount = playerCount,
-            targetPoints = target,
-            botLevel = botLevel,
-            soundOn = soundOn,
-            hapticsOn = hapticsOn,
-            onFinished = onFinished,
-            onPlayAgain = { matchKey++ },
-            onExit = { started = false },
-        )
+            else -> HokmSoloGame(
+                key = matchKey,
+                playerName = name,
+                playerCount = playerCount,
+                targetPoints = target,
+                botLevel = botLevel,
+                soundOn = soundOn,
+                hapticsOn = hapticsOn,
+                onFinished = onFinished,
+                onPlayAgain = { matchKey++ },
+                onExit = { started = false },
+            )
+        }
     }
 }
 
@@ -314,6 +332,8 @@ private fun HokmSetupScreen(
     onSound: (Boolean) -> Unit,
     hapticsOn: Boolean,
     onHaptics: (Boolean) -> Unit,
+    motion: HokmMotionLevel,
+    onMotion: (HokmMotionLevel) -> Unit,
     botLevel: String,
     onBotLevel: (String) -> Unit,
     stats: HokmStats,
@@ -491,6 +511,22 @@ private fun HokmSetupScreen(
                         onClick = { tap(); onHaptics(!hapticsOn) },
                     )
                 }
+                Spacer(Modifier.height(8.dp))
+                SettingToggle(
+                    title = "جلوه‌های حرکتی",
+                    subtitle = when (motion) {
+                        HokmMotionLevel.FULL -> "کامل · لمس کنید تا کم شود"
+                        HokmMotionLevel.REDUCED -> "کاهش‌یافته"
+                        HokmMotionLevel.OFF -> "خاموش"
+                    },
+                    checked = motion != HokmMotionLevel.OFF,
+                    modifier = Modifier.fillMaxWidth(),
+                    onClick = {
+                        tap()
+                        val levels = HokmMotionLevel.entries
+                        onMotion(levels[(motion.ordinal + 1) % levels.size])
+                    },
+                )
             }
 
             if (stats.games > 0) {

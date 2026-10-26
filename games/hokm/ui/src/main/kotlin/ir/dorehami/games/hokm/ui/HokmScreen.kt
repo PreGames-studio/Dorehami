@@ -26,6 +26,7 @@ import kotlin.random.Random
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -72,6 +73,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.rotate as drawScopeRotate
 import androidx.compose.ui.hapticfeedback.HapticFeedbackType
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
@@ -87,7 +89,6 @@ import ir.dorehami.games.hokm.Play
 import ir.dorehami.games.hokm.Suit
 import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
-import kotlin.math.abs
 
 /** Dark table chrome uses the app's own orange, teal, purple and aubergine surface colors. */
 private object Table {
@@ -139,6 +140,24 @@ fun HokmScreen(
 
     val rawHaptics = LocalHapticFeedback.current
     val haptics = remember(rawHaptics, hapticsEnabled) { if (hapticsEnabled) rawHaptics else null }
+    val motionLevel = LocalHokmMotion.current
+    val motionScale = HokmCinematics.motionScale(motionLevel)
+
+    // A short, decaying screen shake on a cut. It translates the picture only — card hit targets,
+    // state and the score bar keep their exact positions, and OFF means zero movement.
+    val cutFx = state.fx.lastOrNull { it.kind == FxKind.CUT }
+    val shakeProgress = remember { Animatable(0f) }
+    LaunchedEffect(cutFx?.stamp) {
+        if (cutFx != null && motionScale > 0f) {
+            shakeProgress.snapTo(0f)
+            shakeProgress.animateTo(1f, tween(420, easing = LinearEasing))
+        }
+    }
+    val shakePose = if (cutFx != null) {
+        HokmCinematics.shake((shakeProgress.value * 420f).toLong(), 420L, 7f, motionScale)
+    } else {
+        0f to 0f
+    }
     // A nudge when it becomes my turn, a thump on kot.
     LaunchedEffect(state.isMyTurn) { if (state.isMyTurn) haptics?.performHapticFeedback(HapticFeedbackType.LongPress) }
     LaunchedEffect(state.fx.lastOrNull()?.stamp) {
@@ -156,7 +175,11 @@ fun HokmScreen(
         BoxWithConstraints(
             Modifier
                 .fillMaxSize()
-                .background(Table.rimDark),
+                .background(Table.rimDark)
+                .graphicsLayer {
+                    translationX = shakePose.first
+                    translationY = shakePose.second
+                },
         ) {
             val w = maxWidth
             val h = maxHeight
@@ -269,6 +292,9 @@ fun HokmScreen(
                     enabled = (state.isMyTurn && !state.iDraw && !state.iChooseHokm) || state.iDiscard,
                     selected = state.selectedForDiscard,
                     cardWidth = handCardW,
+                    onLift = { onUiSound("card_slide") },
+                    // The table's own "card_play" is the weighted thud on release; no double sound.
+                    onDrop = { haptics?.performHapticFeedback(HapticFeedbackType.LongPress) },
                     onTap = { card ->
                         haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                         if (state.iDiscard) onToggleDiscard(card) else onPlayCard(card)
@@ -425,6 +451,8 @@ private fun TableBackground() {
         contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxSize(),
     )
+    // Overhead spotlight + vignette: two static gradients, readable on cheap phones without bloom.
+    SpotlightVignette(Modifier.fillMaxSize())
     Canvas(Modifier.fillMaxSize()) {
         // A light teal wash brings the existing felt into the app's palette without hiding its grain.
         drawRect(Color(0xFF0E8F87).copy(alpha = 0.14f))
@@ -558,6 +586,11 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
                 }
                 if (hint != null) Text(hint, color = Table.turnGlow, fontSize = 11.sp)
             }
+            // Digital stack counter: how many tricks this seat (or team) has swept so far.
+            TrickCounterChip(
+                count = state.tricksWon.getOrElse(team) { 0 },
+                modifier = Modifier.padding(start = 2.dp),
+            )
         }
     }
 }
@@ -610,7 +643,7 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
             label = "collect",
         )
 
-        state.tableCards.forEach { play ->
+        state.tableCards.forEachIndexed { index, play ->
             key(play.card.code, state.handNumber, state.trickNumber) {
                 TableCard(
                     play = play,
@@ -619,6 +652,7 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
                     origin = origin(play.seat),
                     collectTarget = collectTo?.let { origin(it) },
                     collect = collect,
+                    cardIndex = index,
                 )
             }
         }
@@ -633,14 +667,32 @@ private fun TableCard(
     origin: Pair<Dp, Dp>,
     collectTarget: Pair<Dp, Dp>?,
     collect: Float,
+    cardIndex: Int = 0,
 ) {
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) { progress.animateTo(1f, tween(300, easing = FastOutSlowInEasing)) }
     val p = progress.value
     val baseX = origin.first + (slot.first - origin.first) * p
     val baseY = origin.second + (slot.second - origin.second) * p
-    val x = if (collectTarget != null) baseX + (collectTarget.first - baseX) * collect else baseX
-    val y = if (collectTarget != null) baseY + (collectTarget.second - baseY) * collect else baseY
+    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
+    // Magnetic, swirling gather: the four cards spiral into the winner's corner and disappear.
+    val pose = if (collectTarget != null && motionScale > 0f) {
+        HokmCinematics.collectSwirl(
+            startX = baseX.value,
+            startY = baseY.value,
+            endX = collectTarget.first.value,
+            endY = collectTarget.second.value,
+            progress = collect,
+            swirlPx = 20f * motionScale,
+            cardIndex = cardIndex,
+        )
+    } else {
+        CardPose(
+            x = if (collectTarget != null) baseX.value + (collectTarget.first.value - baseX.value) * collect else baseX.value,
+            y = if (collectTarget != null) baseY.value + (collectTarget.second.value - baseY.value) * collect else baseY.value,
+            rotationDeg = 0f,
+        )
+    }
     // A believable, slightly careless throw: a little tilt that depends on the card, not on chance.
     val tilt = (play.card.rank.ordinal % 5 - 2) * 3f + (play.seat * 7 % 11 - 5)
     PlayingCardView(
@@ -648,8 +700,8 @@ private fun TableCard(
         width = cardWidth,
         elevation = 8.dp,
         modifier = Modifier
-            .offset(x = x, y = y)
-            .rotate(tilt)
+            .offset(x = pose.x.dp, y = pose.y.dp)
+            .rotate(tilt + pose.rotationDeg * 0.1f)
             .scale(0.85f + 0.15f * p)
             .alpha(1f - collect * 0.9f),
     )
@@ -664,8 +716,11 @@ private fun HandFan(
     enabled: Boolean,
     cardWidth: Dp,
     onTap: (Card) -> Unit,
+    onLift: () -> Unit = {},
+    onDrop: (Card) -> Unit = {},
     selected: Set<Card> = emptySet(),
 ) {
+    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
     BoxWithConstraints(Modifier.fillMaxWidth().height(cardWidth / CARD_ASPECT + 26.dp)) {
         val n = cards.size
         if (n == 0) return@BoxWithConstraints
@@ -674,29 +729,79 @@ private fun HandFan(
         val step = if (n == 1) 0.dp else minOf(maxStep, (available - cardWidth) / (n - 1))
         val total = cardWidth + step * (n - 1)
         val startX = (maxWidth - total) / 2
-        val mid = (n - 1) / 2f
         cards.forEachIndexed { i, card ->
             key(card.code) {
-            val rel = i - mid
-            val angle = rel * (if (n > 8) 2.2f else 3.5f)
-            val lift = (abs(rel) * abs(rel) * 1.1f).dp
-            val playable = enabled && card in legal
-            val isSelected = card in selected
-            val raise by animateFloatAsState(if (isSelected) 2.2f else if (playable) 1f else 0f, tween(180), label = "raise")
-            PlayingCardView(
-                card = card,
-                width = cardWidth,
-                elevation = if (playable) 10.dp else 4.dp,
-                dimmed = enabled && !playable,
-                modifier = Modifier
-                    .offset(x = startX + step * i, y = 20.dp + lift - (12.dp * raise))
-                    .rotate(angle)
-                    .clickable(
-                        interactionSource = remember { MutableInteractionSource() },
-                        indication = null,
-                        onClick = { onTap(card) },
-                    ),
-            )
+                // Natural arc fan: symmetric tilt, quadratic lift, no cramped hit targets.
+                val angle = HokmCinematics.fanAngle(i, n, if (n > 8) 18f else 12f)
+                val lift = HokmCinematics.fanLift(i, n, 14f).dp
+                val playable = enabled && card in legal
+                val isSelected = card in selected
+                val raise by animateFloatAsState(if (isSelected) 2.2f else if (playable) 1f else 0f, tween(180), label = "raise")
+                var dragX by remember { mutableStateOf(0f) }
+                var dragY by remember { mutableStateOf(0f) }
+                var lifted by remember { mutableStateOf(false) }
+                var dragPlayed by remember { mutableStateOf(false) }
+                val liftAmount by animateFloatAsState(if (lifted) 1f else 0f, tween(140), label = "card-lift")
+                // Safety net: if clickable also sees the release after a drag, do not play twice.
+                LaunchedEffect(dragPlayed) {
+                    if (dragPlayed) {
+                        delay(350)
+                        dragPlayed = false
+                    }
+                }
+                PlayingCardView(
+                    card = card,
+                    width = cardWidth,
+                    elevation = if (lifted) 18.dp else if (playable) 10.dp else 4.dp,
+                    dimmed = enabled && !playable,
+                    modifier = Modifier
+                        .offset(x = startX + step * i, y = 20.dp + lift - (12.dp * raise))
+                        .rotate(angle)
+                        .graphicsLayer {
+                            translationX = dragX
+                            translationY = dragY - 10f * liftAmount
+                            scaleX = 1f + 0.06f * liftAmount
+                            scaleY = 1f + 0.06f * liftAmount
+                            rotationY = (dragX * 0.08f).coerceIn(-8f, 8f)
+                        }
+                        .pointerInput(card.code, playable) {
+                            if (!playable || motionScale <= 0f) return@pointerInput
+                            detectDragGestures(
+                                onDragStart = {
+                                    lifted = true
+                                    onLift()
+                                },
+                                onDragEnd = {
+                                    val shouldPlay = dragY < -64f
+                                    lifted = false
+                                    dragX = 0f
+                                    dragY = 0f
+                                    if (shouldPlay) {
+                                        dragPlayed = true
+                                        onDrop(card)
+                                        onTap(card)
+                                    }
+                                },
+                                onDragCancel = {
+                                    lifted = false
+                                    dragX = 0f
+                                    dragY = 0f
+                                },
+                                onDrag = { change, dragAmount ->
+                                    change.consume()
+                                    dragX = (dragX + dragAmount.x).coerceIn(-70f, 70f)
+                                    dragY = (dragY + dragAmount.y).coerceIn(-170f, 24f)
+                                },
+                            )
+                        }
+                        .clickable(
+                            interactionSource = remember { MutableInteractionSource() },
+                            indication = null,
+                            onClick = {
+                                if (dragPlayed) dragPlayed = false else onTap(card)
+                            },
+                        ),
+                )
             }
         }
     }
@@ -874,13 +979,33 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
                     Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
                         row.forEach { play ->
                             val isAce = play.card.rank == ir.dorehami.games.hokm.Rank.ACE
+                            val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
                             Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                PlayingCardView(
-                                    play.card,
-                                    width = 44.dp,
-                                    elevation = if (isAce) 12.dp else 3.dp,
-                                    modifier = if (isAce) Modifier.border(2.dp, Table.turnGlow, RoundedCornerShape(4.dp)) else Modifier,
-                                )
+                                Box(
+                                    Modifier
+                                        .size(44.dp, 44.dp / CARD_ASPECT)
+                                        .clip(RoundedCornerShape(4.dp))
+                                        .then(
+                                            if (isAce) Modifier.border(2.dp, Table.turnGlow, RoundedCornerShape(4.dp))
+                                            else Modifier,
+                                        ),
+                                ) {
+                                    PlayingCardView(
+                                        play.card,
+                                        width = 44.dp,
+                                        elevation = if (isAce) 12.dp else 3.dp,
+                                    )
+                                    if (isAce && motionScale > 0f) {
+                                        val foil = rememberInfiniteTransition(label = "foil")
+                                        val sweep by foil.animateFloat(
+                                            0f,
+                                            1f,
+                                            infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart),
+                                            label = "foil-sweep",
+                                        )
+                                        GoldFoilGloss(Modifier.fillMaxSize(), progress = sweep)
+                                    }
+                                }
                                 Text(state.seats[play.seat].name, color = Color.White, fontSize = 10.sp)
                             }
                         }
@@ -899,14 +1024,30 @@ private fun DealingOverlay(state: HokmUiState, modifier: Modifier = Modifier) {
         // deck
         repeat(4) { i -> CardBackView(width = 56.dp, elevation = 2.dp, modifier = Modifier.offset(y = (-i).dp)) }
         // Fly one card toward each real seat in turn, keeping the local player at the bottom.
+        // The path is a deterministic parabola (apex lift) with a fixed spin, not a straight line.
         val step = phase * state.playerCount
         val relativeSeat = step.toInt() % state.playerCount
         val seat = HokmSeatLayout.seatAtOffset(state.mySeat, relativeSeat, state.playerCount)
         val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
         val f = step % 1f
-        val dx = 90f * direction.x * f
-        val dy = 90f * direction.y * f
-        CardBackView(width = 56.dp, elevation = 6.dp, modifier = Modifier.offset(dx.dp, dy.dp).alpha(1f - f * 0.8f))
+        val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
+        val pose = HokmCinematics.dealArc(
+            startX = 0f,
+            startY = 0f,
+            endX = 90f * direction.x,
+            endY = 90f * direction.y,
+            progress = f,
+            liftPx = 44f * motionScale,
+            spinDeg = 220f * motionScale,
+        )
+        CardBackView(
+            width = 56.dp,
+            elevation = 6.dp,
+            modifier = Modifier
+                .offset(pose.x.dp, pose.y.dp)
+                .rotate(pose.rotationDeg)
+                .alpha(1f - f * 0.8f),
+        )
         Text(
             "در حال پخش کارت‌ها…",
             color = Color.White,
@@ -1217,6 +1358,7 @@ private fun StickerTray(
 @Composable
 private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier = Modifier) {
     if (state.fx.isEmpty()) return
+    val level = LocalHokmMotion.current
     BoxWithConstraints(modifier) {
         val cw = maxWidth
         val ch = maxHeight
@@ -1229,21 +1371,21 @@ private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier
                 when (fx.kind) {
                     FxKind.CUT -> Burst(
                         cx = cw * centre.first, cy = ch * centre.second,
-                        count = 18, radius = tableCardWidth * 1.6f, durationMs = 900,
+                        count = HokmCinematics.particleCount(18, level), radius = tableCardWidth * 1.6f, durationMs = 900,
                         colors = listOf(Color(0xFFFFE082), Color(0xFFFFC107), Color.White),
                         label = "بُرید!",
                     )
                     FxKind.TRICK_WIN -> Burst(
                         cx = cw * centre.first, cy = ch * centre.second,
-                        count = 8, radius = tableCardWidth, durationMs = 700,
+                        count = HokmCinematics.particleCount(8, level), radius = tableCardWidth, durationMs = 700,
                         colors = listOf(Color.White.copy(alpha = 0.9f), Table.brass),
                     )
                     FxKind.KOT -> Burst(
                         cx = cw * 0.5f, cy = ch * 0.45f,
-                        count = 48, radius = cw * 0.55f, durationMs = 2200,
+                        count = HokmCinematics.particleCount(48, level), radius = cw * 0.55f, durationMs = 2200,
                         colors = listOf(Color(0xFFFF7043), Color(0xFFFFD54F), Color(0xFFEF5350), Color.White),
                     )
-                    FxKind.CONFETTI -> Confetti(cw, ch, durationMs = 3800)
+                    FxKind.CONFETTI -> if (level != HokmMotionLevel.OFF) Confetti(cw, ch, durationMs = 3800)
                 }
             }
         }
@@ -1324,39 +1466,67 @@ private fun Confetti(w: Dp, h: Dp, durationMs: Int) {
  */
 @Composable
 private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfeedback.HapticFeedback?, onSound: (String) -> Unit) {
+    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
     var now by remember { mutableStateOf(System.currentTimeMillis()) }
+    var frame by remember { mutableStateOf(0) }
     LaunchedEffect(state.turnDeadlineMs) {
         while (true) {
             now = System.currentTimeMillis()
+            frame++
             delay(100)
         }
     }
-    val total = state.turnSeconds * 1000f
+    // The host owns the real deadline. Ten seconds is the presentation default when a room sends
+    // none; the last three seconds are a red, pulsing warning with a suspense tick.
+    val totalSeconds = if (state.turnSeconds > 0) state.turnSeconds else HokmCinematics.DEFAULT_TURN_SECONDS
+    val total = totalSeconds * 1000f
     val left = (state.turnDeadlineMs - now).coerceIn(0L, total.toLong())
     val frac = if (total <= 0f) 0f else left / total
     val secs = ((left + 999) / 1000).toInt()
     val mine = state.isMyTurn
+    val urgency = HokmCinematics.turnUrgency(secs, totalSeconds)
     LaunchedEffect(secs, state.turnDeadlineMs, mine) {
         if (!mine) return@LaunchedEffect
         when {
-            secs in 1..2 -> { onSound("timer_warn"); haptics?.performHapticFeedback(HapticFeedbackType.LongPress) }
-            secs in 3..5 -> onSound("timer_tick")
+            urgency == TurnUrgency.WARNING -> {
+                onSound("timer_warn")
+                haptics?.performHapticFeedback(HapticFeedbackType.LongPress)
+            }
+            secs in 4..6 -> onSound("timer_tick")
         }
     }
     val color = when {
         !mine -> Color.White.copy(alpha = 0.55f)
-        secs <= 5 -> Color(0xFFEF5350)
-        secs <= 10 -> Color(0xFFFFB300)
+        urgency == TurnUrgency.WARNING -> Color(0xFFEF5350)
+        urgency == TurnUrgency.GOLD -> Color(0xFFFFB300)
         else -> Table.turnGlow
     }
-    Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
-        Canvas(Modifier.fillMaxSize()) {
-            val stroke = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-            drawCircle(Color.Black.copy(alpha = 0.45f))
-            drawArc(Color.White.copy(alpha = 0.15f), -90f, 360f, useCenter = false, style = stroke)
-            drawArc(color, -90f, 360f * frac, useCenter = false, style = stroke)
+    val pulse = if (mine && urgency == TurnUrgency.WARNING) {
+        HokmCinematics.warningPulse(secs, frame, motionScale)
+    } else {
+        1f
+    }
+    Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
+            Canvas(Modifier.fillMaxSize()) {
+                val stroke = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
+                drawCircle(Color.Black.copy(alpha = 0.45f))
+                if (mine && urgency == TurnUrgency.WARNING && motionScale > 0f) {
+                    drawCircle(Color(0xFFEF5350).copy(alpha = 0.10f * pulse * motionScale))
+                }
+                drawArc(Color.White.copy(alpha = 0.15f), -90f, 360f, useCenter = false, style = stroke)
+                drawArc(color.copy(alpha = pulse), -90f, 360f * frac, useCenter = false, style = stroke)
+            }
+            Text(secs.toFa(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
-        Text(secs.toFa(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+        if (mine && urgency == TurnUrgency.WARNING) {
+            Text(
+                "ربات کارت خواهد زد",
+                color = Color(0xFFFFCDD2),
+                fontSize = 9.sp,
+                textAlign = TextAlign.Center,
+            )
+        }
     }
 }
 
