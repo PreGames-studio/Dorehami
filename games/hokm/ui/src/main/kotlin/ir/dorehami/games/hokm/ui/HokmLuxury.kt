@@ -1,5 +1,10 @@
 package ir.dorehami.games.hokm.ui
 
+import android.content.Context
+import android.hardware.Sensor
+import android.hardware.SensorEvent
+import android.hardware.SensorEventListener
+import android.hardware.SensorManager
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.RepeatMode
@@ -16,8 +21,10 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
@@ -28,6 +35,7 @@ import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.Stroke
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
@@ -183,4 +191,62 @@ fun TrickCounterChip(count: Int, modifier: Modifier = Modifier) {
     ) {
         Text(label, color = Color(0xFFFFD98A), fontSize = 13.sp, fontWeight = FontWeight.Black)
     }
+}
+
+/** Standard gravity (m/s²); keeps the sensor normalization free of device-specific constants. */
+private const val STANDARD_GRAVITY = 9.80665f
+
+/** A stable, never-changing sheen state for call sites without a sensor (previews, tests, backs). */
+internal val NeutralSheenState: androidx.compose.runtime.State<HokmSheen> =
+    mutableStateOf(HokmSheen.NEUTRAL)
+
+/**
+ * A subtle, tilt-driven specular highlight shared by the whole table.
+ *
+ * Uses the standard accelerometer — no permission and no new dependency — low-pass filters its
+ * values and unregisters the listener on dispose. The returned [androidx.compose.runtime.State]
+ * is read inside the card's draw phase, so sensor events redraw the cards without recomposing the
+ * table fifty times a second. It stays exactly [HokmSheen.NEUTRAL] when motion is reduced/off,
+ * when the sensor is missing, or when the device is in [HokmQualityLevel.LOW].
+ */
+@Composable
+fun rememberTiltSheen(
+    quality: HokmQualityLevel = HokmQualityLevel.STANDARD,
+): androidx.compose.runtime.State<HokmSheen> {
+    val level = LocalHokmMotion.current
+    val context = LocalContext.current
+    val state = remember { mutableStateOf(HokmSheen.NEUTRAL) }
+    val scale = HokmCinematics.motionScale(level) * HokmReflection.sheenScale(quality)
+    DisposableEffect(context, level, quality) {
+        val manager = context.getSystemService(Context.SENSOR_SERVICE) as? SensorManager
+        val sensor = manager?.getDefaultSensor(Sensor.TYPE_ACCELEROMETER)
+        if (level != HokmMotionLevel.FULL || scale <= 0f || manager == null || sensor == null) {
+            state.value = HokmSheen.NEUTRAL
+            onDispose { }
+        } else {
+            var smoothX = 0f
+            var smoothY = 0f
+            val listener = object : SensorEventListener {
+                override fun onAccuracyChanged(sensor: Sensor?, accuracy: Int) = Unit
+
+                override fun onSensorChanged(event: SensorEvent?) {
+                    val values = event?.values ?: return
+                    if (values.size < 2) return
+                    val rawX = (values[0] / STANDARD_GRAVITY).coerceIn(-1f, 1f)
+                    val rawY = (values[1] / STANDARD_GRAVITY).coerceIn(-1f, 1f)
+                    smoothX += (rawX - smoothX) * 0.12f
+                    smoothY += (rawY - smoothY) * 0.12f
+                    state.value = HokmReflection.sheen(smoothX, smoothY, scale)
+                }
+            }
+            if (!manager.registerListener(listener, sensor, SensorManager.SENSOR_DELAY_GAME)) {
+                state.value = HokmSheen.NEUTRAL
+            }
+            onDispose {
+                manager.unregisterListener(listener)
+                state.value = HokmSheen.NEUTRAL
+            }
+        }
+    }
+    return state
 }

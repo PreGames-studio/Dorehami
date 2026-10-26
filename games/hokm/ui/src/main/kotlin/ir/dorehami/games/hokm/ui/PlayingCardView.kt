@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.State
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.shadow
@@ -66,6 +67,7 @@ fun PlayingCardView(
     modifier: Modifier = Modifier,
     elevation: Dp = 6.dp,
     dimmed: Boolean = false,
+    sheen: State<HokmSheen> = NeutralSheenState,
 ) {
     val height = width / CARD_ASPECT
     val corner = width * 0.09f
@@ -116,6 +118,30 @@ fun PlayingCardView(
             }
 
             if (dimmed) drawRect(Color.Black.copy(alpha = 0.38f))
+
+            // Tilt-reactive specular band: read in the draw phase (no recomposition per sensor
+            // event), capped at 12% alpha, and never drawn on a dimmed/illegal card.
+            val reflection = sheen.value
+            val alpha = HokmReflection.specularAlpha(reflection, dimmed)
+            if (alpha > 0f) {
+                val bandWidth = w * 0.44f
+                val left = (HokmReflection.bandCenter(reflection) * w - bandWidth / 2f)
+                    .coerceIn(0f, w - bandWidth)
+                drawRect(
+                    brush = Brush.horizontalGradient(
+                        listOf(
+                            Color.Transparent,
+                            Color.White.copy(alpha = alpha),
+                            Color(0xFFFFE0B2).copy(alpha = alpha * 0.6f),
+                            Color.Transparent,
+                        ),
+                        startX = left,
+                        endX = left + bandWidth,
+                    ),
+                    topLeft = Offset(left, 0f),
+                    size = Size(bandWidth, h),
+                )
+            }
         }
     }
 }

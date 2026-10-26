@@ -59,6 +59,7 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.State
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -142,6 +143,13 @@ fun HokmScreen(
     val haptics = remember(rawHaptics, hapticsEnabled) { if (hapticsEnabled) rawHaptics else null }
     val motionLevel = LocalHokmMotion.current
     val motionScale = HokmCinematics.motionScale(motionLevel)
+    // Effect budget comes from injected device facts (pure policy), not from a hard-coded phone.
+    val quality = HokmReflection.quality(
+        maxMemoryMb = (Runtime.getRuntime().maxMemory() / (1024L * 1024L)).toInt(),
+        cores = Runtime.getRuntime().availableProcessors(),
+        level = motionLevel,
+    )
+    val sheenState = rememberTiltSheen(quality)
 
     // A short, decaying screen shake on a cut. It translates the picture only — card hit targets,
     // state and the score bar keep their exact positions, and OFF means zero movement.
@@ -267,6 +275,7 @@ fun HokmScreen(
             TrickArea(
                 state = state,
                 cardWidth = tableCardW,
+                sheen = sheenState,
                 modifier = Modifier
                     .align(Alignment.Center)
                     .size(w * 0.62f, h * 0.36f)
@@ -292,6 +301,7 @@ fun HokmScreen(
                     enabled = (state.isMyTurn && !state.iDraw && !state.iChooseHokm) || state.iDiscard,
                     selected = state.selectedForDiscard,
                     cardWidth = handCardW,
+                    sheen = sheenState,
                     onLift = { onUiSound("card_slide") },
                     // The table's own "card_play" is the weighted thud on release; no double sound.
                     onDrop = { haptics?.performHapticFeedback(HapticFeedbackType.LongPress) },
@@ -357,7 +367,7 @@ fun HokmScreen(
             }
             if (state.dealing) DealingOverlay(state, Modifier.align(Alignment.Center))
 
-            FxOverlay(state, tableCardWidth = tableCardW, modifier = Modifier.fillMaxSize())
+            FxOverlay(state, tableCardWidth = tableCardW, quality = quality, modifier = Modifier.fillMaxSize())
 
             BannerOverlay(state.banner, Modifier.align(Alignment.Center).offset(y = (-40).dp))
 
@@ -622,7 +632,12 @@ private fun OpponentHand(count: Int, rotation: Float, horizontal: Boolean, modif
 // --------------------------------------------------------------------------------------- trick
 
 @Composable
-private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Modifier) {
+private fun TrickArea(
+    state: HokmUiState,
+    cardWidth: Dp,
+    modifier: Modifier = Modifier,
+    sheen: State<HokmSheen> = NeutralSheenState,
+) {
     BoxWithConstraints(modifier, contentAlignment = Alignment.Center) {
         val cw = maxWidth
         val ch = maxHeight
@@ -653,6 +668,7 @@ private fun TrickArea(state: HokmUiState, cardWidth: Dp, modifier: Modifier = Mo
                     collectTarget = collectTo?.let { origin(it) },
                     collect = collect,
                     cardIndex = index,
+                    sheen = sheen,
                 )
             }
         }
@@ -668,6 +684,7 @@ private fun TableCard(
     collectTarget: Pair<Dp, Dp>?,
     collect: Float,
     cardIndex: Int = 0,
+    sheen: State<HokmSheen> = NeutralSheenState,
 ) {
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) { progress.animateTo(1f, tween(300, easing = FastOutSlowInEasing)) }
@@ -699,6 +716,7 @@ private fun TableCard(
         card = play.card,
         width = cardWidth,
         elevation = 8.dp,
+        sheen = sheen,
         modifier = Modifier
             .offset(x = pose.x.dp, y = pose.y.dp)
             .rotate(tilt + pose.rotationDeg * 0.1f)
@@ -719,6 +737,7 @@ private fun HandFan(
     onLift: () -> Unit = {},
     onDrop: (Card) -> Unit = {},
     selected: Set<Card> = emptySet(),
+    sheen: State<HokmSheen> = NeutralSheenState,
 ) {
     val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
     BoxWithConstraints(Modifier.fillMaxWidth().height(cardWidth / CARD_ASPECT + 26.dp)) {
@@ -754,6 +773,7 @@ private fun HandFan(
                     width = cardWidth,
                     elevation = if (lifted) 18.dp else if (playable) 10.dp else 4.dp,
                     dimmed = enabled && !playable,
+                    sheen = sheen,
                     modifier = Modifier
                         .offset(x = startX + step * i, y = 20.dp + lift - (12.dp * raise))
                         .rotate(angle)
@@ -1356,9 +1376,16 @@ private fun StickerTray(
 
 /** Particle bursts: gold sparks on a cut, a sparkle on each trick, a big burst on kot, confetti on a win. */
 @Composable
-private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier = Modifier) {
+private fun FxOverlay(
+    state: HokmUiState,
+    tableCardWidth: Dp,
+    modifier: Modifier = Modifier,
+    quality: HokmQualityLevel = HokmQualityLevel.STANDARD,
+) {
     if (state.fx.isEmpty()) return
     val level = LocalHokmMotion.current
+    val particleScale = HokmReflection.particleScale(quality)
+    fun scaled(base: Int): Int = (HokmCinematics.particleCount(base, level) * particleScale).toInt()
     BoxWithConstraints(modifier) {
         val cw = maxWidth
         val ch = maxHeight
@@ -1371,18 +1398,18 @@ private fun FxOverlay(state: HokmUiState, tableCardWidth: Dp, modifier: Modifier
                 when (fx.kind) {
                     FxKind.CUT -> Burst(
                         cx = cw * centre.first, cy = ch * centre.second,
-                        count = HokmCinematics.particleCount(18, level), radius = tableCardWidth * 1.6f, durationMs = 900,
+                        count = scaled(18), radius = tableCardWidth * 1.6f, durationMs = 900,
                         colors = listOf(Color(0xFFFFE082), Color(0xFFFFC107), Color.White),
                         label = "بُرید!",
                     )
                     FxKind.TRICK_WIN -> Burst(
                         cx = cw * centre.first, cy = ch * centre.second,
-                        count = HokmCinematics.particleCount(8, level), radius = tableCardWidth, durationMs = 700,
+                        count = scaled(8), radius = tableCardWidth, durationMs = 700,
                         colors = listOf(Color.White.copy(alpha = 0.9f), Table.brass),
                     )
                     FxKind.KOT -> Burst(
                         cx = cw * 0.5f, cy = ch * 0.45f,
-                        count = HokmCinematics.particleCount(48, level), radius = cw * 0.55f, durationMs = 2200,
+                        count = scaled(48), radius = cw * 0.55f, durationMs = 2200,
                         colors = listOf(Color(0xFFFF7043), Color(0xFFFFD54F), Color(0xFFEF5350), Color.White),
                     )
                     FxKind.CONFETTI -> if (level != HokmMotionLevel.OFF) Confetti(cw, ch, durationMs = 3800)
