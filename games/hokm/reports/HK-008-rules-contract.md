@@ -45,8 +45,18 @@
 ## ۴. شواهد
 
 - محیط محلی فاقد Java/Android SDK است؛ `checkAll` و `:app:assembleDebug` محلی اجرا نشدند.
-- نتیجهٔ run CI پس از اتمام در [ROADMAP.md](../ROADMAP.md) (داشبورد و دفتر اجرا) و پیام پایانی
-  ثبت میشود. شمارش تستها باید دقیقاً **۱۰ تست بیشتر** از خط پایهٔ ۱۹۹ باشد.
+- **run نهایی سبز:** [CI run `40519180289`](https://github.com/PreGames-studio/Dorehami/actions/runs/40519180289)
+  روی `e4df4de`: هر دو job (`checkAll` و `Build debug APK`) موفق،
+  `checkAll: 209 tests, 0 failing, 13 module(s) with results` و artifact APK بارگذاری شد.
+- خط پایهٔ نوبت قبل ([run `40439068342`](https://github.com/PreGames-studio/Dorehami/actions/runs/40439068342)
+  روی `6ffa2b3`): ۱۹۹ تست / ۰ شکست / ۱۳ ماژول ⇒ دقیقاً **۱۰ تست تازهٔ
+  `HokmRulesContractTest`** اجرا و پاس شدند.
+- **run قرمز میانی (ثبت صادقانه):** [run `40518202686`](https://github.com/PreGames-studio/Dorehami/actions/runs/40518202686)
+  روی `89f4c85` شکست خورد: یک کامای اضافی بعد از شاخهٔ `3 ->` در `RulesCard`
+  (خطای نحوی `HokmEntry.kt:868`) compilation Debug Kotlin را شکست، و همان run همچنین
+  `RoomHubTest` سرور را با ۱ شکست و نتایج ناقص (۱۴۲ تست / ۱۰ ماژول) نشان داد. کاما در `e4df4de`
+  حذف شد و در run نهایی همان suite سرور هم ۰ شکست داشت؛ دلیل مستقل آن شکست سرور اثبات نشد،
+  ولی پایدار نبود. هیچ ادعای «سبز از ابتدا» نمیشود.
 - لاگ کامل job در نوبتهای قبل بهعلت `results-receiver.actions.githubusercontent.com` در دسترس
   نبود؛ شاهد، annotation رسمی step «Report test results» و نتیجهٔ jobهاست.
 
