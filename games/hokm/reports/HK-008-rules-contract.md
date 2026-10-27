@@ -60,10 +60,12 @@
 - **تست ناپایدار سرور (خارج از دامنه):** در [run `40519961687`](https://github.com/PreGames-studio/Dorehami/actions/runs/40519961687)
   (کامیت صرفاً Markdown، همان کد سبز بالا) باز هم `RoomHubTest.server-hosted room…record stored`
   با `record persisted on finish ==> expected: not <null>` شکست خورد (۱۶۴ تست/۱ شکست/۱۱ ماژول).
-  خواندن کد تست نشان میدهد از `delay` واقعی و `withTimeout(60_000)` استفاده میکند و درست بعد از
-  دیدن `result`، وجود رکورد را چک میکند — یک مسابقهٔ زمانی. چون همان کد در run سبز ۰ شکست داشت،
-  بهعنوان تست ناپایدار/گیت CI در `IMP-009` ثبت شد و بیاجازه اصلاح نشد؛ rerun job هم با خطای
-  403 دسترسی ممکن نشد. شواهد پذیرش این مرحله، run سبز `40519180289` روی کد نهایی است.
+  خواندن کد نشان میدهد `HostController.kt:300` ابتدا `broadcast(SESSION_FINISHED)` میکند و خط
+  ۳۰۲ تازه `onFinished?.invoke(eng.record())` (همان `store.save`) را صدا میزند؛ تست هم `delay`
+  واقعی و `withTimeout(60_000)` دارد و درست بعد از دیدن `result`، وجود رکورد را چک میکند — یک
+  مسابقهٔ زمانی واقعی. چون همان کد در run سبز ۰ شکست داشت، بهعنوان گیت CI ناپایدار در `IMP-009`
+  ثبت شد و بیاجازه اصلاح نشد. `gh run rerun` و `workflow_dispatch` هر دو با خطای 403 دسترسی
+  (token جلسه) ممکن نشدند؛ شواهد پذیرش این مرحله، run سبز `40519180289` روی کد نهایی است.
 - لاگ کامل job در نوبتهای قبل بهعلت `results-receiver.actions.githubusercontent.com` در دسترس
   نبود؛ شاهد، annotation رسمی step «Report test results» و نتیجهٔ jobهاست.
 
