@@ -384,39 +384,22 @@ class HokmSession(private val config: GameConfig) : GameSession {
 
     /** Settles a finished hand. [reachedSeven] is the side that got 7, or `null` when cards ran out (3p). */
     private fun scoreHand(reachedSeven: Int?): HandResult {
-        val hakemTeam = teamOf(hakem)
-        val winnerTeam: Int? = reachedSeven ?: run {
-            val max = tricksWon.max()
-            val leaders = tricksWon.indices.filter { tricksWon[it] == max }
-            if (leaders.size == 1) leaders.first() else null
-        }
-        if (winnerTeam == null) {
-            return HandResult(
-                handNumber,
-                null,
-                0,
-                HandWinKind.VOID,
-                hakem,
-                tricksWon.toList(),
-                hokm,
-                scores.toList(),
-            )
-        }
-        val losers = tricksWon.indices.filter { it != winnerTeam }
-        val (kind, points) = HokmRules.handResult(
-            winnerTricks = tricksWon[winnerTeam],
-            minLoserTricks = losers.minOf { tricksWon[it] },
-            hakemTricks = tricksWon[hakemTeam],
-            hakemLost = hakemTeam != winnerTeam,
+        // The approved HK-008 contract lives in the pure rules layer so its examples are testable;
+        // this method only applies the outcome to the mutable session state.
+        val outcome = HokmRules.settleHand(
+            tricks = tricksWon.toList(),
+            hakemTeam = teamOf(hakem),
+            reachedSeven = reachedSeven,
             kotPoints = kotPoints,
             hakemKotPoints = hakemKotPoints,
         )
-        scores[winnerTeam] += points
+        val winnerTeam = outcome.winnerTeam
+        if (winnerTeam != null) scores[winnerTeam] += outcome.points
         return HandResult(
             handNumber,
             winnerTeam,
-            points,
-            kind,
+            outcome.points,
+            outcome.kind,
             hakem,
             tricksWon.toList(),
             hokm,

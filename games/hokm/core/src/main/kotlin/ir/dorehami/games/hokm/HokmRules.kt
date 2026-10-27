@@ -118,6 +118,48 @@ object HokmRules {
         }
     }
 
+    /**
+     * Winner when all cards are played before anybody reaches [TRICKS_TO_WIN_HAND].
+     * `null` means the top scorers are tied and the hand is void (HK-008 contract, three players).
+     */
+    fun winnerWhenCardsExhausted(tricks: List<Int>): Int? {
+        require(tricks.isNotEmpty()) { "empty trick table" }
+        val max = tricks.max()
+        return tricks.indices.filter { tricks[it] == max }.singleOrNull()
+    }
+
+    /** Outcome of one finished hand, expressed without any session state. */
+    data class HandOutcome(val winnerTeam: Int?, val kind: HandWinKind, val points: Int)
+
+    /**
+     * The complete, pure scoring decision for a finished hand — the approved HK-008 contract v1.0.
+     *
+     * [reachedSeven] is the side that got 7 tricks, or `null` when the cards ran out (three players).
+     * In three-player hands, kot means **any** losing side took zero tricks (7-5-0 is a kot); a tie
+     * at exhaustion is [HandWinKind.VOID] with no points for anybody and the hakem seat rotates.
+     */
+    fun settleHand(
+        tricks: List<Int>,
+        hakemTeam: Int,
+        reachedSeven: Int?,
+        kotPoints: Int,
+        hakemKotPoints: Int,
+    ): HandOutcome {
+        require(tricks.size >= 2) { "at least two sides are needed" }
+        val winnerTeam = reachedSeven ?: winnerWhenCardsExhausted(tricks)
+            ?: return HandOutcome(null, HandWinKind.VOID, 0)
+        val losers = tricks.indices.filter { it != winnerTeam }
+        val (kind, points) = handResult(
+            winnerTricks = tricks[winnerTeam],
+            minLoserTricks = losers.minOf { tricks[it] },
+            hakemTricks = tricks[hakemTeam],
+            hakemLost = hakemTeam != winnerTeam,
+            kotPoints = kotPoints,
+            hakemKotPoints = hakemKotPoints,
+        )
+        return HandOutcome(winnerTeam, kind, points)
+    }
+
     /** Who is hakem next hand: the same player if their side won, otherwise the next seat around. */
     fun nextHakem(currentHakem: Int, hakemTeamWon: Boolean, players: Int): Int =
         if (hakemTeamWon) currentHakem else nextSeat(currentHakem, players)
