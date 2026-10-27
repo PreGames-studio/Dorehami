@@ -276,6 +276,10 @@ private fun HokmRoom(
 
     DisposableEffect(Unit) {
         onDispose {
+            // HK-007: request teardown before cancelling the room scope. RoomFlow releases its
+            // suspend closers on an independent Job, so they survive this cancel (R-05).
+            // `rememberSoundPlayer` owns the SoundPool and releases it in its own DisposableEffect,
+            // independently of this scope — do not move sound release behind scope.cancel().
             flow.leave()
             scope.cancel()
         }

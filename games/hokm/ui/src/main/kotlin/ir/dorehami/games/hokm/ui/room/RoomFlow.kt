@@ -19,7 +19,9 @@ import ir.dorehami.transport.nearby.NearbyTransport
 import ir.dorehami.transport.online.OnlineApi
 import ir.dorehami.transport.online.OnlineException
 import ir.dorehami.transport.online.WebSocketTransport
+import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
@@ -75,64 +77,85 @@ class RoomFlow(
     private var http: HttpClient? = null
     private var client: SessionClient? = null
     private var watcher: Job? = null
+    private val resources = RoomResources()
 
     val nearbyRooms: StateFlow<List<NearbyRoom>>? get() = nearby?.discovered
 
     // ------------------------------------------------------------------ Bluetooth
 
     fun hostBluetooth() = scope.launch {
-        _stage.value = RoomStage.Connecting("در حال ساخت اتاق…")
-        val code = randomCode(5)
-        val t = NearbyTransport(context, localPeer = "host").also { nearby = it }
-        val host = HostController(
-            module = HokmModule, transport = t, scope = scope, roomCode = code, roomName = "اتاق ${me.displayName}",
-            hostPlayer = me, options = options, seed = SecureRandom().nextLong(),
-            clock = { System.currentTimeMillis() }, rngFactory = { SplitMixRng(it) },
-            partySize = playerCount,
-        )
-        host.open()
-        if (!t.advertise(code, me.displayName)) {
-            _stage.value = RoomStage.Failed("بلوتوث در دسترس نیست. بلوتوث و موقعیت مکانی را روشن کن و اجازه‌ها را بده.")
-            return@launch
+        var connected = false
+        try {
+            _stage.value = RoomStage.Connecting("در حال ساخت اتاق…")
+            val code = randomCode(5)
+            val t = resources.track("nearby", NearbyTransport(context, localPeer = "host")) { it.close() }
+            nearby = t
+            val host = HostController(
+                module = HokmModule, transport = t, scope = scope, roomCode = code, roomName = "اتاق ${me.displayName}",
+                hostPlayer = me, options = options, seed = SecureRandom().nextLong(),
+                clock = { System.currentTimeMillis() }, rngFactory = { SplitMixRng(it) },
+                partySize = playerCount,
+            )
+            host.open()
+            client = resources.track("client", host) { it.leave() }
+            if (!t.advertise(code, me.displayName)) {
+                _stage.value = RoomStage.Failed("بلوتوث در دسترس نیست. بلوتوث و موقعیت مکانی را روشن کن و اجازه‌ها را بده.")
+                return@launch
+            }
+            _stage.value = RoomStage.Lobby(host, code, canStart = true, hint = "دوستانت «پیوستن» را بزنند و اتاق تو را انتخاب کنند. صندلی خالی = ربات.")
+            watchStart(host)
+            connected = true
+        } finally {
+            if (!connected) teardown()
         }
-        client = host
-        _stage.value = RoomStage.Lobby(host, code, canStart = true, hint = "دوستانت «پیوستن» را بزنند و اتاق تو را انتخاب کنند. صندلی خالی = ربات.")
-        watchStart(host)
     }
 
     fun joinBluetooth() = scope.launch {
-        _stage.value = RoomStage.Connecting("در حال جست‌وجوی اتاق‌های اطراف…")
-        val t = NearbyTransport(context, localPeer = "guest").also { nearby = it }
-        if (!t.discover()) {
-            _stage.value = RoomStage.Failed("جست‌وجو شروع نشد. بلوتوث و موقعیت مکانی را روشن کن و اجازه‌ها را بده.")
-            return@launch
+        var connected = false
+        try {
+            _stage.value = RoomStage.Connecting("در حال جست‌وجوی اتاق‌های اطراف…")
+            val t = resources.track("nearby", NearbyTransport(context, localPeer = "guest")) { it.close() }
+            nearby = t
+            if (!t.discover()) {
+                _stage.value = RoomStage.Failed("جست‌وجو شروع نشد. بلوتوث و موقعیت مکانی را روشن کن و اجازه‌ها را بده.")
+                return@launch
+            }
+            _stage.value = RoomStage.Discovering
+            connected = true
+        } finally {
+            if (!connected) teardown()
         }
-        _stage.value = RoomStage.Discovering
     }
 
     fun connectBluetooth(room: NearbyRoom) = scope.launch {
         val t = nearby ?: return@launch
-        _stage.value = RoomStage.Connecting("در حال اتصال به اتاق ${room.roomCode}…")
-        t.stopDiscovery()
-        // Listen for the accept before asking, so we cannot miss it.
-        val accepted = scope.launch {
-            t.events.first { it is TransportEvent.PeerConnected && it.peer == room.endpointId }
+        var connected = false
+        try {
+            _stage.value = RoomStage.Connecting("در حال اتصال به اتاق ${room.roomCode}…")
+            t.stopDiscovery()
+            // Listen for the accept before asking, so we cannot miss it.
+            val accepted = scope.launch {
+                t.events.first { it is TransportEvent.PeerConnected && it.peer == room.endpointId }
+            }
+            resources.track("accept-wait") { accepted.cancel() }
+            if (!t.connectTo(room, me.displayName)) {
+                _stage.value = RoomStage.Failed("میزبان اتصال را نپذیرفت.")
+                return@launch
+            }
+            val ok = withTimeoutOrNull(20_000) { accepted.join(); true } ?: false
+            if (!ok) {
+                _stage.value = RoomStage.Failed("اتصال برقرار نشد. نزدیک‌تر بیا و دوباره امتحان کن.")
+                return@launch
+            }
+            val guest = GuestController(t, scope, roomCode = room.roomCode, hostPeer = room.endpointId, player = me, nowMs = { System.currentTimeMillis() })
+            client = resources.track("client", guest) { it.leave() }
+            guest.join()
+            _stage.value = RoomStage.Lobby(guest, room.roomCode, canStart = false, hint = "منتظر میزبان بمان؛ وقتی شروع کند میز باز می‌شود.")
+            watchStart(guest)
+            connected = true
+        } finally {
+            if (!connected) teardown()
         }
-        if (!t.connectTo(room, me.displayName)) {
-            accepted.cancel()
-            _stage.value = RoomStage.Failed("میزبان اتصال را نپذیرفت.")
-            return@launch
-        }
-        val ok = withTimeoutOrNull(20_000) { accepted.join(); true } ?: false
-        if (!ok) {
-            _stage.value = RoomStage.Failed("اتصال برقرار نشد. نزدیک‌تر بیا و دوباره امتحان کن.")
-            return@launch
-        }
-        val guest = GuestController(t, scope, roomCode = room.roomCode, hostPeer = room.endpointId, player = me, nowMs = { System.currentTimeMillis() })
-        client = guest
-        guest.join()
-        _stage.value = RoomStage.Lobby(guest, room.roomCode, canStart = false, hint = "منتظر میزبان بمان؛ وقتی شروع کند میز باز می‌شود.")
-        watchStart(guest)
     }
 
     // ------------------------------------------------------------------ Online
@@ -170,15 +193,18 @@ class RoomFlow(
         }
         _serverAddressError.value = null
         _stage.value = RoomStage.Connecting(message)
+        var connected = false
         try {
-            val http = HttpClient { install(WebSockets) }.also { this@RoomFlow.http = it }
+            val http = resources.track("http", HttpClient { install(WebSockets) }) { it.close() }
+            this@RoomFlow.http = http
             val api = OnlineApi(http, endpoint.httpBase)
             val login = api.guestLogin(me.displayName)
             val code = resolveRoom(api, login.token)
-            val t = WebSocketTransport(http, endpoint.socketUrl(code, login.token), scope, localPeer = login.player.id.value).also { ws = it }
+            val t = resources.track("ws", WebSocketTransport(http, endpoint.socketUrl(code, login.token), scope, localPeer = login.player.id.value)) { it.close() }
+            ws = t
             t.connect()
             val guest = GuestController(t, scope, roomCode = code, hostPeer = WebSocketTransport.SERVER_PEER, player = login.player, nowMs = { System.currentTimeMillis() })
-            client = guest
+            client = resources.track("client", guest) { it.leave() }
             guest.join()
             // lobby.ack tells us whether we own the room.
             val st = withTimeoutOrNull(10_000) { guest.state.first { it.room != null } }
@@ -192,10 +218,14 @@ class RoomFlow(
                 hint = if (st.isHost) "کد اتاق را برای دوستانت بفرست. صندلی خالی = ربات." else "منتظر سازندهٔ اتاق بمان.",
             )
             watchStart(guest)
+            connected = true
         } catch (e: OnlineException) {
             _stage.value = RoomStage.Failed(e.messageFa)
         } catch (e: Exception) {
             _stage.value = RoomStage.Failed("اتصال به سرور برقرار نشد (${e.javaClass.simpleName}). آدرس سرور و اینترنت را چک کن.")
+        } finally {
+            // Any early return, thrown OnlineException or cancellation lands here.
+            if (!connected) teardown()
         }
     }
 
@@ -214,21 +244,46 @@ class RoomFlow(
 
     private fun watchStart(c: SessionClient) {
         watcher?.cancel()
-        watcher = scope.launch {
+        val job = scope.launch {
             c.state.first { it.room?.started == true }
             nearby?.stopAdvertising()
             _stage.value = RoomStage.Playing(c)
         }
+        watcher = job
+        resources.track("watcher") { job.cancel() }
     }
 
     fun leave() {
-        watcher?.cancel()
-        scope.launch {
-            runCatching { client?.leave() }
-            runCatching { nearby?.close() }
-            runCatching { ws?.close() }
-            runCatching { http?.close() }
+        teardown()
+    }
+
+    /**
+     * Releases everything created for the current connection, exactly once.
+     *
+     * HokmRoom cancels [scope] immediately after `leave()` (R-05), and most closers are suspend
+     * calls. A short-lived independent Job (not `launch(NonCancellable)`, which upstream warns
+     * against because it severs the parent-child relation) keeps cleanup alive until it settles,
+     * then completes itself. Fields are cleared synchronously so a later attempt cannot reuse a
+     * half-closed client, and [RoomResources.releaseAll] makes a repeated `leave()` a no-op.
+     */
+    private fun teardown() {
+        val job: CompletableJob = Job()
+        CoroutineScope(job + Dispatchers.Main.immediate).launch {
+            try {
+                resources.releaseAll()
+            } catch (e: Exception) {
+                // Defensive: releaseAll already isolates every action. Never let a teardown
+                // coroutine fail into the global exception handler.
+                Unit
+            } finally {
+                job.complete()
+            }
         }
+        nearby = null
+        ws = null
+        http = null
+        client = null
+        watcher = null
     }
 
     companion object {
