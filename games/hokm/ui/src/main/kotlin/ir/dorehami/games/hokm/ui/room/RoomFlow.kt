@@ -63,7 +63,7 @@ class RoomFlow(
 ) {
     private val _stage = mutableStateOf<RoomStage>(RoomStage.Choose)
     val stage: State<RoomStage> get() = _stage
-    private val serverAddress = OnlineServerAddress(serverUrl)
+    private val connectionPlan = OnlineConnectionPlan(serverUrl)
     private val _serverAddressError = mutableStateOf<String?>(null)
     val serverAddressError: State<String?> get() = _serverAddressError
 
@@ -139,7 +139,7 @@ class RoomFlow(
 
     /** The next create/join/random action reads the latest value typed in the lobby. */
     fun updateServerUrl(value: String) {
-        serverAddress.update(value)
+        connectionPlan.update(value)
         _serverAddressError.value = null
     }
 
@@ -161,19 +161,21 @@ class RoomFlow(
     }
 
     private fun online(message: String, resolveRoom: suspend (OnlineApi, String) -> String) = scope.launch {
-        val baseUrl = serverAddress.validatedBaseUrl()
-        if (baseUrl == null) {
-            _serverAddressError.value = OnlineServerAddress.INVALID_ADDRESS_MESSAGE_FA
+        // Resolve once, before creating any network resource. Both the HTTP client and the socket
+        // use this same endpoint, so a stale address can never be used for one of them.
+        val endpoint = connectionPlan.resolve()
+        if (endpoint == null) {
+            _serverAddressError.value = OnlineConnectionPlan.ERROR_FA
             return@launch
         }
         _serverAddressError.value = null
         _stage.value = RoomStage.Connecting(message)
         try {
             val http = HttpClient { install(WebSockets) }.also { this@RoomFlow.http = it }
-            val api = OnlineApi(http, baseUrl)
+            val api = OnlineApi(http, endpoint.httpBase)
             val login = api.guestLogin(me.displayName)
             val code = resolveRoom(api, login.token)
-            val t = WebSocketTransport(http, api.roomSocketUrl(code, login.token), scope, localPeer = login.player.id.value).also { ws = it }
+            val t = WebSocketTransport(http, endpoint.socketUrl(code, login.token), scope, localPeer = login.player.id.value).also { ws = it }
             t.connect()
             val guest = GuestController(t, scope, roomCode = code, hostPeer = WebSocketTransport.SERVER_PEER, player = login.player, nowMs = { System.currentTimeMillis() })
             client = guest
