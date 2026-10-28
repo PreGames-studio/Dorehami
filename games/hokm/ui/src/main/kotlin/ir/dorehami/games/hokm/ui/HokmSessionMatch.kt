@@ -73,8 +73,9 @@ class HokmSessionMatch(
             _state.value = ui0.copy(turnDeadlineMs = s.deadlineMs, turnSeconds = s.turnSeconds, modeLabel = modeLabel)
         }
         // Refresh only when the table is calm; during trick/hand animations the loop refreshes itself.
-        val ui = _state.value
-        if (pendingPauseMs == 0L && ui.collectingTo == null && ui.introShown == null && !ui.dealing) refresh()
+        // `isCalm` is the same gate the snapshot resync uses, so a banner or a closed trick is never
+        // overwritten by a fresh view in the middle of an animation.
+        if (pendingPauseMs == 0L && _state.value.isCalm) refresh()
         wake.trySend(Unit)
     }
 
