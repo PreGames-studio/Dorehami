@@ -64,8 +64,16 @@
 
 ## ۵. شواهد و محدودیت‌ها
 
-- محیط محلی فاقد Java/Android SDK است؛ `checkAll` و APK فقط از CI. نتیجهٔ run در
-  [ROADMAP.md](../ROADMAP.md) (داشبورد و دفتر اجرا) ثبت می‌شود؛ انتظار **+۱۳ تست** نسبت به خط پایهٔ ۲۰۹.
+- محیط محلی فاقد Java/Android SDK است؛ `checkAll` و APK فقط از CI.
+- **run نهایی سبز:** [CI run `40670126842`](https://github.com/PreGames-studio/Dorehami/actions/runs/40670126842)
+  روی `05a83c9`: هر دو job (`checkAll`، `Build debug APK`) موفق،
+  `checkAll: 222 tests, 0 failing, 13 module(s) with results` ⇒ دقیقاً **+۱۳ تست** نسبت به خط پایهٔ
+  ۲۰۹ ([run `40652913946`](https://github.com/PreGames-studio/Dorehami/actions/runs/40652913946)).
+- **run قرمز میانی (ثبت صادقانه):** [run `40669720952`](https://github.com/PreGames-studio/Dorehami/actions/runs/40669720952)
+  روی `e84a1f4` با `Unresolved reference 'int' on receiver of type 'JsonPrimitive'` در
+  `HokmTable.kt:466` شکست خورد: هنگام پاک‌سازی importهای بی‌استفاده،
+  `kotlinx.serialization.json.int` هم حذف شد ولی فید رویدادها به آن نیاز دارد. در `05a83c9`
+  برگردانده شد و run سبز بالا روی همان کد است.
 - آزمون‌نشده: رندر Compose، ورود مجدد واقعی روی دستگاه/بلوتوث/آنلاین، TalkBack، فریم‌ریت و
   انیمیشن برداری. این مرحله فقط مدل و قرارداد را اثبات می‌کند، نه تجربهٔ روی دستگاه.
 - اگر در اتاق، فهرست صندلی‌ها با `playerCount` نما اختلاف داشته باشد، میز آخرین وضعیت معتبر را
