@@ -45,7 +45,11 @@
 ## ۴. شواهد
 
 - محیط محلی فاقد Java/Android SDK است؛ `checkAll` و `:app:assembleDebug` محلی اجرا نشدند.
-- **run نهایی سبز:** [CI run `40519180289`](https://github.com/PreGames-studio/Dorehami/actions/runs/40519180289)
+- **آخرین شاهد روی `HEAD`:** [run `40652505157`](https://github.com/PreGames-studio/Dorehami/actions/runs/40652505157)
+  روی `277e92c` (نوک شاخه): هر دو job موفق، `checkAll: 209 tests, 0 failing, 13 module(s) with results`
+  و APK artifact؛ یعنی همان مجموعهٔ تست کامل روی خودِ نسخهٔ نهایی سبز است و تست ناپایدار `IMP-009`
+  در این اجرا رخ نداد.
+- **run سبز کد:** [CI run `40519180289`](https://github.com/PreGames-studio/Dorehami/actions/runs/40519180289)
   روی `e4df4de`: هر دو job (`checkAll` و `Build debug APK`) موفق،
   `checkAll: 209 tests, 0 failing, 13 module(s) with results` و artifact APK بارگذاری شد.
 - خط پایهٔ نوبت قبل ([run `40439068342`](https://github.com/PreGames-studio/Dorehami/actions/runs/40439068342)
