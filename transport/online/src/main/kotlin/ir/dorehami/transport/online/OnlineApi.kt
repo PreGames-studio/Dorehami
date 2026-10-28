@@ -40,6 +40,20 @@ data class RoomStatus(
 data class MatchTicket(val id: String, val roomCode: String?)
 
 /**
+ * Pure derivation of the room WebSocket URL from an HTTP base URL (PROTOCOL.md section 7).
+ *
+ * Kept as a top-level function so the Hokm lobby's connection plan and [OnlineApi] cannot drift
+ * apart: both callers derive the socket from the very same resolved base URL. No network, clock or
+ * mutable state is involved, so the mapping is regression-testable on the JVM.
+ */
+fun socketUrlFor(baseUrl: String, code: String, token: String): String {
+    val ws = baseUrl.trimEnd('/')
+        .replaceFirst("https://", "wss://")
+        .replaceFirst("http://", "ws://")
+    return "$ws/v1/ws/room/$code?ticket=$token"
+}
+
+/**
  * The HTTP half of docs/PROTOCOL.md section 6. Tiny on purpose: five calls. Everything after the
  * socket opens is an Envelope handled by `core/session`.
  */
@@ -47,10 +61,7 @@ class OnlineApi(private val client: HttpClient, baseUrl: String) {
     val baseUrl: String = baseUrl.trimEnd('/')
 
     /** `wss://…/v1/ws/room/{code}?ticket=…` derived from the HTTP base URL. */
-    fun roomSocketUrl(code: String, token: String): String {
-        val ws = baseUrl.replaceFirst("https://", "wss://").replaceFirst("http://", "ws://")
-        return "$ws/v1/ws/room/$code?ticket=$token"
-    }
+    fun roomSocketUrl(code: String, token: String): String = socketUrlFor(baseUrl, code, token)
 
     suspend fun guestLogin(displayName: String): GuestLogin {
         val o = json(client.post("$baseUrl/v1/auth/guest") { jsonBody(buildJsonObject { put("displayName", displayName) }) })

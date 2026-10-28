@@ -12,7 +12,6 @@ import ir.dorehami.games.hokm.HandPhase
 import ir.dorehami.games.hokm.HandWinKind
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.HokmRules
-import ir.dorehami.games.hokm.HokmSession
 import ir.dorehami.games.hokm.Play
 import ir.dorehami.games.hokm.Suit
 import ir.dorehami.uikit.toFa
@@ -24,8 +23,6 @@ import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
-import kotlinx.serialization.json.jsonArray
-import kotlinx.serialization.json.jsonObject
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -140,14 +137,21 @@ data class HokmUiState(
     val turnSeconds: Int = 0,
     /** Short label of the game mode shown in the score bar ("ربات", "بلوتوث", "آنلاین"). */
     val modeLabel: String = "",
+    /** Session revision of the snapshot this table currently shows (0 before the first read). */
+    val revision: Long = 0L,
 ) {
     val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
     fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
-    private val calm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
-    val isMyTurn: Boolean get() = calm && handPhase == HandPhase.PLAYING && turn == mySeat
-    val iChooseHokm: Boolean get() = calm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
-    val iDiscard: Boolean get() = calm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
-    val iDraw: Boolean get() = calm && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
+
+    /**
+     * Nothing is being animated, so a snapshot may be drawn as-is: no collect, banner, deal or
+     * opening draw is on screen (`HokmTable.refresh()` and the event queue both use this gate).
+     */
+    val isCalm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
+    val isMyTurn: Boolean get() = isCalm && handPhase == HandPhase.PLAYING && turn == mySeat
+    val iChooseHokm: Boolean get() = isCalm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
+    val iDiscard: Boolean get() = isCalm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
+    val iDraw: Boolean get() = isCalm && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
     val isTeamGame: Boolean get() = playerCount == 4
 }
 
@@ -487,30 +491,31 @@ abstract class HokmTable(
                     }
 
                     "hand_finished" -> {
-                        val summary = parseHand(e.payload)
-                        val myTeam = HokmRules.teamOf(mySeat, playerCount)
-                        val mine = summary.winnerTeam == myTeam
-                        val we = if (playerCount == 4) "بردیم" else "بردی"
-                        val lost = if (playerCount == 4) "باختیم" else "باختی"
-                        val title = when (summary.kind) {
-                            HandWinKind.NORMAL -> if (mine) "این دست را $we!" else "این دست را $lost"
-                            HandWinKind.KOT -> if (mine) "کُت!" else "کُت ${if (playerCount == 4) "شدیم" else "شدی"}!"
-                            HandWinKind.HAKEM_KOT -> if (mine) "حاکم‌کُت! ${summary.points.toFaDigitsLocal()} امتیاز" else "حاکم‌کُت ${if (playerCount == 4) "شدیم" else "شدی"}…"
-                            HandWinKind.VOID -> "مساوی — این دست بی‌نتیجه ماند"
+                        TableSnapshotMapper.parseHand(e.payload)?.let { summary ->
+                            val myTeam = HokmRules.teamOf(mySeat, playerCount)
+                            val mine = summary.winnerTeam == myTeam
+                            val we = if (playerCount == 4) "بردیم" else "بردی"
+                            val lost = if (playerCount == 4) "باختیم" else "باختی"
+                            val title = when (summary.kind) {
+                                HandWinKind.NORMAL -> if (mine) "این دست را $we!" else "این دست را $lost"
+                                HandWinKind.KOT -> if (mine) "کُت!" else "کُت ${if (playerCount == 4) "شدیم" else "شدی"}!"
+                                HandWinKind.HAKEM_KOT -> if (mine) "حاکم‌کُت! ${summary.points.toFaDigitsLocal()} امتیاز" else "حاکم‌کُت ${if (playerCount == 4) "شدیم" else "شدی"}…"
+                                HandWinKind.VOID -> "مساوی — این دست بی‌نتیجه ماند"
+                            }
+                            val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
+                            pendingHandBanner = Banner(title, subtitle, big = true)
+                            _state.value = _state.value.copy(handHistory = _state.value.handHistory + summary)
+                            if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
+                                scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
+                            }
+                            val sound = when (summary.kind) {
+                                HandWinKind.NORMAL, HandWinKind.VOID -> if (mine) "hand_won" else "hand_lost"
+                                else -> if (mine) "kot" else "hand_lost"
+                            }
+                            scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); onSound(sound) }
+                            botReactions(summary)
+                            feed += title
                         }
-                        val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
-                        pendingHandBanner = Banner(title, subtitle, big = true)
-                        _state.value = _state.value.copy(handHistory = _state.value.handHistory + summary)
-                        if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
-                            scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
-                        }
-                        val sound = when (summary.kind) {
-                            HandWinKind.NORMAL, HandWinKind.VOID -> if (mine) "hand_won" else "hand_lost"
-                            else -> if (mine) "kot" else "hand_lost"
-                        }
-                        scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); onSound(sound) }
-                        botReactions(summary)
-                        feed += title
                     }
 
                     "card_drawn" -> {
@@ -576,53 +581,52 @@ abstract class HokmTable(
 
     // ------------------------------------------------------------------ view → state
 
-    /** Re-reads the human's private view. The screen never sees anything beyond this. */
+    /**
+     * Re-reads the human's private view through the typed mapper (HK-009).
+     *
+     * The screen never sees anything beyond this. Refusals are explicit: an absent view, a stale
+     * revision or a view this build cannot trust leaves the table exactly as it was, instead of
+     * crashing on `!!` or drawing a half-parsed table. While the table is calm the snapshot also
+     * restores the cards of a half-played trick (risk R-06).
+     */
     protected fun refresh() {
-        val v = privateView() ?: return
         val old = _state.value
-        val tricks = v["tricksWon"]!!.jsonArray.map { it.jsonPrimitive.int }
-        val scores = v["scores"]!!.jsonArray.map { it.jsonPrimitive.int }
-        val finished = v["phase"]!!.jsonPrimitive.content == Phase.FINISHED.name
-        _state.value = old.copy(
-            phase = if (finished) Phase.FINISHED else Phase.PLAYING,
-            handPhase = HandPhase.entries.firstOrNull { it.id == v["handPhase"]!!.jsonPrimitive.content } ?: HandPhase.CHOOSING_HOKM,
-            handNumber = v["handNumber"]!!.jsonPrimitive.int,
-            hakem = v["hakem"]!!.jsonPrimitive.int,
-            hokm = v["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
-            turn = v["turn"]!!.jsonPrimitive.int,
-            trickNumber = v["trickNumber"]!!.jsonPrimitive.int,
-            tricksWon = tricks,
-            scores = scores,
-            targetPoints = v["targetPoints"]!!.jsonPrimitive.int,
-            handCounts = v["handCounts"]!!.jsonArray.map { it.jsonPrimitive.int },
-            myHand = v["hand"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! },
-            legalCards = v["legalCards"]!!.jsonArray.map { Card.parse(it.jsonPrimitive.content)!! }.toSet(),
-            revealed = v[HokmSession.Keys.REVEALED]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Card.parse(it) },
-            discardCount = v[HokmSession.Keys.DISCARD_COUNT]?.jsonPrimitive?.content?.toIntOrNull() ?: 0,
-            stockCount = v["stockCount"]!!.jsonPrimitive.int,
-            hakemDraw = v["hakemDraw"]!!.jsonArray.map { p ->
-                val o = p.jsonObject
-                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
-            },
-            lastHand = v["lastHandResult"]?.let { parseHand(it.jsonObject) },
-            lastTrick = (v["lastTrick"] as? JsonObject)?.get("cards")?.jsonArray?.map { p ->
-                val o = p.jsonObject
-                Play(o["seat"]!!.jsonPrimitive.int, Card.parse(o["card"]!!.jsonPrimitive.content)!!)
-            } ?: emptyList(),
-            lastTrickWinner = (v["lastTrick"] as? JsonObject)?.get("winner")?.jsonPrimitive?.int,
-            finished = finished,
-            winnerTeam = if (finished) scores.indexOf(scores.max()) else null,
-            selectedForDiscard = if (v["handPhase"]!!.jsonPrimitive.content == HandPhase.DISCARDING.id) old.selectedForDiscard else emptySet(),
+        val decision = TableSnapshotMapper.decide(
+            view = privateView(),
+            currentRevision = old.revision,
+            expectedSeat = old.mySeat,
+            expectedPlayers = if (seats.isNotEmpty()) seats.size else null,
         )
+        val snapshot = (decision as? TableDecision.Apply)?.snapshot ?: return
+        val finished = snapshot.finished
+        val next = old.copy(
+            revision = snapshot.revision,
+            playerCount = snapshot.playerCount,
+            mySeat = if (snapshot.mySeat >= 0) snapshot.mySeat else old.mySeat,
+            phase = if (finished) Phase.FINISHED else Phase.PLAYING,
+            handPhase = snapshot.handPhase,
+            handNumber = snapshot.handNumber,
+            hakem = snapshot.hakem,
+            hokm = snapshot.hokm,
+            turn = snapshot.turn,
+            trickNumber = snapshot.trickNumber,
+            tricksWon = snapshot.tricksWon,
+            scores = snapshot.scores,
+            targetPoints = snapshot.targetPoints,
+            handCounts = snapshot.handCounts,
+            myHand = snapshot.myHand,
+            legalCards = snapshot.legalCards,
+            revealed = snapshot.revealed,
+            discardCount = snapshot.discardCount,
+            stockCount = snapshot.stockCount,
+            hakemDraw = snapshot.hakemDraw,
+            lastHand = snapshot.lastHand,
+            lastTrick = snapshot.lastTrick,
+            lastTrickWinner = snapshot.lastTrickWinner,
+            finished = finished,
+            winnerTeam = if (finished) snapshot.scores.indexOf(snapshot.scores.max()) else null,
+            selectedForDiscard = if (snapshot.handPhase == HandPhase.DISCARDING) old.selectedForDiscard else emptySet(),
+        )
+        _state.value = next.copy(tableCards = TableSync.tableCards(snapshot, next.tableCards, next.isCalm))
     }
-
-    private fun parseHand(o: JsonObject) = HandSummary(
-        handNumber = o["handNumber"]!!.jsonPrimitive.int,
-        winnerTeam = o["winnerTeam"]!!.jsonPrimitive.content.toIntOrNull(),
-        points = o["points"]!!.jsonPrimitive.int,
-        kind = HandWinKind.entries.first { it.id == o["kind"]!!.jsonPrimitive.content },
-        hakem = o["hakem"]!!.jsonPrimitive.int,
-        tricks = o["tricks"]!!.jsonArray.map { it.jsonPrimitive.int },
-        hokm = o["hokm"]?.jsonPrimitive?.content?.takeIf { it != "null" }?.let { Suit.parse(it) },
-    )
 }

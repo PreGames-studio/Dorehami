@@ -25,6 +25,12 @@ class HokmPrefs(context: Context) {
     var hapticsOn: Boolean
         get() = sp.getBoolean("haptics", true)
         set(v) = sp.edit().putBoolean("haptics", v).apply()
+
+    /** Stored as the enum name; [HokmMotionLevel.fromStored] handles unknown legacy values. */
+    var motionLevel: String
+        get() = sp.getString("motion", HokmMotionLevel.FULL.name) ?: HokmMotionLevel.FULL.name
+        set(v) = sp.edit().putString("motion", v).apply()
+
     var playerCount: Int
         get() = sp.getInt("players", 4).coerceIn(2, 4)
         set(v) = sp.edit().putInt("players", v).apply()
