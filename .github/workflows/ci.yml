@@ -122,6 +122,9 @@ jobs:
 
   build-apk:
     name: Build debug APK
+    # An explicit diagnostic-only branch push inspects an existing APK and must
+    # not manufacture a new one. PRs and main retain the normal APK gate.
+    if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[diagnose-apk]')) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write   # only used by the arena/* preview-release step below
