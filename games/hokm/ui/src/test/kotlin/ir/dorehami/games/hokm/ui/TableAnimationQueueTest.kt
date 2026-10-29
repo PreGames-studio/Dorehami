@@ -83,7 +83,7 @@ class TableAnimationQueueTest {
         queue.offer(collect(hand = 3, trick = 13))
         queue.offer(collect(hand = 4, trick = 1))
 
-        assertEquals(1, queue.dropBeforeHand(4), "only the step of hand 4 survives")
+        assertEquals(2, queue.dropBeforeHand(4), "both steps of hand 3 are dropped")
         assertEquals(1, queue.size)
         assertEquals(4, queue.peek()!!.handNumber)
     }
@@ -164,7 +164,7 @@ class TableAnimationQueueTest {
         val summary = HandSummary(2, winnerTeam = 0, points = 2, kind = HandWinKind.KOT, hakem = 0, tricks = listOf(7, 0))
         val mine = TableEvents.handBanner(summary, players = 4, myTeam = 0) { "تیم حریف" }
         assertEquals("کُت!", mine.title)
-        assertEquals("۲ امتیاز برای تیم ما", mine.subtitle)
+        assertEquals("۲ امتیاز برای تیم حریف", mine.subtitle)
         assertTrue(mine.big)
 
         val theirs = TableEvents.handBanner(summary, players = 4, myTeam = 1) { "تیم حریف" }
