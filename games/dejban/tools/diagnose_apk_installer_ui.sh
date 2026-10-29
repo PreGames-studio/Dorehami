@@ -50,7 +50,7 @@ id=''
 for _ in $(seq 1 30); do
     row=$(adb shell content query --uri content://media/external/downloads \
         --projection _id:_display_name 2>/dev/null | tr -d '\r' | \
-        grep -F "_display_name=$name," | tail -1 || true)
+        grep -F "_display_name=$name" | tail -1 || true)
     id=$(sed -n 's/.*_id=\([0-9][0-9]*\),.*/\1/p' <<< "$row")
     [[ -n "$id" ]] && break
     sleep 2
