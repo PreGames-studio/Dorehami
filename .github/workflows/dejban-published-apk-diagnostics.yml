@@ -51,8 +51,10 @@ jobs:
             "$tools/aapt" dump badging "$apk" | \
               grep -E '^package:|^sdkVersion:|^targetSdkVersion:|^native-code:' | tee -a "$report"
           done
-          old=$(sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' previous-signature.txt)
-          new=$(sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' current-signature.txt)
+          # Newer apksigner versions print "V3.0 Signer:" rather than "Signer #1".
+          pattern='s/^.*Signer(:| #[0-9]+)? certificate SHA-256 digest:[[:space:]]*([[:xdigit:]]{64})[[:space:]]*$/\2/p'
+          old=$(sed -nE "$pattern" previous-signature.txt | head -1)
+          new=$(sed -nE "$pattern" current-signature.txt | head -1)
           if [[ "$old" =~ ^[[:xdigit:]]{64}$ && "$new" =~ ^[[:xdigit:]]{64}$ ]]; then
             if [ "$old" = "$new" ]; then matching=yes; else matching=no; fi
             echo "Previous and current signing certificates match: $matching" | tee -a "$report"
@@ -95,7 +97,7 @@ jobs:
 
   install:
     name: Install on API ${{ matrix.api }} (${{ matrix.target }}, ${{ matrix.abi_label }})
-    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') }}
+    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') && !contains(github.event.head_commit.message, '[audit-only]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     strategy:
