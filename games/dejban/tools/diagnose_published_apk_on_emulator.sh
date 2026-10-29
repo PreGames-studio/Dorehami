@@ -27,7 +27,8 @@ if [[ -n "$expected_page_size" && "$page_size" != "$expected_page_size" ]]; then
     echo "The emulator page size was not the requested $expected_page_size."
     exit 1
 fi
-adb logcat -c
+# Some older emulator images do not permit clearing every log buffer.
+adb logcat -c 2>/dev/null || echo 'Log buffer could not be cleared; continuing.'
 
 echo 'Fresh install of the previous APK:'
 if old_result=$(adb install "$old_apk" 2>&1); then
