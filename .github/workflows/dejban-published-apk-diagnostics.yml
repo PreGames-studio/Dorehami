@@ -44,18 +44,21 @@ jobs:
           for which in previous current; do
             apk="apk/$which.apk"
             unzip -tq "$apk"
-            "$tools/apksigner" verify --verbose --print-certs "$apk" > "$which-signature.txt"
+            "$tools/apksigner" verify --verbose --print-certs "$apk" > "$which-signature.txt" 2>&1
             echo "=== $which signature ===" | tee -a "$report"
-            grep -E '^Verified using |^Signer #1 certificate SHA-256 digest:' "$which-signature.txt" | tee -a "$report"
+            cat "$which-signature.txt" | tee -a "$report"
             echo "=== $which manifest ===" | tee -a "$report"
             "$tools/aapt" dump badging "$apk" | \
               grep -E '^package:|^sdkVersion:|^targetSdkVersion:|^native-code:' | tee -a "$report"
           done
-          old=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' previous-signature.txt)
-          new=$(sed -n 's/^Signer #1 certificate SHA-256 digest: //p' current-signature.txt)
-          test -n "$old" && test -n "$new"
-          if [ "$old" = "$new" ]; then matching=yes; else matching=no; fi
-          echo "Previous and current signing certificates match: $matching" | tee -a "$report"
+          old=$(sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' previous-signature.txt)
+          new=$(sed -n 's/^[[:space:]]*Signer #1 certificate SHA-256 digest:[[:space:]]*//p' current-signature.txt)
+          if [[ "$old" =~ ^[[:xdigit:]]{64}$ && "$new" =~ ^[[:xdigit:]]{64}$ ]]; then
+            if [ "$old" = "$new" ]; then matching=yes; else matching=no; fi
+            echo "Previous and current signing certificates match: $matching" | tee -a "$report"
+          else
+            echo 'Could not extract both certificate digests; comparison is inconclusive.' | tee -a "$report"
+          fi
           echo '=== Current 64-bit native ELF program headers ===' | tee -a "$report"
           found=0
           while IFS= read -r library; do
@@ -91,7 +94,7 @@ jobs:
           PY
 
   install:
-    name: Install and update on API ${{ matrix.api }} (${{ matrix.target }})
+    name: Install on API ${{ matrix.api }} (${{ matrix.target }}, ${{ matrix.abi_label }})
     if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
@@ -102,15 +105,33 @@ jobs:
           - api: 26
             target: default
             expected_page_size: ''
+            abi: ''
+            abi_label: native
           - api: 29
             target: default
             expected_page_size: ''
+            abi: ''
+            abi_label: native
           - api: 35
             target: google_apis
             expected_page_size: '4096'
+            abi: ''
+            abi_label: native
           - api: 35
             target: google_apis_ps16k
             expected_page_size: '16384'
+            abi: ''
+            abi_label: native
+          - api: 35
+            target: google_apis
+            expected_page_size: '4096'
+            abi: arm64-v8a
+            abi_label: ARM64 translated
+          - api: 35
+            target: google_apis_ps16k
+            expected_page_size: '16384'
+            abi: arm64-v8a
+            abi_label: ARM64 translated
     steps:
       - uses: actions/checkout@v4
       - name: Download and verify the exact existing APKs
@@ -132,7 +153,7 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
-          script: bash games/dejban/tools/diagnose_published_apk_on_emulator.sh apk/previous.apk apk/current.apk '${{ matrix.expected_page_size }}' > install-diagnostics.log 2>&1
+          script: bash games/dejban/tools/diagnose_published_apk_on_emulator.sh apk/previous.apk apk/current.apk '${{ matrix.expected_page_size }}' '${{ matrix.abi }}' > install-diagnostics.log 2>&1
       - name: Surface precise installer diagnostics
         if: always()
         run: |
