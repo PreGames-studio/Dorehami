@@ -52,7 +52,7 @@ const LAUNCHER_KEYS := [
 ]
 
 const FRAME_PX := 64          ## عرض هر فریمِ شیت‌های دویدن و مرگ
-const VALID_KINDS := ["single", "splash", "chain", "aura"]
+const VALID_KINDS := ["single", "splash", "chain", "aura", "beam"]
 const VALID_TRAITS := ["flying", "heal", "buff", "ranged", "boss"]
 
 var failures: Array = []
@@ -79,8 +79,9 @@ func _ready() -> void:
 	_test_assets()
 	print("— بررسی شیت‌های افکت…")
 	await _test_fx_sheets()
-	print("— بررسی سلاح‌ها…")
+	print("— بررسی سلاح‌ها و انتقال پیشرفت برج‌های قبلی…")
 	_test_weapons()
+	_test_weapon_replacement_migration()
 	print("— بررسی دشمنان…")
 	_test_enemies()
 	print("— بررسی شیت‌های دویدن و مرگ…")
@@ -102,6 +103,14 @@ func _ready() -> void:
 	_test_tower_range()
 	print("— بررسی برجک‌های ایزومتریک…")
 	_test_iso_towers()
+	print("— بررسی مسلسل پنج‌سطحی و گلولهٔ برخوردی…")
+	load("res://tests/MachinegunTest.gd").new().run(self)
+	print("— بررسی توپخانه، برخورد، انفجار محدود و آسیب گروهی واقعی…")
+	load("res://tests/ArtilleryTest.gd").new().run(self)
+	print("— بررسی تسلای پنج‌سطحی، صاعقهٔ مستقیم و زنجیرهٔ واقعی…")
+	load("res://tests/TeslaTest.gd").new().run(self)
+	print("— بررسی لیزر پنج‌سطحی، برخورد عبوری و مرز میدان…")
+	load("res://tests/LaserTest.gd").new().run(self)
 	print("— بررسی تانک و تک‌شلیک به دژ…")
 	await _test_tank()
 	print("— بررسی صفحهٔ آغازین…")
@@ -575,9 +584,10 @@ func _test_launch_presentation() -> void:
 # ------------------------------------------------------------------ سلاح‌ها
 
 func _test_weapons() -> void:
-	check(Weapons.count() == 4, "باید چهار برجک ایزومتریک تعریف شده باشد (سنگر حذف شده): %d" % Weapons.count())
-	check(Weapons.ids() == ["machinegun", "cannon", "rocket", "laser"],
-		"ترتیب برجک‌ها باید مسلسل، خمپاره، موشک و لیزر باشد: %s" % [Weapons.ids()])
+	check(Weapons.count() == 4, "فقط چهار برج تأییدشده باید قابل انتخاب باشند: %d" % Weapons.count())
+	check(Weapons.ids() == ["machinegun", "cannon", "laser", "tesla"],
+		"ترتیب برجک‌ها باید مسلسل، توپخانه، لیزر و تسلا باشد: %s" % [Weapons.ids()])
+	check(Weapons.by_id("rocket").is_empty(), "موشک قدیمی نباید برج قابل ساخت پنجم باشد")
 	var iso_kinds: Array = []
 	var seen: Array = []
 	for weapon in Weapons.LIST:
@@ -602,7 +612,17 @@ func _test_weapons() -> void:
 		check(Audio.WEAPON_SOUND_VARIANTS.has(String(weapon.get("sound", "shot_bolt"))),
 			"صدای شلیک %s در گروه‌های صدا نیست" % id)
 		var kind_iso := Weapons.iso_kind(id)
-		check(not kind_iso.is_empty(), "همهٔ برجک‌ها باید ایزومتریک باشند: %s" % id)
+		if id == "tesla":
+			check(kind_iso.is_empty() and Weapons.art_key(id) == "towers_tesla/tesla_1",
+				"تسلا باید لایه‌های اختصاصی داشته باشد، نه شیت‌های قدیمی پک")
+			check(not Weapons.FREE_IDS.has(id) and int(weapon.get("star_cost", 0)) == 11
+				and int(weapon.get("cost", 0)) == 200 and not weapon.has("bullet"),
+				"تسلا باید ۱۱ ستاره و ۲۰۰ سکه هزینه داشته باشد و گلوله نداشته باشد")
+			var tesla_icon := Weapons.icon(id)
+			check(tesla_icon != null and tesla_icon.get_size() == Vector2(256, 256),
+				"نماد اختصاصی تسلا در زرادخانه و نوار ساخت گم است")
+			continue
+		check(not kind_iso.is_empty(), "شناسهٔ سازگاری پک برای این برج باقی می‌ماند: %s" % id)
 		if kind_iso.is_empty():
 			continue
 		# برجک ایزومتریک: رایگان (فقط مسلسل) یا خریدنی با ستاره، با هر سه شیت پک و تصویر نمایشیِ برش‌خورده
@@ -610,17 +630,27 @@ func _test_weapons() -> void:
 		check(IsoSheet.TOWER_KINDS.has(kind_iso), "برجک %s به برجکی از پک towers_iso اشاره نمی‌کند" % id)
 		check((int(weapon.get("star_cost", 0)) == 0) == Weapons.FREE_IDS.has(id),
 			"فقط برجک رایگان بدون ستاره است و بقیه با ستاره خریدنی‌اند: %s" % id)
-		check(Weapons.art_key(id) == IsoSheet.tower_key(kind_iso, "idle"), "کلید تصویر %s باید شیت idle پک باشد" % id)
+		if id == "machinegun":
+			check(Weapons.art_key(id) == "towers_machinegun/machinegun_1", "تصویر مسلسل باید طرح لایه‌ای جدید باشد")
+		elif id == "cannon":
+			check(Weapons.art_key(id) == "towers_artillery/artillery_1", "تصویر توپخانه باید طرح پنج‌سطحی تازه باشد")
+		elif id == "laser":
+			check(Weapons.art_key(id) == "towers_laser/laser_1" and kind == "beam" and not weapon.has("bullet"),
+				"لیزر باید تصویر پنج‌سطحی و پرتو مستقیم بدون گلوله داشته باشد")
+		else:
+			check(Weapons.art_key(id) == IsoSheet.tower_key(kind_iso, "idle"), "کلید تصویر %s باید شیت idle پک باشد" % id)
 		for action in IsoSheet.TOWER_ACTIONS.keys():
 			check(Assets.has_key(IsoSheet.tower_key(kind_iso, String(action))),
 				"شیت %s برجک %s گم شده" % [action, id])
 		var icon := Weapons.icon(id)
-		check(icon is AtlasTexture and (icon as AtlasTexture).region == IsoSheet.region(Weapons.ICON_DIR, 0),
-			"تصویر نمایشی %s باید فریم ۰ یک جهت باشد، نه کل شیت" % id)
+		if id in ["machinegun", "cannon", "laser"]:
+			check(icon != null and icon.get_size() == Vector2(256, 256), "تصویر نمایشی %s باید تصویر لایه‌ای و هم‌اندازه باشد" % id)
+		else:
+			check(icon is AtlasTexture and (icon as AtlasTexture).region == IsoSheet.region(Weapons.ICON_DIR, 0),
+				"تصویر نمایشی %s باید فریم ۰ یک جهت باشد، نه کل شیت" % id)
 	iso_kinds.sort()
-	var pack_kinds: Array = IsoSheet.TOWER_KINDS.duplicate()
-	pack_kinds.sort()
-	check(iso_kinds == pack_kinds, "هر چهار برجک پک باید دقیقاً یک بار خریدنی باشند: %s" % [iso_kinds])
+	check(iso_kinds == ["cannon", "laser", "machinegun"],
+		"شناسه‌های سازگاری برج‌های جایگزین باید یکتا باشند: %s" % [iso_kinds])
 	check(Weapons.by_id("sangar").is_empty(), "سنگر باید از فهرست برجک‌ها حذف شده باشد")
 	check(not Assets.has_key("towers/sangar") and not Assets.has_key("towers/sangar_soldier"),
 		"تصویرهای سنگر و سرباز سنگر باید از پروژه حذف شده باشند")
@@ -630,13 +660,56 @@ func _test_weapons() -> void:
 	check(Weapons.FREE_IDS == ["machinegun"], "مسلسل سنگین باید تنها برجک رایگان باشد")
 	check(int(Weapons.by_id("machinegun")["star_cost"]) == 0 and int(Weapons.by_id("machinegun")["cost"]) == 100,
 		"مسلسل سنگین باید بدون ستاره و با همان قیمت ۱۰۰ سکه باشد")
-	check(int(Weapons.by_id("cannon")["star_cost"]) == 5 and int(Weapons.by_id("rocket")["star_cost"]) == 7
-		and int(Weapons.by_id("laser")["star_cost"]) == 9, "ستارهٔ خمپاره، موشک و لیزر نباید عوض شود (۵، ۷، ۹)")
+	check(int(Weapons.by_id("cannon")["star_cost"]) == 5 and int(Weapons.by_id("laser")["star_cost"]) == 9
+		and int(Weapons.by_id("tesla")["star_cost"]) == 11, "قیمت ستاره‌ای سه برج باید ۵، ۹ و ۱۱ باشد")
 	check(Game.is_weapon_unlocked("machinegun"), "مسلسل سنگین باید به‌صورت پیش‌فرض باز باشد")
 	check(Game.default_unlocked_weapons() == ["machinegun"], "برجک‌های باز پیش‌فرض باید فقط مسلسل باشد")
 	check(int(Weapons.by_id("machinegun")["cost"]) <= Balance.START_COINS,
 		"برجک رایگان باید با سکهٔ شروع نبرد قابل خرید باشد؛ وگرنه نبرد بدون برجک گیر می‌کند")
 
+
+## A purchased legacy rocket is replaced by Tesla without losing stars or
+## upgrades. Saves that already contain both IDs retain the larger level and
+## a subsequent load must not duplicate the tower or reapply anything.
+func _test_weapon_replacement_migration() -> void:
+	var profile := RunTestProfile.new()
+	var old := profile.fresh_profile()
+	old["stars"] = 17
+	old["nickname"] = "نگهبان قدیمی"
+	old["unlocked_weapons"] = ["machinegun", "cannon", "rocket", "laser", "rocket", "unknown"]
+	old["weapon_levels"] = {"machinegun": 2, "cannon": 3, "rocket": 7, "laser": 4}
+	profile._apply(old)
+	check(profile.unlocked_weapons == ["machinegun", "cannon", "tesla", "laser"]
+		and profile.is_weapon_unlocked("tesla") and not profile.is_weapon_unlocked("rocket")
+		and profile.weapon_level("tesla") == 7 and not profile.weapon_levels.has("rocket")
+		and profile.weapon_level("machinegun") == 2 and profile.weapon_level("cannon") == 3
+		and profile.weapon_level("laser") == 4 and profile.stars == 17 and profile.nickname == "نگهبان قدیمی",
+		"ذخیرهٔ موشک باید بدون از دست دادن ستاره، سطح یا دیگر برج‌ها به تسلا منتقل شود")
+	check(not profile.unlock_weapon("rocket") and profile.stars == 17,
+		"برج موشکی حذف‌شده نباید دوباره خریداری شود")
+	var saved := profile.fresh_profile()
+	saved["stars"] = profile.stars
+	saved["unlocked_weapons"] = profile.unlocked_weapons.duplicate()
+	saved["weapon_levels"] = profile.weapon_levels.duplicate(true)
+	profile._apply(saved)
+	check(profile.unlocked_weapons.count("tesla") == 1 and profile.weapon_level("tesla") == 7
+		and profile.stars == 17, "انتقال ذخیره باید بعد از ذخیره و بارگذاری مجدد تکرارناپذیر باشد")
+	var both := profile.fresh_profile()
+	both["unlocked_weapons"] = ["rocket", "tesla", "machinegun"]
+	both["weapon_levels"] = {"rocket": 12, "tesla": 5}
+	profile._apply(both)
+	check(profile.unlocked_weapons.count("tesla") == 1 and profile.weapon_level("tesla") == 12,
+		"در برخورد دو شناسه، سطح بالاتر موشک باید حفظ شود")
+	both["weapon_levels"] = {"tesla": 14, "rocket": 9}
+	profile._apply(both)
+	check(profile.weapon_level("tesla") == 14, "ترتیب کلیدها نباید سطح بالاتر تسلا را کاهش دهد")
+	both["weapon_levels"] = {"rocket": 999}
+	profile._apply(both)
+	check(profile.weapon_level("tesla") == Balance.ARMORY_MAX_LEVEL, "سطح منتقل‌شده باید در سقف مجاز محدود شود")
+	profile._apply(profile.fresh_profile())
+	check(profile.unlocked_weapons == ["machinegun"] and not profile.is_weapon_unlocked("tesla")
+		and profile.weapon_level("tesla") == 0, "بازیکن جدید همچنان باید تسلا را با قیمت موجود باز کند")
+	profile.free()
 
 # ------------------------------------------------------------------ دشمنان
 
@@ -1031,12 +1104,14 @@ func _test_battle_tower_upgrades() -> void:
 		tower.weapon = Weapons.by_id(String(id))
 		var placement_cost := int(tower.weapon["cost"])
 		tower.invested = placement_cost
-		for level in range(1, Balance.MAX_LEVEL):
+		for level in range(1, tower.level_cap()):
 			check(tower.upgrade_cost() == placement_cost,
 				"هزینهٔ ارتقای %s در سطح %d باید برابر کاشت باشد" % [id, level])
 			var previous_damage := tower.damage()
 			tower.upgrade()
 			var expected_damage := previous_damage * Balance.level_damage_mult(level + 1) / Balance.level_damage_mult(level)
+			if not Tower.level_config(tower.weapon, level + 1).is_empty():
+				expected_damage = float(Tower.level_config(tower.weapon, level + 1)["damage"]) * Game.weapon_damage_mult(String(id))
 			check(tower.level == level + 1 and is_equal_approx(tower.damage(), expected_damage),
 				"ارتقای %s باید آسیب را طبق گام تعادل بالا ببرد" % id)
 			check(tower.invested == placement_cost * tower.level,
@@ -1044,7 +1119,7 @@ func _test_battle_tower_upgrades() -> void:
 		var max_damage := tower.damage()
 		var max_invested := tower.invested
 		tower.upgrade()
-		check(tower.max_level() and tower.level == Balance.MAX_LEVEL
+		check(tower.max_level() and tower.level == tower.level_cap()
 			and tower.damage() == max_damage and tower.invested == max_invested,
 			"در سقف سطح، ارتقای %s نباید هزینه یا آسیب را تغییر دهد" % id)
 		tower.free()
@@ -1253,11 +1328,18 @@ func _test_iso_sheets() -> void:
 ## بدون هدف idle، با هدف aim، با هر شلیک یک‌بار fire و سپس برگشت؛ گلوله و شعلهٔ دهانه
 ## همان سامانهٔ قبلی‌اند و از دهانهٔ همان جهت بیرون می‌آیند.
 func _test_iso_towers() -> void:
-	for id in Weapons.ids():
-		var weapon := Weapons.by_id(String(id))
-		var kind := Weapons.iso_kind(String(id))
-		if kind.is_empty():
-			continue
+	# The four selectable towers now have their own layered behavior tests.
+	# Exercise the old shared isometric path using a test-only fixture; it is
+	# deliberately absent from Weapons.LIST and cannot be purchased or built.
+	var fixtures: Array[Dictionary] = [{
+		"id": "legacy_rocket_fixture", "iso": "rocket", "cost": 150,
+		"damage": 24.0, "range": 235.0, "cooldown": 1.25,
+		"kind": "splash", "shots": 2, "splash": 44.0, "bullet": "bolt",
+		"bullet_speed": 520.0, "targeting": "first", "sound": "shot_fire",
+	}]
+	for weapon in fixtures:
+		var id := String(weapon["id"])
+		var kind := String(weapon["iso"])
 		var battle := StubBattle.new()
 		add_child(battle)
 		var tower := Tower.new()
@@ -1538,7 +1620,7 @@ func _test_touch_upgrade_flow() -> void:
 		await _touch(panel_top, false)
 		check(battle.selected_tower == tower and hud._tower_panel.visible,
 			"لمس داخل پنل برجک %s نباید پنل را ببندد" % id)
-		for step in range(1, Balance.MAX_LEVEL):
+		for step in range(1, tower.level_cap()):
 			await get_tree().process_frame
 			var panel_rect: Rect2 = hud._tower_panel.get_global_rect()
 			var up_rect: Rect2 = hud._upgrade_button.get_global_rect()

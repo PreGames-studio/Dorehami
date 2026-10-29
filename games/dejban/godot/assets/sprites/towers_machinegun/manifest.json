@@ -1,0 +1,47 @@
+{
+  "canvas": [
+    256,
+    256
+  ],
+  "ground_anchor": [
+    128,
+    206
+  ],
+  "base_pivot": [
+    128,
+    100
+  ],
+  "head_layer_pivot": [
+    128,
+    100
+  ],
+  "barrel_layer_pivot": [
+    128,
+    100
+  ],
+  "muzzle_from_pivot": [
+    100,
+    0
+  ],
+  "direction": "+X; clockwise in the unprojected ground plane",
+  "preview_angle_degrees": 0,
+  "projection_y": 0.68,
+  "runtime_scale": 0.39,
+  "direction_cell": [
+    128,
+    128
+  ],
+  "directions": 48,
+  "direction_grid": [
+    8,
+    6
+  ],
+  "gatling_grid": [
+    16,
+    24
+  ],
+  "gatling_frames": 8,
+  "direction_interpolation": "cross-fade adjacent 3D-rendered angles",
+  "background": "transparent RGBA",
+  "fixed_base_across_levels": true
+}

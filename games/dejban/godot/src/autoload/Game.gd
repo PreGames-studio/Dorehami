@@ -77,8 +77,14 @@ func load_profile() -> void:
 
 func _apply(data: Dictionary) -> void:
 	stars = maxi(0, int(data.get("stars", 0)))
-	# فهرست قدیمیِ خریدهای ستاره‌ای معتبر نیست؛ بازشدن فقط از پیروزی‌ها به‌دست می‌آید.
-	unlocked_weapons = _string_array(data.get("unlocked_weapons", default_unlocked_weapons()), Weapons.ids())
+	# موشکِ حذف‌شده با تسلا جایگزین شده است. بازشدن و سطح زرادخانهٔ
+	# بازیکنان قدیمی را منتقل می‌کنیم، بدون کسر دوبارهٔ ستاره یا تکرار شناسه.
+	var raw_unlocked = data.get("unlocked_weapons", default_unlocked_weapons())
+	var migrated_unlocked: Array = []
+	if raw_unlocked is Array:
+		for saved_id in raw_unlocked:
+			migrated_unlocked.append(_replacement_weapon_id(String(saved_id)))
+	unlocked_weapons = _string_array(migrated_unlocked, Weapons.ids())
 	for free_id in Weapons.FREE_IDS:
 		if not unlocked_weapons.has(free_id):
 			unlocked_weapons.append(free_id)
@@ -86,9 +92,11 @@ func _apply(data: Dictionary) -> void:
 	var raw_levels = data.get("weapon_levels", {})
 	if raw_levels is Dictionary:
 		for key in raw_levels.keys():
+			var id := _replacement_weapon_id(String(key))
 			var level := clampi(int(raw_levels[key]), 0, Balance.ARMORY_MAX_LEVEL)
-			if level > 0 and not Weapons.by_id(String(key)).is_empty():
-				weapon_levels[String(key)] = level
+			if level > 0 and not Weapons.by_id(id).is_empty():
+				# ذخیره‌ای که هر دو شناسه را دارد، سطح بالاتر را از دست نمی‌دهد.
+				weapon_levels[id] = maxi(int(weapon_levels.get(id, 0)), level)
 	prestige_level = clampi(int(data.get("prestige_level", 0)), 0, Balance.PRESTIGE_MAX_LEVEL)
 	free_star_ads_watched = maxi(0, int(data.get("free_star_ads_watched", 0)))
 	nickname = String(data.get("nickname", "نگهبان")).substr(0, 16)
@@ -132,6 +140,10 @@ func save() -> void:
 		return
 	file.store_string(JSON.stringify(data, "  "))
 	file.close()
+
+## Migration is idempotent: once saved, only the replacement ID remains.
+static func _replacement_weapon_id(id: String) -> String:
+	return "tesla" if id == "rocket" else id
 
 static func _string_array(value, allowed: Array) -> Array:
 	var out: Array = []

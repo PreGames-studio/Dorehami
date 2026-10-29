@@ -478,7 +478,13 @@ func refresh() -> void:
 			"برد: %s" % Ui.fa(round(tower.attack_range())),
 			"فاصلهٔ شلیک: %s ثانیه" % Ui.fa_decimal(tower.interval(), 2),
 		]
+		if tower.is_laser():
+			lines[1] = "برد هدف‌گیری: %s" % Ui.fa(round(tower.attack_range()))
+			lines[2] = "بارگذاری مجدد: %s ثانیه" % Ui.fa_decimal(tower.interval(), 2)
+			lines.append("مدت پرتو: %s ثانیه" % Ui.fa_decimal(tower.laser_duration(), 2))
 		var effects: Array = []
+		if tower.is_laser():
+			effects.append("پرتوی عبوری تا مرز میدان")
 		if weapon.has("burn"):
 			effects.append("سوزاندن")
 		if weapon.has("slow"):
@@ -486,9 +492,15 @@ func refresh() -> void:
 		if weapon.has("poison"):
 			effects.append("زهر")
 		if weapon.has("chain"):
-			effects.append("زنجیره")
+			if tower.is_tesla():
+				effects.append("زنجیره تا %s دشمن، شعاع %s" % [Ui.fa(tower.tesla_chain_limit()), Ui.fa(round(tower.chain_radius()))])
+			else:
+				effects.append("زنجیره")
 		if weapon.has("splash"):
-			effects.append("ناحیه‌ای")
+			if tower.is_artillery():
+				effects.append("انفجار با شعاع %s" % Ui.fa(round(tower.splash_radius())))
+			else:
+				effects.append("ناحیه‌ای")
 		if bool(weapon.get("armor_pierce", false)):
 			effects.append("زره‌شکاف")
 		if not effects.is_empty():

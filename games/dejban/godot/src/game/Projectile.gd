@@ -14,9 +14,13 @@ var last_target_pos := Vector2.ZERO
 var lifetime := 4.0
 
 var _dir := Vector2.RIGHT
+## A non-zero launch direction opts into straight, swept machine-gun bullets.
+var straight := false
+var _shot_battle = null
+var _previous_target_point := Vector2.ZERO
 var _sprite: Sprite2D = null
 
-func setup(source_tower, shot_target, amount: float) -> void:
+func setup(source_tower, shot_target, amount: float, launch_direction := Vector2.ZERO) -> void:
 	tower = source_tower
 	weapon = source_tower.weapon if source_tower != null else {}
 	damage_value = amount
@@ -24,8 +28,16 @@ func setup(source_tower, shot_target, amount: float) -> void:
 	speed = float(weapon.get("bullet_speed", 520.0))
 	splash = float(weapon.get("splash", 0.0))
 	chain = int(weapon.get("chain", 0))
+	_shot_battle = source_tower.battle if source_tower != null else null
+	straight = launch_direction.length_squared() > 0.000001
+	if straight:
+		_dir = launch_direction.normalized()
+		# Misses travel past the maximum range but do not persist for four seconds.
+		lifetime = (source_tower.attack_range() + 80.0) / maxf(speed, 1.0)
 	if shot_target != null and is_instance_valid(shot_target):
 		last_target_pos = shot_target.position
+		if straight:
+			_previous_target_point = target_point_global(shot_target)
 
 	_sprite = Sprite2D.new()
 	_sprite.texture = Assets.tex("bullets/%s" % String(weapon.get("bullet", "stone")))
@@ -35,6 +47,15 @@ func setup(source_tower, shot_target, amount: float) -> void:
 	rotation = 0.0
 
 func _process(delta: float) -> void:
+	if straight:
+		# Test the entire swept segment, including on a long/last frame, so fast
+		# projectiles cannot tunnel through the target's hit circle.
+		var step_time := minf(maxf(delta, 0.0), maxf(lifetime, 0.0))
+		_advance_straight(step_time)
+		lifetime -= delta
+		if lifetime <= 0.0 and not is_queued_for_deletion():
+			queue_free()
+		return
 	lifetime -= delta
 	if lifetime <= 0.0:
 		_explode()
@@ -52,6 +73,44 @@ func _process(delta: float) -> void:
 	position += _dir * step
 	if _sprite != null:
 		rotation = _dir.angle()
+
+## Aim and collision share this screen-space hit point. Tank sprites are taller
+## and wider than infantry; no collision shapes are needed on the legacy enemies.
+static func target_point_global(enemy) -> Vector2:
+	var height := 24.0 if enemy is IsoEnemy else 12.0 * float(enemy.scale_mult)
+	return enemy.global_position + Vector2(0.0, -height)
+
+static func target_radius(enemy) -> float:
+	return 28.0 if enemy is IsoEnemy else maxf(10.0, 12.0 * float(enemy.scale_mult))
+
+func _straight_target_valid() -> bool:
+	if target == null or not is_instance_valid(target) or target.is_queued_for_deletion() or not target.alive:
+		return false
+	if _shot_battle != null and is_instance_valid(_shot_battle):
+		return _shot_battle.enemies.has(target)
+	return true
+
+func _advance_straight(delta: float) -> void:
+	var from := global_position
+	var to := from + _dir * speed * delta
+	if _straight_target_valid():
+		var centre := target_point_global(target)
+		# Sweep in relative space so a moving enemy cannot cross the bullet
+		# between frames without being detected either.
+		var relative_start := from - _previous_target_point
+		var relative_end := to - centre
+		var closest := Geometry2D.get_closest_point_to_segment(Vector2.ZERO, relative_start, relative_end)
+		if closest.length_squared() <= pow(target_radius(target), 2.0):
+			var relative_motion := relative_end - relative_start
+			var fraction := 0.0
+			if relative_motion.length_squared() > 0.000001:
+				fraction = clampf(-relative_start.dot(relative_motion) / relative_motion.length_squared(), 0.0, 1.0)
+			global_position = from.lerp(to, fraction)
+			_impact()
+			return
+		_previous_target_point = centre
+	global_position = to
+	global_rotation = _dir.angle()
 
 # ------------------------------------------------------------------ برخورد
 

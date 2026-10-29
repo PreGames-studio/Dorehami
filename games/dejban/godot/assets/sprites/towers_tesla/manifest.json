@@ -1,0 +1,59 @@
+{
+  "source": "user-provided reference, checkerboard removed",
+  "canvas": [
+    384,
+    384
+  ],
+  "ground_anchor": [
+    192,
+    345
+  ],
+  "image_scale": 0.46,
+  "core_centers": [
+    [
+      192.0,
+      189.77
+    ],
+    [
+      191.57,
+      159.67
+    ],
+    [
+      191.57,
+      136.88
+    ],
+    [
+      192.0,
+      116.67
+    ],
+    [
+      192.86,
+      88.72
+    ]
+  ],
+  "core_radii": [
+    15.05,
+    16.34,
+    16.77,
+    17.63,
+    18.49
+  ],
+  "source_scale": 0.43,
+  "head_seams": [
+    204.82,
+    209.12,
+    179.02,
+    181.6,
+    121.83
+  ],
+  "directions": 48,
+  "direction_cell": [
+    192,
+    192
+  ],
+  "direction_grid": [
+    8,
+    6
+  ],
+  "levels": 5
+}

@@ -1,8 +1,8 @@
-## برجک‌های دفاعی دژبان: چهار برجک ایزومتریک (مسلسل، خمپاره‌انداز، موشک، لیزر).
+## چهار برجک دفاعی دژبان: مسلسل، توپخانه، لیزر و تسلا.
 ##
 ## «مسلسل سنگین» برجک رایگانِ آغاز بازی است؛ بقیه با ستاره در زرادخانه باز می‌شوند.
-## ظاهرشان از پک towers_iso می‌آید (پایهٔ ثابت + سرِ گردان، حالت‌های idle/aim/fire) و کلید
-## «iso» نام برجک در همان پک است. شلیک، گلوله و شعلهٔ دهانه همان سامانهٔ مشترک Tower است.
+## هر چهار برج پایهٔ ثابت و سر لایه‌ای دارند. پیشرفت برج موشکی سابق هنگام
+## بارگذاری ذخیره به تسلا منتقل می‌شود؛ قیمت برج‌های قابل خرید تغییر نمی‌کند.
 ##
 ## «قدرت» هر برجک از همین ورودی خوانده می‌شود: damage، range، cooldown و shots
 ## (به‌علاوهٔ splash برای انفجار ناحیه‌ای و armor_pierce برای زره‌شکافی). بقیهٔ بازی
@@ -13,39 +13,74 @@ extends RefCounted
 const LIST := [
 	{
 		"id": "machinegun", "family": "machinegun", "tier_level": 1, "tier_name": "مسلسل",
-		"name": "مسلسل سنگین", "iso": "machinegun",
-		"desc": "دو لولهٔ سنگین روی سپر زرهی؛ رگبار تند گلوله روی یک هدف. در برابر زره ضعیف است.",
+		"name": "مسلسل سنگین", "iso": "machinegun", "visual": "machinegun_layers",
+		"desc": "برج مسلسل پنج‌سطحی با پایهٔ ثابت؛ نزدیک‌ترین دشمن را با رگبار دنبال می‌کند.",
 		"cost": 100, "star_cost": 0,
 		"damage": 8.0, "range": 170.0, "cooldown": 0.16,
 		"kind": "single", "shots": 1, "bullet": "dart", "bullet_speed": 820.0,
-		"targeting": "first", "sound": "shot_arrow",
+		"targeting": "close", "sound": "shot_arrow",
+		# Each row is the effective in-battle level before armory bonuses. Speeds
+		# are radians/second, cooldowns seconds; this is the tuning table.
+		"levels": [
+			{"damage": 8.0,  "range": 170.0, "cooldown": 0.16,  "turn_speed": 3.6},
+			{"damage": 10.0, "range": 180.0, "cooldown": 0.145, "turn_speed": 4.1},
+			{"damage": 12.0, "range": 192.0, "cooldown": 0.13,  "turn_speed": 4.6},
+			{"damage": 14.0, "range": 205.0, "cooldown": 0.115, "turn_speed": 5.2},
+			{"damage": 16.0, "range": 220.0, "cooldown": 0.10,  "turn_speed": 5.8},
+		],
 	},
 	{
-		"id": "cannon", "family": "cannon", "tier_level": 1, "tier_name": "خمپاره",
-		"name": "خمپاره‌انداز سنگین", "iso": "cannon",
-		"desc": "لولهٔ کوتاه و کلفت؛ گلولهٔ سنگینی که با موج انفجار، دشمنانِ کنار هدف را هم می‌زند.",
+		"id": "cannon", "family": "cannon", "tier_level": 1, "tier_name": "توپخانه",
+		"name": "توپخانهٔ سنگین", "iso": "cannon", "visual": "artillery_layers",
+		"desc": "توپخانهٔ پنج‌سطحی؛ گلوله در محدوده‌ای کوچک منفجر می‌شود و به چند دشمن آسیب می‌زند.",
 		"cost": 130, "star_cost": 5,
 		"damage": 34.0, "range": 200.0, "cooldown": 1.5,
-		"kind": "splash", "shots": 1, "splash": 56.0, "bullet": "shell", "bullet_speed": 380.0,
-		"targeting": "strong", "sound": "shot_heavy",
-	},
-	{
-		"id": "rocket", "family": "rocket", "tier_level": 1, "tier_name": "موشک",
-		"name": "سکوی موشک", "iso": "rocket",
-		"desc": "چهار لولهٔ موشک با رادار؛ هر نوبت دو موشک با انفجار ناحیه‌ای و برد بلند.",
-		"cost": 150, "star_cost": 7,
-		"damage": 24.0, "range": 235.0, "cooldown": 1.25,
-		"kind": "splash", "shots": 2, "splash": 44.0, "bullet": "bolt", "bullet_speed": 520.0,
-		"targeting": "first", "sound": "shot_fire",
+		"kind": "splash", "shots": 1, "splash": 42.0, "bullet": "shell", "bullet_speed": 380.0,
+		"targeting": "close", "sound": "shot_heavy",
+		# Reload is cooldown in seconds. Falloff is the fraction at the edge.
+		"edge_damage_fraction": 0.5,
+		"levels": [
+			{"damage": 34.0, "range": 200.0, "cooldown": 1.50, "splash": 42.0, "turn_speed": 2.2},
+			{"damage": 42.0, "range": 210.0, "cooldown": 1.38, "splash": 46.0, "turn_speed": 2.4},
+			{"damage": 51.0, "range": 220.0, "cooldown": 1.26, "splash": 50.0, "turn_speed": 2.6},
+			{"damage": 62.0, "range": 230.0, "cooldown": 1.14, "splash": 54.0, "turn_speed": 2.8},
+			{"damage": 75.0, "range": 240.0, "cooldown": 1.02, "splash": 58.0, "turn_speed": 3.0},
+		],
 	},
 	{
 		"id": "laser", "family": "laser", "tier_level": 1, "tier_name": "لیزر",
-		"name": "توپ لیزر", "iso": "laser",
-		"desc": "لنز سبز با سیم‌پیچ انرژی؛ پرتوی زره‌شکاف که قوی‌ترین دشمن، مثل تانک، را نشانه می‌رود.",
+		"name": "توپ لیزر", "iso": "laser", "visual": "laser_layers",
+		"desc": "پرتوی آبی زره‌شکاف تا مرز میدان از همهٔ دشمنان مسیر عبور می‌کند؛ هر شلیک به هر دشمن یک‌بار آسیب می‌زند.",
 		"cost": 170, "star_cost": 9,
 		"damage": 26.0, "range": 190.0, "cooldown": 0.6,
-		"kind": "single", "shots": 1, "bullet": "spark", "bullet_speed": 1100.0,
-		"armor_pierce": true, "targeting": "strong", "sound": "shot_spark",
+		"kind": "beam", "beam_duration": 0.32, "beam_width": 3.6,
+		"armor_pierce": true, "targeting": "strong", "sound": "shot_laser",
+		# cooldown is reload *after* beam_duration; range is target acquisition.
+		# The fired beam itself continues to the battlefield boundary.
+		"levels": [
+			{"damage": 26.0, "range": 190.0, "cooldown": 0.60, "beam_duration": 0.32, "beam_width": 3.6,  "turn_speed": 2.8},
+			{"damage": 34.0, "range": 200.0, "cooldown": 0.56, "beam_duration": 0.36, "beam_width": 5.2,  "turn_speed": 3.0},
+			{"damage": 43.0, "range": 210.0, "cooldown": 0.52, "beam_duration": 0.40, "beam_width": 6.8,  "turn_speed": 3.2},
+			{"damage": 53.0, "range": 220.0, "cooldown": 0.48, "beam_duration": 0.44, "beam_width": 8.8,  "turn_speed": 3.4},
+			{"damage": 65.0, "range": 230.0, "cooldown": 0.44, "beam_duration": 0.48, "beam_width": 12.0, "turn_speed": 3.6},
+		],
+	},
+	{
+		"id": "tesla", "family": "tesla", "tier_level": 1, "tier_name": "تسلا",
+		"name": "برج تسلا", "visual": "tesla_layers",
+		"desc": "برق مستقیم از نزدیک‌ترین دشمن تا پنج هدف در برد زنجیره می‌زند؛ هر انتقال ۲۰٪ ضعیف‌تر است.",
+		"cost": 200, "star_cost": 11,
+		"damage": 20.0, "range": 180.0, "cooldown": 1.40,
+		"kind": "chain", "chain": 5, "chain_range": 70.0, "chain_falloff": 0.8,
+		"targeting": "close", "sound": "shot_tesla",
+		# No bullet or projectile: each hop is resolved against the actual HP and armor.
+		"levels": [
+			{"damage": 20.0, "range": 180.0, "cooldown": 1.40, "chain_range": 70.0,  "turn_speed": 2.4},
+			{"damage": 27.0, "range": 192.0, "cooldown": 1.25, "chain_range": 78.0,  "turn_speed": 2.6},
+			{"damage": 34.0, "range": 204.0, "cooldown": 1.12, "chain_range": 86.0,  "turn_speed": 2.8},
+			{"damage": 42.0, "range": 216.0, "cooldown": 1.00, "chain_range": 94.0,  "turn_speed": 3.0},
+			{"damage": 52.0, "range": 230.0, "cooldown": 0.88, "chain_range": 102.0, "turn_speed": 3.2},
+		],
 	},
 ]
 
@@ -79,17 +114,32 @@ static func iso_kind(id: String) -> String:
 	return String(by_id(id).get("iso", ""))
 
 
-## کلید تصویر یک سلاح در Assets: شیت idle پک ایزومتریک («towers_iso/<kind>_idle»).
+## کلید تصویر یک سلاح در Assets؛ برای برجک‌های لایه‌ای PNG مستقل سطح ۱ است.
 static func art_key(id: String) -> String:
+	if id == "machinegun":
+		return "towers_machinegun/machinegun_1"
+	if id == "cannon":
+		return "towers_artillery/artillery_1"
+	if id == "tesla":
+		return "towers_tesla/tesla_1"
+	if id == "laser":
+		return "towers_laser/laser_1"
 	var kind := iso_kind(id)
 	if not kind.is_empty():
 		return IsoSheet.tower_key(kind, "idle")
 	return "towers/%s" % id
 
 
-## تصویر نمایشی سلاح برای نوار ساخت، زرادخانه و پیش‌نمایش کاشت. برای برجک ایزومتریک
-## فقط فریم ۰ جهت ICON_DIR برش داده می‌شود، نه کل شیت.
+## تصویر نمایشی نوار ساخت و زرادخانه. تسلا و لیزر آیکون برش‌خورده دارند؛
+## پیش‌نمای کاشت از تصویر کامل هم‌لنگر استفاده می‌کند. شاخهٔ ایزومتریک
+## پایینی فقط برای سازگاری با داده‌های پک قدیمی باقی مانده است.
 static func icon(id: String) -> Texture2D:
+	if id == "machinegun" or id == "cannon":
+		return Assets.tex(art_key(id))
+	if id == "tesla":
+		return Assets.tex("towers_tesla/icon")
+	if id == "laser":
+		return Assets.tex("towers_laser/icon")
 	var kind := iso_kind(id)
 	if not kind.is_empty():
 		return IsoSheet.open(art_key(id)).frame(ICON_DIR, 0)
