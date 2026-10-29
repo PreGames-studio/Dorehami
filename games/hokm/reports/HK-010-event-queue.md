@@ -61,8 +61,19 @@
 
 ## ۴. شواهد و محدودیت‌ها
 
-- محیط محلی فاقد Java/Android SDK است؛ شاهد فقط CI. نتیجهٔ run در
-  [ROADMAP.md](../ROADMAP.md) (داشبورد و دفتر اجرا) ثبت می‌شود؛ انتظار **+۱۷ تست** نسبت به خط پایهٔ ۲۲۲.
+- محیط محلی فاقد Java/Android SDK است؛ شاهد فقط CI.
+- **run نهایی سبز:** [CI run `40795929565`](https://github.com/PreGames-studio/Dorehami/actions/runs/40795929565)
+  روی `47d4e8c`: هر دو job (`checkAll`، `Build debug APK`) موفق،
+  `checkAll: 239 tests, 0 failing, 13 module(s) with results` ⇒ دقیقاً **+۱۷ تست** نسبت به خط پایهٔ
+  ۲۲۲ ([run `40736002665`](https://github.com/PreGames-studio/Dorehami/actions/runs/40736002665)).
+- **دو run قرمز میانی (ثبت صادقانه):**
+  1. [run `40795210538`](https://github.com/PreGames-studio/Dorehami/actions/runs/40795210538) روی `0cf8c30`:
+     `Unresolved reference 'DEFAULT_CAPACITY'` — مقدار پیش‌فرض سازنده به نام ثابتی اشاره می‌کرد که
+     وجود نداشت (`DEFAULT_ANIM_QUEUE_CAPACITY`). در `226ca58` رفع شد.
+  2. [run `40795503257`](https://github.com/PreGames-studio/Dorehami/actions/runs/40795503257) روی `226ca58`:
+     دو تست خودِ HK-010 با انتظار غلط شکستند — `dropBeforeHand` درست **۲** گام دست قبلی را حذف
+     می‌کرد (تست ۱ انتظار داشت) و برچسب تیم در زیرنویس همان چیزی است که فراخوان می‌دهد
+     («تیم حریف»). در `47d4e8c` انتظارها اصلاح شدند؛ کد محصول تغییر نکرد.
 - آزمون‌نشده روی دستگاه: حس واقعی زمان‌بندی انیمیشن‌ها، پخش صدا، burst واقعی در اتاق بلوتوث/آنلاین،
   TalkBack و فریم‌ریت. تست‌ها منطق را اثبات می‌کنند نه تجربهٔ روی گوشی.
 - عمداً تغییر نکرد: سیاست مهلت نوبت (HK-036/038)، همگام‌سازی نقشهٔ صندلی‌ها در reconnect (HK-033)،
