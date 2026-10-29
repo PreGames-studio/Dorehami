@@ -232,6 +232,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
+      - name: Checkout device test script
+        uses: actions/checkout@v4
+
       - name: Download the exact validated APK
         uses: actions/download-artifact@v4
         with:
@@ -255,33 +258,9 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
-          script: |
-            (
-              set -eu
-              adb logcat -c
-              echo 'Installing APK without the test-only override.'
-              adb install apk/dezhban.apk
-              echo 'Resolving launcher activity.'
-              adb shell cmd package resolve-activity --brief com.gf2227.dezhban || true
-              echo 'Starting launcher activity.'
-              result=$(adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.gf2227.dezhban)
-              echo "$result"
-              if ! echo "$result" | grep -q 'Status: ok'; then
-                adb logcat -d -s AndroidRuntime:E Godot:V | tail -80
-                exit 1
-              fi
-              sleep 15
-              if ! adb shell pidof com.gf2227.dezhban; then
-                echo 'Game process exited after launch.'
-                adb logcat -d -s AndroidRuntime:E Godot:V | tail -80
-                exit 1
-              fi
-              adb exec-out screencap -p > dezhban-emulator.png
-              echo 'Fresh installation and launch succeeded on Android API 34.'
-            ) > device-check.log 2>&1
-            rc=$?
-            cat device-check.log
-            exit "$rc"
+          # The action executes each input line in a separate shell; run a script file
+          # so variables, error handling and conditionals share the same process.
+          script: bash games/dejban/tools/verify_standalone_apk_on_device.sh > device-check.log 2>&1
 
       - name: Surface emulator diagnostics
         if: always()
