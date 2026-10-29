@@ -205,6 +205,9 @@ jobs:
               print("Game project, three ABIs and four level-five towers are present.")
           PY
           sha256sum "$apk" | tee "$RUNNER_TEMP/apk-sha256.txt"
+          detail=$(grep -E '^package:|^sdkVersion:|^targetSdkVersion:|^native-code:|^launchable-activity:' "$RUNNER_TEMP/badging.txt" | tr '\n' ' ')
+          echo "::notice title=dezhban-apk::${detail}"
+          echo "::notice title=dezhban-sha256::$(cat "$RUNNER_TEMP/apk-sha256.txt")"
           {
             echo '## Standalone Dezhban APK'
             echo "Revision: \`$GITHUB_SHA\`"
@@ -253,19 +256,47 @@ jobs:
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
           script: |
-            set -eu
-            adb logcat -c
-            adb install apk/dezhban.apk
-            result=$(adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.gf2227.dezhban)
-            echo "$result"
-            echo "$result" | grep -q 'Status: ok'
-            sleep 15
-            if ! adb shell pidof com.gf2227.dezhban; then
-              adb logcat -d -s AndroidRuntime:E Godot:V
-              exit 1
-            fi
-            adb exec-out screencap -p > dezhban-emulator.png
-            echo 'Fresh installation and launch succeeded on Android API 34.'
+            (
+              set -eu
+              adb logcat -c
+              echo 'Installing APK without the test-only override.'
+              adb install apk/dezhban.apk
+              echo 'Resolving launcher activity.'
+              adb shell cmd package resolve-activity --brief com.gf2227.dezhban || true
+              echo 'Starting launcher activity.'
+              result=$(adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.gf2227.dezhban)
+              echo "$result"
+              if ! echo "$result" | grep -q 'Status: ok'; then
+                adb logcat -d -s AndroidRuntime:E Godot:V | tail -80
+                exit 1
+              fi
+              sleep 15
+              if ! adb shell pidof com.gf2227.dezhban; then
+                echo 'Game process exited after launch.'
+                adb logcat -d -s AndroidRuntime:E Godot:V | tail -80
+                exit 1
+              fi
+              adb exec-out screencap -p > dezhban-emulator.png
+              echo 'Fresh installation and launch succeeded on Android API 34.'
+            ) > device-check.log 2>&1
+            rc=$?
+            cat device-check.log
+            exit "$rc"
+
+      - name: Surface emulator diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path = Path("device-check.log")
+          if not path.exists():
+              print("::warning title=dezhban-device-log::Emulator script did not produce a log")
+          else:
+              lines = path.read_text(errors="replace").splitlines()
+              for line in lines[:8] + lines[max(8, len(lines)-30):]:
+                  safe = line[:900].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+                  print(f"::notice title=dezhban-device-log::{safe}")
+          PY
 
       - name: Save emulator screenshot
         if: always()
@@ -278,3 +309,45 @@ jobs:
 
       - name: Report fresh-install success
         run: echo '::notice title=dezhban-device-check::Fresh installation and launcher startup passed on Android API 34 (x86_64 emulator).'
+
+  standalone-preview-release:
+    name: Publish the verified standalone APK
+    needs: standalone-device-check
+    if: ${{ startsWith(github.ref, 'refs/heads/arena/') && ((github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))) }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - name: Download the same APK that passed the device check
+        uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: apk
+
+      - name: Publish branch preview and verify uploaded checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '/' '-')
+          tag="preview-dejban-${branch}-${GITHUB_SHA:0:7}"
+          apk=apk/dezhban.apk
+          sum=$(sha256sum "$apk" | cut -d' ' -f1)
+          url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/dezhban.apk"
+          notes="Standalone Dezhban debug APK for ${GITHUB_REF_NAME} at ${GITHUB_SHA}.
+          This APK was signature-checked and fresh-installed/launched on an Android emulator.
+          It uses a temporary debug signing key, so it may not update an existing installation signed with a different key.
+          SHA-256: ${sum}"
+          gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
+              --prerelease --title "Dezhban preview: $GITHUB_REF_NAME" --notes "$notes"
+          gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
+          remote_sum=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" \
+            --jq '.assets[] | select(.name == "dezhban.apk" and .state == "uploaded") | .digest')
+          test "$remote_sum" = "sha256:$sum"
+          echo "::notice title=dezhban-download::${url} SHA-256 ${sum}"
+          {
+            echo "## Direct download"
+            echo "[$tag/dezhban.apk]($url)"
+            echo "SHA-256: \`$sum\`"
+          } >> "$GITHUB_STEP_SUMMARY"
