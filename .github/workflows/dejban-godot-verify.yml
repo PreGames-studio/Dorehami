@@ -16,6 +16,11 @@ on:
       - "games/dejban/tools/prepare_android_pack.sh"
       - ".github/workflows/dejban-godot-verify.yml"
   workflow_dispatch:
+    inputs:
+      build_apk:
+        description: "Build and test a standalone Dezhban Android APK"
+        type: boolean
+        default: false
 
 permissions:
   contents: read
@@ -83,3 +88,193 @@ jobs:
             exit 1
           fi
           echo "::notice title=dezhban-self-test::${MSG}"
+
+  standalone-apk:
+    name: Build and validate standalone Dezhban APK
+    needs: verify
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_apk }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Checkout requested revision
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Install Godot editor and Android export template
+        run: |
+          set -euo pipefail
+          mkdir -p "$HOME/.local/bin" "$RUNNER_TEMP/godot-editor"
+          base="https://github.com/godotengine/godot/releases/download/${GODOT_VERSION}"
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/godot.zip" \
+            "$base/Godot_v${GODOT_VERSION}_linux.x86_64.zip"
+          unzip -qo "$RUNNER_TEMP/godot.zip" -d "$RUNNER_TEMP/godot-editor"
+          mv "$RUNNER_TEMP/godot-editor/Godot_v${GODOT_VERSION}_linux.x86_64" "$HOME/.local/bin/godot"
+          chmod +x "$HOME/.local/bin/godot"
+          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+          "$HOME/.local/bin/godot" --version
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/templates.tpz" \
+            "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          templates="$HOME/.local/share/godot/export_templates/4.3.stable"
+          mkdir -p "$templates"
+          unzip -joq "$RUNNER_TEMP/templates.tpz" 'templates/android_debug.apk' -d "$templates"
+          test -s "$templates/android_debug.apk"
+          rm "$RUNNER_TEMP/templates.tpz"
+
+      - name: Configure a temporary debug signing key
+        run: |
+          set -euo pipefail
+          test -d "$ANDROID_HOME/build-tools"
+          key="$HOME/.local/share/godot/keystores/debug.keystore"
+          mkdir -p "$(dirname "$key")" "$HOME/.config/godot"
+          keytool -genkeypair -keystore "$key" -storepass android -keypass android \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname 'CN=Android Debug,O=Android,C=US' -storetype JKS
+          cat > "$HOME/.config/godot/editor_settings-4.tres" <<EOF
+          [gd_resource type="EditorSettings" format=3]
+
+          [resource]
+          export/android/java_sdk_path = "$JAVA_HOME"
+          export/android/android_sdk_path = "$ANDROID_HOME"
+          export/android/debug_keystore = "$key"
+          export/android/debug_keystore_user = "androiddebugkey"
+          export/android/debug_keystore_pass = "android"
+          EOF
+
+      - name: Enable phone and emulator architectures in this build only
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path("games/dejban/godot/export_presets.cfg")
+          cfg = p.read_text(encoding="utf-8")
+          for abi in ("armeabi-v7a", "x86_64"):
+              old = f"architectures/{abi}=false"
+              if cfg.count(old) != 1:
+                  raise SystemExit(f"unexpected preset for {abi}")
+              cfg = cfg.replace(old, f"architectures/{abi}=true")
+          assert "architectures/arm64-v8a=true" in cfg
+          assert "package/show_in_app_library=true" in cfg
+          p.write_text(cfg, encoding="utf-8")
+          PY
+
+      - name: Import and export standalone APK
+        working-directory: games/dejban/godot
+        run: |
+          set -euo pipefail
+          mkdir -p "$GITHUB_WORKSPACE/dist"
+          godot --headless --path . --import 2>&1 | tail -40
+          godot --headless --path . --export-debug "Android" \
+            "$GITHUB_WORKSPACE/dist/dezhban.apk" 2>&1 | tee "$RUNNER_TEMP/export.log"
+          test -s "$GITHUB_WORKSPACE/dist/dezhban.apk"
+
+      - name: Verify APK contents, manifest and signature
+        run: |
+          set -euo pipefail
+          apk=dist/dezhban.apk
+          tools=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f -printf '%h\n' | sort -V | tail -1)
+          test -x "$tools/apksigner"
+          test -x "$tools/aapt"
+          "$tools/apksigner" verify --verbose --print-certs "$apk" | tee "$RUNNER_TEMP/signature.txt"
+          "$tools/zipalign" -c 4 "$apk"
+          "$tools/aapt" dump badging "$apk" | tee "$RUNNER_TEMP/badging.txt"
+          grep -F "package: name='com.gf2227.dezhban'" "$RUNNER_TEMP/badging.txt"
+          grep -F 'launchable-activity:' "$RUNNER_TEMP/badging.txt"
+          unzip -tq "$apk"
+          python3 - "$apk" <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import sys
+          apk = Path(sys.argv[1])
+          with ZipFile(apk) as z:
+              files = set(z.namelist())
+              required = ["assets/project.binary"] + [
+                  f"lib/{abi}/libgodot_android.so"
+                  for abi in ("armeabi-v7a", "arm64-v8a", "x86_64")
+              ]
+              for name in required:
+                  if name not in files:
+                      raise SystemExit(f"Missing APK entry: {name}")
+              for tower in ("machinegun", "artillery", "laser", "tesla"):
+                  if not any(f"{tower}_5.png" in name for name in files):
+                      raise SystemExit(f"Missing level-five tower art: {tower}")
+              print("Game project, three ABIs and four level-five towers are present.")
+          PY
+          sha256sum "$apk" | tee "$RUNNER_TEMP/apk-sha256.txt"
+          {
+            echo '## Standalone Dezhban APK'
+            echo "Revision: \`$GITHUB_SHA\`"
+            echo '```'
+            cat "$RUNNER_TEMP/apk-sha256.txt"
+            grep -E '^package:|^sdkVersion:|^targetSdkVersion:|^native-code:|^launchable-activity:' "$RUNNER_TEMP/badging.txt"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload verified APK for device check
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: dist/dezhban.apk
+          if-no-files-found: error
+          retention-days: 7
+
+  standalone-device-check:
+    name: Install and launch standalone APK on Android
+    needs: standalone-apk
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.build_apk }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - name: Download the exact validated APK
+        uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: apk
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Fresh install and launch without test-only override
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: |
+            set -eu
+            adb logcat -c
+            adb install apk/dezhban.apk
+            result=$(adb shell am start -W -a android.intent.action.MAIN -c android.intent.category.LAUNCHER -p com.gf2227.dezhban)
+            echo "$result"
+            echo "$result" | grep -q 'Status: ok'
+            sleep 15
+            if ! adb shell pidof com.gf2227.dezhban; then
+              adb logcat -d -s AndroidRuntime:E Godot:V
+              exit 1
+            fi
+            adb exec-out screencap -p > dezhban-emulator.png
+            echo 'Fresh installation and launch succeeded on Android API 34.'
+
+      - name: Save emulator screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-emulator-screenshot
+          path: dezhban-emulator.png
+          if-no-files-found: warn
+          retention-days: 7
+
+      - name: Report fresh-install success
+        run: echo '::notice title=dezhban-device-check::Fresh installation and launcher startup passed on Android API 34 (x86_64 emulator).'
