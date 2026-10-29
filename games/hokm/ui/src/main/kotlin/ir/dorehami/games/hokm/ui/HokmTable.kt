@@ -21,8 +21,10 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.JsonObject
+import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonObject
 import kotlinx.serialization.json.int
+import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
@@ -139,6 +141,11 @@ data class HokmUiState(
     val modeLabel: String = "",
     /** Session revision of the snapshot this table currently shows (0 before the first read). */
     val revision: Long = 0L,
+    /**
+     * I have sent a move and the table has not seen its result yet. A second tap must not send a
+     * second action; the flag clears as soon as a newer snapshot or an error arrives.
+     */
+    val isSendingMove: Boolean = false,
 ) {
     val myTeam: Int get() = HokmRules.teamOf(mySeat, playerCount)
     fun teamOf(seat: Int): Int = HokmRules.teamOf(seat, playerCount)
@@ -148,10 +155,12 @@ data class HokmUiState(
      * opening draw is on screen (`HokmTable.refresh()` and the event queue both use this gate).
      */
     val isCalm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
-    val isMyTurn: Boolean get() = isCalm && handPhase == HandPhase.PLAYING && turn == mySeat
-    val iChooseHokm: Boolean get() = isCalm && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
-    val iDiscard: Boolean get() = isCalm && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
-    val iDraw: Boolean get() = isCalm && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
+    val isMyTurn: Boolean get() = isCalm && !isSendingMove && handPhase == HandPhase.PLAYING && turn == mySeat
+    val iChooseHokm: Boolean get() = isCalm && !isSendingMove && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
+    val iDiscard: Boolean get() =
+        isCalm && !isSendingMove && handPhase == HandPhase.DISCARDING && turn == mySeat && discardCount > 0
+    val iDraw: Boolean get() =
+        isCalm && !isSendingMove && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
     val isTeamGame: Boolean get() = playerCount == 4
 }
 
@@ -221,11 +230,17 @@ abstract class HokmTable(
     }
 
     protected val wake = Channel<Unit>(Channel.CONFLATED)
-    protected var pendingPauseMs = 0L
-    private var pendingCollect: Int? = null
-    private var pendingHandBanner: Banner? = null
-    private var pendingDeal = false
+
+    /**
+     * Deferred animations, in the order the events arrived (HK-010). A single slot per animation kind
+     * used to drop steps on a burst; the queue keeps them, deduplicates duplicates and forgets the
+     * hand a snapshot already replaced.
+     */
+    private val animQueue = TableAnimQueue()
     private var started = false
+
+    /** `true` while an animation step is still queued; the loop drains them one by one. */
+    protected val hasQueuedAnimation: Boolean get() = !animQueue.isEmpty
 
     /** Starts the opening animation and the table loop. Safe to call once. */
     fun start() {
@@ -243,7 +258,20 @@ abstract class HokmTable(
     fun chooseHokm(suit: Suit) {
         val s = _state.value
         if (!s.iChooseHokm) return
-        sendMine(GameAction(HokmModule.ACTION_CHOOSE_HOKM, view { put(HokmModule.PAYLOAD_SUIT, suit.id) }))
+        send(GameAction(HokmModule.ACTION_CHOOSE_HOKM, view { put(HokmModule.PAYLOAD_SUIT, suit.id) }))
+    }
+
+    /**
+     * Sends one of my moves exactly once.
+     *
+     * The table marks itself as "sending" before the action leaves, so a double tap (or a tap while
+     * the host is still answering) cannot create a second move; [HokmUiState.isSendingMove] is
+     * cleared by the answer (a newer snapshot, an accepted local result, or an error).
+     */
+    private fun send(action: GameAction) {
+        if (_state.value.isSendingMove) return
+        _state.value = _state.value.copy(isSendingMove = true)
+        sendMine(action)
         wake.trySend(Unit)
     }
 
@@ -256,8 +284,7 @@ abstract class HokmTable(
             onSound("tap")
             return
         }
-        sendMine(GameAction(HokmModule.ACTION_PLAY_CARD, view { put(HokmModule.PAYLOAD_CARD, card.code) }))
-        wake.trySend(Unit)
+        send(GameAction(HokmModule.ACTION_PLAY_CARD, view { put(HokmModule.PAYLOAD_CARD, card.code) }))
     }
 
     /** Two-player burn: toggle a card; when enough are selected call [confirmDiscard]. */
@@ -279,8 +306,7 @@ abstract class HokmTable(
             put(HokmModule.PAYLOAD_CARDS, kotlinx.serialization.json.buildJsonArray { s.selectedForDiscard.forEach { add(kotlinx.serialization.json.JsonPrimitive(it.code)) } })
         }
         _state.value = s.copy(selectedForDiscard = emptySet())
-        sendMine(GameAction(HokmModule.ACTION_DISCARD, payload))
-        wake.trySend(Unit)
+        send(GameAction(HokmModule.ACTION_DISCARD, payload))
     }
 
     fun keepCard() = drawDecision(keep = true)
@@ -289,8 +315,7 @@ abstract class HokmTable(
 
     private fun drawDecision(keep: Boolean) {
         if (!_state.value.iDraw) return
-        sendMine(GameAction(if (keep) HokmModule.ACTION_KEEP_CARD else HokmModule.ACTION_PASS_CARD))
-        wake.trySend(Unit)
+        send(GameAction(if (keep) HokmModule.ACTION_KEEP_CARD else HokmModule.ACTION_PASS_CARD))
     }
 
     /** Show a sticker over my seat (bots may answer). Chat is UI-only: it never enters the rules. */
@@ -373,35 +398,10 @@ abstract class HokmTable(
 
     protected suspend fun loop() {
         while (scope.isActive) {
-            // 1) Animations requested by the last action run before anything else moves.
-            if (pendingPauseMs > 0L) {
-                val ms = pendingPauseMs
-                pendingPauseMs = 0L
-                delay(ms)
-                pendingCollect?.let { winner ->
-                    pendingCollect = null
-                    _state.value = _state.value.copy(collectingTo = winner)
-                    onSound("whoosh")
-                    onSound(if (HokmRules.teamOf(winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)) "trick_won" else "trick_lost")
-                    pushFx(FxKind.TRICK_WIN, winner, 900)
-                    delay(COLLECT_MS)
-                    _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
-                    refresh()
-                }
-                pendingHandBanner?.let { banner ->
-                    pendingHandBanner = null
-                    _state.value = _state.value.copy(banner = banner)
-                    delay(if (banner.big) HAND_BANNER_MS else 1300L)
-                    _state.value = _state.value.copy(banner = null)
-                }
-                if (pendingDeal) {
-                    pendingDeal = false
-                    _state.value = _state.value.copy(dealing = true)
-                    onSound("shuffle")
-                    delay(DEAL_MS)
-                    _state.value = _state.value.copy(dealing = false)
-                }
-                refresh()
+            // 1) Queued animations run before anything else moves, one step at a time (HK-010).
+            //    A burst therefore plays in order instead of overwriting a single pending slot.
+            animQueue.poll()?.let { step ->
+                runStep(step)
                 continue
             }
             if (isFinished()) {
@@ -434,14 +434,58 @@ abstract class HokmTable(
         }
     }
 
+    /**
+     * Plays one queued presentation step and returns when it is over. The steps are deliberately
+     * sequential: a trick is shown, swept, then the hand banner appears — never two at once.
+     */
+    private suspend fun runStep(step: TableStep) {
+        when (step) {
+            is TableStep.CollectTrick -> {
+                delay(TRICK_SHOW_MS)
+                _state.value = _state.value.copy(collectingTo = step.winner)
+                onSound("whoosh")
+                val mine = HokmRules.teamOf(step.winner, playerCount) == HokmRules.teamOf(mySeat, playerCount)
+                onSound(if (mine) "trick_won" else "trick_lost")
+                pushFx(FxKind.TRICK_WIN, step.winner, 900)
+                delay(COLLECT_MS)
+                _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
+            }
+            is TableStep.ShowBanner -> {
+                _state.value = _state.value.copy(banner = step.banner)
+                delay(step.holdMs)
+                _state.value = _state.value.copy(banner = null)
+            }
+            is TableStep.Deal -> {
+                _state.value = _state.value.copy(dealing = true)
+                onSound("shuffle")
+                delay(DEAL_MS)
+                _state.value = _state.value.copy(dealing = false)
+            }
+        }
+        refresh()
+    }
+
+    /** Queues a presentation step for the hand the table is showing right now. */
+    private fun enqueue(keyHand: Int = _state.value.handNumber, block: (Int, Int, Long) -> TableStep) {
+        val s = _state.value
+        animQueue.offer(block(keyHand, s.trickNumber, s.revision))
+    }
+
     protected fun onResult(r: ApplyResult, actor: Int) {
         when (r) {
-            is ApplyResult.Rejected -> setError(r.messageFa)
+            is ApplyResult.Rejected -> {
+                // My move never happened: clear the sending gate so I can try again.
+                _state.value = _state.value.copy(isSendingMove = false)
+                setError(r.messageFa)
+            }
             is ApplyResult.Ok -> {
                 handleEmissions(r.emissions, actor)
-                // While a trick/hand animation is pending the table keeps showing the old state;
+                // The engine answered (accepted) — no longer waiting on this move. The snapshot that
+                // carries the new revision is read below when the table is calm.
+                _state.value = _state.value.copy(isSendingMove = false)
+                // While a trick/hand animation is queued the table keeps showing the old state;
                 // the loop refreshes once the animation is over.
-                if (pendingPauseMs == 0L) refresh()
+                if (!hasQueuedAnimation) refresh()
             }
         }
     }
@@ -467,54 +511,64 @@ abstract class HokmTable(
                         val seat = e.payload["seat"]!!.jsonPrimitive.int
                         val card = Card.parse(e.payload["card"]!!.jsonPrimitive.content)!!
                         val cur = _state.value
-                        val lead = cur.tableCards.firstOrNull()?.card?.suit
-                        val hokm = cur.hokm
-                        if (lead != null && hokm != null && card.suit == hokm && lead != hokm) {
-                            cutPending = true
-                            pushFx(FxKind.CUT, seat)
-                            feed += "${seats[seat].name} با حکم برید!"
+                        // A duplicated delivery must not put the same card on the table twice.
+                        val update = TableEvents.appendCard(cur.tableCards, Play(seat, card))
+                        if (!update.duplicate) {
+                            val lead = cur.tableCards.firstOrNull()?.card?.suit
+                            val hokm = cur.hokm
+                            if (lead != null && hokm != null && card.suit == hokm && lead != hokm) {
+                                cutPending = true
+                                pushFx(FxKind.CUT, seat)
+                                feed += "${seats[seat].name} با حکم برید!"
+                            }
+                            _state.value = cur.copy(
+                                tableCards = update.plays,
+                                myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
+                                legalCards = if (seat == mySeat) emptySet() else cur.legalCards,
+                                // While a closed trick sits on the table nobody is "on turn".
+                                turn = TableEvents.turnAfter(update, Play(seat, card), playerCount),
+                            )
                         }
-                        _state.value = cur.copy(
-                            tableCards = cur.tableCards + Play(seat, card),
-                            myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
-                            legalCards = if (seat == mySeat) emptySet() else cur.legalCards,
-                            // While a closed trick sits on the table nobody is "on turn".
-                            turn = if (cur.tableCards.size + 1 >= playerCount) -1 else HokmRules.nextSeat(seat, playerCount),
-                        )
                     }
 
                     "trick_won" -> {
                         val winner = e.payload["winner"]!!.jsonPrimitive.int
-                        pendingCollect = winner
-                        pendingPauseMs = maxOf(pendingPauseMs, TRICK_SHOW_MS)
+                        val trick = (e.payload["trickNumber"] as? JsonPrimitive)?.intOrNull ?: _state.value.trickNumber
+                        val hand = _state.value.handNumber
+                        val revision = _state.value.revision
+                        animQueue.offer(TableStep.CollectTrick(winner, hand, trick, revision))
                         feed += "${seats[winner].name} دست را برد"
                     }
 
                     "hand_finished" -> {
                         TableSnapshotMapper.parseHand(e.payload)?.let { summary ->
+                            // Presentation only: the summary says what to show, never what the match
+                            // result is. Scores/winner still come from a validated snapshot.
                             val myTeam = HokmRules.teamOf(mySeat, playerCount)
-                            val mine = summary.winnerTeam == myTeam
-                            val we = if (playerCount == 4) "بردیم" else "بردی"
-                            val lost = if (playerCount == 4) "باختیم" else "باختی"
-                            val title = when (summary.kind) {
-                                HandWinKind.NORMAL -> if (mine) "این دست را $we!" else "این دست را $lost"
-                                HandWinKind.KOT -> if (mine) "کُت!" else "کُت ${if (playerCount == 4) "شدیم" else "شدی"}!"
-                                HandWinKind.HAKEM_KOT -> if (mine) "حاکم‌کُت! ${summary.points.toFaDigitsLocal()} امتیاز" else "حاکم‌کُت ${if (playerCount == 4) "شدیم" else "شدی"}…"
-                                HandWinKind.VOID -> "مساوی — این دست بی‌نتیجه ماند"
+                            val banner = TableEvents.handBanner(summary, playerCount, myTeam, ::teamName)
+                            val hand = summary.handNumber
+                            val revision = _state.value.revision
+                            animQueue.offer(
+                                TableStep.ShowBanner(
+                                    banner = banner,
+                                    holdMs = HAND_BANNER_MS,
+                                    handNumber = hand,
+                                    trickNumber = _state.value.trickNumber,
+                                    revision = revision,
+                                ),
+                            )
+                            // A repeated hand_finished delivery must not list the hand twice.
+                            val history = _state.value.handHistory
+                            if (history.none { it.handNumber == summary.handNumber }) {
+                                _state.value = _state.value.copy(handHistory = history + summary)
                             }
-                            val subtitle = summary.winnerTeam?.let { "${summary.points.toFaDigitsLocal()} امتیاز برای ${teamName(it)}" }
-                            pendingHandBanner = Banner(title, subtitle, big = true)
-                            _state.value = _state.value.copy(handHistory = _state.value.handHistory + summary)
                             if (summary.kind == HandWinKind.KOT || summary.kind == HandWinKind.HAKEM_KOT) {
                                 scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); pushFx(FxKind.KOT, -1, 2600) }
                             }
-                            val sound = when (summary.kind) {
-                                HandWinKind.NORMAL, HandWinKind.VOID -> if (mine) "hand_won" else "hand_lost"
-                                else -> if (mine) "kot" else "hand_lost"
-                            }
+                            val sound = TableEvents.handSound(summary, myTeam)
                             scope.launch { delay(TRICK_SHOW_MS + COLLECT_MS); onSound(sound) }
                             botReactions(summary)
-                            feed += title
+                            feed += banner.title
                         }
                     }
 
@@ -530,8 +584,15 @@ abstract class HokmTable(
                     }
 
                     "drawing_finished" -> {
-                        pendingHandBanner = Banner("دست‌ها کامل شد", "حاکم شروع می‌کند")
-                        pendingPauseMs = maxOf(pendingPauseMs, 150L)
+                        enqueue { hand, trick, revision ->
+                            TableStep.ShowBanner(
+                                Banner("دست‌ها کامل شد", "حاکم شروع می‌کند"),
+                                holdMs = 1300L,
+                                handNumber = hand,
+                                trickNumber = trick,
+                                revision = revision,
+                            )
+                        }
                     }
 
                     "hand_started" -> Unit // the new hakem's five cards simply appear with the next refresh
@@ -551,11 +612,22 @@ abstract class HokmTable(
                         val suit = Suit.parse(e.payload["hokm"]!!.jsonPrimitive.content)!!
                         feed += "${seats[hakem].name} حکم را ${suit.titleFa} کرد"
                         if (actor != mySeat) {
-                            pendingHandBanner = Banner("حکم: ${suit.titleFa} ${suit.symbol}", "به انتخاب ${seats[hakem].name}")
+                            enqueue { hand, trick, revision ->
+                                TableStep.ShowBanner(
+                                    Banner("حکم: ${suit.titleFa} ${suit.symbol}", "به انتخاب ${seats[hakem].name}"),
+                                    holdMs = 1300L,
+                                    handNumber = hand,
+                                    trickNumber = trick,
+                                    revision = revision,
+                                )
+                            }
                         }
                         // 3p/4p: the remaining cards are dealt out — animate it before showing them.
-                        if (playerCount > 2) pendingDeal = true
-                        pendingPauseMs = maxOf(pendingPauseMs, 150L)
+                        if (playerCount > 2) {
+                            enqueue { hand, trick, revision ->
+                                TableStep.Deal(handNumber = hand, trickNumber = trick, revision = revision)
+                            }
+                        }
                     }
                 }
 
@@ -576,7 +648,7 @@ abstract class HokmTable(
     private fun Int.toFaDigitsLocal(): String = this.toFa()
 
     protected fun setError(message: String) {
-        _state.value = _state.value.copy(error = message)
+        _state.value = _state.value.copy(error = message, isSendingMove = false)
     }
 
     // ------------------------------------------------------------------ view → state
@@ -598,6 +670,9 @@ abstract class HokmTable(
             expectedPlayers = if (seats.isNotEmpty()) seats.size else null,
         )
         val snapshot = (decision as? TableDecision.Apply)?.snapshot ?: return
+        // A newer snapshot is the authoritative answer to whatever I sent, and it also tells the
+        // queue that an older hand is history: never animate two hands at once (HK-010).
+        animQueue.dropBeforeHand(snapshot.handNumber)
         val finished = snapshot.finished
         val next = old.copy(
             revision = snapshot.revision,
@@ -626,6 +701,8 @@ abstract class HokmTable(
             finished = finished,
             winnerTeam = if (finished) snapshot.scores.indexOf(snapshot.scores.max()) else null,
             selectedForDiscard = if (snapshot.handPhase == HandPhase.DISCARDING) old.selectedForDiscard else emptySet(),
+            // Only a newer revision is the answer to my move; re-reading the same view is not.
+            isSendingMove = TableEvents.sendingAfterSnapshot(old.revision, snapshot.revision, old.isSendingMove),
         )
         _state.value = next.copy(tableCards = TableSync.tableCards(snapshot, next.tableCards, next.isCalm))
     }

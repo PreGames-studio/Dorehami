@@ -2,7 +2,7 @@
 
 > **نام کوتاه این سند: «MD حکم» یا «فایل ام‌دی حکم».**
 > راهنمای اجرای عامل: [AGENTS.md اختصاصی حکم](AGENTS.md).
-> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-27** · نسخهٔ سند: **1.24** · مبنای خط‌پایهٔ کد: **`273d0a0`** · HK-002 تا **HK-008** تکمیل شدند؛ **HK-009 نیز `DONE`** (mapper تایپ‌شدهٔ میز). قرارداد نسخه‌دار قواعد [RULES.md v1.0](RULES.md) در HK-008 تصویب شد. مراحل لوکس ۲٫۵D، HK-006، HK-007 و HK-008 [گزارش‌هایشان](reports/) را دارند.
+> تاریخ تدوین/آخرین به‌روزرسانی: **2026-10-28** · نسخهٔ سند: **1.25** · مبنای خط‌پایهٔ کد: **`02b824b`** · HK-002 تا **HK-009** تکمیل شدند؛ **HK-010 `ACTIVE`** (صف رویداد/انیمیشن). قرارداد نسخه‌دار قواعد [RULES.md v1.0](RULES.md) در HK-008 تصویب شد؛ مراحل لوکس ۲٫۵D، HK-006 تا HK-009 [گزارش‌هایشان](reports/) را دارند.
 > این سند برنامهٔ ساخت است، نه اعلام آماده‌بودن قابلیت‌ها یا تضمین محبوبیت سراسری.
 
 ---
@@ -13,9 +13,9 @@
 | موضوع | وضعیت ثبت‌شده |
 |---|---|
 | چشم‌انداز | حکم ایرانیِ خوش‌ساخت، منصفانه، قابل‌اعتماد و راحت؛ مناسب بزرگسالان و سنین بالاتر، بدون قربانی‌کردن گوشی‌های اقتصادی |
-| مرحلهٔ فعلی | **هیچ — HK-009 `DONE`**؛ `HK-010` اولین `TODO` است و بدون تأیید جدید شروع نشده است |
-| کار فعال/تصمیم بعدی | HK-009 بسته شد (mapper تایپ‌شده، R-06)؛ تصمیم بعدی با کاربر است که HK-010 (صف رویداد/انیمیشن) یا IMP-009 (گیت ناپایدار سرور) را تأیید کند |
-| پیشنهاد جلسهٔ بعد | HK-010 (صف رویداد/انیمیشن و همگامی view) با تأیید تازه؛ HK-033 برای reconnect و نقشهٔ صندلی |
+| مرحلهٔ فعلی | **HK-010 `ACTIVE`** — صف رویداد/انیمیشن و همگامی view؛ HK-009 `DONE` است |
+| کار فعال/تصمیم بعدی | HK-010 در حال اجراست: صف محدود و نسخه‌دار گام‌های نمایش، حذف اسلات‌های تک‌ظرفیتی، ضدتکرار کارت/دست و گارد «در حال ارسال»؛ تصمیم بعدی با کاربر برای HK-011 |
+| پیشنهاد جلسهٔ بعد | HK-011 (ادامهٔ بازی محلی و عمر درست state) با تأیید تازه؛ HK-033 برای reconnect و نقشهٔ صندلی |
 | تأیید اجرای HK-001 | دریافت شد: پاسخ صریح کاربر «تایید است» در 2026-10-13 |
 | تأیید پیشروی HK-002 | کاربر در 2026-10-13 گفت تا ۱۰ مرحله پیش برویم و او merge می‌کند؛ مجوز فعلی برای ادامهٔ اجرای گام‌هاست، نه merge/deploy توسط عامل |
 | تأیید زیرمرحلهٔ HK-001.a | اجرا و تشخیص baseline پایان یافت؛ فقط برنچ ثابت `arena/05a354c8-dorehami` |
@@ -24,7 +24,7 @@
 | وضعیت آزمون نرم‌افزار در این نوبت | HK-005 روی `512ad7d`: [CI run `38459748196`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748196) سبز شد: `checkAll` برابر 153 تست/0 شکست/9 ماژول؛ APK job و artifact موفق. [Baseline run `38459748182`](https://github.com/PreGames-studio/Dorehami/actions/runs/38459748182) نیز core/server/full checks/APK/app lint را سبز کرد. تست-first قرمز پیش از fix در `38458506525` ثبت شده؛ Java محلی حاضر نیست. baseline اولیه در [گزارش HK-001](reports/HK-001-baseline.md) |
 | قابلیت‌های موجود | کد محلی/ربات، ۲/۳/۴ نفره، Compose، اتاق، Nearby و WebSocket وجود دارد؛ کیفیت انتشار باید با مراحل بعد اثبات شود |
 | مانع فعلی | آزمون دستگاه/رندر Compose/TalkBack برای مراحل اخیر انجام نشده؛ HK-013 (خط‌پایهٔ فریم/حافظه) و HK-015 (دارایی هنری) همچنان بدون شاهد دستگاهاند |
-| آخرین تحویل | HK-009 `DONE`: [مدل/mapper تایپ‌شده](reports/HK-009-typed-table-model.md)، [run `40670126842`](https://github.com/PreGames-studio/Dorehami/actions/runs/40670126842): ۲۲۲ تست/۰ شکست/۱۳ ماژول (+۱۳) و APK سبز |
+| آخرین تحویل | HK-010 `ACTIVE`: [صف و توابع خالص رویداد](reports/HK-010-event-queue.md)، `TableAnimQueue`/`TableStep`/`TableEvents`، ۱۷ تست JVM، حذف `pendingPauseMs`/`pendingCollect` |
 | تحویل تأییدشدهٔ موازی (2026-10-26) | مرحلهٔ محدود «لوکس ۲٫۵D» به درخواست مستقیم کاربر: لایهٔ حرکت خالص و تست‌شده، حلقهٔ ذرات Ready، پخش سهموی، فویل طلا، جمع چرخشی، شمارندهٔ دست، درگ کارت، نور/vignette، لرزش میراشونده و هشدار ۳ ثانیهٔ تایمر + تنظیمات کاهش حرکت. بدون موتور ۳D/دارایی 4K/صدای فضایی/تغییر قرارداد. [گزارش](reports/luxury-2.5d-stage-2026-10-26.md)؛ شاهد CI در دفتر اجرا |
 | وضعیت آزمون مرحلهٔ لوکس ۲٫۵D | محیط محلی بدون Java/Android SDK؛ [CI run `40376757482`](https://github.com/PreGames-studio/Dorehami/actions/runs/40376757482) روی `55b3327` سبز: `checkAll` برابر ۱۷۴ تست/۰ شکست/۱۲ ماژول و APK job/artifact موفق. خط پایهٔ `main` ([run `40003880973`](https://github.com/PreGames-studio/Dorehami/actions/runs/40003880973)) ۱۶۶ تست داشت؛ تفاضل دقیقاً ۸ تست تازهٔ `HokmCinematicsTest` است. آزمون دستگاه انجام نشد |
 | تحویل IMP-003.b (2026-10-26) | ادامهٔ پرامپت لوکس: سند تصمیم بند ۵، لایهٔ خالص `HokmReflection`، بازتاب واکنشگرا به شتابسنج (آلفا ≤ ۰٫۱۲، خاموش در REDUCED/OFF/کارت غیرمجاز)، بودجهٔ کیفیت تطبیقی برای ذرات و ۸ تست JVM؛ بدون دارایی/وابستگی/قواعد/سرور. [گزارش](reports/IMP-003b-reflection-decision.md)؛ شاهد CI در دفتر اجرا |
@@ -505,7 +505,7 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 | ID | وضعیت | پیش‌نیاز | خروجی مشخص | معیار پایان و مسیر |
 |---|---|---|---|---|
 | HK-009 | DONE | HK-008 | mapper تایپ‌شده و مدل مستقل وضعیت میز | [گزارش](reports/HK-009-typed-table-model.md): `TableSnapshot`/`TableRead`/`TableDecision`، اعتبارسنجی کلیدها و `seat`/`playerCount`، قاعدهٔ تازگی `revision`، بازسازی `currentTrick` (R-06)، ۱۳ تست JVM؛ تغییر افزایشی و قابل مهاجرت. شاهد: [run `40670126842`](https://github.com/PreGames-studio/Dorehami/actions/runs/40670126842) ۲۲۲ تست/۰ شکست/۱۳ ماژول و APK |
-| HK-010 | TODO | HK-009 | صف رویداد/انیمیشن و همگامی view | burst رویداد، skip animation و resync دور ناقص، کارت یا صدا را تکرار/حذف نکنند؛ presentation نتیجه را ننویسد. H-ui/Shared در صورت نیاز |
+| HK-010 | ACTIVE | HK-009 | صف رویداد/انیمیشن و همگامی view | [گزارش](reports/HK-010-event-queue.md): صف محدود/نسخه‌دار با ضدتکرار و `dropBeforeHand`، اجرای گام‌به‌گام در `runStep()`، ضدتکرار کارت و `handHistory`، گارد `isSendingMove`؛ ۱۷ تست JVM؛ presentation فقط نمایش می‌دهد و نتیجه را نمی‌نویسد |
 | HK-011 | TODO | HK-010 | ادامهٔ بازی محلی و عمر درست state | کشتن فرایند/چرخش/ارتقای schema، بازی را سالم ادامه دهد یا خطای امن بدهد؛ آمار پایان دو بار ثبت نشود. H-ui/Shared |
 | HK-012 | TODO | HK-011 | ADR نسخه‌بندی قواعد، RNG، رکورد و پروتکل | سازگاری نسخهٔ قبل، مدل تهدید و روش مهاجرت روشن و تصویب شود؛ هنوز مهاجرت انبوه اجرا نشود. Docs/Shared/Srv |
 | HK-013 | TODO | HK-012 | خط پایهٔ تصویری، عملکرد و دسترس‌پذیری | دستگاه‌های مرجع، سناریوی ثابت، screenshot test و اندازه‌گیری فریم/حافظه ثبت؛ بودجه‌های بخش ۱۰ تأیید شوند. H-ui/Ops |
@@ -867,6 +867,7 @@ Nearby موجود است و به خدمات گوگل وابستگی دارد. «
 | 2026-10-27 | HK-007 — DONE | کاربر گفت «انجام یده» پس از پیشنهاد HK-007؛ دامنه: `games/hokm/ui/.../room/RoomFlow.kt` + فایل خالص جدید + تست + کامنت `HokmEntry.kt`؛ بدون پروتکل/سرور/core-uikit/بازی دیگر/وابستگی تازه | `RoomResources.kt`، `RoomResourcesTest.kt` (۸ تست)، `try/finally` در چهار مسیر اتصال، `teardown()` روی `Job` مستقل، [گزارش](reports/HK-007-resource-teardown.md) | محیط محلی Java/Android SDK ندارد؛ [run `40438491546`](https://github.com/PreGames-studio/Dorehami/actions/runs/40438491546) روی `2819b15`: دو job سبز، ۱۹۹ تست/۰ شکست/۱۳ ماژول (خط پایه ۱۹۱) و APK artifact؛ لاگ کامل job بهعلت `EOF` results-receiver دانلود نشد | آزمون دستگاه/رندر Compose/TalkBack و ورود-خروج مکرر واقعی انجام نشد؛ IMP-007/008 ثبت شدند | HK-008 با تأیید تازه؛ IMP-005/006/007/008 |
 | 2026-10-27 | HK-008 — DONE | کاربر «انجام بده» گفت و سپس چهار گزینهٔ محصولی/CI را صریحاً تأیید کرد؛ دامنه: `games/hokm/core` (قواعد + تست)، `RULES.md`، `README.md`، متن `RulesCard` در UI، ROADMAP؛ بدون تغییر رفتار قواعد/وابستگی/پروتکل/سرور/بازی دیگر | [قرارداد v1.0](RULES.md)، `HokmRules.settleHand()`، `HokmRulesContractTest.kt` (۱۰ تست)، [گزارش](reports/HK-008-rules-contract.md) | محیط محلی Java/Android SDK ندارد؛ [run `40519180289`](https://github.com/PreGames-studio/Dorehami/actions/runs/40519180289) روی `e4df4de`: دو job سبز، ۲۰۹ تست/۰ شکست/۱۳ ماژول (خط پایه ۱۹۹) و APK artifact. [run قرمز `40518202686`](https://github.com/PreGames-studio/Dorehami/actions/runs/40518202686) روی `89f4c85` بهعلت خطای نحوی `RulesCard` شکست و در `e4df4de` رفع شد | رندر Compose، TalkBack و شاهد تصویری قبل/بعد `RulesCard` آزمون نشد | HK-009 با تأیید تازه |
 | 2026-10-27 | HK-009 — DONE | کاربر «انجام بده» گفت (تفسیر: مرحلهٔ بعدی نقشهٔ راه = HK-009)؛ دامنه: `games/hokm/ui` (فایل خالص جدید + `HokmTable.refresh()` + `HokmSessionMatch.onState()` + تست)، بدون قواعد/پروتکل/سرور/core-session/وابستگی تازه | `TableSnapshot.kt` (mapper/decisions/TableSync)، `TableSnapshotTest.kt` (۱۳ تست)، `revision` و `isCalm` در `HokmUiState`، [گزارش](reports/HK-009-typed-table-model.md) | [run `40670126842`](https://github.com/PreGames-studio/Dorehami/actions/runs/40670126842) روی `05a83c9`: دو job سبز، ۲۲۲ تست/۰ شکست/۱۳ ماژول (خط پایه ۲۰۹ ⇒ +۱۳) و APK artifact. [run قرمز `40669720952`](https://github.com/PreGames-studio/Dorehami/actions/runs/40669720952) روی `e84a1f4` به‌علت import حذف‌شدهٔ `jsonPrimitive.int` شکست و در `05a83c9` رفع شد | رندر Compose، دستگاه/بلوتوث/آنلاین، TalkBack و فریم‌ریت آزمون نشد | HK-010 با تأیید تازه |
+| 2026-10-28 | HK-010 — ACTIVE | تأیید صریح کاربر «تایید HK-010»؛ دامنه: `games/hokm/ui` (فایل خالص جدید + `HokmTable` + `HokmSessionMatch` + تست)، بدون قواعد/پروتکل/سرور/core-session/وابستگی تازه | `TableAnimationQueue.kt` (`TableStep`/`TableAnimQueue`/`TableEvents`)، `TableAnimationQueueTest.kt` (۱۷ تست)، `isSendingMove` و `runStep()`، [گزارش](reports/HK-010-event-queue.md) | در انتظار run CI پس از push | حس زمان‌بندی/صدا/فریم روی دستگاه، burst واقعی اتاق و TalkBack آزمون نشد | HK-011 با تأیید تازه |
 
 ### قالب ثبت هر تحویل
 
