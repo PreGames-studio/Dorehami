@@ -29,6 +29,7 @@ func set_level(value: int) -> void:
 
 func advance(delta: float) -> void:
 	var dt := maxf(delta, 0.0)
+	_view_blend.advance(dt)
 	recoil = move_toward(recoil, 0.0, RECOIL_RETURN * dt)
 	barrel_mount.position.x = -recoil
 	firing_left = maxf(0.0, firing_left - dt)
@@ -38,7 +39,7 @@ func _refresh_views() -> void:
 	var phase := fposmod(mount.rotation, TAU) * float(DIRECTION_COUNT) / TAU
 	var first := posmod(floori(phase), DIRECTION_COUNT)
 	var second := posmod(first + 1, DIRECTION_COUNT)
-	var fraction := phase - floorf(phase)
+	var fraction: float = _view_blend.next_weight(phase - floorf(phase))
 	head.frame = first
 	head_next.frame = second
 	barrels.frame = first

@@ -348,13 +348,15 @@ func _update_health_bar() -> void:
 
 # ------------------------------------------------------------------ آسیب و اثر
 
-func take_damage(amount: float, pierce_armor := false) -> void:
+## Shields normally mitigate hits. A laser can explicitly bypass them as well
+## as armor, while sharing the normal flash, health bar and death pipeline.
+func take_damage(amount: float, pierce_armor := false, pierce_shield := false) -> void:
 	if not alive:
 		return
 	var damage := amount
 	if not pierce_armor:
 		damage = maxf(1.0, damage - armor)
-	if shield > 0.0:
+	if shield > 0.0 and not pierce_shield:
 		damage = maxf(1.0, damage * (1.0 - shield))
 	hp -= damage
 	_flash = 1.0

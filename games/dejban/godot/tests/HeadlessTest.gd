@@ -90,6 +90,10 @@ func _ready() -> void:
 	_test_iso_sheets()
 	print("— بررسی نقشه‌ها…")
 	_test_maps()
+	print("— بررسی مقیاس چهارخانه‌ای، حاشیه و حرکت لمسی و موس…")
+	await load("res://tests/MapScalePanTest.gd").new().run(self)
+	print("— بررسی تصویر و فاصلهٔ زیگزاگ‌ها در همهٔ نقشه‌ها…")
+	await load("res://tests/MapZigzagScaleTest.gd").new().run(self)
 	_test_map_progression()
 	_test_repeatable_run_stars()
 	_test_prestige_fixed_cost()
@@ -103,6 +107,8 @@ func _ready() -> void:
 	_test_tower_range()
 	print("— بررسی برجک‌های ایزومتریک…")
 	_test_iso_towers()
+	print("— بررسی وضوح سر برج در توقف و چرخش…")
+	load("res://tests/DirectionalViewTest.gd").new().run(self)
 	print("— بررسی مسلسل پنج‌سطحی و گلولهٔ برخوردی…")
 	load("res://tests/MachinegunTest.gd").new().run(self)
 	print("— بررسی توپخانه، برخورد، انفجار محدود و آسیب گروهی واقعی…")
@@ -900,7 +906,8 @@ func _test_maps() -> void:
 			var after := map.route[i + 1] - map.route[i]
 			check(is_zero_approx(before.dot(after)), "پیچ %d نقشهٔ %d باید ۹۰ درجه باشد" % [i, index])
 		for pad in map.pads:
-			check(map.distance_to_route(pad) >= 80.0, "سکوی نقشهٔ %d روی جاده افتاده است" % index)
+			check(map.build_issue(pad, {}).is_empty(),
+				"سکوی نقشهٔ %d باید با مربع کامل برج واقعاً قابل ساخت باشد" % index)
 		var ground_count := map.ground_tiles.size()
 		check(ground_count == Balance.COLS * Balance.ROWS, "کاشی‌های زمین نقشهٔ %d ناقص است" % index)
 		for tile in map.blocked_tiles.keys():
@@ -911,24 +918,39 @@ func _test_maps() -> void:
 		var spots := 0
 		var placed := 0
 		var occupied := {}
-		var gy := Balance.HUD_HEIGHT + 24.0
-		while gy < Balance.WORLD_SIZE.y - 24.0:
-			var gx := 32.0
-			while gx < Balance.WORLD_SIZE.x - 32.0:
+		var sampled := {}
+		var half: float = Balance.TOWER_SIZE * 0.5
+		var gy: float = Balance.BUILD_RECT.position.y + half + 1.0
+		while gy < Balance.BUILD_RECT.end.y - half:
+			var gx: float = Balance.BUILD_RECT.position.x + half + 1.0
+			while gx < Balance.BUILD_RECT.end.x - half:
 				var pt := Vector2(gx, gy)
 				if map.build_issue(pt, {}).is_empty():
 					spots += 1
+					sampled[pt] = true
 				if map.build_issue(pt, occupied).is_empty():
 					occupied[pt] = true
 					placed += 1
 				gx += 48.0
 			gy += 48.0
+		# فاصلهٔ دقیقاً هم‌اندازهٔ برج ممکن است بین سطرهای نمونه‌برداری ۴۸px
+		# بیفتد؛ سکوهای معتبر را نیز جداگانه و بدون شمارش دوباره می‌سنجیم.
+		for pad in map.pads:
+			if not sampled.has(pad) and map.build_issue(pad, {}).is_empty():
+				sampled[pad] = true
+				spots += 1
+			if map.build_issue(pad, occupied).is_empty():
+				occupied[pad] = true
+				placed += 1
 		# نقطهٔ روی خود جاده و نقطهٔ نزدیک برج کاشته‌شده نباید مجاز باشد
 		var on_road := map.point_at(map.total_length * 0.5)
 		check(not map.build_issue(on_road, {}).is_empty(), "ساخت داخل محدودهٔ جاده در نقشهٔ %d نباید مجاز باشد" % index)
-		var first_tower_pos: Vector2 = occupied.keys()[0]
-		check(not map.build_issue(first_tower_pos + Vector2(15.0, 0.0), occupied).is_empty(),
-			"ساخت داخل محدودهٔ برج دیگر در نقشهٔ %d نباید مجاز باشد" % index)
+		if not occupied.is_empty():
+			var first_tower_pos: Vector2 = occupied.keys()[0]
+			check(not map.build_issue(first_tower_pos + Vector2(15.0, 0.0), occupied).is_empty(),
+				"ساخت داخل محدودهٔ برج دیگر در نقشهٔ %d نباید مجاز باشد" % index)
+		else:
+			check(false, "نقشهٔ %d هیچ جای ساخت معتبری ندارد" % index)
 		min_spots = mini(min_spots, spots)
 		min_placed = mini(min_placed, placed)
 		check(spots >= 40, "نقاط مجاز ساخت در نقشهٔ %d کم است: %d" % [index, spots])

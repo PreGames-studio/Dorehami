@@ -152,7 +152,8 @@ func _scan_enemies(movement_fraction: float) -> void:
 		hit_ids[id] = true
 		var old_hp: float = enemy.hp
 		enemy.set_meta(DEATH_FX_CONTEXT, true)
-		enemy.take_damage(damage_value, pierce_armor)
+		# A penetrating laser deducts its full power from HP, including against shields.
+		enemy.take_damage(damage_value, pierce_armor, true)
 		if is_instance_valid(enemy):
 			enemy.remove_meta(DEATH_FX_CONTEXT)
 		if is_instance_valid(enemy) and damage_labels < MAX_DAMAGE_LABELS:

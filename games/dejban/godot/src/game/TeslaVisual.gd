@@ -5,7 +5,9 @@ class_name TeslaVisual
 extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
-const IMAGE_SCALE := 0.46
+## Even the tallest level and every direction fit in the ２×２-cell footprint.
+const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
 const DIRECTION_CELL := 192.0
@@ -32,6 +34,7 @@ var current_level := 1
 var desired_angle := 0.0
 var firing_left := 0.0
 var pulse_time := 0.0
+var _view_blend := DirectionalViewBlend.new()
 
 func setup(start_level: int) -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -105,12 +108,16 @@ func _set_head_atlas(sprite: Sprite2D, texture: Texture2D) -> void:
 func aim_at(screen_vector: Vector2, speed: float, delta: float) -> void:
 	if screen_vector.length_squared() > 0.000001:
 		desired_angle = Vector2(screen_vector.x, screen_vector.y / DEPTH_SQUASH).angle()
+	var previous_angle := mount.rotation
 	mount.rotation = rotate_toward(mount.rotation, desired_angle, maxf(speed, 0.0) * maxf(delta, 0.0))
+	_view_blend.note_turn(previous_angle, mount.rotation)
 	_refresh_head()
 
 ## Slowly scan while idle; acquisition continues smoothly from this angle.
 func idle_turn(delta: float) -> void:
+	var previous_angle := mount.rotation
 	mount.rotation = wrapf(mount.rotation + IDLE_TURN_SPEED * maxf(delta, 0.0), -PI, PI)
+	_view_blend.note_turn(previous_angle, mount.rotation)
 	desired_angle = mount.rotation
 	_refresh_head()
 
@@ -134,6 +141,8 @@ func fired() -> void:
 
 func advance(delta: float) -> void:
 	var dt := maxf(delta, 0.0)
+	_view_blend.advance(dt)
+	_refresh_head()
 	pulse_time = fposmod(pulse_time + dt, 120.0)
 	firing_left = maxf(0.0, firing_left - dt)
 	var pulse := 0.5 + 0.5 * sin(pulse_time * 4.4)
@@ -146,14 +155,13 @@ func advance(delta: float) -> void:
 func _refresh_head() -> void:
 	if head == null or mount == null:
 		return
-	# Adjacent projected views cross-fade as the logical mount turns. The
-	# portrait stays upright, the neck stays connected to the fixed shaft, and
-	# the nearly symmetric ring and separate globe don't spin as flat stickers.
+	# The portrait stays upright and the globe remains separate. Views blend
+	# during rotation but settle to one opaque image when aiming stops.
 	var a := mount.rotation
 	var phase := fposmod(a, TAU) * float(DIRECTION_COUNT) / TAU
 	var first := posmod(floori(phase), DIRECTION_COUNT)
 	var second := posmod(first + 1, DIRECTION_COUNT)
-	var fraction := phase - floorf(phase)
+	var fraction: float = _view_blend.next_weight(phase - floorf(phase))
 	head.frame = first
 	head_next.frame = second
 	head.modulate = Color(1.0, 1.0, 1.0, 1.0 - fraction)

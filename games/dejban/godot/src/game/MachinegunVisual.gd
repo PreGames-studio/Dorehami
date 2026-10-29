@@ -1,7 +1,8 @@
 ## A fixed base and a separately aimed, layered machine-gun assembly.
 ## The art uses the tank renderer's isometric 3D projection, not a rotated flat
-## top view. We cross-fade neighbouring rendered directions as the *continuous*
-## logical mount rotates; bullets and recoil use that exact logical transform.
+## top view. Adjacent views cross-fade while the *continuous* logical mount
+## rotates; a stopped head settles to one sharp view. Bullets and recoil use
+## the exact logical transform, not the rounded artwork.
 class_name MachinegunVisual
 extends Node2D
 
@@ -14,7 +15,9 @@ const GATLING_COLUMNS := 16
 const GATLING_ROWS := 24
 const GROUND := Vector2(128.0, 206.0)
 const HEAD_PIVOT := Vector2(128.0, 100.0)
-const IMAGE_SCALE := 0.39
+## The widest animated frame plus recoil fits within the ２×２-cell footprint.
+const IMAGE_SCALE: float = Balance.TOWER_SIZE / FRAME
+const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.35)
 const DEPTH_SQUASH := 0.68
 const MUZZLE := Vector2(100.0, 0.0)
 const START_ANGLE := 0.0
@@ -41,6 +44,7 @@ var spin_phase := 0.0
 var firing_left := 0.0
 var recoil := 0.0
 var current_level := 1
+var _view_blend := DirectionalViewBlend.new()
 
 ## Build the stationary base and the independent physical and visual assemblies.
 func setup(start_level: int) -> void:
@@ -121,7 +125,9 @@ func set_level(value: int) -> void:
 func aim_at(screen_vector: Vector2, speed: float, delta: float) -> void:
 	if screen_vector.length_squared() > 0.000001:
 		desired_angle = Vector2(screen_vector.x, screen_vector.y / DEPTH_SQUASH).angle()
+	var previous_angle := mount.rotation
 	mount.rotation = rotate_toward(mount.rotation, desired_angle, maxf(speed, 0.0) * maxf(delta, 0.0))
+	_view_blend.note_turn(previous_angle, mount.rotation)
 	_refresh_views()
 
 func is_aimed(tolerance := 0.025) -> bool:
@@ -149,6 +155,7 @@ func fired() -> void:
 
 func advance(delta: float) -> void:
 	var dt := maxf(delta, 0.0)
+	_view_blend.advance(dt)
 	recoil = move_toward(recoil, 0.0, RECOIL_RETURN * dt)
 	barrel_mount.position.x = -recoil
 	if firing_left > 0.0:
@@ -160,13 +167,13 @@ func advance(delta: float) -> void:
 func stop_firing() -> void:
 	firing_left = 0.0
 
-## Adjacent view cells overlap during the transition, avoiding 48-direction
-## snapping while preserving upright height and correct isometric side faces.
+## Neighbouring views blend while turning, then settle to the closest fully
+## opaque view so the stationary head and barrel cannot look doubled or blurry.
 func _refresh_views() -> void:
 	var phase := fposmod(mount.rotation, TAU) * float(DIRECTION_COUNT) / TAU
 	var first := posmod(floori(phase), DIRECTION_COUNT)
 	var second := posmod(first + 1, DIRECTION_COUNT)
-	var fraction := phase - floorf(phase)
+	var fraction: float = _view_blend.next_weight(phase - floorf(phase))
 	head.frame = first
 	head_next.frame = second
 	head.modulate = Color(1.0, 1.0, 1.0, 1.0 - fraction)

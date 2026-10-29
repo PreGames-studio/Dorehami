@@ -45,6 +45,15 @@ func run(test) -> void:
 		tower.queue_free()
 		battle.queue_free()
 		return
+	var ghost := BuildGhost.new()
+	test.add_child(ghost)
+	ghost.set_weapon(weapon)
+	test.check(ghost._base.offset == visual.base.offset and ghost._base.scale == visual.base.scale
+		and ghost._base.position == visual.position,
+		"پیش‌نمای مسلسل باید اندازه و موقعیت واقعی برج چهارخانه‌ای را نشان دهد")
+	test.check(tower._level_marker != null and tower._level_marker.z_index > visual.z_index,
+		"نشان سطح باید روی پایهٔ جابه‌جاشده دیده شود")
+	ghost.queue_free()
 	var base_transform: Transform2D = visual.base.transform
 	var base_texture: Texture2D = visual.base.texture
 	var tower_position: Vector2 = tower.position
@@ -110,14 +119,14 @@ func run(test) -> void:
 			"پایه هنگام چرخش %d درجه جابه‌جا یا چرخیده است" % degrees)
 	# Adjacent rendered views blend continuously, including the 359°→0° seam.
 	var half_frame_angle := TAU * 7.5 / float(MachinegunVisual.DIRECTION_COUNT)
-	visual.mount.rotation = half_frame_angle
-	visual.aim_at(Vector2(cos(half_frame_angle), sin(half_frame_angle) * MachinegunVisual.DEPTH_SQUASH), 0.0, 0.0)
+	visual.mount.rotation = TAU * 7.0 / float(MachinegunVisual.DIRECTION_COUNT)
+	visual.aim_at(Vector2(cos(half_frame_angle), sin(half_frame_angle) * MachinegunVisual.DEPTH_SQUASH), 100.0, 1.0)
 	test.check(visual.head.frame == 7 and visual.head_next.frame == 8
 		and absf(visual.head.modulate.a - 0.5) < 0.001 and absf(visual.head_next.modulate.a - 0.5) < 0.001,
 		"سر در میانهٔ دو نما باید پیوسته ترکیب شود، نه یک‌باره بپرد")
 	var seam_angle := TAU * 47.5 / float(MachinegunVisual.DIRECTION_COUNT)
-	visual.mount.rotation = seam_angle
-	visual.aim_at(Vector2(cos(seam_angle), sin(seam_angle) * MachinegunVisual.DEPTH_SQUASH), 0.0, 0.0)
+	visual.mount.rotation = TAU * 47.0 / float(MachinegunVisual.DIRECTION_COUNT)
+	visual.aim_at(Vector2(cos(seam_angle), sin(seam_angle) * MachinegunVisual.DEPTH_SQUASH), 100.0, 1.0)
 	test.check(visual.head.frame == 47 and visual.head_next.frame == 0
 		and absf(visual.head_next.modulate.a - 0.5) < 0.001,
 		"ترکیب نماها باید در مرز ۳۶۰ و صفر درجه نیز پیوسته باشد")

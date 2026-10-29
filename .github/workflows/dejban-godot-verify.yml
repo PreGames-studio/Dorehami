@@ -4,12 +4,10 @@
 name: Dejban (Godot) verify
 
 on:
+  # Every merge to main must create the latest standalone APK; ordinary
+  # arena pushes still run verification without exporting an APK.
   push:
     branches: [main, "arena/**"]
-    paths:
-      - "games/dejban/godot/**"
-      - "games/dejban/tools/prepare_android_pack.sh"
-      - ".github/workflows/dejban-godot-verify.yml"
   pull_request:
     paths:
       - "games/dejban/godot/**"
@@ -92,7 +90,10 @@ jobs:
   standalone-apk:
     name: Build and validate standalone Dezhban APK
     needs: verify
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')) }}
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
+          (github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
+           (startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[build-apk]')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 35
     steps:
@@ -228,7 +229,10 @@ jobs:
   standalone-device-check:
     name: Install and launch standalone APK on Android
     needs: standalone-apk
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')) }}
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
+          (github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
+           (startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[build-apk]')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     steps:
@@ -289,10 +293,14 @@ jobs:
       - name: Report fresh-install success
         run: echo '::notice title=dezhban-device-check::Fresh installation and launcher startup passed on Android API 34 (x86_64 emulator).'
 
-  standalone-preview-release:
+  standalone-release:
     name: Publish the verified standalone APK
     needs: standalone-device-check
-    if: ${{ startsWith(github.ref, 'refs/heads/arena/') && ((github.event_name == 'workflow_dispatch' && inputs.build_apk) || (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]'))) }}
+    if: >-
+      ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+          (startsWith(github.ref, 'refs/heads/arena/') &&
+           ((github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
+            (github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')))) }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -303,13 +311,19 @@ jobs:
           name: dezhban-standalone-apk
           path: apk
 
-      - name: Publish branch preview and verify uploaded checksum
+      - name: Publish APK and verify uploaded checksum
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '/' '-')
-          tag="preview-dejban-${branch}-${GITHUB_SHA:0:7}"
+          if [ "$GITHUB_REF" = 'refs/heads/main' ]; then
+            tag=apk-latest
+            title='Dezhban standalone APK (latest main)'
+          else
+            branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '/' '-')
+            tag="preview-dejban-${branch}-${GITHUB_SHA:0:7}"
+            title="Dezhban preview: $GITHUB_REF_NAME"
+          fi
           apk=apk/dezhban.apk
           sum=$(sha256sum "$apk" | cut -d' ' -f1)
           url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/dezhban.apk"
@@ -319,11 +333,12 @@ jobs:
           SHA-256: ${sum}"
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
-              --prerelease --title "Dezhban preview: $GITHUB_REF_NAME" --notes "$notes"
+              --prerelease --title "$title" --notes "$notes"
           gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
           remote_sum=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" \
             --jq '.assets[] | select(.name == "dezhban.apk" and .state == "uploaded") | .digest')
           test "$remote_sum" = "sha256:$sum"
+          gh release edit "$tag" --repo "$GITHUB_REPOSITORY" --title "$title" --notes "$notes"
           echo "::notice title=dezhban-download::${url} SHA-256 ${sum}"
           {
             echo "## Direct download"

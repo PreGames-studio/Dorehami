@@ -41,6 +41,7 @@ func set_weapon(weapon_def: Dictionary) -> void:
 		_base.texture = Assets.tex(Weapons.art_key(wid))
 		_base.offset = -LaserVisual.GROUND
 		_base.scale = Vector2.ONE * LaserVisual.IMAGE_SCALE
+		_base.position = LaserVisual.FOOTPRINT_OFFSET
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	elif String(weapon.get("visual", "")) == "tesla_layers":
 		# The armory icon is cropped for legibility, but the ghost uses the exact
@@ -48,16 +49,18 @@ func set_weapon(weapon_def: Dictionary) -> void:
 		_base.texture = Assets.tex(Weapons.art_key(wid))
 		_base.offset = -TeslaVisual.GROUND
 		_base.scale = Vector2.ONE * TeslaVisual.IMAGE_SCALE
+		_base.position = TeslaVisual.FOOTPRINT_OFFSET
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	elif String(weapon.get("visual", "")) in ["machinegun_layers", "artillery_layers"]:
 		_base.offset = -MachinegunVisual.GROUND
 		_base.scale = Vector2.ONE * MachinegunVisual.IMAGE_SCALE
+		_base.position = MachinegunVisual.FOOTPRINT_OFFSET
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	else:
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_PARENT_NODE
 		_base.offset = -Vector2(IsoSheet.FRAME * 0.5, IsoSheet.TOWER_GROUND_Y)
 		_base.scale = Vector2.ONE * Tower.ISO_SCALE
-	_base.position = Vector2.ZERO
+		_base.position = Vector2.ZERO
 	_update_sprite_modulate()
 	queue_redraw()
 
@@ -87,9 +90,10 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, reach, Color(tint.r, tint.g, tint.b, 0.16 if ok else 0.22))
 	draw_arc(Vector2.ZERO, reach, 0.0, TAU, 72, Color(tint.r, tint.g, tint.b, 0.90), 2.8, true)
 
-	# دایرهٔ حریم پایهٔ برجک
-	var base_r := Balance.TOWER_MIN_GAP * 0.5
-	draw_circle(Vector2.ZERO, base_r, Color(tint.r, tint.g, tint.b, 0.28))
-	draw_arc(Vector2.ZERO, base_r, 0.0, TAU, 40, tint, 2.2, true)
+	# همان مربع دو خانه در دو خانه که قانون ساخت بررسی می‌کند.
+	var half: float = Balance.TOWER_SIZE * 0.5
+	var footprint := Rect2(-half, -half, Balance.TOWER_SIZE, Balance.TOWER_SIZE)
+	draw_rect(footprint, Color(tint.r, tint.g, tint.b, 0.28), true)
+	draw_rect(footprint, tint, false, 2.2, true)
 
 	draw_circle(Vector2.ZERO, 3.5, tint)

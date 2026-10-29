@@ -12,10 +12,10 @@ class TestBattle extends Node2D:
 class CountingEnemy extends Enemy:
 	var calls := 0
 	var amounts: Array = []
-	func take_damage(amount: float, pierce_armor := false) -> void:
+	func take_damage(amount: float, pierce_armor := false, pierce_shield := false) -> void:
 		calls += 1
 		amounts.append(amount)
-		super.take_damage(amount, pierce_armor)
+		super.take_damage(amount, pierce_armor, pierce_shield)
 
 class TestProfile extends "res://src/autoload/Game.gd":
 	func save() -> void:
@@ -60,7 +60,7 @@ func run(test) -> void:
 	Game.weapon_levels["tesla"] = 0
 	_test_economy(test)
 	_test_art_levels_and_aim(test)
-	_test_nearest_target_and_firing(test)
+	_test_first_target_and_firing(test)
 	_test_chain_at_every_level(test)
 	_test_large_wave_budget(test)
 	_test_range_boundaries_and_armor(test)
@@ -71,6 +71,7 @@ func run(test) -> void:
 
 func _test_economy(test) -> void:
 	var weapon := Weapons.by_id("tesla")
+	test.check(String(weapon.get("targeting", "")) == "first", "تسلا باید اول دشمن جلوتر در مسیر را هدف بگیرد")
 	test.check(not weapon.is_empty() and int(weapon["cost"]) == 200 and int(weapon["star_cost"]) == 11,
 		"تسلا باید سلاح مستقل با هزینهٔ ۲۰۰ سکه و ۱۱ ستاره باشد")
 	test.check(not weapon.has("bullet") and String(weapon["kind"]) == "chain"
@@ -159,7 +160,8 @@ func _test_art_levels_and_aim(test) -> void:
 	test.add_child(ghost)
 	ghost.set_weapon(Weapons.by_id("tesla"))
 	test.check(ghost._base.texture == Assets.tex("towers_tesla/tesla_1")
-		and ghost._base.offset == visual.base.offset and ghost._base.scale == visual.base.scale,
+		and ghost._base.offset == visual.base.offset and ghost._base.scale == visual.base.scale
+		and ghost._base.position == visual.position,
 		"پیش‌نمای کاشت باید اندازه و لنگر واقعی تسلا را حفظ کند")
 	ghost.queue_free()
 
@@ -188,8 +190,9 @@ func _test_art_levels_and_aim(test) -> void:
 	test.check(visual.charge.width_factor < front_width and visual.head.frame != front_frame
 		and visual.base.transform == fixed_transform,
 		"الکترودهای سر هنگام چرخش باید پرسپکتیو بگیرند ولی پایه نچرخد")
-	visual.mount.rotation = TAU - 0.001
-	visual._refresh_head()
+	visual.mount.rotation = TAU - 0.01
+	var seam_target := TAU - 0.001
+	visual.aim_at(Vector2(cos(seam_target), sin(seam_target) * TeslaVisual.DEPTH_SQUASH), 100.0, 1.0)
 	test.check(visual.head.frame == 47 and visual.head_next.frame == 0
 		and visual.head_next.modulate.a > 0.0, "نمای چرخش باید از جهت آخر به اول نرم عبور کند")
 	var color_before: Color = visual.core.modulate
@@ -204,24 +207,28 @@ func _test_art_levels_and_aim(test) -> void:
 	tower.queue_free()
 	battle.queue_free()
 
-func _test_nearest_target_and_firing(test) -> void:
+func _test_first_target_and_firing(test) -> void:
 	var battle := TestBattle.new()
 	test.add_child(battle)
 	var tower := _tower(test, battle)
 	var near := _enemy(test, tower.position + Vector2(95, 0))
 	var far := _enemy(test, tower.position + Vector2(150, 0))
 	var outside := _enemy(test, tower.position + Vector2(250, 0))
-	battle.enemies = [far, outside, near]
+	near.progress = 20.0
+	far.progress = 100.0
+	outside.progress = 10000.0
+	battle.enemies = [near, outside, far]
 	tower.cooldown_left = 100.0
 	tower._process(0.02)
-	test.check(tower.target == near, "تسلا باید نزدیک‌ترین دشمن زندهٔ داخل برد را پیدا کند")
-	far.position = tower.position + Vector2(55, 0)
+	test.check(tower.target == far,
+		"تسلا باید جلوترین دشمنِ داخل برد را انتخاب کند، نه نزدیک‌ترین یا دشمن بیرون برد")
+	near.progress = 110.0
 	tower._process(0.02)
-	test.check(tower.target == far, "با نزدیک‌تر شدن دشمن دیگر، هدف تسلا باید عوض شود")
-	far.alive = false
+	test.check(tower.target == near, "وقتی دشمنی در مسیر جلوتر می‌رود، هدف باید عوض شود")
+	near.alive = false
 	tower._process(0.02)
-	test.check(tower.target == near, "دشمن مرده نباید هدف تسلا باشد")
-	near.position = tower.position + Vector2(181, 0)
+	test.check(tower.target == far, "دشمن مرده نباید هدف تسلا باشد")
+	far.position = tower.position + Vector2(181, 0)
 	tower._process(0.02)
 	test.check(tower.target == null and tower._shot_count == 0,
 		"با خروج دشمن از برد باید هدف تسلا قطع شود و شلیکی رخ ندهد")
@@ -230,6 +237,7 @@ func _test_nearest_target_and_firing(test) -> void:
 	tower._process(0.1)
 	test.check(tower.target == null and tower._shot_count == 0, "بدون هدف تسلا نباید شلیک کند")
 	battle.enemies = [near]
+	near.alive = true
 	near.position = tower.position + Vector2(-100, 0)
 	tower._tesla_visual.mount.rotation = 0.0
 	tower._process(0.01)

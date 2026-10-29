@@ -10,10 +10,10 @@ class TestBattle extends Node2D:
 class CountingEnemy extends Enemy:
 	var calls := 0
 	var amounts: Array = []
-	func take_damage(amount: float, pierce_armor := false) -> void:
+	func take_damage(amount: float, pierce_armor := false, pierce_shield := false) -> void:
 		calls += 1
 		amounts.append(amount)
-		super.take_damage(amount, pierce_armor)
+		super.take_damage(amount, pierce_armor, pierce_shield)
 
 class TestProfile extends "res://src/autoload/Game.gd":
 	func save() -> void:
@@ -70,6 +70,7 @@ func run(test) -> void:
 	_test_list_mutation_and_zero_damage(test)
 	_test_crowd(test)
 	_test_transformed_world(test)
+	_test_margin_shot(test)
 	_test_real_battle(test)
 	Game.weapon_levels = saved_levels
 
@@ -158,7 +159,8 @@ func _test_economy_and_visual(test) -> void:
 	ghost.set_weapon(weapon)
 	test.check(Weapons.icon("laser") == Assets.tex("towers_laser/icon")
 		and ghost._base.texture == Assets.tex("towers_laser/laser_1")
-		and ghost._base.offset == visual.base.offset and ghost._base.scale == visual.base.scale,
+		and ghost._base.offset == visual.base.offset and ghost._base.scale == visual.base.scale
+		and ghost._base.position == visual.position,
 		"پیش‌نمای ساخت باید اندازه و محل واقعی پایه را حفظ کند")
 	ghost.queue_free()
 
@@ -177,8 +179,9 @@ func _test_economy_and_visual(test) -> void:
 	test.check(angle_difference(deg_to_rad(179.0), visual.mount.rotation) > 0.0
 		and angle_difference(deg_to_rad(179.0), visual.mount.rotation) <= 0.0101,
 		"سر لیزر باید از کوتاه‌ترین مسیر و با سرعت محدود بچرخد")
-	visual.mount.rotation = TAU - 0.001
-	visual._refresh_head()
+	visual.mount.rotation = TAU - 0.01
+	var seam_target := TAU - 0.001
+	visual.aim_at(Vector2(cos(seam_target), sin(seam_target) * LaserVisual.DEPTH_SQUASH), 100.0, 1.0)
 	test.check(visual.head.frame == 47 and visual.head_next.frame == 0 and visual.head_next.modulate.a > 0.0,
 		"فریم‌های لیزر باید در انتهای چرخش به نرمی به فریم اول برسند")
 	tower.queue_free()
@@ -262,8 +265,10 @@ func _test_all_direction_shots(test) -> void:
 		var beams := _beams(battle)
 		if beams.size() == 1:
 			var beam: LaserBeam = beams[0]
-			var on_border := absf(beam.finish.x) < 0.01 or absf(beam.finish.x - 1280.0) < 0.01 \
-				or absf(beam.finish.y) < 0.01 or absf(beam.finish.y - 720.0) < 0.01
+			var on_border := absf(beam.finish.x - Balance.BUILD_RECT.position.x) < 0.01 \
+				or absf(beam.finish.x - Balance.BUILD_RECT.end.x) < 0.01 \
+				or absf(beam.finish.y - Balance.BUILD_RECT.position.y) < 0.01 \
+				or absf(beam.finish.y - Balance.BUILD_RECT.end.y) < 0.01
 			test.check(enemy.calls == 1 and beam.direction.dot(forward) > 0.9999
 				and beam.start.distance_to(visual.muzzle_global()) < 0.01 and on_border,
 				"شلیک زاویهٔ %d باید در امتداد دهانه به هدف و مرز میدان برسد" % degrees)
@@ -283,8 +288,8 @@ func _test_each_level_shot(test) -> void:
 		var tower := _tower(test, battle, level)
 		var axis: Vector2 = tower._laser_visual.pivot_global()
 		var radius := 12.0 + tower.laser_width() * 0.5
-		var target := _enemy(test, axis + Vector2(70, 0))
-		var graze := _enemy(test, axis + Vector2(100, radius - 0.1))
+		var target := _enemy(test, axis + Vector2(70, 0), 1000.0, 80.0, 0.75)
+		var graze := _enemy(test, axis + Vector2(100, radius - 0.1), 1000.0, 50.0, 0.5)
 		var outside := _enemy(test, axis + Vector2(100, radius + 0.1))
 		battle.enemies = [target, graze, outside]
 		tower.target = target
@@ -295,6 +300,7 @@ func _test_each_level_shot(test) -> void:
 			var beam: LaserBeam = beams[0]
 			test.check(target.calls == 1 and graze.calls == 1 and outside.calls == 0
 				and is_equal_approx(target.hp, 1000.0 - expected_damage[level - 1])
+				and is_equal_approx(graze.hp, 1000.0 - expected_damage[level - 1])
 				and is_equal_approx(beam.damage_value, expected_damage[level - 1])
 				and is_equal_approx(beam.beam_width, tower.laser_width())
 				and is_equal_approx(beam.duration, tower.laser_duration()) and beam.firing_level == level,
@@ -320,7 +326,7 @@ func _test_piercing_and_moving_enemies(test) -> void:
 	var third := _enemy(test, Vector2(1000, axis.y))
 	var off_path := _enemy(test, Vector2(700, axis.y + 40.0))
 	var behind := _enemy(test, axis - Vector2(50, 0))
-	var past_edge := _enemy(test, Vector2(1310, axis.y))
+	var past_edge := _enemy(test, Vector2(Balance.BUILD_RECT.end.x + 50.0, axis.y))
 	var crossing := _enemy(test, Vector2(800, axis.y - 40.0))
 	var tank := IsoEnemy.new()
 	test.add_child(tank)
@@ -343,18 +349,24 @@ func _test_piercing_and_moving_enemies(test) -> void:
 		return
 	var beam: LaserBeam = beams[0]
 	beam.set_process(false)
-	test.check(beam.start.distance_to(visual.muzzle_global()) < 0.01 and absf(beam.finish.x - 1280.0) < 0.01
+	test.check(beam.start.distance_to(visual.muzzle_global()) < 0.01 and absf(beam.finish.x - Balance.BUILD_RECT.end.x) < 0.01
 		and absf(beam.finish.y - axis.y) < 0.01 and beam.direction.dot(Vector2.RIGHT) > 0.99999,
 		"پرتو باید از دهانه در خط ثابت تا لبهٔ نقشه باشد")
 	test.check(beam.muzzle is LaserMuzzle and beam.muzzle.glow != null and beam.muzzle.flash != null and beam.strip != null,
 		"نور دهانه، افکت شلیک و نوار پرتو باید اجزای مستقل باشند")
-	test.check(primary.calls == 1 and absf(primary.hp - 980.5) < 0.01 and second.calls == 1
+	test.check(primary.calls == 1 and is_equal_approx(primary.hp, 974.0) and second.calls == 1
 		and third.calls == 1 and is_equal_approx(second.hp, 974.0) and is_equal_approx(third.hp, 974.0)
 		and is_equal_approx(tank.hp, 974.0),
 		"لیزر باید از دشمن اول عبور کند و روی سپر و شعاع واقعی تانک هم آسیب اعمال کند")
 	test.check(off_path.calls == 0 and behind.calls == 0 and past_edge.calls == 0 and crossing.calls == 0,
 		"دشمن خارج مسیر، پشت دهانه یا بیرون مرز نباید آسیب ببیند")
 	var initial_start: Vector2 = beam.start
+	# The new shield bypass is laser-specific; an ordinary armor-piercing hit
+	# still receives the existing shield mitigation.
+	off_path.shield = 0.25
+	off_path.armor = 50.0
+	off_path.take_damage(26.0, true)
+	test.check(is_equal_approx(off_path.hp, 980.5), "آسیب غیرلیزری باید همچنان با سپر کاهش یابد")
 	var initial_finish: Vector2 = beam.finish
 	var initial_angle: float = visual.mount.rotation
 	primary.position += Vector2(0, 80)
@@ -604,7 +616,7 @@ func _test_transformed_world(test) -> void:
 		var beams := _beams(battle)
 		if beams.size() == 1:
 			var beam: LaserBeam = beams[0]
-			var expected_edge := battle.to_global(Vector2(1280.0, beam.finish.y))
+			var expected_edge := battle.to_global(Vector2(Balance.BUILD_RECT.end.x, beam.finish.y))
 			test.check(enemy.calls == 1 and graze.calls == 1 and outside.calls == 0
 				and beam.to_global(beam.start).distance_to(tower._laser_visual.muzzle_global()) < 0.01
 				and beam.to_global(beam.finish).distance_to(expected_edge) < 0.01,
@@ -620,6 +632,33 @@ func _test_transformed_world(test) -> void:
 		graze.queue_free()
 		outside.queue_free()
 		world.queue_free()
+
+## A tower built in the new margin must still emit from its own muzzle and
+## damage an armored, shielded enemy inside the original map.
+func _test_margin_shot(test) -> void:
+	var battle := TestBattle.new()
+	test.add_child(battle)
+	var tower := _tower(test, battle)
+	tower.position = Vector2(-70.0, 300.0)
+	var axis: Vector2 = tower._laser_visual.pivot_global()
+	var enemy := _enemy(test, axis + Vector2(120.0, 0.0), 100.0, 500.0, 0.9)
+	battle.enemies = [enemy]
+	tower.target = enemy
+	tower._laser_visual.aim_at(Vector2.RIGHT, 100.0, 1.0)
+	tower._fire()
+	var beams := _beams(battle)
+	if beams.size() == 1:
+		var beam: LaserBeam = beams[0]
+		test.check(beam.start.distance_to(tower._laser_visual.muzzle_global()) < 0.01
+			and beam.start.x < 0.0 and is_equal_approx(beam.finish.x, Balance.BUILD_RECT.end.x)
+			and enemy.calls == 1 and is_equal_approx(enemy.hp, 74.0),
+			"لیزر حاشیه باید از دهانهٔ خود شلیک کند و آسیب کامل به داخل نقشه برساند")
+	else:
+		test.check(false, "لیزر در حاشیه شلیک نشد")
+	battle.enemies = []
+	enemy.queue_free()
+	tower.queue_free()
+	battle.queue_free()
 
 func _test_real_battle(test) -> void:
 	var saved_map: int = Game.pending_map
@@ -651,9 +690,11 @@ func _test_real_battle(test) -> void:
 		for index in enemies.size():
 			var enemy: Enemy = enemies[index]
 			enemy.set_process(false)
-			enemy.hp = 1.0
-			enemy.armor = 0.0
-			enemy.shield = 0.0
+			# Full-strength laser kills armored, shielded enemies through the
+			# actual battle/death/reward path; an ordinary shot remains mitigated.
+			enemy.hp = tower.damage() - 0.1 if index < 3 else 1.0
+			enemy.armor = 999.0 if index < 3 else 0.0
+			enemy.shield = 0.95 if index < 3 else 0.0
 			var offset := Vector2(60 + 35 * index, 0) if index < 3 else Vector2(90, 60)
 			enemy.global_position = axis + offset + Vector2(0, 12.0 * enemy.scale_mult)
 		for frame in 240:

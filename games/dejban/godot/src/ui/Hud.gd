@@ -18,6 +18,7 @@ var _hint_label: Label = null
 var _banner: Label = null
 var _toast_label: Label = null
 var _weapon_panel: PanelContainer = null
+var _pan_button: Button = null
 var _weapon_bar: HBoxContainer = null
 var _weapon_title: Label = null
 var _weapon_buttons: Dictionary = {}
@@ -47,6 +48,7 @@ func _ready() -> void:
 		theme = Style.theme
 	_build_top_bar()
 	_build_weapon_bar()
+	_build_pan_button()
 	_build_tower_panel()
 	_build_center()
 	_build_danger()
@@ -170,6 +172,25 @@ func _build_weapon_bar() -> void:
 
 	_populate_weapon_buttons()
 
+## دکمهٔ روشن و خاموشِ حرکت، کشیدن نقشه را از کشیدن برای ساخت جدا می‌کند.
+func _build_pan_button() -> void:
+	_pan_button = Ui.button("حرکت نقشه", 16, 46.0, "ghost")
+	_pan_button.name = "PanButton"
+	_pan_button.toggle_mode = true
+	_pan_button.tooltip_text = "برای حرکت، نقشه را با انگشت یا موس بکش"
+	_anchor(_pan_button, Control.PRESET_BOTTOM_RIGHT)
+	_pan_button.offset_left = -170
+	_pan_button.offset_right = -12
+	_pan_button.offset_top = -58
+	_pan_button.offset_bottom = -10
+	_pan_button.toggled.connect(_on_pan_toggled)
+
+func sync_pan_mode(enabled: bool) -> void:
+	if _pan_button == null:
+		return
+	_pan_button.set_pressed_no_signal(enabled)
+	_pan_button.text = "پایان حرکت" if enabled else "حرکت نقشه"
+
 func _populate_weapon_buttons() -> void:
 	if _weapon_bar == null:
 		return
@@ -206,6 +227,8 @@ func is_over_weapon_bar(world: Vector2) -> bool:
 
 func is_over_ui(world: Vector2) -> bool:
 	if is_over_weapon_bar(world):
+		return true
+	if _pan_button != null and _pan_button.visible and _pan_button.get_global_rect().has_point(world):
 		return true
 	if _tower_panel != null and _tower_panel.visible and _tower_panel.get_global_rect().has_point(world):
 		return true
@@ -443,7 +466,9 @@ func refresh() -> void:
 		_countdown_label.text = ""
 	_countdown_label.visible = not _countdown_label.text.is_empty()
 
-	if not battle.selected_weapon.is_empty():
+	if battle.pan_mode:
+		_hint_label.text = "نقشه را بکش؛ برای ساخت دوباره «پایان حرکت» را بزن"
+	elif not battle.selected_weapon.is_empty():
 		_hint_label.text = "برای کاشت برجک را بکش و رها کن · برای ارتقا روی برجک کاشته‌شده بزن"
 	elif battle.selected_tower != null and is_instance_valid(battle.selected_tower):
 		_hint_label.text = "از پنل راست برجک را ارتقا بده یا بفروش"
@@ -590,6 +615,10 @@ func _on_result_card_pressed() -> void:
 	_on_exit()
 
 # ------------------------------------------------------------------ رویدادها
+
+func _on_pan_toggled(enabled: bool) -> void:
+	if battle != null and is_instance_valid(battle):
+		battle.set_pan_mode(enabled)
 
 func _on_weapon_pressed(id: String) -> void:
 	if battle != null:
