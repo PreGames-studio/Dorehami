@@ -64,7 +64,7 @@ sealed interface TableStep {
  * Not thread-safe on purpose: the table touches it only from its own loop and from the coroutine
  * that feeds events, both on the UI dispatcher (same as `_state`).
  */
-class TableAnimQueue(private val capacity: Int = DEFAULT_CAPACITY) {
+class TableAnimQueue(private val capacity: Int = DEFAULT_ANIM_QUEUE_CAPACITY) {
 
     init {
         require(capacity > 0) { "capacity must be positive" }
