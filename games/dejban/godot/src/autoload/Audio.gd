@@ -16,6 +16,8 @@ const WEAPON_SOUND_VARIANTS := {
 	"shot_spark": ["combat/rifle-bolt", "combat/rifle-semi"],
 	"shot_poison": ["combat/rifle-semi", "combat/rifle-bolt"],
 	"shot_heavy": ["combat/tank-gun-fire", "combat/field-gun-fire"],
+	"shot_tesla": ["combat/tesla-zap-a", "combat/tesla-zap-b"],
+	"shot_laser": ["combat/laser-beam-a", "combat/laser-beam-b"],
 }
 
 var _players: Array[AudioStreamPlayer] = []

@@ -1,6 +1,6 @@
 ## عکس نبرد برای بررسی چشمی پک‌های ایزومتریک (ابزار توسعه؛ بخشی از روند بازی نیست).
 ##
-## خود صحنهٔ نبرد بازی (scenes/Battle.tscn) با نوار ساخت کامل باز می‌شود؛ چهار برجک ایزومتریک
+## خود صحنهٔ نبرد بازی (scenes/Battle.tscn) با نوار ساخت کامل باز می‌شود؛ چهار برج جدید
 ## از همان مسیر ساخت بازی (Battle._try_build) کنار جاده کاشته می‌شوند، چند تانک و
 ## سرباز با Battle._spawn_enemy روی مسیر قرار می‌گیرند (یک تانک در حال محاصرهٔ دژ) و پس از
 ## چند لحظه بازیِ واقعی، از viewport خود بازی عکس PNG گرفته می‌شود؛ پیش از عکس آخر برجک مسلسل
@@ -14,7 +14,7 @@ extends Node
 const BATTLE_SCENE := "res://scenes/Battle.tscn"
 ## لحظه‌های عکس (ثانیه پس از شروع محاصره). اولین شلیک لیزر تانک حدود ۰٫۷۴ ثانیه است.
 const SHOT_TIMES := [0.80, 0.86, 1.40]
-const ISO_ORDER := ["machinegun", "cannon", "rocket", "laser"]
+const TOWER_ORDER := ["machinegun", "cannon", "laser", "tesla"]
 
 var _battle = null
 
@@ -34,7 +34,7 @@ func _ready() -> void:
 	var map: GameMap = _battle.map
 	_battle.coins = 99999
 	var spots := _tower_spots(map)
-	var order: Array = ISO_ORDER.duplicate()
+	var order: Array = TOWER_ORDER.duplicate()
 	for i in mini(order.size(), spots.size()):
 		_battle.selected_weapon = String(order[i])
 		_battle._try_build(spots[i])

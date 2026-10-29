@@ -1,0 +1,82 @@
+{
+  "source": "user-provided laser reference, checkerboard and baked beams removed",
+  "canvas": [
+    384,
+    384
+  ],
+  "ground_anchor": [
+    192,
+    345
+  ],
+  "field_scale": 0.46,
+  "foot_width": 136,
+  "depth_squash": 0.68,
+  "axis_centers": [
+    [
+      192.0,
+      191.1
+    ],
+    [
+      192.0,
+      170.4
+    ],
+    [
+      192.0,
+      149.25
+    ],
+    [
+      192.0,
+      124.5
+    ],
+    [
+      192.0,
+      103.9
+    ]
+  ],
+  "muzzle_lengths": [
+    26.667,
+    34.627,
+    37.942,
+    35.069,
+    37.883
+  ],
+  "head_seams": [
+    209.55,
+    185.25,
+    174.9,
+    149.25,
+    143.5
+  ],
+  "lens_radii": [
+    [
+      11.2,
+      11.7
+    ],
+    [
+      11.542,
+      12.6
+    ],
+    [
+      13.304,
+      15.3
+    ],
+    [
+      13.258,
+      16.2
+    ],
+    [
+      16.669,
+      24.3
+    ]
+  ],
+  "directions": 48,
+  "direction_cell": [
+    192,
+    192
+  ],
+  "direction_grid": [
+    8,
+    6
+  ],
+  "levels": 5
+}

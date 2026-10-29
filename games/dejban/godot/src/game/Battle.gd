@@ -254,7 +254,13 @@ func _on_enemy_died(enemy) -> void:
 	kills += 1
 	var prize := Balance.enemy_reward(int(enemy.reward), wave_index)
 	coins += prize
-	Fx.blast(_fx_layer, enemy.position, clampf(enemy.scale_mult, 0.7, 1.7))
+	# Artillery has one shared explosion; Tesla and laser have energy impacts.
+	# Suppress the generic orange blast only for those exact hits.
+	# Death animation, rewards and all other weapons remain unchanged.
+	if not bool(enemy.get_meta(ArtilleryShell.DEATH_FX_CONTEXT, false)) \
+			and not bool(enemy.get_meta(TeslaArc.DEATH_FX_CONTEXT, false)) \
+			and not bool(enemy.get_meta(LaserBeam.DEATH_FX_CONTEXT, false)):
+		Fx.blast(_fx_layer, enemy.position, clampf(enemy.scale_mult, 0.7, 1.7))
 	Fx.text(_fx_layer, enemy.position + Vector2(0.0, -20.0), "+" + Ui.fa(prize), Style.gold, 18)
 	var enemy_id := String(enemy.def.get("id", ""))
 	if enemy_id in HUMANOID_ENEMIES:

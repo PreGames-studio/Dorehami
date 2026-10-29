@@ -1,0 +1,36 @@
+{
+  "canvas": [
+    256,
+    256
+  ],
+  "ground_anchor": [
+    128,
+    206
+  ],
+  "head_pivot": [
+    128,
+    100
+  ],
+  "barrel_pivot": [
+    128,
+    100
+  ],
+  "muzzle_from_pivot": [
+    100,
+    0
+  ],
+  "preview_world_angle_degrees": -45,
+  "projection_y": 0.68,
+  "direction_cell": [
+    128,
+    128
+  ],
+  "directions": 48,
+  "direction_grid": [
+    8,
+    6
+  ],
+  "runtime_scale": 0.39,
+  "base": "fixed during aiming and recoil; same footprint with level-specific armor",
+  "background": "transparent RGBA"
+}

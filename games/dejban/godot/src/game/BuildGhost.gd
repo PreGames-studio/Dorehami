@@ -36,9 +36,28 @@ func set_weapon(weapon_def: Dictionary) -> void:
 	var wid := String(weapon.get("id", ""))
 	_base.texture = Weapons.icon(wid)
 	_base.centered = false
-	_base.offset = -Vector2(IsoSheet.FRAME * 0.5, IsoSheet.TOWER_GROUND_Y)
+	if String(weapon.get("visual", "")) == "laser_layers":
+		# Armory uses a cropped icon; the ghost uses the real full-frame anchor.
+		_base.texture = Assets.tex(Weapons.art_key(wid))
+		_base.offset = -LaserVisual.GROUND
+		_base.scale = Vector2.ONE * LaserVisual.IMAGE_SCALE
+		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	elif String(weapon.get("visual", "")) == "tesla_layers":
+		# The armory icon is cropped for legibility, but the ghost uses the exact
+		# full-frame ground anchor and scale of the live Tesla.
+		_base.texture = Assets.tex(Weapons.art_key(wid))
+		_base.offset = -TeslaVisual.GROUND
+		_base.scale = Vector2.ONE * TeslaVisual.IMAGE_SCALE
+		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	elif String(weapon.get("visual", "")) in ["machinegun_layers", "artillery_layers"]:
+		_base.offset = -MachinegunVisual.GROUND
+		_base.scale = Vector2.ONE * MachinegunVisual.IMAGE_SCALE
+		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
+	else:
+		_base.texture_filter = CanvasItem.TEXTURE_FILTER_PARENT_NODE
+		_base.offset = -Vector2(IsoSheet.FRAME * 0.5, IsoSheet.TOWER_GROUND_Y)
+		_base.scale = Vector2.ONE * Tower.ISO_SCALE
 	_base.position = Vector2.ZERO
-	_base.scale = Vector2.ONE * Tower.ISO_SCALE
 	_update_sprite_modulate()
 	queue_redraw()
 

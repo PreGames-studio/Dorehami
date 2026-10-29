@@ -355,7 +355,11 @@ func _show_detail() -> void:
 	var eff_dmg_str := Ui.fa(round(eff_dmg)) if is_equal_approx(eff_dmg, round(eff_dmg)) else Ui.fa_decimal(eff_dmg, 1)
 	lines.add_child(Ui.label("آسیب: %s       برد: %s" % [eff_dmg_str,
 		Ui.fa(round(eff_rng))], 16, Style.text))
-	lines.add_child(Ui.label("فاصلهٔ شلیک: %s ثانیه" % Ui.fa_decimal(eff_cd, 2), 16, Style.text))
+	if id == "laser":
+		lines.add_child(Ui.label("بارگذاری مجدد: %s ثانیه" % Ui.fa_decimal(eff_cd, 2), 16, Style.text))
+		lines.add_child(Ui.label("مدت پرتو: %s ثانیه" % Ui.fa_decimal(float(weapon.get("beam_duration", 0.32)), 2), 16, Style.text))
+	else:
+		lines.add_child(Ui.label("فاصلهٔ شلیک: %s ثانیه" % Ui.fa_decimal(eff_cd, 2), 16, Style.text))
 	lines.add_child(Ui.label("هزینهٔ ساخت در نبرد: %s سکه" % Ui.fa(int(weapon["cost"])), 16, Style.gold))
 	_detail.add_child(Ui.hline())
 	if unlocked:
