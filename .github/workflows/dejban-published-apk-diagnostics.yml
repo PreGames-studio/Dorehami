@@ -7,6 +7,7 @@ on:
     paths:
       - ".github/workflows/dejban-published-apk-diagnostics.yml"
       - "games/dejban/tools/diagnose_published_apk_on_emulator.sh"
+      - "games/dejban/tools/diagnose_apk_installer_ui.sh"
       - "games/dejban/tools/download_published_apks_for_diagnosis.sh"
 
 permissions:
@@ -171,4 +172,52 @@ jobs:
               text = '\n'.join(lines)[:20000]
               text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
               print(f'::notice title=dezhban-install-diagnosis::{text}')
+          PY
+
+  tap_install:
+    name: Visible installer on API 35 (${{ matrix.target }})
+    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') && contains(github.event.head_commit.message, '[tap-apk]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [google_apis, google_apis_playstore]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify the exact existing APKs
+        run: bash games/dejban/tools/download_published_apks_for_diagnosis.sh apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install through Android's visible package installer
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: ${{ matrix.target }}
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: bash games/dejban/tools/diagnose_apk_installer_ui.sh apk/current.apk > installer-ui.log 2>&1
+      - name: Surface visible installer diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('installer-ui.log')
+          if not log.exists():
+              print('::warning title=dezhban-installer-ui::Installer UI test did not produce a log.')
+          else:
+              lines = log.read_text(errors='replace').splitlines()
+              if len(lines) > 60:
+                  lines = lines[:35] + ['... log truncated ...'] + lines[-25:]
+              text = '\n'.join(lines)[:20000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::notice title=dezhban-installer-ui::{text}')
           PY
