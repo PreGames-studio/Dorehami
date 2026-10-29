@@ -4,7 +4,9 @@ class_name LaserVisual
 extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
-const IMAGE_SCALE := 0.46
+## Even the tallest level and every direction fit in the ２×２-cell footprint.
+const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
 const DIRECTION_CELL := 192.0
@@ -24,6 +26,7 @@ var projection: Node2D = null
 var mount: Node2D = null
 var current_level := 1
 var desired_angle := 0.0
+var _view_blend := DirectionalViewBlend.new()
 
 func setup(start_level: int) -> void:
 	texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
@@ -77,7 +80,14 @@ func set_level(value: int) -> void:
 func aim_at(screen_vector: Vector2, speed: float, delta: float) -> void:
 	if screen_vector.length_squared() > 0.000001:
 		desired_angle = Vector2(screen_vector.x, screen_vector.y / DEPTH_SQUASH).angle()
+	var previous_angle := mount.rotation
 	mount.rotation = rotate_toward(mount.rotation, desired_angle, maxf(speed, 0.0) * maxf(delta, 0.0))
+	_view_blend.note_turn(previous_angle, mount.rotation)
+	_refresh_head()
+
+## Also called while the beam freezes the physical mount or no target remains.
+func advance(delta: float) -> void:
+	_view_blend.advance(delta)
 	_refresh_head()
 
 func is_aimed(tolerance := 0.002) -> bool:
@@ -97,7 +107,7 @@ func _refresh_head() -> void:
 		return
 	var phase := fposmod(mount.rotation, TAU) * float(DIRECTION_COUNT) / TAU
 	var first := posmod(floori(phase), DIRECTION_COUNT)
-	var fraction := phase - floorf(phase)
+	var fraction: float = _view_blend.next_weight(phase - floorf(phase))
 	head.frame = first
 	head_next.frame = posmod(first + 1, DIRECTION_COUNT)
 	head.modulate = Color(1.0, 1.0, 1.0, 1.0 - fraction)

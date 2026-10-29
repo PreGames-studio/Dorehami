@@ -12,6 +12,14 @@ const WORLD_SIZE := Vector2(1280, 720)
 const TERRAIN_RECT := Rect2(0, 0, 1280, 720)
 const HUD_HEIGHT := 54.0
 
+## واحد اندازه از نیم‌عرض جادهٔ نقشهٔ اول است؛ برج دو خانه در دو خانه و
+## حاشیهٔ قابل‌حرکت هر نقشه چهار خانه در هر طرف دارد.
+const HOUSE_SIZE := 35.5
+const TOWER_SIZE := HOUSE_SIZE * 2.0
+const MAP_MARGIN := HOUSE_SIZE * 4.0
+const BUILD_RECT := Rect2(-MAP_MARGIN, -MAP_MARGIN,
+	WORLD_SIZE.x + 2.0 * MAP_MARGIN, WORLD_SIZE.y + 2.0 * MAP_MARGIN)
+
 # --- اقتصاد و پیشرفت
 const START_COINS := 100
 const START_LIVES := 20
@@ -39,12 +47,13 @@ const WAVE_DELAY := 7.0
 const SPEEDS := [1.0, 2.0, 3.0]
 
 # --- ساخت‌وساز
+## فاصلهٔ قدیمی برای چیدمان دکور؛ حریم راه و برج با واحد خانه محاسبه می‌شود.
 const ROUTE_CLEARANCE := 46.0
 const KEEP_CLEARANCE := 76.0
-const TOWER_RADIUS := 22.0
-const TOWER_MIN_GAP := 54.0
-## گام شبکهٔ ساخت؛ برجک‌ها روی ضریب‌های این عدد می‌نشینند تا چیدمان مرتب باشد.
-const BUILD_SNAP := 32.0
+const TOWER_RADIUS := HOUSE_SIZE
+const TOWER_MIN_GAP := TOWER_SIZE
+## واحد خانه؛ قرار دادن برج همچنان آزاد است و به شبکه یا سکوی خاصی قفل نمی‌شود.
+const BUILD_SNAP := HOUSE_SIZE
 ## نسبت فاصلهٔ محور چرخش سرِ برجک از بالای تصویر.
 const TOWER_PIVOT := 0.18
 

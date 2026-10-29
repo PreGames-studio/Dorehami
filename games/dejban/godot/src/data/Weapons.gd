@@ -50,7 +50,7 @@ const LIST := [
 	{
 		"id": "laser", "family": "laser", "tier_level": 1, "tier_name": "لیزر",
 		"name": "توپ لیزر", "iso": "laser", "visual": "laser_layers",
-		"desc": "پرتوی آبی زره‌شکاف تا مرز میدان از همهٔ دشمنان مسیر عبور می‌کند؛ هر شلیک به هر دشمن یک‌بار آسیب می‌زند.",
+		"desc": "پرتو تا مرز میدان از دشمنان عبور می‌کند و به هر دشمن، حتی با زره و سپر، یک‌بار آسیب کامل می‌زند.",
 		"cost": 170, "star_cost": 9,
 		"damage": 26.0, "range": 190.0, "cooldown": 0.6,
 		"kind": "beam", "beam_duration": 0.32, "beam_width": 3.6,
@@ -68,11 +68,11 @@ const LIST := [
 	{
 		"id": "tesla", "family": "tesla", "tier_level": 1, "tier_name": "تسلا",
 		"name": "برج تسلا", "visual": "tesla_layers",
-		"desc": "برق مستقیم از نزدیک‌ترین دشمن تا پنج هدف در برد زنجیره می‌زند؛ هر انتقال ۲۰٪ ضعیف‌تر است.",
+		"desc": "برق از جلوترین دشمنِ داخل برد تا پنج هدف زنجیره می‌زند؛ هر انتقال ۲۰٪ ضعیف‌تر است.",
 		"cost": 200, "star_cost": 11,
 		"damage": 20.0, "range": 180.0, "cooldown": 1.40,
 		"kind": "chain", "chain": 5, "chain_range": 70.0, "chain_falloff": 0.8,
-		"targeting": "close", "sound": "shot_tesla",
+		"targeting": "first", "sound": "shot_tesla",
 		# No bullet or projectile: each hop is resolved against the actual HP and armor.
 		"levels": [
 			{"damage": 20.0, "range": 180.0, "cooldown": 1.40, "chain_range": 70.0,  "turn_speed": 2.4},

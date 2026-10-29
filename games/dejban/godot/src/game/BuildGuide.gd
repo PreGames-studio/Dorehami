@@ -1,5 +1,5 @@
 ## راهنمای محدوده‌های ممنوعه هنگام کشیدن برجک:
-## حریم برجک‌های کاشته‌شده را با حلقهٔ قرمز ملایم نشان می‌دهد تا بازیکن ببیند
+## حریم برجک‌های کاشته‌شده را با مربع قرمز ملایم نشان می‌دهد تا بازیکن ببیند
 ## کجا حریم برج دیگر است.
 class_name BuildGuide
 extends Node2D
@@ -27,9 +27,10 @@ func _draw() -> void:
 	if spots.is_empty():
 		return
 	var wave := 0.5 + 0.5 * sin(_pulse)
-	var radius := Balance.TOWER_MIN_GAP
+	var half: float = Balance.TOWER_SIZE * 0.5
 	var fill_col := Color(1.0, 0.25, 0.25, 0.10 + wave * 0.06)
 	var line_col := Color(1.0, 0.35, 0.35, 0.45 + wave * 0.20)
 	for spot in spots:
-		draw_circle(spot, radius, fill_col)
-		draw_arc(spot, radius, 0.0, TAU, 48, line_col, 1.8, true)
+		var footprint := Rect2(spot - Vector2.ONE * half, Vector2.ONE * Balance.TOWER_SIZE)
+		draw_rect(footprint, fill_col, true)
+		draw_rect(footprint, line_col, false, 1.8, true)

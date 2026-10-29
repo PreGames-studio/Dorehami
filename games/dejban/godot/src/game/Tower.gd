@@ -38,6 +38,7 @@ var iso_kind := ""
 var head_dir: int = Weapons.ICON_DIR
 var _wanted_dir: int = Weapons.ICON_DIR
 var _head: Sprite2D = null
+var _level_marker: Node2D = null
 var _head_player: IsoSheet.Player = null
 var _turn_t := 0.0
 ## Layered machine-gun/artillery visual; its base never follows the mount.
@@ -51,6 +52,15 @@ func setup(weapon_def: Dictionary, battle_ref, start_level := 1) -> void:
 	weapon = weapon_def
 	battle = battle_ref
 	level = clampi(start_level, 1, level_cap())
+	# Draw upgrade markers over the shifted artwork, while keeping them inside
+	# the 2×2 footprint.  The range/selection guide stays underneath the art.
+	if _level_marker == null:
+		_level_marker = Node2D.new()
+		_level_marker.name = "LevelMarker"
+		_level_marker.z_index = 4
+		_level_marker.draw.connect(_draw_level_marker)
+		add_child(_level_marker)
+	_level_marker.queue_redraw()
 	invested = int(weapon.get("cost", 0))
 	_deploy_t = 0.0
 
@@ -110,6 +120,7 @@ func is_laser() -> bool:
 func _setup_laser_visual() -> void:
 	_laser_visual = LaserVisual.new()
 	_laser_visual.name = "LaserVisual"
+	_laser_visual.position = LaserVisual.FOOTPRINT_OFFSET
 	add_child(_laser_visual)
 	_laser_visual.setup(level)
 	_base = _laser_visual.base
@@ -123,6 +134,8 @@ func _laser_is_active() -> bool:
 func _process_laser(delta: float) -> void:
 	if _laser_visual == null:
 		return
+	# The artwork can settle to a sharp still view without moving the beam axis.
+	_laser_visual.advance(delta)
 	# A firing beam and its source never rotate while it is visible. Reload
 	# begins only after it ends, and an upgrade takes effect on the next shot.
 	if _laser_is_active():
@@ -146,6 +159,7 @@ func _process_laser(delta: float) -> void:
 func _setup_tesla_visual() -> void:
 	_tesla_visual = TeslaVisual.new()
 	_tesla_visual.name = "TeslaVisual"
+	_tesla_visual.position = TeslaVisual.FOOTPRINT_OFFSET
 	add_child(_tesla_visual)
 	_tesla_visual.setup(level)
 	_base = _tesla_visual.base
@@ -166,6 +180,7 @@ func _animate_tesla_visual(delta: float) -> void:
 func _setup_layered_visual() -> void:
 	_machinegun_visual = ArtilleryVisual.new() if is_artillery() else MachinegunVisual.new()
 	_machinegun_visual.name = "ArtilleryVisual" if is_artillery() else "MachinegunVisual"
+	_machinegun_visual.position = MachinegunVisual.FOOTPRINT_OFFSET
 	add_child(_machinegun_visual)
 	_machinegun_visual.setup(level)
 	_base = _machinegun_visual.base
@@ -376,6 +391,8 @@ func upgrade() -> void:
 		else:
 			_laser_visual.set_level(level)
 	_deploy_t = 0.25
+	if _level_marker != null:
+		_level_marker.queue_redraw()
 	queue_redraw()
 
 func set_selected(value: bool) -> void:
@@ -404,8 +421,8 @@ func _process(delta: float) -> void:
 	# A live target removed from the battle (e.g. a tank after its keep attack)
 	# must not be retained merely because its death animation still exists.
 	if is_artillery() or is_tesla():
-		# These towers always follow the nearest enemy, including when a closer
-		# one enters range while another remains alive.
+		# Re-evaluate each frame: artillery uses nearest, Tesla uses the enemy
+		# furthest along the route. Both select only live enemies in range.
 		target = _pick_target()
 	elif not _is_in_range(target) or (is_layered_machinegun() and not _enemies().has(target)):
 		var previous_target = target
@@ -545,7 +562,7 @@ func _fire_laser() -> void:
 	parent.add_child(ray)
 	_laser_beam = ray
 	if not ray.setup(_laser_visual.muzzle_global(), _laser_visual.forward_global(), battle, damage(),
-			bool(weapon.get("armor_pierce", false)), laser_duration(), laser_width(), level):
+			bool(weapon.get("armor_pierce", false)), laser_duration(), laser_width(), level, Balance.BUILD_RECT):
 		return
 	_shot_count += 1
 	cooldown_left = interval()
@@ -701,20 +718,24 @@ func _show_flash() -> void:
 		still.scale = Vector2.ONE * (1.12 + 0.05 * float(level - 1))
 	_flash_time = _flash_duration
 
+func _draw_level_marker() -> void:
+	if level <= 1:
+		return
+	var count: int = level
+	var step := 10.5
+	var start_x := -0.5 * step * float(count - 1)
+	for i in count:
+		var c := Vector2(start_x + float(i) * step, Balance.TOWER_SIZE * 0.5 - 5.0)
+		_level_marker.draw_circle(c, 4.4, Color(0.06, 0.08, 0.10, 0.90))
+		_level_marker.draw_circle(c, 2.9, Color(1.0, 0.82, 0.24, 1.0))
+
 func _draw() -> void:
-	# نشان سطح ارتقا زیر پایهٔ برجک تا برجک‌های ارتقایافته در میدان هم قابل تشخیص باشند.
-	if level > 1:
-		var count: int = level
-		var step := 10.5
-		var start_x := -0.5 * step * float(count - 1)
-		for i in count:
-			var c := Vector2(start_x + float(i) * step, 11.0)
-			draw_circle(c, 4.4, Color(0.06, 0.08, 0.10, 0.90))
-			draw_circle(c, 2.9, Color(1.0, 0.82, 0.24, 1.0))
 	if not selected:
 		return
 	var reach := attack_range()
-	draw_arc(Vector2(0.0, -4.0), 31.0, 0.0, TAU, 36, Color(1.0, 0.84, 0.32, 0.90), 2.5, true)
+	var half: float = Balance.TOWER_SIZE * 0.5
+	draw_rect(Rect2(Vector2(-half, -half), Vector2.ONE * Balance.TOWER_SIZE),
+		Color(1.0, 0.84, 0.32, 0.90), false, 2.5, true)
 	draw_circle(Vector2.ZERO, reach, Color(0.35, 0.75, 0.85, 0.10))
 	draw_arc(Vector2.ZERO, reach, 0.0, TAU, 48, Color(0.45, 0.85, 0.95, 0.75), 2.0, true)
 	if _ring > 0.0:

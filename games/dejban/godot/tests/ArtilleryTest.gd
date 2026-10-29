@@ -103,7 +103,8 @@ func _test_art_and_aim(test) -> void:
 	test.add_child(ghost)
 	ghost.set_weapon(Weapons.by_id("cannon"))
 	test.check(ghost._base.texture == Weapons.icon("cannon") and ghost._base.offset == visual.base.offset
-		and ghost._base.scale == visual.base.scale, "پیش‌نمای ساخت باید همان اندازه و جای پایهٔ توپخانه باشد")
+		and ghost._base.scale == visual.base.scale and ghost._base.position == visual.position,
+		"پیش‌نمای ساخت باید همان اندازه و جای پایهٔ توپخانه باشد")
 	ghost.queue_free()
 
 	# Whole circle and the 179° -> -179° shortest-route boundary; no rotating base.

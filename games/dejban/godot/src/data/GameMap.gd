@@ -44,6 +44,10 @@ static func tile_of(pos: Vector2) -> Vector2i:
 static func in_terrain(pos: Vector2, margin := 0.0) -> bool:
 	return Balance.TERRAIN_RECT.grow(-margin).has_point(pos)
 
+## حاشیه هم زمین ساخت است، اما اندازهٔ اصلی تصویر و مسیر تغییر نمی‌کند.
+static func in_build_bounds(pos: Vector2, margin := 0.0) -> bool:
+	return Balance.BUILD_RECT.grow(-margin).has_point(pos)
+
 func setup(map_index: int) -> void:
 	index = clampi(map_index, 0, Maps.count() - 1)
 	var def := Maps.def(index)
@@ -85,7 +89,7 @@ func _build_custom_route(waypoints: Array, square_corners := false) -> void:
 		keep_pos = pts[pts.size() - 1]
 		keep_tile = tile_of(keep_pos)
 	entry_rot = PI * 0.5
-	# تنها نقشهٔ نخست گوشهٔ کاملاً شکسته دارد؛ دیگر نقشه‌ها همچنان نرم می‌مانند.
+	# مسیرهای تصویریِ فعلی گوشهٔ شکسته دارند؛ نقشه‌های آینده می‌توانند نرم باشند.
 	route = PackedVector2Array(pts) if square_corners else _round_corners(pts, 12.0)
 	route_dist = PackedFloat32Array()
 	total_length = 0.0
@@ -303,7 +307,7 @@ func available_pads(occupied: Dictionary) -> PackedVector2Array:
 	for pad in pads:
 		var taken := false
 		for other in occupied.keys():
-			if (other as Vector2).distance_to(pad) < 26.0:
+			if _tower_footprints_overlap(other as Vector2, pad):
 				taken = true
 				break
 		if not taken:
@@ -319,7 +323,7 @@ func nearest_pad(pos: Vector2, occupied: Dictionary = {}, max_dist := 88.0) -> V
 	for pad in pads:
 		var taken := false
 		for other in occupied.keys():
-			if (other as Vector2).distance_to(pad) < 26.0:
+			if _tower_footprints_overlap(other as Vector2, pad):
 				taken = true
 				break
 		if taken:
@@ -350,16 +354,99 @@ func _is_on_approved_pad(pos: Vector2) -> bool:
 func is_buildable(pos: Vector2, occupied: Dictionary) -> bool:
 	return build_issue(pos, occupied).is_empty()
 
-## بازیکن می‌تواند برجک را در هر جای نقشه رها کند؛ فقط داخل محدودهٔ جاده
-## و داخل محدودهٔ برجک‌های دیگر مجاز نیست.
+## برخورد دو حریم ۲×۲ خانه‌ای؛ تماس لبه‌ها مجاز است، هم‌پوشانی نیست.
+static func _tower_footprints_overlap(a: Vector2, b: Vector2) -> bool:
+	return absf(a.x - b.x) < Balance.TOWER_SIZE - 0.001 \
+		and absf(a.y - b.y) < Balance.TOWER_SIZE - 0.001
+
+## تقاطع پاره‌خط با مستطیل، شامل قطعه‌های مورب نقشه‌های احتمالی آینده.
+static func _segment_intersects_rect(a: Vector2, b: Vector2, rect: Rect2) -> bool:
+	var delta := b - a
+	var enter := 0.0
+	var leave := 1.0
+	for axis in 2:
+		if absf(delta[axis]) < 0.000001:
+			if a[axis] < rect.position[axis] or a[axis] > rect.end[axis]:
+				return false
+			continue
+		var t0 := (rect.position[axis] - a[axis]) / delta[axis]
+		var t1 := (rect.end[axis] - a[axis]) / delta[axis]
+		enter = maxf(enter, minf(t0, t1))
+		leave = minf(leave, maxf(t0, t1))
+		if enter > leave:
+			return false
+	return true
+
+## تصویر حاشیه بازتاب لبه‌های همان نقشه است. حریم راه‌های بازتاب‌شده را هم
+## بررسی می‌کنیم تا بازیکن در حاشیه روی راهِ دیده‌شده برج نکارد.
+static func _mirrored_point(point: Vector2, mx: int, my: int) -> Vector2:
+	var x: float = -point.x if mx < 0 else (2.0 * Balance.WORLD_SIZE.x - point.x if mx > 0 else point.x)
+	var y: float = -point.y if my < 0 else (2.0 * Balance.WORLD_SIZE.y - point.y if my > 0 else point.y)
+	return Vector2(x, y)
+
+func _road_overlaps_footprint(pos: Vector2) -> bool:
+	# The road art and route use the same two-house width on every map.
+	# ROUTE_CLEARANCE is a centre-point exclusion, not the road half-width;
+	# adding it to the square footprint would make dense maps unbuildable.
+	var road_half: float = Balance.HOUSE_SIZE
+	var half: float = Balance.TOWER_SIZE * 0.5
+	var footprint := Rect2(pos - Vector2.ONE * half, Vector2.ONE * Balance.TOWER_SIZE)
+	# کاهش ناچیز برای مجاز بودنِ تماس دقیق لبهٔ برج و لبهٔ جاده.
+	var forbidden := footprint.grow(road_half - 0.001)
+	for mx in range(-1, 2):
+		for my in range(-1, 2):
+			for i in range(1, route.size()):
+				if _segment_intersects_rect(_mirrored_point(route[i - 1], mx, my),
+						_mirrored_point(route[i], mx, my), forbidden):
+					return true
+	return false
+
+## ساخت آزاد است، ولی تمام مربع چهارخانه‌ای باید در میدان یا حاشیه جا شود
+## و هیچ قسمت آن روی جاده یا برج دیگر نباشد.
 func build_issue(pos: Vector2, occupied: Dictionary) -> String:
-	if not in_terrain(pos, 18.0):
+	if not in_build_bounds(pos, Balance.TOWER_SIZE * 0.5):
 		return "بیرون از میدان نبرد"
-	if distance_to_route(pos) < Balance.ROUTE_CLEARANCE:
+	if _road_overlaps_footprint(pos):
 		return "داخل محدودهٔ جاده"
 	for other in occupied.keys():
-		if (other as Vector2).distance_to(pos) < Balance.TOWER_MIN_GAP:
+		if _tower_footprints_overlap(other as Vector2, pos):
 			return "داخل محدودهٔ برج دیگر"
 	if pos.distance_to(keep_pos) < Balance.KEEP_CLEARANCE:
 		return "نزدیک دژ"
 	return ""
+
+## فاصلهٔ دوخانه‌ای دقیقاً هم‌اندازهٔ یک برج است؛ بدون کمک، انگشت باید روی
+## یک خط بی‌ضخامت رها شود. فقط اگر نقطهٔ فعلی نامعتبر و نزدیک لبهٔ راه باشد،
+## نزدیک‌ترین نقطهٔ واقعاً آزاد را پیشنهاد می‌کنیم؛ زمین آزاد همچنان آزاد است.
+## حریم راه، دژ و برج‌های دیگر در مقصد دوباره به‌طور کامل بررسی می‌شود.
+func snap_build_position(pos: Vector2, occupied: Dictionary, tolerance := 12.0) -> Vector2:
+	var problem := build_issue(pos, occupied)
+	if problem != "داخل محدودهٔ جاده" and problem != "داخل محدودهٔ برج دیگر":
+		return pos
+	var best := pos
+	var best_distance := tolerance + 0.001
+	for mx in range(-1, 2):
+		for my in range(-1, 2):
+			for i in range(1, route.size()):
+				var a := _mirrored_point(route[i - 1], mx, my)
+				var b := _mirrored_point(route[i], mx, my)
+				var horizontal := is_equal_approx(a.y, b.y)
+				var vertical := is_equal_approx(a.x, b.x)
+				if not horizontal and not vertical:
+					continue
+				# A distant segment on the same horizontal/vertical line must not
+				# attract the pointer from the other side of the map.
+				if horizontal and (pos.x < minf(a.x, b.x) - Balance.TOWER_SIZE
+						or pos.x > maxf(a.x, b.x) + Balance.TOWER_SIZE):
+					continue
+				if vertical and (pos.y < minf(a.y, b.y) - Balance.TOWER_SIZE
+						or pos.y > maxf(a.y, b.y) + Balance.TOWER_SIZE):
+					continue
+				for side in [-1.0, 1.0]:
+					var candidate := Vector2(pos.x, a.y + float(side) * Balance.TOWER_SIZE) if horizontal \
+						else Vector2(a.x + float(side) * Balance.TOWER_SIZE, pos.y)
+					var distance := candidate.distance_to(pos)
+					if distance < best_distance and build_issue(candidate, occupied).is_empty():
+						best = candidate
+						best_distance = distance
+	return best

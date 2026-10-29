@@ -42,6 +42,13 @@ var _pressed_empty := false
 ## نقطهٔ شروع کشیدن برای کاشت؛ رهاکردنِ نزدیک به آن کاشت نیست (لمس ساده).
 var _drag_start := Vector2.ZERO
 
+## Pan is a parent of the shaken world: Fx.shake can reset _world.position
+## without undoing the player's view. HUD and the dragged ghost stay on screen.
+var _pan_root: Node2D = null
+var pan_mode := false
+var _panning := false
+var _pan_touch_id := -1
+var _pan_last_screen := Vector2.ZERO
 var _world: Node2D = null
 var _ground: Ground = null
 var _units: Node2D = null
@@ -61,6 +68,7 @@ func _ready() -> void:
 	coins = Balance.START_COINS + Game.prestige_starting_coins()
 	lives = Balance.START_LIVES
 	_build_layers()
+	_reveal_entrance()
 	_build_keep()
 	guide = BuildGuide.new()
 	guide.z_index = 18
@@ -96,10 +104,13 @@ func _ready() -> void:
 ## بلرزاند و نوار واسط تکان نخورد. برجک‌ها، دشمنان و دژ در یک لایهٔ مرتب‌شده
 ## بر پایهٔ Y هستند تا عمق درست داشته باشند.
 func _build_layers() -> void:
+	_pan_root = Node2D.new()
+	_pan_root.name = "MapView"
+	add_child(_pan_root)
 	_world = Node2D.new()
 	_world.name = "World"
 	_world.y_sort_enabled = true
-	add_child(_world)
+	_pan_root.add_child(_world)
 
 	_ground = Ground.new()
 	_ground.z_index = -20
@@ -115,6 +126,20 @@ func _build_layers() -> void:
 	_fx_layer.name = "Fx"
 	_fx_layer.z_index = 30
 	_world.add_child(_fx_layer)
+
+## ورودی‌هایی که زیر نوار پایین یا بالای صفحه‌اند از همان ابتدا دیده شوند.
+func _reveal_entrance() -> void:
+	var y: float = map.entry_pos.y
+	if y > Balance.WORLD_SIZE.y - 125.0:
+		_set_pan_offset(Vector2(0.0, Balance.WORLD_SIZE.y - 145.0 - y))
+	elif y < Balance.HUD_HEIGHT + 16.0:
+		_set_pan_offset(Vector2(0.0, Balance.HUD_HEIGHT + 26.0 - y))
+
+func _set_pan_offset(value: Vector2) -> void:
+	if _pan_root == null:
+		return
+	var margin: float = Balance.MAP_MARGIN
+	_pan_root.position = Vector2(clampf(value.x, -margin, margin), clampf(value.y, -margin, margin))
 
 func _build_keep() -> void:
 	keep = Keep.new()
@@ -344,40 +369,99 @@ func _apply_auras() -> void:
 func _emulate_mouse_from_touch() -> bool:
 	return bool(ProjectSettings.get_setting("input_devices/pointing/emulate_mouse_from_touch", false))
 
-## ردیابی کشیدن و رهاکردن برجک در سطح کل صفحه، حتی زمانی که لمس از روی دکمهٔ نوار پایین شروع شده است.
+## مختصات همهٔ اشاره‌گرها در این بخش، مختصات ثابت صفحه است نه مختصات نقشه.
+func _canvas_pointer(viewport_pos: Vector2) -> Vector2:
+	return get_canvas_transform().affine_inverse() * viewport_pos
+
+func _screen_to_world(screen: Vector2) -> Vector2:
+	return _world.to_local(screen)
+
+func _world_to_screen(world: Vector2) -> Vector2:
+	return _world.to_global(world)
+
+## حالت حرکت جدا از ساخت است تا کشیدن قبلیِ برج‌ها تغییر رفتار ندهد.
+func set_pan_mode(enabled: bool) -> void:
+	pan_mode = enabled
+	_panning = false
+	_drag_active = false
+	_grab_tower = null
+	_pressed_empty = false
+	if ghost != null:
+		ghost.visible = false
+	_refresh_guide()
+	if hud != null:
+		hud.sync_pan_mode(enabled)
+		hud.refresh()
+
+func _begin_pan(screen: Vector2, touch_id := -1) -> void:
+	if screen.y < Balance.HUD_HEIGHT or (hud != null and hud.is_over_ui(screen)):
+		return
+	_panning = true
+	_pan_touch_id = touch_id
+	_pan_last_screen = screen
+
+func _move_pan(screen: Vector2) -> void:
+	if not _panning:
+		return
+	var delta := screen - _pan_last_screen
+	_pan_last_screen = screen
+	_set_pan_offset(_pan_root.position + delta)
+
+## ادامهٔ حرکت یا کشیدن برج را حتی اگر اشاره‌گر روی HUD رفت دریافت می‌کنیم.
 func _input(event: InputEvent) -> void:
-	if not running or paused or not _drag_active or selected_weapon.is_empty():
+	if not running or paused:
+		return
+	if _panning:
+		if _pan_touch_id == -1 and event is InputEventMouseMotion:
+			_move_pan(_canvas_pointer(event.position))
+		elif _pan_touch_id == -1 and event is InputEventMouseButton \
+				and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
+			_panning = false
+			get_viewport().set_input_as_handled()
+		elif not _emulate_mouse_from_touch() and _pan_touch_id >= 0:
+			if event is InputEventScreenDrag and event.index == _pan_touch_id:
+				_move_pan(_canvas_pointer(event.position))
+			elif event is InputEventScreenTouch and event.index == _pan_touch_id and not event.pressed:
+				_panning = false
+				get_viewport().set_input_as_handled()
+		return
+	if not _drag_active or selected_weapon.is_empty():
 		return
 	if event is InputEventMouseMotion:
-		_update_ghost(get_global_mouse_position())
+		_update_ghost(_canvas_pointer(event.position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and not event.pressed:
-		_finish_drag(get_global_mouse_position())
+		_finish_drag(_canvas_pointer(event.position))
 		get_viewport().set_input_as_handled()
 	elif not _emulate_mouse_from_touch():
 		if event is InputEventScreenDrag:
-			var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-			_update_ghost(world)
+			_update_ghost(_canvas_pointer(event.position))
 		elif event is InputEventScreenTouch and not event.pressed:
-			var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-			_finish_drag(world)
+			_finish_drag(_canvas_pointer(event.position))
 			get_viewport().set_input_as_handled()
 
 func _unhandled_input(event: InputEvent) -> void:
 	if not running or paused:
 		return
+	if pan_mode and (event is InputEventMouse or event is InputEventScreenTouch or event is InputEventScreenDrag):
+		# A second finger cannot steal an active drag from its original pointer.
+		if not _panning:
+			if event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT and event.pressed:
+				_begin_pan(_canvas_pointer(event.position))
+			elif not _emulate_mouse_from_touch() and event is InputEventScreenTouch and event.pressed:
+				_begin_pan(_canvas_pointer(event.position), event.index)
+		return
 	if event is InputEventMouseMotion:
 		if not selected_weapon.is_empty():
-			_update_ghost(get_global_mouse_position())
+			_update_ghost(_canvas_pointer(event.position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
-		_handle_build_press(event.pressed, get_global_mouse_position())
+		_handle_build_press(event.pressed, _canvas_pointer(event.position))
 	elif not _emulate_mouse_from_touch() and event is InputEventScreenTouch:
-		var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-		if hud == null or not hud.has_method("is_over_ui") or not hud.is_over_ui(world):
-			_handle_build_press(event.pressed, world)
+		var screen := _canvas_pointer(event.position)
+		if hud == null or not hud.is_over_ui(screen):
+			_handle_build_press(event.pressed, screen)
 	elif not _emulate_mouse_from_touch() and event is InputEventScreenDrag:
 		if not selected_weapon.is_empty():
-			var world: Vector2 = get_canvas_transform().affine_inverse() * event.position
-			_update_ghost(world)
+			_update_ghost(_canvas_pointer(event.position))
 	elif event is InputEventKey and event.pressed and not event.echo:
 		match event.keycode:
 			KEY_SPACE:
@@ -392,16 +476,18 @@ func _unhandled_input(event: InputEvent) -> void:
 			KEY_TAB:
 				cycle_speed()
 
-## آیا نقطه داخل ناحیهٔ آزاد میدان (بیرون از نوار بالا، پنل برجک و نوار پایین‌چپ برجک‌ها) است؟
-func _in_build_area(world: Vector2) -> bool:
-	if hud != null and hud.has_method("is_over_ui") and hud.is_over_ui(world):
+## HUD در مختصات صفحه است؛ زمین و حاشیه در مختصات جابه‌جاشدهٔ جهان.
+func _in_build_area(screen: Vector2) -> bool:
+	if hud != null and hud.is_over_ui(screen):
 		return false
-	return world.y >= Balance.HUD_HEIGHT and GameMap.in_terrain(world)
+	return screen.y >= Balance.HUD_HEIGHT and GameMap.in_build_bounds(_screen_to_world(screen))
 
 ## شروع کشیدن برجک از روی دکمهٔ نوار پایین‌چپ؛ همیشه آن برجک را فعال و از همان لحظه مرئی می‌کند.
 func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
 	if not running or paused:
 		return
+	if pan_mode:
+		set_pan_mode(false)
 	# لمس اولِ دکمه چند رویداد پشت‌سرهم می‌فرستد (button_down و gui_input)؛ اگر همان سلاح از قبل
 	# در حال کشیدن است، فقط شروع دوباره نشود تا حالت آماده‌بودن بی‌دلیل عوض نشود.
 	if _drag_active and selected_weapon == id:
@@ -422,20 +508,21 @@ func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
 	if hud != null:
 		hud.refresh()
 
-func _finish_drag(world: Vector2) -> void:
+func _finish_drag(screen: Vector2) -> void:
 	if not _drag_active:
 		return
 	_drag_active = false
 	var disarm := _disarm_on_release
 	_disarm_on_release = false
-	var dragged := world.distance_to(_drag_start) >= GRAB_DRAG_DISTANCE
-	if _in_build_area(world):
+	var dragged := screen.distance_to(_drag_start) >= GRAB_DRAG_DISTANCE
+	if _in_build_area(screen):
+		var world := _screen_to_world(screen)
 		if dragged:
 			_try_build(world)
 		else:
 			# کاشت فقط با گرفتن و کشیدن است؛ لمس ساده در فضای آزاد برجک نمی‌کارد.
 			Fx.text(_fx_layer, world + Vector2(0.0, -26.0), "برای کاشت، برجک را بگیر و بکش", Style.gold, 16)
-	elif disarm and hud != null and hud.is_over_weapon_bar(world):
+	elif disarm and hud != null and hud.is_over_weapon_bar(screen):
 		# روی همان دکمهٔ آمادهٔ نوار رها شد: لغو کاشت
 		_cancel_build_preview()
 		return
@@ -447,19 +534,21 @@ func _finish_drag(world: Vector2) -> void:
 ## (حتی زمانی که سلاحی در نوار پایین آماده است).
 ## در فضای آزاد، کاشت سلاح آماده فقط با کشیدن انجام می‌شود و لمس خالی هنگام باز بودن پنل
 ## برجک، انتخاب را می‌بندد.
-func _handle_build_press(pressed: bool, world: Vector2) -> void:
+func _handle_build_press(pressed: bool, screen: Vector2) -> void:
 	if pressed:
-		_grab_tower = _tower_at(world)
-		_grab_start = world
+		if not _in_build_area(screen):
+			return
+		_grab_tower = _tower_at(_screen_to_world(screen))
+		_grab_start = screen
 		_pressed_empty = _grab_tower == null and selected_weapon.is_empty()
 		if selected_weapon.is_empty() or _grab_tower != null:
 			return
 		_drag_active = true
-		_drag_start = world
+		_drag_start = screen
 		_refresh_guide()
 		if ghost != null:
 			ghost.set_weapon(Weapons.by_id(selected_weapon))
-		_update_ghost(world)
+		_update_ghost(screen)
 		return
 	if _grab_tower != null:
 		var grabbed = _grab_tower
@@ -474,14 +563,18 @@ func _handle_build_press(pressed: bool, world: Vector2) -> void:
 		if selected_tower != null:
 			select_tower(null)
 		return
-	_finish_drag(world)
+	_finish_drag(screen)
 
-## مختصات دقیق نقطهٔ رهاشده در داخل محدودهٔ میدان (بدون مقید کردن به سکو یا شبکه).
+## ساخت آزاد است؛ فقط نزدیک یک جای باریک کنار جاده، خطای کوچک انگشت به
+## نزدیک‌ترین محل معتبر جبران می‌شود. پیش‌نمایش و ساخت از یک نقطه استفاده می‌کنند.
 func _snap(pos: Vector2) -> Vector2:
-	return Vector2(
-		clampf(pos.x, 18.0, Balance.WORLD_SIZE.x - 18.0),
-		clampf(pos.y, Balance.HUD_HEIGHT + 6.0, Balance.WORLD_SIZE.y - 18.0)
+	var half: float = Balance.TOWER_SIZE * 0.5
+	var rect: Rect2 = Balance.BUILD_RECT
+	var clamped := Vector2(
+		clampf(pos.x, rect.position.x + half + 0.01, rect.end.x - half - 0.01),
+		clampf(pos.y, rect.position.y + half + 0.01, rect.end.y - half - 0.01)
 	)
+	return map.snap_build_position(clamped, occupied) if map != null else clamped
 
 func _tower_at(world: Vector2) -> Variant:
 	var best = null
@@ -489,15 +582,13 @@ func _tower_at(world: Vector2) -> Variant:
 	for tower in towers:
 		if not is_instance_valid(tower):
 			continue
-		var dist: float = (tower.position + Vector2(0.0, -24.0)).distance_to(world)
+		var dist: float = tower.position.distance_to(world)
 		if dist <= best_dist:
 			best = tower
 			best_dist = dist
 	return best
 
 func _try_build(world: Vector2) -> void:
-	if world.y < Balance.HUD_HEIGHT:
-		return
 	var cell := _snap(world)
 	var weapon := Weapons.by_id(selected_weapon)
 	if weapon.is_empty():
@@ -526,6 +617,8 @@ func _try_build(world: Vector2) -> void:
 		hud.refresh()
 
 func select_weapon(id: String) -> void:
+	if pan_mode:
+		set_pan_mode(false)
 	if id == selected_weapon:
 		selected_weapon = ""
 	else:
@@ -561,25 +654,23 @@ func _refresh_ghost() -> void:
 	else:
 		ghost.visible = false
 
-func _update_ghost(world: Vector2) -> void:
-	if ghost == null or selected_weapon.is_empty():
+func _update_ghost(screen: Vector2) -> void:
+	if ghost == null or selected_weapon.is_empty() or pan_mode:
 		return
-	if not _drag_active and not _in_build_area(world):
+	if not _drag_active and not _in_build_area(screen):
 		ghost.visible = false
 		return
 	var weapon := Weapons.by_id(selected_weapon)
 	if weapon.is_empty():
 		ghost.visible = false
 		return
-	var in_area := _in_build_area(world)
-	var cell := _snap(world) if in_area else Vector2(
-		clampf(world.x, 18.0, Balance.WORLD_SIZE.x - 18.0),
-		clampf(world.y, 18.0, Balance.WORLD_SIZE.y - 18.0)
-	)
+	var in_area := _in_build_area(screen)
+	var cell := _snap(_screen_to_world(screen))
 	var issue := map.build_issue(cell, occupied) if in_area else "خارج از محدودهٔ کاشت"
+	var preview := _world_to_screen(cell) if in_area else screen
 	ghost.visible = true
-	# دایرهٔ پیش‌نمایش با همان حساب بردِ خودِ برجک کشیده می‌شود (برجک تازه سطح ۱ است)
-	ghost.update_preview(cell, in_area and issue.is_empty(), Tower.range_for(weapon, 1), issue)
+	# پیش‌نمای روی لایهٔ ثابت صفحه است ولی اعتبار و محل برج در جهان سنجیده می‌شوند.
+	ghost.update_preview(preview, in_area and issue.is_empty(), Tower.range_for(weapon, 1), issue)
 
 ## هنگام کشیدن برجک، حریم برجک‌های کاشته‌شده را نشان می‌دهد.
 func _refresh_guide() -> void:
@@ -656,6 +747,7 @@ func toggle_pause() -> void:
 	if state == "won" or state == "lost":
 		return
 	paused = not paused
+	_panning = false
 	get_tree().paused = paused
 	if hud != null:
 		hud.set_paused(paused)
