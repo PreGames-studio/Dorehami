@@ -15,7 +15,7 @@ permissions:
 
 jobs:
   source:
-    if: ${{ contains(github.event.head_commit.message, '[lifecycle-check]') }}
+    if: ${{ contains(github.event.head_commit.message, '[lifecycle-check]') || contains(github.event.head_commit.message, '[lifecycle-fix-check]') }}
     runs-on: ubuntu-latest
     outputs:
       run_id: ${{ steps.find.outputs.run_id }}
@@ -77,6 +77,7 @@ jobs:
   recreate:
     name: Test ${{ matrix.version }} APK with ${{ matrix.scenario }} change
     needs: source
+    if: ${{ contains(github.event.head_commit.message, '[lifecycle-check]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
     strategy:
@@ -131,5 +132,177 @@ jobs:
         with:
           name: dezhban-lifecycle-${{ matrix.version }}-${{ matrix.scenario }}
           path: lifecycle.log
+          if-no-files-found: warn
+          retention-days: 3
+
+  patched-test-apk:
+    name: Prepare a disposable APK to test the activity fix
+    needs: source
+    if: ${{ contains(github.event.head_commit.message, '[lifecycle-fix-check]') }}
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: candidate
+          run-id: ${{ needs.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Patch and sign the test-only APK with a disposable debug key
+        run: |
+          set -euo pipefail
+          mkdir -p patched
+          tools=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f -printf '%h\n' | sort -V | tail -1)
+          python3 games/dejban/tools/patch_android_manifest_config.py candidate/dezhban.apk "$RUNNER_TEMP/patched-unsigned.apk"
+          "$tools/zipalign" -f 4 "$RUNNER_TEMP/patched-unsigned.apk" "$RUNNER_TEMP/patched-aligned.apk"
+          keytool -genkeypair -keystore "$RUNNER_TEMP/debug.keystore" -storepass android -keypass android \
+            -alias androiddebugkey -keyalg RSA -keysize 2048 -validity 10000 \
+            -dname 'CN=Android Debug,O=Android,C=US' -storetype JKS
+          "$tools/apksigner" sign --ks "$RUNNER_TEMP/debug.keystore" --ks-pass pass:android --key-pass pass:android \
+            --ks-key-alias androiddebugkey --out patched/dezhban-test.apk "$RUNNER_TEMP/patched-aligned.apk"
+          "$tools/apksigner" verify --verbose patched/dezhban-test.apk
+          "$tools/zipalign" -c 4 patched/dezhban-test.apk
+          python3 games/dejban/tools/verify_apk_16kb.py patched/dezhban-test.apk "$tools/aapt"
+          python3 games/dejban/tools/patch_android_manifest_config.py --verify patched/dezhban-test.apk
+          sha256sum patched/dezhban-test.apk
+          echo 'This is a diagnostic APK, not a release artifact.'
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-lifecycle-patched-test-only
+          path: patched/dezhban-test.apk
+          if-no-files-found: error
+          retention-days: 3
+
+  patched-recreate:
+    name: Test patched activity with ${{ matrix.scenario }} change
+    needs: patched-test-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [locale, font]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-lifecycle-patched-test-only
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Trigger the configuration change
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          script: bash games/dejban/tools/diagnose_android_recreation.sh apk/dezhban-test.apk 4096 '${{ matrix.scenario }}' > lifecycle.log 2>&1
+      - name: Surface the lifecycle result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('lifecycle.log')
+          lines=p.read_text(errors='replace').splitlines() if p.exists() else ['No lifecycle log was produced.']
+          interesting=[line for line in lines if any(s in line for s in ('Game PID', 'Changing ', 'survive', 'Fatal signal', 'Abort message', 'FORTIFY', 'OnCreate:', 'OnDestroy:', 'Destroying GodotActivity', 'Exception', 'Error:'))]
+          text='\n'.join(interesting[:30])[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-lifecycle-result::{text}')
+          PY
+      - name: Retain lifecycle log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-patched-lifecycle-${{ matrix.scenario }}
+          path: lifecycle.log
+          if-no-files-found: warn
+          retention-days: 3
+
+  patched-launch:
+    name: Test repeated patched launches (${{ matrix.label }})
+    needs: patched-test-apk
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 34
+            target: google_apis
+            page_size: 4096
+            abi: ''
+            memory: 4096
+            label: x86-4k-4gb
+          - api: 35
+            target: google_apis
+            page_size: 4096
+            abi: arm64-v8a
+            memory: 4096
+            label: arm-translated-4k-4gb
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: ''
+            memory: 4096
+            label: x86-16k-4gb
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: arm64-v8a
+            memory: 5120
+            label: arm-translated-16k-5gb
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: arm64-v8a
+            memory: 6144
+            label: arm-translated-16k-6gb
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-lifecycle-patched-test-only
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Three fresh installs and launches
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory ${{ matrix.memory }}
+          script: bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/dezhban-test.apk '${{ matrix.abi }}' '${{ matrix.page_size }}' 3 > launch.log 2>&1
+      - name: Surface launch result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('launch.log')
+          lines=p.read_text(errors='replace').splitlines() if p.exists() else ['No launch log was produced.']
+          signals=[line for line in lines if any(s.lower() in line.lower() for s in ('round ', 'survive', 'process exited', 'fatal signal', 'abort message', 'FORTIFY', "Kill 'com.gf2227", 'system_server', 'Runtime page size', 'succeeded'))]
+          text='\n'.join(signals[:35])[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-patched-launch::{text}')
+          PY
+      - name: Retain launch log and screenshot
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-patched-launch-${{ matrix.label }}
+          path: |
+            launch.log
+            dezhban-emulator.png
           if-no-files-found: warn
           retention-days: 3

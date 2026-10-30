@@ -73,7 +73,7 @@ jobs:
           github-token: ${{ github.token }}
       - name: Test template and APK validation tools
         if: ${{ matrix.page_size == 16384 }}
-        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_16kb.py' -v
+        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_*.py' -v
       - name: Prepare the old libraries and the standalone diagnostic executable
         run: |
           set -euo pipefail

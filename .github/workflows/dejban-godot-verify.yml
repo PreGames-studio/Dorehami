@@ -109,7 +109,7 @@ jobs:
         with:
           python-version: '3.11'
       - name: Test native-library and APK validators
-        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_16kb.py' -v
+        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_*.py' -v
       - name: Install SCons
         run: python3 -m pip install 'scons==4.7.0'
       - name: Build and verify native libraries only
@@ -181,7 +181,9 @@ jobs:
           templates="$HOME/.local/share/godot/export_templates/4.3.stable"
           python3 games/dejban/tools/replace_android_template_libraries.py \
             "$templates/android_debug.apk" "$RUNNER_TEMP/godot16k" "$RUNNER_TEMP/android_debug-16k.apk"
-          mv "$RUNNER_TEMP/android_debug-16k.apk" "$templates/android_debug.apk"
+          python3 games/dejban/tools/patch_android_manifest_config.py \
+            "$RUNNER_TEMP/android_debug-16k.apk" "$templates/android_debug.apk"
+          python3 games/dejban/tools/patch_android_manifest_config.py --verify "$templates/android_debug.apk"
 
       - name: Configure a temporary debug signing key
         run: |
@@ -281,6 +283,7 @@ jobs:
           aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
           test -x "$aapt"
           python3 games/dejban/tools/verify_apk_16kb.py dist/dezhban.apk "$aapt"
+          python3 games/dejban/tools/patch_android_manifest_config.py --verify dist/dezhban.apk
 
       - name: Upload verified APK for device check
         uses: actions/upload-artifact@v4
