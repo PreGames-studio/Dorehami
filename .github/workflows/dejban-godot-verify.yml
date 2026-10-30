@@ -305,26 +305,32 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # SwiftShader and ARM translation consume emulator RAM that does not
+        # represent a physical phone; do not treat these values as device proof.
         include:
           - api: 34
             target: google_apis
             abi: ''
             page_size: 4096
+            memory: 4096
             label: api34-x86_64
           - api: 35
             target: google_apis
             abi: arm64-v8a
             page_size: 4096
+            memory: 4096
             label: api35-arm64-translated
           - api: 35
             target: google_apis_ps16k
             abi: ''
             page_size: 16384
+            memory: 4096
             label: api35-x86_64-16k
           - api: 35
             target: google_apis_ps16k
             abi: arm64-v8a
             page_size: 16384
+            memory: 5120
             label: api35-arm64-translated-16k
     steps:
       - name: Checkout device test script
@@ -353,7 +359,7 @@ jobs:
           disable-animations: true
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
-            -gpu swiftshader_indirect
+            -gpu swiftshader_indirect -memory ${{ matrix.memory }}
           # The ARM64 case uses the emulator's translation layer; it is not a
           # substitute for testing on a physical ARM phone.
           script: bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/dezhban.apk '${{ matrix.abi }}' '${{ matrix.page_size }}' 3 > device-check.log 2>&1
@@ -547,7 +553,7 @@ jobs:
           notes="Standalone Dezhban debug APK for ${GITHUB_REF_NAME} at ${GITHUB_SHA}.
           This APK was signature-checked and fresh-installed/launched on Android emulators with 4 KiB and 16 KiB pages, including translated ARM64, and installed through the visible Android installer.
           It uses a temporary debug signing key, so it may not update an existing installation signed with a different key.
-          Native 64-bit libraries are checked for 16 KiB alignment; emulator tests do not replace testing on a physical ARM phone.
+          Native 64-bit libraries are checked for 16 KiB alignment. The emulators use 4–5 GiB RAM; translated ARM testing does not replace testing on a physical ARM phone.
           SHA-256: ${sum}"
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
