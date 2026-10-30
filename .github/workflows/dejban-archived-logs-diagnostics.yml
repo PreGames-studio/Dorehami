@@ -85,6 +85,11 @@ jobs:
           raw='\n'.join(report).encode()
           encoded=base64.b64encode(gzip.compress(raw)).decode()
           if len(encoded) > 20000:
+              # The full report is already available in the artifact; prioritize
+              # the activity-destruction context when the annotation is too large.
+              raw='\n'.join(part for part in report if 'before Activity destruction' in part).encode()
+              encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded) > 20000:
               raise SystemExit(f'The compressed report is too large to annotate: {len(encoded)} bytes')
           chunks=[encoded[i:i+2500] for i in range(0,len(encoded),2500)]
           print(f'::notice title=dezhban-log-metadata::bytes={len(raw)}, parts={len(chunks)}')
