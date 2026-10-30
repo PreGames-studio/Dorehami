@@ -42,7 +42,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        label: [api34-x86-4k-default, api35-arm-16k-default, api35-arm-16k-more-ram]
+        label: [api34-x86-4k-default-a, api34-x86-4k-default-b, api35-x86-16k-default, api35-arm-16k-6gb, api35-arm-4k-default]
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -53,14 +53,57 @@ jobs:
       - name: Surface compressed log data for inspection
         run: |
           python3 - <<'PY'
-          import base64, gzip
+          import base64, gzip, re
           from pathlib import Path
-          raw=Path('logs/launch-diagnostic.log').read_bytes()
+          root=Path('logs/launch-diagnostics')
+          report=[]
+          pattern=re.compile(r'OnInitNativeLayer|OnInitRenderView|OnCreate|onDestroy|Engine initialization|'
+                             r'IllegalArgumentException|Exception|Fatal signal|Abort message|FORTIFY|'
+                             r'USER ERROR|lowmemorykiller.*kill.*com\.gf2227|'
+                             r'(?:ActivityTaskManager|ActivityManager).*com\.gf2227', re.I)
+          for path in sorted(root.glob('*-logcat.txt')):
+              lines=path.read_text(errors='replace').splitlines()
+              hits=[line for line in lines if pattern.search(line)]
+              # Keep the first errors, last errors, and startup lifecycle; omit
+              # hundreds of duplicate class-registration/shader messages.
+              hits=hits[:100]+(['... repeated messages omitted ...']+hits[-50:] if len(hits)>150 else hits[100:])
+              report.append(f'=== {path.name} ({len(lines)} total lines) ===\n'+'\n'.join(hits))
+              crash=path.with_name(path.name.replace('-logcat.txt','-crash.txt'))
+              if crash.exists():
+                  report.append(f'=== {crash.name} ===\n'+crash.read_text(errors='replace')[:100000])
+              mem=path.with_name(path.name.replace('-logcat.txt','-app-meminfo.txt'))
+              if mem.exists():
+                  report.append(f'=== {mem.name} ===\n'+mem.read_text(errors='replace')[:6000])
+          if not report:
+              report=[Path('logs/launch-diagnostic.log').read_text(errors='replace')]
+          raw='\n'.join(report).encode()
           encoded=base64.b64encode(gzip.compress(raw)).decode()
           if len(encoded) > 20000:
-              raise SystemExit(f'The compressed log is too large to annotate: {len(encoded)} bytes')
+              raise SystemExit(f'The compressed report is too large to annotate: {len(encoded)} bytes')
           chunks=[encoded[i:i+2500] for i in range(0,len(encoded),2500)]
           print(f'::notice title=dezhban-log-metadata::bytes={len(raw)}, parts={len(chunks)}')
           for i,chunk in enumerate(chunks):
               print(f'::notice title=dezhban-log-part-{i:03d}::{chunk}')
+          PY
+      - name: Prepare screenshot thumbnail
+        run: |
+          python3 -m pip install --quiet --target "$RUNNER_TEMP/pillow" pillow
+          PYTHONPATH="$RUNNER_TEMP/pillow" python3 - <<'PY'
+          from pathlib import Path
+          from PIL import Image
+          import base64, io
+          images=sorted(Path('logs/launch-diagnostics').glob('candidate-1-screen.png'))
+          if not images:
+              print('No candidate screenshot was captured.')
+              raise SystemExit(0)
+          with Image.open(images[0]) as im:
+              im=im.convert('RGB')
+              im.thumbnail((480,270))
+              out=io.BytesIO()
+              im.save(out,format='JPEG',quality=45,optimize=True)
+          encoded=base64.b64encode(out.getvalue()).decode()
+          if len(encoded)>20000:
+              raise SystemExit('Thumbnail unexpectedly large')
+          for i in range(0,len(encoded),2500):
+              print(f'::notice title=dezhban-screen-part-{i//2500:03d}::{encoded[i:i+2500]}')
           PY
