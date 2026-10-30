@@ -13,11 +13,18 @@ if [[ ! "$rounds" =~ ^[1-3]$ ]]; then
 fi
 
 dump_errors() {
+    # Preserve the complete buffers: tail-only output can hide the actual
+    # app crash behind a noisy system-service backtrace.
+    adb logcat -d -v threadtime > dezhban-device-logcat.txt 2>&1 || true
+    adb logcat -b crash -d -v threadtime > dezhban-device-crash.txt 2>&1 || true
+    adb shell dumpsys activity exit-info "$package" > dezhban-device-exit-info.txt 2>&1 || true
     echo '--- Relevant Android logs ---'
-    adb logcat -d -v threadtime 2>&1 | \
-        grep -Ei 'godot|com\.gf2227|androidruntime|fatal|crash|linker|lowmemorykiller|lmkd|system_server|activitymanager|zygote|killed|out of memory' | tail -100 || true
-    echo '--- Android crash buffer ---'
-    adb logcat -b crash -d -v threadtime 2>&1 | tail -60 || true
+    grep -Ei 'godot|com\.gf2227|androidruntime|fatal|crash|linker|lowmemorykiller|lmkd|system_server|activitymanager|zygote|killed|out of memory' \
+        dezhban-device-logcat.txt | tail -100 || true
+    echo '--- Android crash buffer (first lines) ---'
+    head -80 dezhban-device-crash.txt || true
+    echo '--- Android application exit information ---'
+    head -100 dezhban-device-exit-info.txt || true
     echo '--- Emulator connection ---'
     adb get-state 2>&1 || true
 }
@@ -43,6 +50,13 @@ if adb shell pm list packages "$package" | tr -d '\r' | grep -Fxq "package:$pack
     echo 'Expected a fresh emulator without an existing Dezhban installation.' >&2
     exit 1
 fi
+if (( rounds > 1 )); then
+    # Safe on the disposable emulators already checked above; avoid changing
+    # logging properties on physical devices.
+    adb logcat -G 8M || true
+    adb shell setprop log.tag.Godot VERBOSE || true
+    adb shell setprop log.tag.GodotActivity VERBOSE || true
+fi
 install_args=(install)
 if [[ -n "$abi" ]]; then
     install_args+=(--abi "$abi")
@@ -54,6 +68,7 @@ for ((round = 1; round <= rounds; round++)); do
     fi
     echo "--- Fresh install and launch round $round/$rounds ---"
     adb logcat -c
+    adb logcat -b crash -c
     echo "Installing $apk without the test-only override${abi:+, forcing ABI $abi}."
     adb "${install_args[@]}" "$apk"
     echo 'Resolving launcher activity.'

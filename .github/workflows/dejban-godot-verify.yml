@@ -375,17 +375,76 @@ jobs:
               print(f'::notice title=dezhban-device-log::{text}')
           PY
 
-      - name: Save emulator screenshot
+      - name: Save emulator screenshot and failure logs
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dezhban-emulator-screenshot-${{ matrix.label }}
-          path: dezhban-emulator.png
+          name: dezhban-emulator-diagnostics-${{ matrix.label }}
+          path: |
+            dezhban-emulator.png
+            dezhban-device-logcat.txt
+            dezhban-device-crash.txt
+            dezhban-device-exit-info.txt
           if-no-files-found: warn
           retention-days: 7
 
       - name: Report fresh-install success
         run: echo '::notice title=dezhban-device-check::Three fresh installations and launcher startups passed on ${{ matrix.label }}.'
+
+  standalone-lifecycle-check:
+    name: Exercise Android configuration changes (${{ matrix.scenario }})
+    needs: standalone-apk
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
+          (github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
+           (startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[build-apk]')))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        scenario: [locale, font]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Exercise three configuration changes on a disposable emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          script: bash games/dejban/tools/diagnose_android_recreation.sh apk/dezhban.apk 4096 '${{ matrix.scenario }}' 3 > lifecycle-check.log 2>&1
+      - name: Surface lifecycle diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('lifecycle-check.log')
+          lines=path.read_text(errors='replace').splitlines() if path.exists() else ['No lifecycle log was produced.']
+          selected=[line for line in lines if any(s in line for s in ('Game PID', 'Changing ', 'survived', 'did not survive', 'Fatal signal', 'Abort message', 'FORTIFY'))]
+          text='\n'.join(selected[:35])[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-lifecycle-check::{text}')
+          PY
+      - name: Retain lifecycle diagnostics
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-lifecycle-check-${{ matrix.scenario }}
+          path: lifecycle-check.log
+          if-no-files-found: warn
+          retention-days: 7
 
   standalone-ui-check:
     name: Install through the visible Android installer (${{ matrix.label }})
@@ -453,7 +512,7 @@ jobs:
 
   standalone-release:
     name: Publish the verified standalone APK
-    needs: [standalone-device-check, standalone-ui-check]
+    needs: [standalone-device-check, standalone-ui-check, standalone-lifecycle-check]
     if: >-
       ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (startsWith(github.ref, 'refs/heads/arena/') &&

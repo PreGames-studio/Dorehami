@@ -203,7 +203,7 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect -memory 4096
-          script: bash games/dejban/tools/diagnose_android_recreation.sh apk/dezhban-test.apk 4096 '${{ matrix.scenario }}' > lifecycle.log 2>&1
+          script: bash games/dejban/tools/diagnose_android_recreation.sh apk/dezhban-test.apk 4096 '${{ matrix.scenario }}' 3 > lifecycle.log 2>&1
       - name: Surface the lifecycle result
         if: always()
         run: |
@@ -238,7 +238,13 @@ jobs:
             page_size: 4096
             abi: ''
             memory: 4096
-            label: x86-4k-4gb
+            label: x86-4k-4gb-a
+          - api: 34
+            target: google_apis
+            page_size: 4096
+            abi: ''
+            memory: 4096
+            label: x86-4k-4gb-b
           - api: 35
             target: google_apis
             page_size: 4096
@@ -256,7 +262,13 @@ jobs:
             page_size: 16384
             abi: arm64-v8a
             memory: 5120
-            label: arm-translated-16k-5gb
+            label: arm-translated-16k-5gb-a
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: arm64-v8a
+            memory: 5120
+            label: arm-translated-16k-5gb-b
           - api: 35
             target: google_apis_ps16k
             page_size: 16384
@@ -295,6 +307,11 @@ jobs:
           signals=[line for line in lines if any(s.lower() in line.lower() for s in ('round ', 'survive', 'process exited', 'fatal signal', 'abort message', 'FORTIFY', "Kill 'com.gf2227", 'system_server', 'Runtime page size', 'succeeded'))]
           text='\n'.join(signals[:35])[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
           print(f'::notice title=dezhban-patched-launch::{text}')
+          for filename,title in [('dezhban-device-crash.txt','dezhban-patched-crash'), ('dezhban-device-exit-info.txt','dezhban-patched-exit')]:
+              path=Path(filename)
+              if path.exists():
+                  text=path.read_text(errors='replace')[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+                  print(f'::notice title={title}::{text}')
           PY
       - name: Retain launch log and screenshot
         if: always()
@@ -304,5 +321,8 @@ jobs:
           path: |
             launch.log
             dezhban-emulator.png
+            dezhban-device-logcat.txt
+            dezhban-device-crash.txt
+            dezhban-device-exit-info.txt
           if-no-files-found: warn
           retention-days: 3

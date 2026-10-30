@@ -2,13 +2,14 @@
 # Reproduce configuration-change handling in an already-built APK.
 # This deliberately modifies settings: only run on a verified disposable emulator.
 set -euo pipefail
-if [[ $# -ne 3 || ( "$3" != locale && "$3" != font ) ]]; then
-    echo "Usage: $0 APK EXPECTED_PAGE_SIZE locale|font" >&2
+if [[ ( $# -ne 3 && $# -ne 4 ) || ( "$3" != locale && "$3" != font ) || ! "${4:-1}" =~ ^[1-3]$ ]]; then
+    echo "Usage: $0 APK EXPECTED_PAGE_SIZE locale|font [ROUNDS_1_TO_3]" >&2
     exit 2
 fi
 apk=$1
 expected_page_size=$2
 scenario=$3
+rounds=${4:-1}
 package=com.gf2227.dezhban
 serial=$(adb get-serialno | tr -d '\r')
 qemu=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
@@ -52,22 +53,29 @@ if [[ ! "$before" =~ ^[0-9]+$ ]]; then
     exit 1
 fi
 echo "Game PID before $scenario change: $before"
-case "$scenario" in
-    locale)
-        echo 'Changing the application locale to Persian.'
-        adb shell cmd locale set-app-locales "$package" --locales fa-IR
-        ;;
-    font)
-        echo 'Changing the system font scale on the disposable emulator.'
-        adb shell settings put system font_scale 1.2
-        ;;
-esac
-sleep 10
-after=$(adb shell pidof "$package" | tr -d '\r' || true)
-echo "Game PID after $scenario change: ${after:-none}"
+for ((round=1; round<=rounds; round++)); do
+    case "$scenario" in
+        locale)
+            value=fa-IR
+            if (( round % 2 == 0 )); then value=en-US; fi
+            echo "Changing application locale to $value (round $round/$rounds)."
+            adb shell cmd locale set-app-locales "$package" --locales "$value"
+            ;;
+        font)
+            value=1.2
+            if (( round % 2 == 0 )); then value=0.9; fi
+            echo "Changing emulator font scale to $value (round $round/$rounds)."
+            adb shell settings put system font_scale "$value"
+            ;;
+    esac
+    sleep 10
+    after=$(adb shell pidof "$package" | tr -d '\r' || true)
+    echo "Game PID after $scenario change: ${after:-none}"
+    if [[ "$before" != "$after" ]]; then
+        report
+        echo 'Game process did not survive the configuration change.' >&2
+        exit 1
+    fi
+    echo "The game process survived $scenario change $round/$rounds."
+done
 report
-if [[ "$before" != "$after" ]]; then
-    echo 'Game process did not survive the configuration change.' >&2
-    exit 1
-fi
-echo "The game process survived the $scenario configuration change."
