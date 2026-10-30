@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        label: [x86-4k-4gb, arm-translated-16k-6gb]
+        label: [x86-4k-4gb-a, x86-4k-4gb-b, arm-translated-16k-5gb-a, x86-16k-4gb]
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -51,10 +51,26 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import base64, gzip
-          raw=Path('logs/launch.log').read_bytes()
+          import base64, gzip, re
+          report=[Path('logs/launch.log').read_text(errors='replace')]
+          source=Path('logs/dezhban-device-logcat.txt')
+          if source.exists():
+              lines=source.read_text(errors='replace').splitlines()
+              pivot=next((i for i,line in enumerate(lines) if 'GodotActivity: Destroying GodotActivity' in line), len(lines))
+              context=lines[max(0,pivot-6000):min(len(lines),pivot+50)]
+              pattern=re.compile(r'(ActivityTaskManager|ActivityManager|WindowManager|ActivityThread|ResourcesManager|Configuration|Godot|InputReader|lowmemorykiller).*'
+                                 r'(config|relaunch|activity|locale|display|orientation|font|density|Godot|process|killed|changes|start)', re.I)
+              report.append('=== Activity destruction context ===\n'+'\n'.join(line for line in context if pattern.search(line)))
+          crash=Path('logs/dezhban-device-crash.txt')
+          if crash.exists(): report.append('=== Crash buffer ===\n'+crash.read_text(errors='replace')[:120000])
+          exitinfo=Path('logs/dezhban-device-exit-info.txt')
+          if exitinfo.exists(): report.append('=== Exit info ===\n'+exitinfo.read_text(errors='replace'))
+          raw='\n'.join(report).encode()
           encoded=base64.b64encode(gzip.compress(raw)).decode()
-          if len(encoded)>20000: raise SystemExit('Launch log exceeds annotation limit')
+          if len(encoded)>20000:
+              raw='\n'.join(part for part in report if part.startswith('=== Activity destruction context ===')).encode()
+              encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded)>20000: raise SystemExit('Launch context exceeds annotation limit')
           for i in range(0,len(encoded),2500):
               print(f'::notice title=dezhban-log-part-{i//2500:03d}::{encoded[i:i+2500]}')
           PY
