@@ -264,6 +264,74 @@ class ApkValidationTests(unittest.TestCase):
         self.assertIn(b"Duplicate ZIP entries", result.stderr)
 
 
+class LoaderHarnessTests(unittest.TestCase):
+    def setUp(self):
+        self.tmp = tempfile.TemporaryDirectory()
+        self.addCleanup(self.tmp.cleanup)
+        self.root = Path(self.tmp.name)
+        self.bin = self.root / "bin"
+        self.bin.mkdir()
+        adb = self.bin / "adb"
+        adb.write_text('''#!/bin/sh
+echo "$*" >> "$ADB_LOG"
+case "$*" in
+  'get-serialno') echo "$MOCK_SERIAL" ;;
+  'shell getprop ro.kernel.qemu') echo 1 ;;
+  'shell getprop ro.product.cpu.abi') echo x86_64 ;;
+  'shell getconf PAGESIZE') echo "$MOCK_PAGE_SIZE" ;;
+  'shell getprop ro.product.cpu.abilist64') echo x86_64,arm64-v8a ;;
+  'shell getprop ro.enable.native.bridge.exec') echo "$MOCK_BRIDGE" ;;
+  'shell cd '*/old*) exit "$MOCK_OLD_STATUS" ;;
+esac
+''')
+        adb.chmod(0o755)
+        self.probe = self.root / "probe"
+        self.probe.write_text("probe")
+        for directory in (self.root / "old", self.root / "new"):
+            directory.mkdir()
+            for name in ("libgodot_android.so", "libc++_shared.so"):
+                (directory / name).write_text("fake library for mocked adb")
+        self.log = self.root / "adb.log"
+
+    def run_check(self, page="16384", expected="16384", abi="x86_64", serial="emulator-5554", bridge="1", old_status="1"):
+        env = os.environ | {
+            "PATH": f"{self.bin}:{os.environ['PATH']}", "ADB_LOG": str(self.log),
+            "MOCK_PAGE_SIZE": page, "MOCK_SERIAL": serial, "MOCK_BRIDGE": bridge,
+            "MOCK_OLD_STATUS": old_status,
+        }
+        return subprocess.run([
+            "bash", str(TOOLS / "test_android_16kb_loader.sh"), str(self.probe),
+            str(self.root / "old"), str(self.root / "new"), expected, abi,
+        ], cwd=self.root, env=env, capture_output=True)
+
+    def test_rebuilt_load_proceeds_after_expected_16k_control_failure(self):
+        result = self.run_check()
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("/new &&", self.log.read_text())
+
+    def test_4k_control_must_load_before_testing_rebuilt_library(self):
+        result = self.run_check(page="4096", expected="4096", old_status="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("/new &&", self.log.read_text())
+
+    def test_refuses_real_device_and_wrong_page_size(self):
+        for args in ({"serial": "physical-device"}, {"page": "4096"}):
+            with self.subTest(args=args):
+                self.log.unlink(missing_ok=True)
+                result = self.run_check(**args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("rm -rf", self.log.read_text())
+
+    def test_translated_arm_requires_native_bridge(self):
+        result = self.run_check(abi="arm64-v8a", bridge="0")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("rm -rf", self.log.read_text())
+        self.log.unlink()
+        result = self.run_check(abi="arm64-v8a", bridge="1")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn(b"translation layer", result.stdout)
+
+
 class DevicePageSizeTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

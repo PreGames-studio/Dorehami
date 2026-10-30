@@ -65,7 +65,6 @@ jobs:
           run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ github.token }}
       - name: Download the previously rebuilt ARM64 libraries
-        if: ${{ matrix.page_size == 16384 }}
         uses: actions/download-artifact@v4
         with:
           name: godot43-16kb-arm64
@@ -80,15 +79,42 @@ jobs:
           set -euo pipefail
           curl -fsSL --retry 3 -o published.apk 'https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest/dezhban.apk'
           echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  published.apk' | sha256sum -c -
-          mkdir -p old
-          unzip -joq published.apk 'lib/x86_64/libgodot_android.so' 'lib/x86_64/libc++_shared.so' -d old
+          for abi in x86_64 arm64-v8a; do
+            mkdir -p "old/$abi"
+            unzip -joq published.apk "lib/$abi/libgodot_android.so" "lib/$abi/libc++_shared.so" -d "old/$abi"
+          done
           if [[ ! -d "$ANDROID_HOME/ndk/28.1.13356709" ]]; then
             "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.1.13356709'
           fi
-          clang="$ANDROID_HOME/ndk/28.1.13356709/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
-          "$clang" -Wall -Wextra -Werror -Wl,-z,max-page-size=16384 \
-            games/dejban/tools/android_16kb_load_probe.c -ldl -o loader-probe
-          python3 games/dejban/tools/verify_elf_16kb.py --abi x86_64 rebuilt/x86_64/*.so loader-probe
+          bin="$ANDROID_HOME/ndk/28.1.13356709/toolchains/llvm/prebuilt/linux-x86_64/bin"
+          for spec in 'x86_64 x86_64-linux-android21' 'arm64-v8a aarch64-linux-android21'; do
+            read -r abi triple <<< "$spec"
+            "$bin/$triple-clang" -Wall -Wextra -Werror -Wl,-z,max-page-size=16384 \
+              games/dejban/tools/android_16kb_load_probe.c -ldl -o "loader-probe-$abi"
+            python3 games/dejban/tools/verify_elf_16kb.py --abi "$abi" "rebuilt/$abi/"*.so "loader-probe-$abi"
+          done
+      - name: Compare published and rebuilt Godot JNI exports
+        run: |
+          python3 - <<'PY'
+          import subprocess
+          def exports(path):
+              output=subprocess.check_output(['readelf','--dyn-syms','--wide',path], text=True)
+              symbols=set()
+              for line in output.splitlines():
+                  fields=line.split()
+                  if len(fields) >= 8 and fields[4] in ('GLOBAL','WEAK') and fields[6] != 'UND':
+                      symbol=fields[7].split('@')[0]
+                      if symbol.startswith('Java_') or symbol == 'JNI_OnLoad':
+                          symbols.add(symbol)
+              return symbols
+          for abi in ('x86_64','arm64-v8a'):
+              old=exports(f'old/{abi}/libgodot_android.so')
+              rebuilt=exports(f'rebuilt/{abi}/libgodot_android.so')
+              missing=sorted(old-rebuilt)
+              if not old or missing:
+                  raise SystemExit(f'{abi}: missing JNI exports: {missing}; old count {len(old)}')
+              print(f'{abi}: all {len(old)} published JNI exports are present in the rebuilt library.')
+          PY
       - name: Validate replacement inside the official Godot template
         if: ${{ matrix.page_size == 16384 }}
         run: |
@@ -130,7 +156,8 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
-          script: bash games/dejban/tools/test_android_16kb_loader.sh loader-probe old rebuilt/x86_64 '${{ matrix.page_size }}' > loader-check.log 2>&1
+          script: >-
+            bash -c 'bash games/dejban/tools/test_android_16kb_loader.sh loader-probe-x86_64 old/x86_64 rebuilt/x86_64 ${{ matrix.page_size }} x86_64 && bash games/dejban/tools/test_android_16kb_loader.sh loader-probe-arm64-v8a old/arm64-v8a rebuilt/arm64-v8a ${{ matrix.page_size }} arm64-v8a' > loader-check.log 2>&1
       - name: Surface the native loader result
         if: always()
         run: |
