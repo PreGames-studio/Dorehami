@@ -1,0 +1,135 @@
+# Diagnose lifecycle/configuration handling in an already-built artifact.
+# This workflow never exports, signs, or publishes an APK.
+name: Dezhban Android lifecycle diagnostics
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/dejban-lifecycle-diagnostics.yml"
+      - "games/dejban/tools/diagnose_android_recreation.sh"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  source:
+    if: ${{ contains(github.event.head_commit.message, '[lifecycle-check]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow dejban-godot-verify.yml \
+            --branch "$GITHUB_REF_NAME" --limit 30 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId')
+          found=''
+          for id in $candidates; do
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts?per_page=100" \
+              --jq '[.artifacts[] | select(.name=="dezhban-standalone-apk" and .expired==false)] | length')
+            if [ "$count" = 1 ]; then found=$id; break; fi
+          done
+          test -n "$found"
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$found" --jq .head_sha)
+          git diff --quiet "$sha" HEAD -- games/dejban/godot
+          echo "Testing existing artifact from $found ($sha)."
+          echo "run_id=$found" >> "$GITHUB_OUTPUT"
+
+  manifest:
+    name: Inspect the binary Android manifest
+    needs: source
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: apk
+          run-id: ${{ needs.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Report activity configuration and surface the binary manifest
+        run: |
+          set -euo pipefail
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          "$aapt" dump xmltree apk/dezhban.apk AndroidManifest.xml > manifest-tree.txt
+          python3 - <<'PY'
+          from pathlib import Path
+          from zipfile import ZipFile
+          import base64, gzip
+          lines=Path('manifest-tree.txt').read_text().splitlines()
+          selected=[line.strip() for line in lines if 'E: activity ' in line or 'android:name(' in line or 'android:configChanges(' in line]
+          text='\n'.join(selected)[:3000].replace('%','%25').replace('\n','%0A')
+          print(f'::notice title=dezhban-manifest-tree::{text}')
+          with ZipFile('apk/dezhban.apk') as apk:
+              raw=apk.read('AndroidManifest.xml')
+          encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded)>20000: raise SystemExit('Manifest exceeds annotation limit')
+          for i in range(0,len(encoded),2500):
+              print(f'::notice title=dezhban-manifest-part-{i//2500:03d}::{encoded[i:i+2500]}')
+          PY
+
+  recreate:
+    name: Test ${{ matrix.version }} APK with ${{ matrix.scenario }} change
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        version: [previous, candidate]
+        scenario: [locale, font]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: candidate
+          run-id: ${{ needs.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Fetch the old APK for controlled comparison
+        run: |
+          curl -fsSL --retry 3 -o previous.apk 'https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest/dezhban.apk'
+          echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  previous.apk' | sha256sum -c -
+          if [ '${{ matrix.version }}' = candidate ]; then cp candidate/dezhban.apk test.apk; else cp previous.apk test.apk; fi
+          sha256sum test.apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Trigger the configuration change
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          script: bash games/dejban/tools/diagnose_android_recreation.sh test.apk 4096 '${{ matrix.scenario }}' > lifecycle.log 2>&1
+      - name: Surface the lifecycle result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p=Path('lifecycle.log')
+          lines=p.read_text(errors='replace').splitlines() if p.exists() else ['No lifecycle log was produced.']
+          interesting=[line for line in lines if any(s in line for s in ('Game PID', 'Changing ', 'survive', 'Fatal signal', 'Abort message', 'FORTIFY', 'OnCreate:', 'OnDestroy:', 'Destroying GodotActivity', 'Exception', 'Error:'))]
+          text='\n'.join(interesting[:30])[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-lifecycle-result::{text}')
+          PY
+      - name: Retain the lifecycle log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-lifecycle-${{ matrix.version }}-${{ matrix.scenario }}
+          path: lifecycle.log
+          if-no-files-found: warn
+          retention-days: 3
