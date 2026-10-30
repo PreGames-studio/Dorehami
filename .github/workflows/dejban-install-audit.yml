@@ -81,22 +81,12 @@ jobs:
 
   arm32-installer:
     # Test the already-published file, not a new export or a re-signed copy.
-    # These older x86 images may provide ARMv7 translation; an image without
+    # API 30 provides ARMv7 translation on this x86_64 image. An image without
     # that ABI is an inconclusive infrastructure failure, not an APK failure.
     if: ${{ contains(github.event.head_commit.message, '[install-arm32]') }}
-    name: Exact APK with translated ARMv7 on API ${{ matrix.api }}
+    name: Exact APK with translated ARMv7 on Android 11
     runs-on: ubuntu-latest
     timeout-minutes: 25
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - api: 28
-            target: default
-            arch: x86
-          - api: 30
-            target: google_apis
-            arch: x86_64
     steps:
       - uses: actions/checkout@v4
       - name: Download and verify the exact published APK
@@ -111,18 +101,18 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install and start with ARMv7 where the emulator supports it
+      - name: Three fresh installs and launches using translated ARMv7
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: ${{ matrix.api }}
-          target: ${{ matrix.target }}
-          arch: ${{ matrix.arch }}
+          api-level: 30
+          target: google_apis
+          arch: x86_64
           disable-animations: true
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect -memory 4096
           script: >-
-            bash -o pipefail -c 'abis=$(adb shell getprop ro.product.cpu.abilist | tr -d "\r"); echo "Emulator ABI list: $abis"; case ",$abis," in *,armeabi-v7a,*) ;; *) echo "INCONCLUSIVE: emulator has no ARMv7 translation" >&2; exit 2;; esac; exec bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/candidate.apk armeabi-v7a 4096 1' > arm32-install.log 2>&1
+            bash -o pipefail -c 'abis=$(adb shell getprop ro.product.cpu.abilist | tr -d "\r"); echo "Emulator ABI list: $abis"; case ",$abis," in *,armeabi-v7a,*) ;; *) echo "INCONCLUSIVE: emulator has no ARMv7 translation" >&2; exit 2;; esac; exec bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/candidate.apk armeabi-v7a 4096 3' > arm32-install.log 2>&1
       - name: Surface the ARMv7 result
         if: always()
         run: |
@@ -139,7 +129,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dezhban-install-arm32-api${{ matrix.api }}
+          name: dezhban-install-arm32-api30
           path: arm32-install.log
           if-no-files-found: warn
           retention-days: 7
