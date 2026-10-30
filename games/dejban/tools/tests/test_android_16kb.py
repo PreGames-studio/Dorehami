@@ -264,6 +264,30 @@ class ApkValidationTests(unittest.TestCase):
         self.assertIn(b"Duplicate ZIP entries", result.stderr)
 
 
+@unittest.skipUnless(shutil.which("cc") and hasattr(os, "sysconf") and os.sysconf("SC_PAGE_SIZE") in (4096, 16384), "supported host compiler and page size required")
+class NativeLoaderTests(unittest.TestCase):
+    def test_loads_sibling_runtime_before_library(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            root = Path(tmp)
+            probe = root / "probe"
+            subprocess.run(["cc", "-Wall", "-Wextra", "-Werror", str(TOOLS / "android_16kb_load_probe.c"), "-ldl", "-o", str(probe)], check=True)
+            runtime_source = root / "runtime.c"
+            runtime_source.write_text("int from_runtime(void) { return 7; }\n")
+            godot_source = root / "godot.c"
+            godot_source.write_text("extern int from_runtime(void); int from_godot(void) { return from_runtime(); }\n")
+            runtime = root / "libc++_shared.so"
+            godot = root / "libgodot_android.so"
+            for source, output in ((runtime_source, runtime), (godot_source, godot)):
+                subprocess.run(["cc", "-shared", "-fPIC", str(source), "-o", str(output)], check=True)
+            command = [str(probe), "./libgodot_android.so", str(os.sysconf("SC_PAGE_SIZE"))]
+            result = subprocess.run(command, cwd=root, capture_output=True)
+            self.assertEqual(result.returncode, 0, result.stderr)
+            runtime.unlink()
+            result = subprocess.run(command, cwd=root, capture_output=True)
+            self.assertNotEqual(result.returncode, 0)
+            self.assertIn(b"C++ runtime dlopen failed", result.stderr)
+
+
 class LoaderHarnessTests(unittest.TestCase):
     def setUp(self):
         self.tmp = tempfile.TemporaryDirectory()

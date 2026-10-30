@@ -21,12 +21,21 @@ int main(int argc, char **argv) {
         fprintf(stderr, "Unexpected emulator page size.\n");
         return 3;
     }
+    /* Android's translated executable launcher may drop LD_LIBRARY_PATH.
+       Explicitly load the sibling runtime first, just as the app linker must. */
+    void *runtime = dlopen("./libc++_shared.so", RTLD_NOW | RTLD_GLOBAL);
+    if (!runtime) {
+        fprintf(stderr, "C++ runtime dlopen failed: %s\n", dlerror());
+        return 1;
+    }
     void *handle = dlopen(argv[1], RTLD_NOW | RTLD_LOCAL);
     if (!handle) {
-        fprintf(stderr, "dlopen failed: %s\n", dlerror());
+        fprintf(stderr, "Godot dlopen failed: %s\n", dlerror());
+        dlclose(runtime);
         return 1;
     }
     printf("Godot native library loaded successfully.\n");
     dlclose(handle);
+    dlclose(runtime);
     return 0;
 }
