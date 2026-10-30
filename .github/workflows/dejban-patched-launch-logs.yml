@@ -39,7 +39,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        label: [x86-4k-4gb-a, x86-4k-4gb-b, arm-translated-16k-5gb-a, x86-16k-4gb]
+        label: [x86-4k-4gb-a, x86-4k-4gb-b]
     steps:
       - uses: actions/download-artifact@v4
         with:
@@ -51,16 +51,14 @@ jobs:
         run: |
           python3 - <<'PY'
           from pathlib import Path
-          import base64, gzip, re
+          import base64, gzip
           report=[Path('logs/launch.log').read_text(errors='replace')]
           source=Path('logs/dezhban-device-logcat.txt')
           if source.exists():
               lines=source.read_text(errors='replace').splitlines()
               pivot=next((i for i,line in enumerate(lines) if 'GodotActivity: Destroying GodotActivity' in line), len(lines))
-              context=lines[max(0,pivot-6000):min(len(lines),pivot+50)]
-              pattern=re.compile(r'(ActivityTaskManager|ActivityManager|WindowManager|ActivityThread|ResourcesManager|Configuration|Godot|InputReader|lowmemorykiller).*'
-                                 r'(config|relaunch|activity|locale|display|orientation|font|density|Godot|process|killed|changes|start)', re.I)
-              report.append('=== Activity destruction context ===\n'+'\n'.join(line for line in context if pattern.search(line)))
+              context=lines[max(0,pivot-180):min(len(lines),pivot+30)]
+              report.append('=== Activity destruction context ===\n'+'\n'.join(context))
           crash=Path('logs/dezhban-device-crash.txt')
           if crash.exists(): report.append('=== Crash buffer ===\n'+crash.read_text(errors='replace')[:120000])
           exitinfo=Path('logs/dezhban-device-exit-info.txt')
