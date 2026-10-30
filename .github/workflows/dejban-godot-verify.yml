@@ -87,9 +87,47 @@ jobs:
           fi
           echo "::notice title=dezhban-self-test::${MSG}"
 
+  standalone-native-16kb:
+    name: Build 16 KiB-compatible Godot libraries (${{ matrix.abi }})
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
+          (github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
+           (startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[build-apk]')))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - arch: arm64
+            abi: arm64-v8a
+          - arch: x86_64
+            abi: x86_64
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Test native-library and APK validators
+        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_16kb.py' -v
+      - name: Install SCons
+        run: python3 -m pip install 'scons==4.7.0'
+      - name: Build and verify native libraries only
+        run: |
+          set -euo pipefail
+          bash games/dejban/tools/build_godot43_android_16kb.sh '${{ matrix.arch }}' native-libs
+          python3 games/dejban/tools/verify_elf_16kb.py --abi '${{ matrix.abi }}' native-libs/*.so
+      - name: Upload native libraries for the APK build
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-native-16kb-${{ matrix.abi }}
+          path: native-libs/*.so
+          if-no-files-found: error
+          retention-days: 1
+
   standalone-apk:
     name: Build and validate standalone Dezhban APK
-    needs: verify
+    needs: [verify, standalone-native-16kb]
     if: >-
       ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
           (github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
@@ -120,11 +158,30 @@ jobs:
           "$HOME/.local/bin/godot" --version
           curl -fsSL --retry 3 -o "$RUNNER_TEMP/templates.tpz" \
             "$base/Godot_v${GODOT_VERSION}_export_templates.tpz"
+          echo '476366caf0fd45a8f24136cf9cf1dc0bc2b96f7c82d53e5f82200b55aefd07b286d283fd6f1ce29e0de70648c5a51d3b12f96c6d4fafd4e8c4878ecda6406d6a  '"$RUNNER_TEMP/templates.tpz" | sha512sum -c -
           templates="$HOME/.local/share/godot/export_templates/4.3.stable"
           mkdir -p "$templates"
           unzip -joq "$RUNNER_TEMP/templates.tpz" 'templates/android_debug.apk' -d "$templates"
           test -s "$templates/android_debug.apk"
           rm "$RUNNER_TEMP/templates.tpz"
+
+      - name: Download rebuilt ARM64 libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: dezhban-native-16kb-arm64-v8a
+          path: ${{ runner.temp }}/godot16k/arm64-v8a
+      - name: Download rebuilt x86_64 libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: dezhban-native-16kb-x86_64
+          path: ${{ runner.temp }}/godot16k/x86_64
+      - name: Insert the verified libraries into the official template
+        run: |
+          set -euo pipefail
+          templates="$HOME/.local/share/godot/export_templates/4.3.stable"
+          python3 games/dejban/tools/replace_android_template_libraries.py \
+            "$templates/android_debug.apk" "$RUNNER_TEMP/godot16k" "$RUNNER_TEMP/android_debug-16k.apk"
+          mv "$RUNNER_TEMP/android_debug-16k.apk" "$templates/android_debug.apk"
 
       - name: Configure a temporary debug signing key
         run: |
@@ -218,6 +275,13 @@ jobs:
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
 
+      - name: Verify 16 KiB native compatibility in the signed APK
+        run: |
+          set -euo pipefail
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          test -x "$aapt"
+          python3 games/dejban/tools/verify_apk_16kb.py dist/dezhban.apk "$aapt"
+
       - name: Upload verified APK for device check
         uses: actions/upload-artifact@v4
         with:
@@ -240,11 +304,25 @@ jobs:
       matrix:
         include:
           - api: 34
+            target: google_apis
             abi: ''
+            page_size: 4096
             label: api34-x86_64
           - api: 35
+            target: google_apis
             abi: arm64-v8a
+            page_size: 4096
             label: api35-arm64-translated
+          - api: 35
+            target: google_apis_ps16k
+            abi: ''
+            page_size: 16384
+            label: api35-x86_64-16k
+          - api: 35
+            target: google_apis_ps16k
+            abi: arm64-v8a
+            page_size: 16384
+            label: api35-arm64-translated-16k
     steps:
       - name: Checkout device test script
         uses: actions/checkout@v4
@@ -266,7 +344,7 @@ jobs:
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: ${{ matrix.api }}
-          target: google_apis
+          target: ${{ matrix.target }}
           arch: x86_64
           force-avd-creation: false
           disable-animations: true
@@ -275,7 +353,7 @@ jobs:
             -gpu swiftshader_indirect
           # The ARM64 case uses the emulator's translation layer; it is not a
           # substitute for testing on a physical ARM phone.
-          script: bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/dezhban.apk '${{ matrix.abi }}' > device-check.log 2>&1
+          script: bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/dezhban.apk '${{ matrix.abi }}' '${{ matrix.page_size }}' > device-check.log 2>&1
 
       - name: Surface emulator diagnostics
         if: always()

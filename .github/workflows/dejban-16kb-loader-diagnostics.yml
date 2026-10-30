@@ -1,4 +1,4 @@
-# Load native libraries on a 16 KiB emulator without building a game APK.
+# Validate native libraries and their template on emulators without building a game APK.
 name: Dezhban 16 KiB native loader diagnostics
 
 on:
@@ -8,6 +8,10 @@ on:
       - ".github/workflows/dejban-16kb-loader-diagnostics.yml"
       - "games/dejban/tools/android_16kb_load_probe.c"
       - "games/dejban/tools/test_android_16kb_loader.sh"
+      - "games/dejban/tools/replace_android_template_libraries.py"
+      - "games/dejban/tools/verify_apk_16kb.py"
+      - "games/dejban/tools/verify_elf_16kb.py"
+      - "games/dejban/tools/tests/test_android_16kb.py"
 
 permissions:
   actions: read
@@ -15,10 +19,20 @@ permissions:
 
 jobs:
   load-native:
-    name: Compare native library loads on a 16 KiB emulator
+    name: Validate native libraries (${{ matrix.label }})
     if: ${{ contains(github.event.head_commit.message, '[loader-check]') }}
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - label: 16k-pages
+            target: google_apis_ps16k
+            page_size: 16384
+          - label: 4k-pages
+            target: google_apis
+            page_size: 4096
     steps:
       - uses: actions/checkout@v4
         with:
@@ -47,9 +61,20 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: godot43-16kb-x86_64
-          path: rebuilt
+          path: rebuilt/x86_64
           run-id: ${{ steps.source.outputs.run_id }}
           github-token: ${{ github.token }}
+      - name: Download the previously rebuilt ARM64 libraries
+        if: ${{ matrix.page_size == 16384 }}
+        uses: actions/download-artifact@v4
+        with:
+          name: godot43-16kb-arm64
+          path: rebuilt/arm64-v8a
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Test template and APK validation tools
+        if: ${{ matrix.page_size == 16384 }}
+        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_16kb.py' -v
       - name: Prepare the old libraries and the standalone diagnostic executable
         run: |
           set -euo pipefail
@@ -63,24 +88,49 @@ jobs:
           clang="$ANDROID_HOME/ndk/28.1.13356709/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
           "$clang" -Wall -Wextra -Werror -Wl,-z,max-page-size=16384 \
             games/dejban/tools/android_16kb_load_probe.c -ldl -o loader-probe
-          python3 games/dejban/tools/verify_elf_16kb.py rebuilt/*.so loader-probe
+          python3 games/dejban/tools/verify_elf_16kb.py --abi x86_64 rebuilt/x86_64/*.so loader-probe
+      - name: Validate replacement inside the official Godot template
+        if: ${{ matrix.page_size == 16384 }}
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o "$RUNNER_TEMP/templates.tpz" \
+            'https://github.com/godotengine/godot/releases/download/4.3-stable/Godot_v4.3-stable_export_templates.tpz'
+          echo '476366caf0fd45a8f24136cf9cf1dc0bc2b96f7c82d53e5f82200b55aefd07b286d283fd6f1ce29e0de70648c5a51d3b12f96c6d4fafd4e8c4878ecda6406d6a  '"$RUNNER_TEMP/templates.tpz" | sha512sum -c -
+          unzip -joq "$RUNNER_TEMP/templates.tpz" 'templates/android_debug.apk' -d "$RUNNER_TEMP"
+          rm "$RUNNER_TEMP/templates.tpz"
+          python3 games/dejban/tools/replace_android_template_libraries.py \
+            "$RUNNER_TEMP/android_debug.apk" rebuilt "$RUNNER_TEMP/android_debug-16k.apk"
+          aapt=$(find "$ANDROID_HOME/build-tools" -name aapt -type f | sort -V | tail -1)
+          python3 games/dejban/tools/verify_apk_16kb.py "$RUNNER_TEMP/android_debug-16k.apk" "$aapt"
+          python3 - "$RUNNER_TEMP/android_debug.apk" "$RUNNER_TEMP/android_debug-16k.apk" <<'PY'
+          from zipfile import ZipFile
+          import sys
+          replaced={f'lib/{abi}/{name}' for abi in ('arm64-v8a','x86_64') for name in ('libgodot_android.so','libc++_shared.so')}
+          with ZipFile(sys.argv[1]) as original, ZipFile(sys.argv[2]) as updated:
+              assert original.namelist() == updated.namelist()
+              for info in original.infolist():
+                  assert info.compress_type == updated.getinfo(info.filename).compress_type
+                  if info.filename not in replaced:
+                      assert original.read(info) == updated.read(info.filename), info.filename
+          print('All other template entries and compression methods are unchanged.')
+          PY
       - name: Enable KVM
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Load the published and rebuilt libraries on a 16 KiB emulator
+      - name: Load the published and rebuilt libraries
         uses: reactivecircus/android-emulator-runner@v2
         with:
           api-level: 35
-          target: google_apis_ps16k
+          target: ${{ matrix.target }}
           arch: x86_64
           disable-animations: true
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
-          script: bash games/dejban/tools/test_android_16kb_loader.sh loader-probe old rebuilt > loader-check.log 2>&1
+          script: bash games/dejban/tools/test_android_16kb_loader.sh loader-probe old rebuilt/x86_64 '${{ matrix.page_size }}' > loader-check.log 2>&1
       - name: Surface the native loader result
         if: always()
         run: |

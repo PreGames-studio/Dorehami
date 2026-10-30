@@ -4,6 +4,7 @@ set -euo pipefail
 
 apk="${1:-apk/dezhban.apk}"
 abi="${2:-}"
+expected_page_size="${3:-}"
 package="com.gf2227.dezhban"
 
 dump_errors() {
@@ -11,6 +12,12 @@ dump_errors() {
 }
 
 test -s "$apk"
+page_size=$(adb shell getconf PAGESIZE | tr -d '\r')
+echo "Runtime page size: $page_size bytes."
+if [[ -n "$expected_page_size" && "$page_size" != "$expected_page_size" ]]; then
+    echo "Expected page size $expected_page_size, but emulator reported $page_size." >&2
+    exit 1
+fi
 adb logcat -c
 echo "Installing $apk without the test-only override${abi:+, forcing ABI $abi}."
 install_args=(install)
