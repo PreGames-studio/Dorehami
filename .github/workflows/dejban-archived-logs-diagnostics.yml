@@ -66,10 +66,12 @@ jobs:
               hits=[line for line in lines if pattern.search(line)]
               destroy=next((i for i,line in enumerate(lines) if ' V Godot   : OnDestroy:' in line), None)
               if destroy is not None:
-                  context=lines[max(0,destroy-500):min(len(lines),destroy+20)]
-                  relevant=re.compile(r'config|relaunch|activity|locale|display|orientation|font|density|Godot|process|killed', re.I)
+                  context=lines[max(0,destroy-6000):min(len(lines),destroy+20)]
+                  relevant=re.compile(r'(?:ActivityTaskManager|ActivityManager|WindowManager|ActivityThread|ResourcesManager|Configuration|InputReader|Godot).*'
+                                      r'(?:config|relaunch|activity|locale|display|orientation|font|density|Godot|process|killed|changes)', re.I)
+                  chosen=[line for line in context if relevant.search(line)]
                   report.append(f'=== {path.name}: before Activity destruction ===\n'+
-                                '\n'.join(line for line in context if relevant.search(line)))
+                                '\n'.join(chosen[-180:]))
               # Keep the first errors, last errors, and startup lifecycle; omit
               # hundreds of duplicate class-registration/shader messages.
               hits=hits[:100]+(['... repeated messages omitted ...']+hits[-50:] if len(hits)>150 else hits[100:])
