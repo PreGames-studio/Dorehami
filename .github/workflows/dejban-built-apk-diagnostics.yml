@@ -92,22 +92,44 @@ jobs:
             target: google_apis
             page_size: 4096
             abi: ''
-            label: api34-x86-4k
+            memory_option: ''
+            label: api34-x86-4k-default
           - api: 35
             target: google_apis
             page_size: 4096
             abi: arm64-v8a
-            label: api35-arm-translated-4k
+            memory_option: ''
+            label: api35-arm-4k-default
           - api: 35
             target: google_apis_ps16k
             page_size: 16384
             abi: ''
-            label: api35-x86-16k
+            memory_option: ''
+            label: api35-x86-16k-default
           - api: 35
             target: google_apis_ps16k
             page_size: 16384
             abi: arm64-v8a
-            label: api35-arm-translated-16k
+            memory_option: ''
+            label: api35-arm-16k-default
+          - api: 34
+            target: google_apis
+            page_size: 4096
+            abi: ''
+            memory_option: '-memory 4096'
+            label: api34-x86-4k-more-ram
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: ''
+            memory_option: '-memory 4096'
+            label: api35-x86-16k-more-ram
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: arm64-v8a
+            memory_option: '-memory 4096'
+            label: api35-arm-16k-more-ram
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -138,15 +160,31 @@ jobs:
           disable-animations: true
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
-            -gpu swiftshader_indirect
+            -gpu swiftshader_indirect ${{ matrix.memory_option }}
           script: bash games/dejban/tools/diagnose_candidate_launch.sh candidate/dezhban.apk old.apk '${{ matrix.page_size }}' '${{ matrix.abi }}' > launch-diagnostic.log 2>&1
       - name: Surface detailed candidate launch diagnostics
         if: always()
         run: |
           python3 - <<'PY'
           from pathlib import Path
+          import re
           path=Path('launch-diagnostic.log')
-          text=path.read_text(errors='replace')[-18000:] if path.exists() else 'No diagnostic log was produced.'
-          text=text.replace('%','%25').replace('\r','%0D').replace('\n','%0A')
-          print(f'::notice title=dezhban-candidate-launch::{text}')
+          lines=path.read_text(errors='replace').splitlines() if path.exists() else ['No diagnostic log was produced.']
+          def notice(title, text):
+              text=text[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+              print(f'::notice title={title}::{text}')
+          high=re.compile(r'com\.gf2227|Fatal signal|FATAL EXCEPTION|Abort message|SIGSEGV|SIGABRT|lmkd.*kill|linker.*(fail|error)|Godot|am start exit|process did not survive', re.I)
+          relevant=[line for line in lines if high.search(line)]
+          crash=next((i for i,line in enumerate(lines) if line == '--- Android crash buffer ---'), -1)
+          notice('dezhban-candidate-summary', '\n'.join(lines[:45]))
+          notice('dezhban-candidate-signals', '\n'.join(relevant[:35]) or 'No matching crash or app signals.')
+          notice('dezhban-candidate-crash', '\n'.join(lines[crash+1:crash+35]) if crash >= 0 else 'No crash buffer captured.')
           PY
+      - name: Retain the full launch diagnostic log
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-launch-diagnostic-${{ matrix.label }}
+          path: launch-diagnostic.log
+          if-no-files-found: warn
+          retention-days: 3

@@ -22,9 +22,9 @@ for file in "$old" "$candidate"; do test -s "$file"; done
 print_debug() {
     echo '--- Last relevant Android logs ---'
     adb logcat -d -v threadtime 2>&1 | \
-        grep -Ei 'godot|com\.gf2227|androidruntime|fatal|crash|tombstone|linker|lowmemorykiller|lmkd|system_server|activitymanager|zygote|killed|out of memory' | tail -120 || true
+        grep -Ei 'godot|com\.gf2227|androidruntime|fatal signal|fatal exception|abort message|tombstone|linker.*(fail|error)|lmkd.*kill|lowmemorykiller.*kill|out of memory' | tail -80 || true
     echo '--- Android crash buffer ---'
-    adb logcat -b crash -d -v threadtime 2>&1 | tail -60 || true
+    adb logcat -b crash -d -v threadtime 2>&1 | head -100 || true
     echo '--- Emulator connection ---'
     adb get-state 2>&1 || true
 }
@@ -32,6 +32,7 @@ run_apk() {
     local label=$1 apk=$2
     echo "--- $label APK on ${actual_page_size}-byte pages, ABI ${abi:-native} ---"
     adb logcat -c || true
+    adb logcat -b crash -c || true
     local install_args=(install)
     if [[ -n "$abi" ]]; then install_args+=(--abi "$abi"); fi
     if ! adb "${install_args[@]}" "$apk"; then
