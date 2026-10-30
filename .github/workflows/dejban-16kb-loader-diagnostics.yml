@@ -1,0 +1,93 @@
+# Load native libraries on a 16 KiB emulator without building a game APK.
+name: Dezhban 16 KiB native loader diagnostics
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/dejban-16kb-loader-diagnostics.yml"
+      - "games/dejban/tools/android_16kb_load_probe.c"
+      - "games/dejban/tools/test_android_16kb_loader.sh"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  load-native:
+    name: Compare native library loads on a 16 KiB emulator
+    if: ${{ contains(github.event.head_commit.message, '[loader-check]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Find a successful native-template diagnostic run
+        id: source
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          run_id=$(gh run list --repo "$GITHUB_REPOSITORY" \
+            --workflow dejban-16kb-template-diagnostics.yml --branch "$GITHUB_REF_NAME" \
+            --limit 20 --json databaseId,conclusion \
+            --jq '[.[] | select(.conclusion == "success")][0].databaseId')
+          test -n "$run_id" && test "$run_id" != null
+          source_sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$run_id" --jq '.head_sha')
+          for file in games/dejban/tools/build_godot43_android_16kb.sh games/dejban/tools/patch_godot43_android_ndk.py; do
+            git diff --quiet "$source_sha" HEAD -- "$file" || {
+              echo "The native builder changed since run $run_id; build fresh libraries first." >&2
+              exit 1
+            }
+          done
+          echo "Using libraries from run $run_id at $source_sha."
+          echo "run_id=$run_id" >> "$GITHUB_OUTPUT"
+      - name: Download the previously rebuilt x86_64 libraries
+        uses: actions/download-artifact@v4
+        with:
+          name: godot43-16kb-x86_64
+          path: rebuilt
+          run-id: ${{ steps.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Prepare the old libraries and the standalone diagnostic executable
+        run: |
+          set -euo pipefail
+          curl -fsSL --retry 3 -o published.apk 'https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest/dezhban.apk'
+          echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  published.apk' | sha256sum -c -
+          mkdir -p old
+          unzip -joq published.apk 'lib/x86_64/libgodot_android.so' 'lib/x86_64/libc++_shared.so' -d old
+          if [[ ! -d "$ANDROID_HOME/ndk/28.1.13356709" ]]; then
+            "$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager" 'ndk;28.1.13356709'
+          fi
+          clang="$ANDROID_HOME/ndk/28.1.13356709/toolchains/llvm/prebuilt/linux-x86_64/bin/x86_64-linux-android21-clang"
+          "$clang" -Wall -Wextra -Werror -Wl,-z,max-page-size=16384 \
+            games/dejban/tools/android_16kb_load_probe.c -ldl -o loader-probe
+          python3 games/dejban/tools/verify_elf_16kb.py rebuilt/*.so loader-probe
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Load the published and rebuilt libraries on a 16 KiB emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis_ps16k
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: bash games/dejban/tools/test_android_16kb_loader.sh loader-probe old rebuilt > loader-check.log 2>&1
+      - name: Surface the native loader result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('loader-check.log')
+          text=path.read_text(errors='replace') if path.exists() else 'The emulator loader test did not produce a log.'
+          text=text[-12000:].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-16kb-loader::{text}')
+          PY
