@@ -365,9 +365,11 @@ jobs:
               print("::warning title=dezhban-device-log::Emulator script did not produce a log")
           else:
               lines = path.read_text(errors="replace").splitlines()
-              for line in lines[:8] + lines[max(8, len(lines)-30):]:
-                  safe = line[:900].replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
-                  print(f"::notice title=dezhban-device-log::{safe}")
+              if len(lines) > 100:
+                  lines = lines[:20] + ['... log truncated ...'] + lines[-80:]
+              text = '\n'.join(lines)[-18000:]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::notice title=dezhban-device-log::{text}')
           PY
 
       - name: Save emulator screenshot

@@ -1,0 +1,152 @@
+# Recheck an already-built APK; this workflow never exports or releases an APK.
+name: Dezhban built APK launch diagnostics
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/dejban-built-apk-diagnostics.yml"
+      - "games/dejban/tools/diagnose_candidate_launch.sh"
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  source:
+    name: Find the latest built APK artifact
+    if: ${{ contains(github.event.head_commit.message, '[artifact-check]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+      source_sha: ${{ steps.find.outputs.source_sha }}
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Locate an unexpired artifact with the same game sources
+        id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          candidates=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow dejban-godot-verify.yml \
+            --branch "$GITHUB_REF_NAME" --limit 30 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId')
+          found=''
+          for id in $candidates; do
+            has_artifact=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts?per_page=100" \
+              --jq '[.artifacts[] | select(.name == "dezhban-standalone-apk" and .expired == false)] | length')
+            if [ "$has_artifact" = 1 ]; then found=$id; break; fi
+          done
+          test -n "$found" || { echo 'No unexpired built APK artifact was found.' >&2; exit 1; }
+          sha=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$found" --jq '.head_sha')
+          git diff --quiet "$sha" HEAD -- games/dejban/godot || {
+            echo 'The game changed since the candidate was built; this artifact is stale.' >&2
+            exit 1
+          }
+          echo "Inspecting APK artifact from run $found, revision $sha."
+          echo "run_id=$found" >> "$GITHUB_OUTPUT"
+          echo "source_sha=$sha" >> "$GITHUB_OUTPUT"
+
+  previous-logs:
+    name: Inspect failed emulator job logs
+    needs: source
+    runs-on: ubuntu-latest
+    steps:
+      - name: Summarize emulator and host errors from the candidate build
+        env:
+          GH_TOKEN: ${{ github.token }}
+          SOURCE_RUN: ${{ needs.source.outputs.run_id }}
+        run: |
+          set -uo pipefail
+          mkdir -p job-logs
+          ids=$(gh run view "$SOURCE_RUN" --repo "$GITHUB_REPOSITORY" --json jobs \
+            --jq '.jobs[] | select(.conclusion == "failure") | .databaseId')
+          for id in $ids; do
+            if ! gh api "repos/$GITHUB_REPOSITORY/actions/jobs/$id/logs" > "job-logs/$id.log" 2>&1; then
+              echo "Could not retrieve original job log $id."
+            fi
+          done
+          python3 - <<'PY'
+          from pathlib import Path
+          import re
+          for path in sorted(Path('job-logs').glob('*.log')):
+              lines=path.read_text(errors='replace').splitlines()
+              pattern=re.compile(r'emulator|out.of.memory|fatal|error|fail|kill|panic|timeout|offline|died|crash|memory|SIG', re.I)
+              hits=[s for s in lines if pattern.search(s)]
+              text='\n'.join(hits[-70:])[-14000:] or 'No matching host error lines.'
+              text=text.replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+              print(f'::notice title=dezhban-original-log-{path.stem}::{text}')
+          PY
+
+  launch:
+    name: Diagnose candidate launch (${{ matrix.label }})
+    needs: source
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 34
+            target: google_apis
+            page_size: 4096
+            abi: ''
+            label: api34-x86-4k
+          - api: 35
+            target: google_apis
+            page_size: 4096
+            abi: arm64-v8a
+            label: api35-arm-translated-4k
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: ''
+            label: api35-x86-16k
+          - api: 35
+            target: google_apis_ps16k
+            page_size: 16384
+            abi: arm64-v8a
+            label: api35-arm-translated-16k
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: candidate
+          run-id: ${{ needs.source.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Verify and fetch the previous published APK
+        run: |
+          set -euo pipefail
+          sha256sum candidate/dezhban.apk
+          curl -fsSL --retry 3 -o old.apk 'https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest/dezhban.apk'
+          echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  old.apk' | sha256sum -c -
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Compare candidate launch with baseline where possible
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: bash games/dejban/tools/diagnose_candidate_launch.sh candidate/dezhban.apk old.apk '${{ matrix.page_size }}' '${{ matrix.abi }}' > launch-diagnostic.log 2>&1
+      - name: Surface detailed candidate launch diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('launch-diagnostic.log')
+          text=path.read_text(errors='replace')[-18000:] if path.exists() else 'No diagnostic log was produced.'
+          text=text.replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-candidate-launch::{text}')
+          PY

@@ -13,7 +13,13 @@ if [[ ! "$rounds" =~ ^[1-3]$ ]]; then
 fi
 
 dump_errors() {
-    adb logcat -d -s AndroidRuntime:E Godot:V | tail -80 || true
+    echo '--- Relevant Android logs ---'
+    adb logcat -d -v threadtime 2>&1 | \
+        grep -Ei 'godot|com\.gf2227|androidruntime|fatal|crash|linker|lowmemorykiller|lmkd|system_server|activitymanager|zygote|killed|out of memory' | tail -100 || true
+    echo '--- Android crash buffer ---'
+    adb logcat -b crash -d -v threadtime 2>&1 | tail -60 || true
+    echo '--- Emulator connection ---'
+    adb get-state 2>&1 || true
 }
 
 test -s "$apk"
