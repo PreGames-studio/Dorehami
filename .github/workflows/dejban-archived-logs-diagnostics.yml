@@ -1,0 +1,66 @@
+# Surface existing diagnostic logs without rebuilding an APK.
+name: Dezhban archived launch log diagnostics
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/dejban-archived-logs-diagnostics.yml"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    name: Find the latest archived launch diagnostics
+    if: ${{ contains(github.event.head_commit.message, '[artifact-logs]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow dejban-built-apk-diagnostics.yml \
+            --branch "$GITHUB_REF_NAME" --limit 20 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId')
+          found=''
+          for id in $runs; do
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts?per_page=100" \
+              --jq '[.artifacts[] | select((.name | startswith("dezhban-launch-diagnostic-")) and .expired == false)] | length')
+            if [ "$count" -gt 0 ]; then found=$id; break; fi
+          done
+          test -n "$found"
+          echo "Inspecting logs from diagnostic run $found."
+          echo "run_id=$found" >> "$GITHUB_OUTPUT"
+
+  summarize:
+    name: Read crash log (${{ matrix.label }})
+    needs: locate
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [api34-x86-4k-default, api35-arm-16k-default, api35-arm-16k-more-ram]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-launch-diagnostic-${{ matrix.label }}
+          path: logs
+          run-id: ${{ needs.locate.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Surface compressed log data for inspection
+        run: |
+          python3 - <<'PY'
+          import base64, gzip
+          from pathlib import Path
+          raw=Path('logs/launch-diagnostic.log').read_bytes()
+          encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded) > 20000:
+              raise SystemExit(f'The compressed log is too large to annotate: {len(encoded)} bytes')
+          chunks=[encoded[i:i+2500] for i in range(0,len(encoded),2500)]
+          print(f'::notice title=dezhban-log-metadata::bytes={len(raw)}, parts={len(chunks)}')
+          for i,chunk in enumerate(chunks):
+              print(f'::notice title=dezhban-log-part-{i:03d}::{chunk}')
+          PY
