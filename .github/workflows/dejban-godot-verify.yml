@@ -227,7 +227,7 @@ jobs:
           retention-days: 7
 
   standalone-device-check:
-    name: Install and launch standalone APK on Android
+    name: Install and launch standalone APK (${{ matrix.label }})
     needs: standalone-apk
     if: >-
       ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
@@ -235,6 +235,16 @@ jobs:
            (startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[build-apk]')))) }}
     runs-on: ubuntu-latest
     timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 34
+            abi: ''
+            label: api34-x86_64
+          - api: 35
+            abi: arm64-v8a
+            label: api35-arm64-translated
     steps:
       - name: Checkout device test script
         uses: actions/checkout@v4
@@ -255,16 +265,17 @@ jobs:
       - name: Fresh install and launch without test-only override
         uses: reactivecircus/android-emulator-runner@v2
         with:
-          api-level: 34
+          api-level: ${{ matrix.api }}
+          target: google_apis
           arch: x86_64
           force-avd-creation: false
           disable-animations: true
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
-          # The action executes each input line in a separate shell; run a script file
-          # so variables, error handling and conditionals share the same process.
-          script: bash games/dejban/tools/verify_standalone_apk_on_device.sh > device-check.log 2>&1
+          # The ARM64 case uses the emulator's translation layer; it is not a
+          # substitute for testing on a physical ARM phone.
+          script: bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/dezhban.apk '${{ matrix.abi }}' > device-check.log 2>&1
 
       - name: Surface emulator diagnostics
         if: always()
@@ -285,17 +296,68 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: dezhban-emulator-screenshot
+          name: dezhban-emulator-screenshot-${{ matrix.label }}
           path: dezhban-emulator.png
           if-no-files-found: warn
           retention-days: 7
 
       - name: Report fresh-install success
-        run: echo '::notice title=dezhban-device-check::Fresh installation and launcher startup passed on Android API 34 (x86_64 emulator).'
+        run: echo '::notice title=dezhban-device-check::Fresh installation and launcher startup passed on ${{ matrix.label }}.'
+
+  standalone-ui-check:
+    name: Install through the visible Android installer
+    needs: standalone-apk
+    if: >-
+      ${{ (github.event_name == 'workflow_dispatch' && inputs.build_apk) ||
+          (github.event_name == 'push' && (github.ref == 'refs/heads/main' ||
+           (startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[build-apk]')))) }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the exact validated APK
+        uses: actions/download-artifact@v4
+        with:
+          name: dezhban-standalone-apk
+          path: apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install through Android's package installer
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: bash games/dejban/tools/diagnose_apk_installer_ui.sh apk/dezhban.apk > installer-ui.log 2>&1
+      - name: Surface installer UI diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('installer-ui.log')
+          if not log.exists():
+              print('::warning title=dezhban-installer-ui::Installer UI test did not produce a log.')
+          else:
+              lines = log.read_text(errors='replace').splitlines()
+              if len(lines) > 60:
+                  lines = lines[:35] + ['... log truncated ...'] + lines[-25:]
+              text = '\n'.join(lines)[:16000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::notice title=dezhban-installer-ui::{text}')
+          PY
 
   standalone-release:
     name: Publish the verified standalone APK
-    needs: standalone-device-check
+    needs: [standalone-device-check, standalone-ui-check]
     if: >-
       ${{ (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
           (startsWith(github.ref, 'refs/heads/arena/') &&
@@ -316,24 +378,55 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
+          # Rule 5 keeps the direct link fixed for both main and explicitly
+          # requested branch builds. Never label a branch build as main.
+          tag=apk-latest
           if [ "$GITHUB_REF" = 'refs/heads/main' ]; then
-            tag=apk-latest
             title='Dezhban standalone APK (latest main)'
           else
-            branch=$(printf '%s' "$GITHUB_REF_NAME" | tr '/' '-')
-            tag="preview-dejban-${branch}-${GITHUB_SHA:0:7}"
-            title="Dezhban preview: $GITHUB_REF_NAME"
+            title="Dezhban standalone APK (requested build: $GITHUB_REF_NAME)"
           fi
           apk=apk/dezhban.apk
           sum=$(sha256sum "$apk" | cut -d' ' -f1)
           url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/dezhban.apk"
           notes="Standalone Dezhban debug APK for ${GITHUB_REF_NAME} at ${GITHUB_SHA}.
-          This APK was signature-checked and fresh-installed/launched on an Android emulator.
+          This APK was signature-checked and fresh-installed/launched on Android emulators, including translated ARM64, and installed through the visible Android installer.
           It uses a temporary debug signing key, so it may not update an existing installation signed with a different key.
+          The Godot 4.3 native libraries have a known 16 KiB page-size startup incompatibility.
           SHA-256: ${sum}"
           gh release view "$tag" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
             gh release create "$tag" --repo "$GITHUB_REPOSITORY" --target "$GITHUB_SHA" \
               --prerelease --title "$title" --notes "$notes"
+
+          # Keep the exact APK that was investigated for the reported installer
+          # problem. Rename its existing release asset rather than rebuilding it.
+          baseline=sha256:a29a5349b8d18f5d539c9b2b3c8afd0cfc713b187451f6ef0038b1f5bfa3a01d
+          archive=dezhban-before-installer-diagnostics.apk
+          release_api="repos/$GITHUB_REPOSITORY/releases/tags/$tag"
+          old_id=$(gh api "$release_api" --jq ".assets[] | select(.name == \"dezhban.apk\" and .digest == \"$baseline\") | .id")
+          archived_digest=$(gh api "$release_api" --jq ".assets[] | select(.name == \"$archive\") | .digest")
+          renamed_id=''
+          restore_baseline_if_needed() {
+            status=$?
+            if [ "$status" -ne 0 ] && [ -n "$renamed_id" ]; then
+              canonical=$(gh api "$release_api" --jq '.assets[] | select(.name == "dezhban.apk") | .id' || true)
+              if [ -z "$canonical" ]; then
+                gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$renamed_id" -f name=dezhban.apk >/dev/null || true
+              fi
+            fi
+          }
+          trap restore_baseline_if_needed EXIT
+          if [ -n "$old_id" ]; then
+            if [ -z "$archived_digest" ]; then
+              gh api --method PATCH "repos/$GITHUB_REPOSITORY/releases/assets/$old_id" -f "name=$archive" >/dev/null
+              renamed_id=$old_id
+            elif [ "$archived_digest" != "$baseline" ]; then
+              echo 'The diagnostics archive name is occupied by a different APK.' >&2
+              exit 1
+            fi
+            archived_digest=$(gh api "$release_api" --jq ".assets[] | select(.name == \"$archive\") | .digest")
+            test "$archived_digest" = "$baseline"
+          fi
           gh release upload "$tag" "$apk" --repo "$GITHUB_REPOSITORY" --clobber
           remote_sum=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/$tag" \
             --jq '.assets[] | select(.name == "dezhban.apk" and .state == "uploaded") | .digest')

@@ -3,6 +3,7 @@
 set -euo pipefail
 
 apk="${1:-apk/dezhban.apk}"
+abi="${2:-}"
 package="com.gf2227.dezhban"
 
 dump_errors() {
@@ -11,8 +12,12 @@ dump_errors() {
 
 test -s "$apk"
 adb logcat -c
-echo "Installing $apk without the test-only override."
-adb install "$apk"
+echo "Installing $apk without the test-only override${abi:+, forcing ABI $abi}."
+install_args=(install)
+if [[ -n "$abi" ]]; then
+    install_args+=(--abi "$abi")
+fi
+adb "${install_args[@]}" "$apk"
 echo 'Resolving launcher activity.'
 adb shell cmd package resolve-activity --brief "$package" || true
 echo 'Starting launcher activity.'
@@ -34,4 +39,4 @@ if ! adb shell pidof "$package"; then
     exit 1
 fi
 adb exec-out screencap -p > dezhban-emulator.png
-echo 'Fresh installation and launch succeeded on Android API 34.'
+echo "Fresh installation and launch succeeded on Android API $(adb shell getprop ro.build.version.sdk | tr -d '\r')${abi:+ with ABI $abi}."

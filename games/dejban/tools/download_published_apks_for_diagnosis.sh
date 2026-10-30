@@ -8,7 +8,10 @@ out_dir="${1:?output directory required}"
 : "${PREVIOUS_APK_SHA256:?PREVIOUS_APK_SHA256 required}"
 mkdir -p "$out_dir"
 base="https://github.com/${GITHUB_REPOSITORY}/releases/download"
-curl -fsSL --retry 3 -o "$out_dir/current.apk" "$base/apk-latest/dezhban.apk"
+# This immutable archived asset is the exact file originally reported as invalid;
+# apk-latest/dezhban.apk may subsequently be replaced by a requested new build.
+curl -fsSL --retry 3 -o "$out_dir/current.apk" \
+    "$base/apk-latest/dezhban-before-installer-diagnostics.apk"
 curl -fsSL --retry 3 -o "$out_dir/previous.apk" \
     "$base/preview-dejban-arena-fdff2718-dorehami-9794957/dezhban.apk"
 printf '%s  %s\n' "$CURRENT_APK_SHA256" "$out_dir/current.apk" | sha256sum -c -
