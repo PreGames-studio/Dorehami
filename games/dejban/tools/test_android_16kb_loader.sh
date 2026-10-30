@@ -2,8 +2,8 @@
 # Compare a published Godot library with a rebuilt one, without making a game APK.
 set -euo pipefail
 
-if [ "$#" -ne 5 ]; then
-  echo "Usage: $0 PROBE OLD_LIB_DIR NEW_LIB_DIR EXPECTED_PAGE_SIZE x86_64|arm64-v8a" >&2
+if [ "$#" -lt 5 ] || [ "$#" -gt 6 ]; then
+  echo "Usage: $0 PROBE OLD_LIB_DIR NEW_LIB_DIR EXPECTED_PAGE_SIZE x86_64|arm64-v8a [ROUNDS]" >&2
   exit 2
 fi
 probe=$1
@@ -11,6 +11,11 @@ old_lib_dir=$2
 new_lib_dir=$3
 expected_page_size=$4
 probe_abi=$5
+rounds=${6:-1}
+if [[ ! "$rounds" =~ ^[1-5]$ ]]; then
+  echo "Rounds must be between 1 and 5." >&2
+  exit 2
+fi
 if [[ "$expected_page_size" != 4096 && "$expected_page_size" != 16384 ]]; then
   echo "Expected page size must be 4096 or 16384." >&2
   exit 2
@@ -54,16 +59,19 @@ for lib in libgodot_android.so libc++_shared.so; do
 done
 adb shell chmod 755 "$remote/probe"
 
-set +e
-old_output=$(adb shell "cd $remote/old && LD_LIBRARY_PATH=$remote/old $remote/probe ./libgodot_android.so $expected_page_size" 2>&1)
-old_status=$?
-set -e
-printf 'Published library load (exit %s):\n%s\n' "$old_status" "$old_output"
-if [[ "$expected_page_size" == 4096 && "$old_status" -ne 0 ]]; then
-  echo 'The original library failed the 4 KiB control test.' >&2
-  exit 1
-elif [[ "$expected_page_size" == 16384 && "$old_status" -eq 0 ]]; then
-  echo 'Note: the negative control loaded; this does not establish its game runtime compatibility.'
-fi
-printf '\nRebuilt library load:\n'
-adb shell "cd $remote/new && LD_LIBRARY_PATH=$remote/new $remote/probe ./libgodot_android.so $expected_page_size"
+for ((round = 1; round <= rounds; round++)); do
+  echo "--- Load round $round/$rounds ($probe_abi, $expected_page_size-byte pages) ---"
+  set +e
+  old_output=$(adb shell "cd $remote/old && LD_LIBRARY_PATH=$remote/old $remote/probe ./libgodot_android.so $expected_page_size" 2>&1)
+  old_status=$?
+  set -e
+  printf 'Published library load (exit %s):\n%s\n' "$old_status" "$old_output"
+  if [[ "$expected_page_size" == 4096 && "$old_status" -ne 0 ]]; then
+    echo 'The original library failed the 4 KiB control test.' >&2
+    exit 1
+  elif [[ "$expected_page_size" == 16384 && "$old_status" -eq 0 ]]; then
+    echo 'Note: the negative control loaded; this does not establish its game runtime compatibility.'
+  fi
+  printf '\nRebuilt library load:\n'
+  adb shell "cd $remote/new && LD_LIBRARY_PATH=$remote/new $remote/probe ./libgodot_android.so $expected_page_size"
+done

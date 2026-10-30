@@ -25,7 +25,10 @@ jobs:
       - name: Download the exact previously published APK
         run: |
           set -euo pipefail
-          curl -fsSL --retry 3 -o published.apk 'https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest/dezhban.apk'
+          base='https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest'
+          if ! curl -fsSL --retry 3 -o published.apk "$base/dezhban-before-16kb-backport.apk" 2>/dev/null; then
+            curl -fsSL --retry 3 -o published.apk "$base/dezhban.apk"
+          fi
           echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  published.apk' | sha256sum -c -
       - name: Check native-library packaging and manifest
         run: |

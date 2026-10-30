@@ -77,7 +77,12 @@ jobs:
       - name: Prepare the old libraries and the standalone diagnostic executable
         run: |
           set -euo pipefail
-          curl -fsSL --retry 3 -o published.apk 'https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest/dezhban.apk'
+          base='https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest'
+          # Before the next release the pinned APK is still canonical; after
+          # publication it is archived under the diagnostic name instead.
+          if ! curl -fsSL --retry 3 -o published.apk "$base/dezhban-before-16kb-backport.apk" 2>/dev/null; then
+            curl -fsSL --retry 3 -o published.apk "$base/dezhban.apk"
+          fi
           echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  published.apk' | sha256sum -c -
           for abi in x86_64 arm64-v8a; do
             mkdir -p "old/$abi"
@@ -157,7 +162,7 @@ jobs:
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect
           script: >-
-            bash -c 'bash games/dejban/tools/test_android_16kb_loader.sh loader-probe-x86_64 old/x86_64 rebuilt/x86_64 ${{ matrix.page_size }} x86_64 && bash games/dejban/tools/test_android_16kb_loader.sh loader-probe-arm64-v8a old/arm64-v8a rebuilt/arm64-v8a ${{ matrix.page_size }} arm64-v8a' > loader-check.log 2>&1
+            bash -c 'bash games/dejban/tools/test_android_16kb_loader.sh loader-probe-x86_64 old/x86_64 rebuilt/x86_64 ${{ matrix.page_size }} x86_64 3 && bash games/dejban/tools/test_android_16kb_loader.sh loader-probe-arm64-v8a old/arm64-v8a rebuilt/arm64-v8a ${{ matrix.page_size }} arm64-v8a 3' > loader-check.log 2>&1
       - name: Surface the native loader result
         if: always()
         run: |

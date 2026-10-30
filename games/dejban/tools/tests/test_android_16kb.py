@@ -317,7 +317,7 @@ esac
                 (directory / name).write_text("fake library for mocked adb")
         self.log = self.root / "adb.log"
 
-    def run_check(self, page="16384", expected="16384", abi="x86_64", serial="emulator-5554", bridge="1", old_status="1"):
+    def run_check(self, page="16384", expected="16384", abi="x86_64", serial="emulator-5554", bridge="1", old_status="1", rounds="1"):
         env = os.environ | {
             "PATH": f"{self.bin}:{os.environ['PATH']}", "ADB_LOG": str(self.log),
             "MOCK_PAGE_SIZE": page, "MOCK_SERIAL": serial, "MOCK_BRIDGE": bridge,
@@ -325,13 +325,24 @@ esac
         }
         return subprocess.run([
             "bash", str(TOOLS / "test_android_16kb_loader.sh"), str(self.probe),
-            str(self.root / "old"), str(self.root / "new"), expected, abi,
+            str(self.root / "old"), str(self.root / "new"), expected, abi, rounds,
         ], cwd=self.root, env=env, capture_output=True)
 
     def test_rebuilt_load_proceeds_after_expected_16k_control_failure(self):
         result = self.run_check()
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("/new &&", self.log.read_text())
+
+    def test_three_rounds_load_rebuilt_library_three_times(self):
+        result = self.run_check(rounds="3")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertEqual(self.log.read_text().count("/new &&"), 3)
+        self.assertIn(b"Load round 3/3", result.stdout)
+
+    def test_invalid_rounds_fail_before_using_adb(self):
+        result = self.run_check(rounds="0")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.log.exists())
 
     def test_4k_control_must_load_before_testing_rebuilt_library(self):
         result = self.run_check(page="4096", expected="4096", old_status="1")
@@ -369,7 +380,10 @@ class DevicePageSizeTests(unittest.TestCase):
         adb.write_text('''#!/bin/sh
 echo "$*" >> "$ADB_LOG"
 case "$*" in
+  'get-serialno') echo "$MOCK_SERIAL" ;;
+  'shell getprop ro.kernel.qemu') echo "$MOCK_QEMU" ;;
   'shell getconf PAGESIZE') echo "$MOCK_PAGE_SIZE" ;;
+  'shell pm list packages'*) if [ "$MOCK_PREINSTALLED" = 1 ]; then echo 'package:com.gf2227.dezhban'; fi ;;
   'shell am start'*) echo 'Status: ok' ;;
   'shell pidof'*) echo '1234' ;;
   'shell getprop ro.build.version.sdk') echo '35' ;;
@@ -381,14 +395,14 @@ esac
         sleep.chmod(0o755)
         self.log = self.root / "adb.log"
 
-    def run_check(self, actual, expected, abi=""):
+    def run_check(self, actual, expected, abi="", rounds="1", serial="emulator-5554", qemu="1", preinstalled="0"):
         env = os.environ | {
             "PATH": f"{self.bin}:{os.environ['PATH']}",
-            "ADB_LOG": str(self.log),
-            "MOCK_PAGE_SIZE": actual,
+            "ADB_LOG": str(self.log), "MOCK_SERIAL": serial, "MOCK_QEMU": qemu,
+            "MOCK_PAGE_SIZE": actual, "MOCK_PREINSTALLED": preinstalled,
         }
         return subprocess.run(
-            ["bash", str(TOOLS / "verify_standalone_apk_on_device.sh"), str(self.apk), abi, expected],
+            ["bash", str(TOOLS / "verify_standalone_apk_on_device.sh"), str(self.apk), abi, expected, rounds],
             cwd=self.root, env=env, capture_output=True,
         )
 
@@ -402,6 +416,47 @@ esac
         self.assertNotEqual(result.returncode, 0)
         self.assertIn(b"Expected page size 16384", result.stderr)
         self.assertNotIn("install", self.log.read_text())
+
+    def test_three_fresh_installs_remove_the_package_only_between_rounds(self):
+        result = self.run_check("16384", "16384", "arm64-v8a", rounds="3")
+        self.assertEqual(result.returncode, 0, result.stderr)
+        lines = self.log.read_text().splitlines()
+        self.assertEqual(sum(line.startswith("install --abi arm64-v8a ") for line in lines), 3)
+        self.assertEqual(sum(line == "uninstall com.gf2227.dezhban" for line in lines), 2)
+        self.assertIn(b"Fresh install and launch round 3 passed", result.stdout)
+
+    def test_refuses_to_uninstall_from_physical_device(self):
+        for args in ({"serial": "physical-device"}, {"qemu": "0"}):
+            with self.subTest(args=args):
+                self.log.unlink(missing_ok=True)
+                result = self.run_check("16384", "16384", rounds="3", **args)
+                self.assertNotEqual(result.returncode, 0)
+                self.assertNotIn("uninstall", self.log.read_text())
+                self.assertNotIn("install ", self.log.read_text())
+
+    def test_refuses_a_preinstalled_package(self):
+        result = self.run_check("16384", "16384", rounds="3", preinstalled="1")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertNotIn("uninstall", self.log.read_text())
+        self.assertNotIn("install ", self.log.read_text())
+
+    def test_invalid_rounds_rejected_before_adb(self):
+        result = self.run_check("16384", "16384", rounds="4")
+        self.assertNotEqual(result.returncode, 0)
+        self.assertFalse(self.log.exists())
+
+    def test_ui_installer_rejects_wrong_emulator_page_size_before_staging(self):
+        env = os.environ | {
+            "PATH": f"{self.bin}:{os.environ['PATH']}", "ADB_LOG": str(self.log),
+            "MOCK_PAGE_SIZE": "4096", "MOCK_SERIAL": "emulator-5554", "MOCK_QEMU": "1",
+        }
+        result = subprocess.run(
+            ["bash", str(TOOLS / "diagnose_apk_installer_ui.sh"), str(self.apk), "16384"],
+            cwd=self.root, env=env, capture_output=True,
+        )
+        self.assertNotEqual(result.returncode, 0)
+        self.assertIn(b"Expected page size 16384", result.stderr)
+        self.assertNotIn("push ", self.log.read_text())
 
 
 if __name__ == "__main__":

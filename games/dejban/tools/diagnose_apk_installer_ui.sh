@@ -2,6 +2,7 @@
 # Exercise Android's visible PackageInstaller on a disposable emulator only.
 set -euo pipefail
 apk="${1:?path to existing APK required}"
+expected_page_size="${2:-}"
 package=com.gf2227.dezhban
 serial=$(adb get-serialno | tr -d '\r')
 is_emulator=$(adb shell getprop ro.kernel.qemu | tr -d '\r')
@@ -10,6 +11,14 @@ if [[ ! "$serial" =~ ^emulator-[0-9]+$ || "$is_emulator" != 1 ]]; then
     exit 1
 fi
 test -s "$apk"
+if [[ -n "$expected_page_size" ]]; then
+    page_size=$(adb shell getconf PAGESIZE | tr -d '\r')
+    if [[ "$page_size" != "$expected_page_size" ]]; then
+        echo "Expected page size $expected_page_size, but emulator reported $page_size." >&2
+        exit 1
+    fi
+    echo "Runtime page size: $page_size bytes."
+fi
 if adb shell pm list packages "$package" | tr -d '\r' | grep -Fxq "package:$package"; then
     echo 'Expected a fresh emulator without an existing Dezhban installation.' >&2
     exit 1
