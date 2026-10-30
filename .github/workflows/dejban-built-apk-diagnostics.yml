@@ -93,7 +93,13 @@ jobs:
             page_size: 4096
             abi: ''
             memory_option: ''
-            label: api34-x86-4k-default
+            label: api34-x86-4k-default-a
+          - api: 34
+            target: google_apis
+            page_size: 4096
+            abi: ''
+            memory_option: ''
+            label: api34-x86-4k-default-b
           - api: 35
             target: google_apis
             page_size: 4096
@@ -110,26 +116,8 @@ jobs:
             target: google_apis_ps16k
             page_size: 16384
             abi: arm64-v8a
-            memory_option: ''
-            label: api35-arm-16k-default
-          - api: 34
-            target: google_apis
-            page_size: 4096
-            abi: ''
-            memory_option: '-memory 4096'
-            label: api34-x86-4k-more-ram
-          - api: 35
-            target: google_apis_ps16k
-            page_size: 16384
-            abi: ''
-            memory_option: '-memory 4096'
-            label: api35-x86-16k-more-ram
-          - api: 35
-            target: google_apis_ps16k
-            page_size: 16384
-            abi: arm64-v8a
-            memory_option: '-memory 4096'
-            label: api35-arm-16k-more-ram
+            memory_option: '-memory 6144'
+            label: api35-arm-16k-6gb
     steps:
       - uses: actions/checkout@v4
       - uses: actions/download-artifact@v4
@@ -161,7 +149,7 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect ${{ matrix.memory_option }}
-          script: bash games/dejban/tools/diagnose_candidate_launch.sh candidate/dezhban.apk old.apk '${{ matrix.page_size }}' '${{ matrix.abi }}' > launch-diagnostic.log 2>&1
+          script: DEZH_DIAGNOSTIC_ROUNDS=3 bash games/dejban/tools/diagnose_candidate_launch.sh candidate/dezhban.apk old.apk '${{ matrix.page_size }}' '${{ matrix.abi }}' > launch-diagnostic.log 2>&1
       - name: Surface detailed candidate launch diagnostics
         if: always()
         run: |
@@ -173,7 +161,7 @@ jobs:
           def notice(title, text):
               text=text[:3000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
               print(f'::notice title={title}::{text}')
-          high=re.compile(r'com\.gf2227|Fatal signal|FATAL EXCEPTION|Abort message|SIGSEGV|SIGABRT|lmkd.*kill|linker.*(fail|error)|Godot|am start exit|process did not survive', re.I)
+          high=re.compile(r'Fatal signal|FATAL EXCEPTION|Abort message|FORTIFY|SIGSEGV|SIGABRT|(?:lmkd|lowmemorykiller).*kill.*com\.gf2227|linker.*(fail|error)|am start exit|process did not survive|process exited|installation and process survival passed', re.I)
           relevant=[line for line in lines if high.search(line)]
           crash=next((i for i,line in enumerate(lines) if line == '--- Android crash buffer ---'), -1)
           notice('dezhban-candidate-summary', '\n'.join(lines[:45]))
@@ -185,6 +173,8 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dezhban-launch-diagnostic-${{ matrix.label }}
-          path: launch-diagnostic.log
+          path: |
+            launch-diagnostic.log
+            launch-diagnostics/
           if-no-files-found: warn
           retention-days: 3
