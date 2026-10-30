@@ -36,7 +36,7 @@ for node in root.iter('node'):
 PY
 }
 find_coordinates() {
-    python3 - "$1" "$2" <<'PY'
+    python3 - "$1" "$2" "$name" <<'PY'
 import re
 import sys
 import xml.etree.ElementTree as ET
@@ -48,7 +48,7 @@ for node in root.iter('node'):
     if kind == 'install':
         matches = text in ('install', 'update', 'reinstall')
     elif kind == 'file':
-        matches = 'dezhban-install-diagnostic.apk' in (text + ' ' + description)
+        matches = sys.argv[3].casefold() in (text + ' ' + description)
     elif kind == 'downloads':
         matches = text in ('downloads', 'download')
     else:
@@ -74,8 +74,32 @@ adb logcat -c 2>/dev/null || true
 # The shell acts as a download source on this test emulator only; do not bypass
 # the package signature or package manager checks.
 adb shell appops set com.android.shell REQUEST_INSTALL_PACKAGES allow
-name=dezhban-install-diagnostic.apk
-adb push "$apk" "/sdcard/Download/$name" >/dev/null
+suffix="$(printf '%s-%s' "${GITHUB_RUN_ID:-$RANDOM}" "${GITHUB_RUN_ATTEMPT:-$RANDOM}" | tr -cd '0-9-')"
+name="dezhban-install-diagnostic-$suffix.apk"
+staging="/data/local/tmp/$name"
+# The external-storage mount may not be ready immediately after boot. Transfer
+# to shell storage first and retry copying to Downloads rather than treating a
+# transient FUSE write error as an APK installation failure.
+adb push "$apk" "$staging" >/dev/null
+copied=no
+for _ in $(seq 1 8); do
+    if adb shell cp "$staging" "/sdcard/Download/$name"; then
+        copied=yes
+        break
+    fi
+    adb shell rm -f "/sdcard/Download/$name" >/dev/null 2>&1 || true
+    sleep 5
+done
+if [[ "$copied" != yes ]]; then
+    echo 'Could not copy the APK into emulator Downloads; UI test is inconclusive.'
+    exit 1
+fi
+expected_sha=$(sha256sum "$apk" | awk '{print $1}')
+copied_sha=$(adb shell sha256sum "/sdcard/Download/$name" | tr -d '\r' | awk '{print $1}')
+if [[ "$copied_sha" != "$expected_sha" ]]; then
+    echo 'The emulator Downloads copy does not match the APK; UI test is inconclusive.'
+    exit 1
+fi
 adb shell am broadcast -a android.intent.action.MEDIA_SCANNER_SCAN_FILE \
     -d "file:///sdcard/Download/$name" >/dev/null 2>&1 || true
 
