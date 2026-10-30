@@ -24,7 +24,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: dejban-godot-verify-${{ github.ref }}
+  # A diagnostic-only push must not cancel an explicitly requested APK build.
+  group: dejban-godot-verify-${{ github.ref }}-${{ ((github.event_name == 'push' && contains(github.event.head_commit.message, '[build-apk]')) || (github.event_name == 'workflow_dispatch' && inputs.build_apk) || github.ref == 'refs/heads/main') && 'apk' || 'check' }}
   cancel-in-progress: true
 
 env:
