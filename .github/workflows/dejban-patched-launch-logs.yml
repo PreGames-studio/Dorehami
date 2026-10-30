@@ -1,0 +1,60 @@
+# Inspect diagnostic launch logs already produced by the lifecycle workflow.
+name: Dezhban patched launch log inspection
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/dejban-patched-launch-logs.yml"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    if: ${{ contains(github.event.head_commit.message, '[patched-logs]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow dejban-lifecycle-diagnostics.yml \
+            --branch "$GITHUB_REF_NAME" --limit 20 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId')
+          found=''
+          for id in $runs; do
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts?per_page=100" \
+              --jq '[.artifacts[]|select((.name|startswith("dezhban-patched-launch-")) and .expired==false)]|length')
+            if [ "$count" -gt 0 ]; then found=$id; break; fi
+          done
+          test -n "$found"
+          echo "run_id=$found" >> "$GITHUB_OUTPUT"
+  inspect:
+    needs: locate
+    name: Inspect ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [x86-4k-4gb, arm-translated-16k-6gb]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-patched-launch-${{ matrix.label }}
+          path: logs
+          run-id: ${{ needs.locate.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Surface compressed launch diagnostics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip
+          raw=Path('logs/launch.log').read_bytes()
+          encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded)>20000: raise SystemExit('Launch log exceeds annotation limit')
+          for i in range(0,len(encoded),2500):
+              print(f'::notice title=dezhban-log-part-{i//2500:03d}::{encoded[i:i+2500]}')
+          PY
