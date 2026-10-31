@@ -19,7 +19,7 @@ on:
     paths: [".github/workflows/apk-universal.yml"]
 
 permissions:
-  contents: read
+  contents: write   # only used by the preview-release upload step
 
 jobs:
   build-universal:
