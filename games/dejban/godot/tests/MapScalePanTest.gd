@@ -249,7 +249,9 @@ func _test_pan_and_build(test) -> void:
 
 	battle.hud._pan_button.button_pressed = false
 	battle._world.position = Vector2(3, -2) # also exercise the live shake transform
-	var desired := Vector2(500, 219)
+	# The drop snaps to the nearest 2×2 house block, so both the preview and the
+	# built tower sit on the lattice cell under the pointer.
+	var desired := battle.map.snap_build_cell(Vector2(500, 219), {})
 	var screen: Vector2 = battle._world_to_screen(desired)
 	battle.begin_weapon_drag("machinegun", Vector2(200, 660))
 	battle._update_ghost(screen)
@@ -257,7 +259,7 @@ func _test_pan_and_build(test) -> void:
 		"پیش‌نمای برج پس از حرکت باید زیر اشاره‌گر و در نقطهٔ معتبر باشد")
 	battle._finish_drag(screen)
 	test.check(battle.towers.size() == 1 and battle.towers[0].position.distance_to(desired) < 0.01,
-		"رهاکردن پس از حرکت باید برج را در همان مختصات واقعی جهان بسازد")
+		"رهاکردن پس از حرکت باید برج را در همان خانهٔ شبکهٔ ۲×۲ بسازد")
 	battle._handle_build_press(true, screen)
 	battle._handle_build_press(false, screen)
 	test.check(battle.selected_tower == battle.towers[0], "انتخاب برج ساخته‌شده پس از حرکت باید درست باشد")

@@ -7,7 +7,7 @@ extends RefCounted
 
 func run(test) -> void:
 	_test_lattice_alignment(test)
-	_test_two_towers_stack_exactly(test)
+	await _test_two_towers_stack_exactly(test)
 	_test_forbidden_spot_does_not_teleport(test)
 	_test_every_map_has_a_cell(test)
 
@@ -33,9 +33,12 @@ func _test_lattice_alignment(test) -> void:
 
 func _test_two_towers_stack_exactly(test) -> void:
 	var battle = load("res://scenes/Battle.tscn").instantiate()
+	test.add_child(battle)
+	await test.get_tree().process_frame
+	await test.get_tree().process_frame
 	battle.coins = 9999
-	# نقشهٔ اول: فاصلهٔ آزاد میان دو جاده چهار خانه است.
-	var map := GameMap.build(0)
+	# همان نقشه‌ای که صحنهٔ نبرد ساخته است (آزمون روی نقشهٔ واقعی اجرا می‌شود).
+	var map: GameMap = battle.map
 	var road_y: float = map.route[0].y
 	var first := Vector2(600.0, road_y + Balance.GRID_STEP * 1.5)
 	var cell_a: Vector2 = map.snap_build_cell(first, {})
@@ -48,7 +51,6 @@ func _test_two_towers_stack_exactly(test) -> void:
 	test.check(map.build_issue(cell_b, {cell_a: true}).is_empty(),
 		"برج دوم نباید با برج اول هم‌پوشانی داشته باشد")
 	# کاشت واقعی از همان مسیر بازی: دو برج پشت‌سرهم ساخته می‌شوند.
-	battle.map = map
 	battle.selected_weapon = "machinegun"
 	battle._try_build(first)
 	var built_a: Vector2 = battle.towers[0].position if battle.towers.size() > 0 else Vector2.INF
