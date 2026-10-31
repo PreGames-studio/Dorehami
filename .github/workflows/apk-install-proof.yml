@@ -42,11 +42,22 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p apk
-          gh release download "$TAG" --pattern 'Dorehami-debug.apk' --pattern 'Dorehami-debug.apk.sha256' \
-            --dir apk --clobber
+          # A concurrent build may republish the rolling asset mid-download, so retry the
+          # download+checksum pair instead of failing on a transient mismatch.
+          for attempt in 1 2 3; do
+            gh release download "$TAG" --pattern 'Dorehami-debug.apk' \
+              --pattern 'Dorehami-debug.apk.sha256' --dir apk --clobber
+            if (cd apk && sha256sum -c Dorehami-debug.apk.sha256); then
+              break
+            fi
+            echo "checksum mismatch on attempt $attempt; the asset was probably republished"
+            sleep 20
+            if [ "$attempt" = 3 ]; then
+              echo "::error::published APK does not match its own .sha256 file"
+              exit 1
+            fi
+          done
           ls -l apk
-          # The published .sha256 file is the contract a user checks by hand.
-          (cd apk && sha256sum -c Dorehami-debug.apk.sha256)
 
       - name: Structural checks on the downloaded file
         run: |
