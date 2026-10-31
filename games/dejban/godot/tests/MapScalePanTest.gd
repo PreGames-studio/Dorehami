@@ -251,7 +251,7 @@ func _test_pan_and_build(test) -> void:
 	battle._world.position = Vector2(3, -2) # also exercise the live shake transform
 	# The drop snaps to the nearest 2×2 house block, so both the preview and the
 	# built tower sit on the lattice cell under the pointer.
-	var desired := battle.map.snap_build_cell(Vector2(500, 219), {})
+	var desired: Vector2 = battle.map.snap_build_cell(Vector2(500, 219), {})
 	var screen: Vector2 = battle._world_to_screen(desired)
 	battle.begin_weapon_drag("machinegun", Vector2(200, 660))
 	battle._update_ghost(screen)
