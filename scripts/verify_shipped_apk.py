@@ -156,11 +156,8 @@ def badging(aapt: str | None, apk: Path) -> dict[str, str]:
 
 
 def verify(apk: Path, *, expect_package: str, min_sdk: int | None, aapt: str | None,
-<<<<<<< HEAD
-           expect_pack: bool) -> tuple[Report, dict[str, str]]:
-=======
-           expect_pack: bool, require_abis: tuple[str, ...] = ("arm64-v8a",)) -> tuple[Report, dict[str, str]]:
->>>>>>> de0386b (feat(dejban): snap tower drops to the 2x2 house grid and shorten pedestals 20%)
+           expect_pack: bool,
+           require_abis: tuple[str, ...] = ("arm64-v8a",)) -> tuple[Report, dict[str, str]]:
     report = Report()
     if not report.check(apk.is_file(), "فایل APK موجود است", str(apk)) or not apk.is_file():
         return report, {}
@@ -212,12 +209,8 @@ def verify(apk: Path, *, expect_package: str, min_sdk: int | None, aapt: str | N
         report.check(bool(godot), "کتابخانهٔ بومی Godot داخل APK است", ", ".join(godot))
         abis = sorted({name.split("/")[1] for name in libs if name.count("/") >= 2})
         report.check(bool(abis), "معماری‌های بومی مشخص‌اند", ", ".join(abis))
-<<<<<<< HEAD
-        report.check("arm64-v8a" in abis, "حداقل یک معماری arm64-v8a هست", ", ".join(abis))
-=======
         for required in require_abis:
             report.check(required in abis, f"معماری {required} داخل بسته هست", ", ".join(abis))
->>>>>>> de0386b (feat(dejban): snap tower drops to the 2x2 house grid and shorten pedestals 20%)
 
     fields = badging(aapt, apk)
     if fields:
@@ -238,14 +231,9 @@ def verify(apk: Path, *, expect_package: str, min_sdk: int | None, aapt: str | N
             else:
                 report.check(True, "minSdk (خوانا نبود)", fields["minSdk"])
         if "nativeCode" in fields:
-<<<<<<< HEAD
-            report.check("arm64-v8a" in fields["nativeCode"], "aapt هم arm64-v8a را می‌بیند",
-                         fields["nativeCode"])
-=======
             for required in require_abis:
                 report.check(required in fields["nativeCode"], f"aapt هم {required} را می‌بیند",
                              fields["nativeCode"])
->>>>>>> de0386b (feat(dejban): snap tower drops to the 2x2 house grid and shorten pedestals 20%)
     else:
         report.check(True, "اطلاعات بدجینگ (اختیاری)", "aapt در دسترس نبود")
 
@@ -359,11 +347,8 @@ def main(argv: list[str]) -> int:
     parser.add_argument("--min-sdk", type=int, default=None)
     parser.add_argument("--no-pack", action="store_true",
                         help="skip the embedded Dezhban pack check (non-app modules)")
-<<<<<<< HEAD
-=======
     parser.add_argument("--require-abi", action="append", dest="require_abis",
                         help="an ABI that must be inside the APK (repeatable; default arm64-v8a)")
->>>>>>> de0386b (feat(dejban): snap tower drops to the 2x2 house grid and shorten pedestals 20%)
     parser.add_argument("--markdown", action="store_true", help="print the report as a Markdown table")
     args = parser.parse_args(argv)
 
@@ -374,10 +359,7 @@ def main(argv: list[str]) -> int:
     report, facts = verify(
         args.apk, expect_package=args.expect_package, min_sdk=args.min_sdk,
         aapt=aapt, expect_pack=not args.no_pack,
-<<<<<<< HEAD
-=======
         require_abis=tuple(args.require_abis or ["arm64-v8a"]),
->>>>>>> de0386b (feat(dejban): snap tower drops to the 2x2 house grid and shorten pedestals 20%)
     )
     report.print(markdown=args.markdown)
 
