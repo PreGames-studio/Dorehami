@@ -1,0 +1,113 @@
+# Published APK install proof — the last mile the build gate cannot cover.
+#
+# `ci.yml` proves the file is complete, aligned and correctly signed. This workflow proves a real
+# Android device accepts that exact published file: it downloads the APK from a release, checks the
+# release's own `.sha256`, then installs and launches it on an emulator.
+#
+# Run it by hand (Actions → Published APK install proof → Run workflow) with the release tag you
+# want to prove, or push to an `arena/**` branch with `[install-proof]` in the commit message.
+name: Published APK install proof
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "تگ ریلیزی که APK آن تست می‌شود"
+        required: true
+        default: "preview-arena-afc269b8-dorehami"
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/apk-install-proof.yml"]
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_ID: ir.dorehami.app
+
+jobs:
+  install-proof:
+    name: Install and launch the published APK
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[install-proof]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the published APK and its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || 'preview-arena-afc269b8-dorehami' }}
+        run: |
+          set -euo pipefail
+          mkdir -p apk
+          gh release download "$TAG" --pattern 'Dorehami-debug.apk' --pattern 'Dorehami-debug.apk.sha256' \
+            --dir apk --clobber
+          ls -l apk
+          # The published .sha256 file is the contract a user checks by hand.
+          (cd apk && sha256sum -c Dorehami-debug.apk.sha256)
+
+      - name: Structural checks on the downloaded file
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_shipped_apk.py --self-test
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          tools=$(find "${sdk:-/nonexistent}/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -n 1)
+          python3 scripts/verify_shipped_apk.py apk/Dorehami-debug.apk \
+            ${tools:+--aapt "$tools/aapt2"} --min-sdk 24 | tee verify.txt
+          "$tools/zipalign" -c -v 4 apk/Dorehami-debug.apk > /dev/null
+          for api in 24 26 28 30 33 34 35; do
+            "$tools/apksigner" verify --min-sdk-version "$api" apk/Dorehami-debug.apk
+          done
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # ARM64 translation on an x86_64 image is what lets the shipped arm64-v8a APK actually run
+      # here. When the image has no translation the result is inconclusive, not a failure.
+      - name: Install and launch on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          script: |
+            set -o pipefail
+            abis=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')
+            echo "Emulator ABI list: $abis"
+            adb shell settings put global package_verifier_enable 0 || true
+            adb install -r -t -d apk/Dorehami-debug.apk
+            adb shell pm list packages | grep -F "$PACKAGE_ID"
+            adb logcat -c
+            adb shell monkey -p "$PACKAGE_ID" -c android.intent.category.LAUNCHER 1
+            sleep 25
+            pid=$(adb shell pidof "$PACKAGE_ID" | tr -d '\r')
+            echo "pid: ${pid:-<not running>}"
+            adb logcat -d > logcat.txt || true
+            if grep -qE "FATAL EXCEPTION|INSTALL_FAILED" logcat.txt; then
+              echo "::error::crash or install failure while launching the published APK"
+              grep -E "FATAL EXCEPTION|INSTALL_FAILED" -A 15 logcat.txt | head -n 80
+              exit 1
+            fi
+            [ -n "$pid" ] || { echo "::error::the app process is not running after launch"; exit 1; }
+            echo "Published APK installed and launched successfully."
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "## Published APK install proof"
+            echo
+            echo '```'
+            cat verify.txt 2>/dev/null || echo "(no structural report)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
