@@ -1,0 +1,141 @@
+# Universal APK — for phones the arm64-only build cannot install.
+#
+# The shipped debug APK contains only `arm64-v8a` native libraries. A 32-bit-only
+# phone (or an emulator image without ARM64) therefore rejects it at install time,
+# which Android reports as «بسته معتبر نیست». This workflow builds the same app with
+# `armeabi-v7a` (and x86_64, harmless on phones) added, proves both ABIs are inside,
+# and publishes it next to the normal APK as `Dorehami-universal-debug.apk`.
+name: Universal APK (arm64 + armv7)
+
+on:
+  workflow_dispatch:
+    inputs:
+      publish_release:
+        description: "هم‌زمان روی ریلیز پیش‌نمایش همین شاخه منتشر شود"
+        type: boolean
+        default: true
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/apk-universal.yml"]
+
+permissions:
+  contents: write   # only used by the preview-release upload step
+
+jobs:
+  build-universal:
+    name: Build and verify the universal APK
+    concurrency:
+      group: apk-preview-${{ github.ref }}
+      cancel-in-progress: false
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up JDK 17
+        uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: "17"
+
+      - name: Prepare embedded Dezhban Godot pack
+        run: bash games/dejban/tools/prepare_android_pack.sh
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v4
+
+      - name: Build with 32-bit and 64-bit ARM libraries
+        run: |
+          set -o pipefail
+          ./gradlew :app:assembleDebug \
+            -Pdorehami.additionalAndroidAbis=armeabi-v7a,x86_64 \
+            --stacktrace 2>&1 | tail -n 40
+
+      - name: Prove both phone ABIs are inside
+        run: |
+          set -euo pipefail
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          unzip -l "$apk" | grep -E 'lib/(arm64-v8a|armeabi-v7a)/libgodot_android\.so'
+          for abi in arm64-v8a armeabi-v7a; do
+            unzip -l "$apk" | grep -q "lib/$abi/libgodot_android.so" || {
+              echo "::error::lib/$abi/libgodot_android.so is missing — the universal APK is not universal"
+              exit 1
+            }
+          done
+
+      - name: Installability gate (same checks as the main build)
+        run: |
+          set -euo pipefail
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          tools=$(find "${sdk:-/nonexistent}/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -n 1)
+          python3 scripts/verify_shipped_apk.py --self-test
+          python3 scripts/verify_shipped_apk.py "$apk" --aapt "$tools/aapt2" --min-sdk 24 | tee verify.txt
+          "$tools/zipalign" -c -v 4 "$apk" > /dev/null
+          for api in 24 26 28 30 33 34 35; do
+            "$tools/apksigner" verify --min-sdk-version "$api" "$apk"
+          done
+          echo "APK_SHA256=$(awk '/^sha256:/{print $2; exit}' verify.txt)" >> "$GITHUB_ENV"
+          echo "APK_BYTES=$(stat -c%s "$apk")" >> "$GITHUB_ENV"
+
+      - name: Upload the universal APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: dorehami-universal-debug-apk
+          path: app/build/outputs/apk/debug/*.apk
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Publish on the branch preview release
+        if: startsWith(github.ref, 'refs/heads/arena/')
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -uo pipefail
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          branch=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
+          sha=$(git rev-parse --short=7 HEAD)
+          tag="preview-${branch}"
+          cp "$apk" "Dorehami-universal-debug.apk"
+          printf '%s  Dorehami-universal-debug.apk\n' "${APK_SHA256}" > Dorehami-universal-debug.apk.sha256
+          mb=$((APK_BYTES / 1024 / 1024))
+          {
+            echo "### دورهمی — بیلد «همه‌جارو» (arm64 + armv7) برای گوشی‌های ۳۲ بیتی"
+            echo
+            echo "| | |"
+            echo "|---|---|"
+            echo "| کامیت | \`${GITHUB_SHA}\` |"
+            echo "| حجم | ${mb} مگابایت (${APK_BYTES} بایت) |"
+            echo "| SHA-256 | \`${APK_SHA256}\` |"
+            echo
+            echo "**دانلود مستقیم:** ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/Dorehami-universal-debug.apk"
+            echo
+            echo "این فایل هم کتابخانهٔ ۶۴ بیتی (arm64-v8a) دارد و هم ۳۲ بیتی (armeabi-v7a)؛ اگر نسخهٔ عادی"
+            echo "با پیام «بستهٔ نامعتبر» رد شد، این را امتحان کن."
+          } > universal-section.md
+
+          gh release view "$tag" >/dev/null 2>&1 || \
+            gh release create "$tag" --prerelease --title "Preview: ${GITHUB_REF_NAME}" --target "${GITHUB_SHA}" --notes "بیلد پیش‌نمایش ${GITHUB_REF_NAME}"
+
+          uploaded=0
+          for attempt in 1 2 3; do
+            if gh release upload "$tag" "Dorehami-universal-debug.apk" "Dorehami-universal-debug.apk.sha256" --clobber 2>&1; then
+              uploaded=1
+              break
+            fi
+            echo "upload attempt $attempt failed; retrying"
+            sleep 15
+          done
+          if [ "$uploaded" -ne 1 ]; then
+            echo "::error title=universal-upload::could not upload the universal APK to ${tag}"
+            exit 1
+          fi
+
+          # Keep the existing notes and append the universal section (never replace them).
+          gh release view "$tag" --json body --jq .body > current-notes.md 2>/dev/null || : > current-notes.md
+          if ! grep -q "بیلد «همه‌جارو»" current-notes.md; then
+            { cat current-notes.md; echo; echo "---"; echo; cat universal-section.md; } > merged-notes.md
+            gh release edit "$tag" --notes-file merged-notes.md >/dev/null 2>&1 || \
+              echo "::warning title=universal-notes::uploaded the APK but could not update the release notes"
+          fi
+          echo "published universal APK for ${GITHUB_REF_NAME} (${sha})"

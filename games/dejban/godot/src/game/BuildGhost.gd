@@ -40,7 +40,7 @@ func set_weapon(weapon_def: Dictionary) -> void:
 		# Armory uses a cropped icon; the ghost uses the real full-frame anchor.
 		_base.texture = Assets.tex(Weapons.art_key(wid))
 		_base.offset = -LaserVisual.GROUND
-		_base.scale = Vector2.ONE * LaserVisual.IMAGE_SCALE
+		_base.scale = Balance.base_scale(LaserVisual.IMAGE_SCALE)
 		_base.position = LaserVisual.FOOTPRINT_OFFSET
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	elif String(weapon.get("visual", "")) == "tesla_layers":
@@ -48,12 +48,12 @@ func set_weapon(weapon_def: Dictionary) -> void:
 		# full-frame ground anchor and scale of the live Tesla.
 		_base.texture = Assets.tex(Weapons.art_key(wid))
 		_base.offset = -TeslaVisual.GROUND
-		_base.scale = Vector2.ONE * TeslaVisual.IMAGE_SCALE
+		_base.scale = Balance.base_scale(TeslaVisual.IMAGE_SCALE)
 		_base.position = TeslaVisual.FOOTPRINT_OFFSET
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	elif String(weapon.get("visual", "")) in ["machinegun_layers", "artillery_layers"]:
 		_base.offset = -MachinegunVisual.GROUND
-		_base.scale = Vector2.ONE * MachinegunVisual.IMAGE_SCALE
+		_base.scale = Balance.base_scale(MachinegunVisual.IMAGE_SCALE)
 		_base.position = MachinegunVisual.FOOTPRINT_OFFSET
 		_base.texture_filter = CanvasItem.TEXTURE_FILTER_LINEAR
 	else:
@@ -90,10 +90,18 @@ func _draw() -> void:
 	draw_circle(Vector2.ZERO, reach, Color(tint.r, tint.g, tint.b, 0.16 if ok else 0.22))
 	draw_arc(Vector2.ZERO, reach, 0.0, TAU, 72, Color(tint.r, tint.g, tint.b, 0.90), 2.8, true)
 
-	# همان مربع دو خانه در دو خانه که قانون ساخت بررسی می‌کند.
+	# همان بلوک ۲×۲ خانه که شبکهٔ کاشت انتخاب می‌کند.
 	var half: float = Balance.TOWER_SIZE * 0.5
 	var footprint := Rect2(-half, -half, Balance.TOWER_SIZE, Balance.TOWER_SIZE)
 	draw_rect(footprint, Color(tint.r, tint.g, tint.b, 0.28), true)
 	draw_rect(footprint, tint, false, 2.2, true)
+	# تقسیم‌بندی دو در دو: بازیکن می‌بیند برج دقیقاً چهار خانه را پر می‌کند.
+	var cell := half
+	draw_line(Vector2(0.0, -half), Vector2(0.0, half), Color(tint.r, tint.g, tint.b, 0.45), 1.2, true)
+	draw_line(Vector2(-half, 0.0), Vector2(half, 0.0), Color(tint.r, tint.g, tint.b, 0.45), 1.2, true)
+	draw_circle(Vector2(-cell, -cell), 1.6, tint)
+	draw_circle(Vector2(cell, -cell), 1.6, tint)
+	draw_circle(Vector2(-cell, cell), 1.6, tint)
+	draw_circle(Vector2(cell, cell), 1.6, tint)
 
 	draw_circle(Vector2.ZERO, 3.5, tint)

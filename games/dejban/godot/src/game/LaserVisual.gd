@@ -4,8 +4,8 @@ class_name LaserVisual
 extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
-## Even the tallest level and every direction fit in the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+## Original design scale; artwork can extend beyond its ２×２ placement cell.
+const IMAGE_SCALE := 0.46
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
@@ -33,7 +33,7 @@ func setup(start_level: int) -> void:
 	base = _sprite("FixedLaserPedestal")
 	base.centered = false
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	projection = Node2D.new()
 	projection.name = "LaserAimProjection"
 	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)

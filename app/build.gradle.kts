@@ -16,8 +16,11 @@ android {
 
         ndk {
             // The embedded Godot runtime ships a huge native library per ABI.
-            // Ship only arm64-v8a (every modern phone) so the APK stays sane.
-            abiFilters += "arm64-v8a"
+            // arm64-v8a covers every modern phone; armeabi-v7a is kept because a
+            // 32-bit-only phone rejects an arm64-only package at install time
+            // ("بسته معتبر نیست"). Both ship in the normal APK — the same file
+            // installs on 32-bit and 64-bit devices.
+            abiFilters += listOf("arm64-v8a", "armeabi-v7a")
             // Device-check CI can build a separate emulator-compatible APK with
             // -Pdorehami.additionalAndroidAbis=x86_64 without changing shipped/default APKs.
             providers.gradleProperty("dorehami.additionalAndroidAbis").orNull

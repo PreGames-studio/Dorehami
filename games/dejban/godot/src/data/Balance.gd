@@ -52,8 +52,19 @@ const ROUTE_CLEARANCE := 46.0
 const KEEP_CLEARANCE := 76.0
 const TOWER_RADIUS := HOUSE_SIZE
 const TOWER_MIN_GAP := TOWER_SIZE
-## واحد خانه؛ قرار دادن برج همچنان آزاد است و به شبکه یا سکوی خاصی قفل نمی‌شود.
+## واحد خانه؛ برج دقیقاً در یک بلوک ۲×۲ خانه می‌نشیند و مرکز بلوک روی همین
+## گام شبکه (یک برج) است. شبکه با محور جادهٔ هر نقشه هم‌تراز می‌شود.
 const BUILD_SNAP := HOUSE_SIZE
+## گام شبکهٔ کاشت: هر برج = یک بلوک ۲×۲ خانه (۷۱ پیکسل).
+const GRID_STEP := TOWER_SIZE
+## نسبت پایه به هنر اصلی: عرض ۲۰٪ کمتر؛ ارتفاع نسبت به پایهٔ قبلی ۲۰٪ کمتر
+## (ارتفاع قبلی خودش ۸۰٪ هنر اصلی بود). محور سر/لوله جابه‌جا نمی‌شود.
+const TOWER_BASE_WIDTH := 0.8
+const TOWER_BASE_HEIGHT := 0.64
+
+## پایین پایه روی لنگر زمین می‌ماند.
+static func base_scale(image_scale: float) -> Vector2:
+	return Vector2(image_scale * TOWER_BASE_WIDTH, image_scale * TOWER_BASE_HEIGHT)
 ## نسبت فاصلهٔ محور چرخش سرِ برجک از بالای تصویر.
 const TOWER_PIVOT := 0.18
 

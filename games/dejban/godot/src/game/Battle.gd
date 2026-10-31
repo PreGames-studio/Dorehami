@@ -565,8 +565,10 @@ func _handle_build_press(pressed: bool, screen: Vector2) -> void:
 		return
 	_finish_drag(screen)
 
-## ساخت آزاد است؛ فقط نزدیک یک جای باریک کنار جاده، خطای کوچک انگشت به
-## نزدیک‌ترین محل معتبر جبران می‌شود. پیش‌نمایش و ساخت از یک نقطه استفاده می‌کنند.
+## هر برج داخل یک بلوک ۲×۲ خانه می‌نشیند: نقطهٔ انگشت به نزدیک‌ترین بلوک روی
+## شبکهٔ نقشه گرد می‌شود، پس دو برج پشت‌سرهم دقیقاً در فاصلهٔ یک برج کاشته می‌شوند
+## و برج دوم همیشه جای کاشت مستقیم زیر برج اول را دارد. پیش‌نمایش و ساخت از همان
+## یک نقطه استفاده می‌کنند.
 func _snap(pos: Vector2) -> Vector2:
 	var half: float = Balance.TOWER_SIZE * 0.5
 	var rect: Rect2 = Balance.BUILD_RECT
@@ -574,7 +576,7 @@ func _snap(pos: Vector2) -> Vector2:
 		clampf(pos.x, rect.position.x + half + 0.01, rect.end.x - half - 0.01),
 		clampf(pos.y, rect.position.y + half + 0.01, rect.end.y - half - 0.01)
 	)
-	return map.snap_build_position(clamped, occupied) if map != null else clamped
+	return map.snap_build_cell(clamped, occupied) if map != null else clamped
 
 func _tower_at(world: Vector2) -> Variant:
 	var best = null
@@ -682,6 +684,8 @@ func _refresh_guide() -> void:
 	var tower_positions := PackedVector2Array()
 	for pos in occupied.keys():
 		tower_positions.append(pos as Vector2)
+	# شبکهٔ ۲×۲ خانه تا لحظهٔ رهاکردن دیده می‌شود تا برج دقیقاً جای خودش بنشیند.
+	guide.show_lattice(map.grid_origin)
 	guide.show_spots(tower_positions)
 
 # ------------------------------------------------------------------ ارتقا و فروش
