@@ -16,7 +16,7 @@ const GATLING_ROWS := 24
 const GROUND := Vector2(128.0, 206.0)
 const HEAD_PIVOT := Vector2(128.0, 100.0)
 ## The widest animated frame plus recoil fits within the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / FRAME
+const IMAGE_SCALE: float = Balance.TOWER_SIZE * Balance.TOWER_ART_SCALE / FRAME
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.35)
 const DEPTH_SQUASH := 0.68
 const MUZZLE := Vector2(100.0, 0.0)
@@ -59,7 +59,7 @@ func setup(start_level: int) -> void:
 
 	projection = Node2D.new()
 	projection.name = "AimProjection"
-	projection.position = Balance.head_offset(IMAGE_SCALE, HEAD_PIVOT - GROUND)
+	projection.position = (HEAD_PIVOT - GROUND) * IMAGE_SCALE
 	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
 	add_child(projection)
 	mount = Node2D.new()

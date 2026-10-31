@@ -5,7 +5,7 @@ extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
 ## Even the tallest level and every direction fit in the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+const IMAGE_SCALE: float = Balance.TOWER_SIZE * Balance.TOWER_ART_SCALE / 320.0
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
@@ -73,7 +73,7 @@ func set_level(value: int) -> void:
 	var atlas := Assets.tex("towers_laser/head_%d_directions" % current_level)
 	_set_head_atlas(head, atlas)
 	_set_head_atlas(head_next, atlas)
-	projection.position = Balance.head_offset(IMAGE_SCALE, AXIS_CENTERS[current_level - 1] - GROUND)
+	projection.position = (AXIS_CENTERS[current_level - 1] - GROUND) * IMAGE_SCALE
 	_refresh_head()
 
 ## Input is the screen-space vector from the bore axis to an enemy hit point.

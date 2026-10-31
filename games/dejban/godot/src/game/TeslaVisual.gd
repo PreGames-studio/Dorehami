@@ -6,7 +6,7 @@ extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
 ## Even the tallest level and every direction fit in the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+const IMAGE_SCALE: float = Balance.TOWER_SIZE * Balance.TOWER_ART_SCALE / 320.0
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
@@ -86,7 +86,7 @@ func set_level(value: int) -> void:
 	_set_head_atlas(head, atlas)
 	_set_head_atlas(head_next, atlas)
 	core.texture = Assets.tex("towers_tesla/core_%d" % current_level)
-	var core_position := Balance.head_offset(IMAGE_SCALE, center - GROUND)
+	var core_position := (center - GROUND) * IMAGE_SCALE
 	projection.position = core_position
 	core.position = core_position
 	core.offset = -center

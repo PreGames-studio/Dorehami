@@ -129,7 +129,7 @@ func _test_art_levels_and_aim(test) -> void:
 			and visual.core.texture == Assets.tex("towers_tesla/core_%d" % level),
 			"در سطح %d پایه باید ثابت و سر و هسته لایه‌ای باشند" % level)
 		var center: Vector2 = TeslaVisual.CORE_CENTERS[level - 1]
-		test.check(visual.projection.position.distance_to(Balance.head_offset(TeslaVisual.IMAGE_SCALE, center - TeslaVisual.GROUND)) < 0.001
+		test.check(visual.projection.position.distance_to((center - TeslaVisual.GROUND) * TeslaVisual.IMAGE_SCALE) < 0.001
 			and visual.core.position == visual.projection.position and visual.charge.position == visual.projection.position,
 			"محور هسته، سر و محل خروج برق سطح %d باید دقیقاً هم‌تراز باشند" % level)
 		if manifest is Dictionary and manifest.get("core_centers", []).size() == 5:

@@ -128,7 +128,7 @@ func _test_economy_and_visual(test) -> void:
 			and visual.head.hframes == 8 and visual.head.vframes == 6,
 			"پایهٔ سطح %d باید ثابت و سر ۴۸جهتی آن مستقل باشد" % level)
 		var center: Vector2 = LaserVisual.AXIS_CENTERS[level - 1]
-		test.check(visual.projection.position.distance_to(Balance.head_offset(LaserVisual.IMAGE_SCALE, center - LaserVisual.GROUND)) < 0.001,
+		test.check(visual.projection.position.distance_to((center - LaserVisual.GROUND) * LaserVisual.IMAGE_SCALE) < 0.001,
 			"محور سر سطح %d باید با دارایی هم‌تراز باشد" % level)
 		if manifest is Dictionary and manifest.get("axis_centers", []).size() == 5:
 			var recorded: Array = manifest["axis_centers"][level - 1]
