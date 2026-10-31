@@ -7,6 +7,7 @@
 # platform rule. This workflow installs the exact published file on several Android
 # profiles and prints the INSTALL_FAILED_* reason for each one.
 name: APK compatibility matrix
+# Touching this file re-runs the matrix against the current preview APK.
 
 on:
   workflow_dispatch:

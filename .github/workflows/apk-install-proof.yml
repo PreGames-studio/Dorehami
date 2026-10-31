@@ -7,6 +7,7 @@
 # Run it by hand (Actions → Published APK install proof → Run workflow) with the release tag you
 # want to prove, or push to an `arena/**` branch with `[install-proof]` in the commit message.
 name: Published APK install proof
+# Re-run on any push that touches this file to re-prove the rolling preview APK.
 
 on:
   workflow_dispatch:
@@ -66,7 +67,8 @@ jobs:
           sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
           tools=$(find "${sdk:-/nonexistent}/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -n 1)
           python3 scripts/verify_shipped_apk.py apk/Dorehami-debug.apk \
-            ${tools:+--aapt "$tools/aapt2"} --min-sdk 24 | tee verify.txt
+            ${tools:+--aapt "$tools/aapt2"} --min-sdk 24 \
+            --require-abi arm64-v8a --require-abi armeabi-v7a | tee verify.txt
           "$tools/zipalign" -c -v 4 apk/Dorehami-debug.apk > /dev/null
           for api in 24 26 28 30 33 34 35; do
             "$tools/apksigner" verify --min-sdk-version "$api" apk/Dorehami-debug.apk
