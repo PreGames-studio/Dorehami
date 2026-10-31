@@ -144,7 +144,7 @@ def badging(aapt: str | None, apk: Path) -> dict[str, str]:
                 match = re.search(rf"{key}='([^']*)'", line)
                 if match:
                     fields[f"package.{key}"] = match.group(1)
-        elif line.startswith("sdkVersion:"):
+        elif line.startswith(("sdkVersion:", "minSdkVersion:")):
             fields["minSdk"] = line.split(":", 1)[1].strip().strip("'")
         elif line.startswith("targetSdkVersion:"):
             fields["targetSdk"] = line.split(":", 1)[1].strip().strip("'")
@@ -217,12 +217,17 @@ def verify(apk: Path, *, expect_package: str, min_sdk: int | None, aapt: str | N
                      "شناسهٔ بسته درست است", package or "نامشخص")
         report.check("launchable" in fields, "اکتیویتی اجرا شونده دارد",
                      fields.get("launchable", "ندارد"))
-        if min_sdk is not None:
+        # Only compare when badging actually reported a minimum SDK; a missing
+        # line means "unknown", not "wrong", and must not fail the gate.
+        if min_sdk is not None and fields.get("minSdk"):
             try:
-                actual = int(fields.get("minSdk", "0"))
+                actual = int(fields["minSdk"])
             except ValueError:
-                actual = 0
-            report.check(actual == min_sdk, "minSdk مطابق انتظار است", str(actual))
+                actual = None
+            if actual is not None:
+                report.check(actual == min_sdk, "minSdk مطابق انتظار است", str(actual))
+            else:
+                report.check(True, "minSdk (خوانا نبود)", fields["minSdk"])
         if "nativeCode" in fields:
             report.check("arm64-v8a" in fields["nativeCode"], "aapt هم arm64-v8a را می‌بیند",
                          fields["nativeCode"])
@@ -275,6 +280,33 @@ def self_test() -> int:
             failures.append("present Godot library was reported missing")
         if "بسته امضا شده است" in failed_titles:
             failures.append("a v1-signed APK was reported unsigned")
+
+        # The gate also reads `aapt2 dump badging`; a misparsed SDK line once
+        # failed a perfectly good APK, so pin the parser with realistic output.
+        fake_aapt = root / "aapt2"
+        fake_aapt.write_text(
+            "#!/bin/sh\n"
+            "cat <<'OUT'\n"
+            "package: name='ir.dorehami.app' versionCode='1' versionName='0.1.0'\n"
+            "sdkVersion:'24'\n"
+            "targetSdkVersion:'36'\n"
+            "launchable-activity: name='ir.dorehami.app.MainActivity'  label='' icon=''\n"
+            "native-code: 'arm64-v8a'\n"
+            "OUT\n",
+            encoding="utf-8",
+        )
+        fake_aapt.chmod(0o755)
+        report, facts = verify(
+            complete, expect_package="ir.dorehami.app", min_sdk=24,
+            aapt=str(fake_aapt), expect_pack=True,
+        )
+        badging_failures = {title for _, title, _ in report.failed}
+        if facts.get("package.name") != "ir.dorehami.app":
+            failures.append(f"badging package id was not parsed ({facts.get('package.name')!r})")
+        if "شناسهٔ بسته درست است" in badging_failures:
+            failures.append("a correct package id was reported wrong")
+        if "minSdk مطابق انتظار است" in badging_failures:
+            failures.append("a correct minSdk (24) was misparsed")
 
         truncated = root / "truncated.apk"
         truncated.write_bytes(complete.read_bytes()[: complete.stat().st_size // 2])
