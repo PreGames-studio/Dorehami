@@ -280,8 +280,10 @@ func _test_pan_and_build(test) -> void:
 
 	# A raw touch drag still builds after panning, rather than moving the map.
 	battle._set_pan_offset(Vector2(-90, 40))
-	var start_world := Vector2(650, 219)
 	var end_world := Vector2(680, 219)
+	# Start far enough from the target cell that this counts as a drag, not a tap
+	# (the drop snaps to the 2×2 cell, so the raw pointer distance is what matters).
+	var start_world: Vector2 = battle.map.snap_build_cell(end_world, battle.occupied) + Vector2(-70.0, 50.0)
 	var end_cell: Vector2 = battle.map.snap_build_cell(end_world, battle.occupied)
 	touch.index = 2
 	touch.position = battle._world_to_screen(start_world)
