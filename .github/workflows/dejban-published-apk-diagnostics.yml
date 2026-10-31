@@ -1,0 +1,225 @@
+# Diagnose the exact already-published APK, without exporting or releasing a new APK.
+name: Dezhban published APK diagnostics
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/dejban-published-apk-diagnostics.yml"
+      - "games/dejban/tools/diagnose_published_apk_on_emulator.sh"
+      - "games/dejban/tools/diagnose_apk_installer_ui.sh"
+      - "games/dejban/tools/download_published_apks_for_diagnosis.sh"
+
+permissions:
+  contents: read
+
+# Pin both digests to the actual releases being investigated. A changed latest
+# release must not silently replace the APK under test.
+env:
+  CURRENT_APK_SHA256: a29a5349b8d18f5d539c9b2b3c8afd0cfc713b187451f6ef0038b1f5bfa3a01d
+  PREVIOUS_APK_SHA256: f2a4ca68ff21fbb9a5aee334b7c2d7e8b18396cc7ce76ae01fc52b0c9dbfc3c1
+
+jobs:
+  inspect:
+    name: Inspect the published packages
+    # A build may carry [diagnose-apk] only to suppress the unrelated host
+    # APK; its archived baseline is created later by the release job.
+    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') && !contains(github.event.head_commit.message, '[build-apk]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-java@v5
+        with:
+          distribution: temurin
+          java-version: '17'
+      - name: Download and verify the exact existing APKs
+        run: bash games/dejban/tools/download_published_apks_for_diagnosis.sh apk
+      - name: Inspect signing, package data and native libraries
+        run: |
+          set -euo pipefail
+          tools=$(find "$ANDROID_HOME/build-tools" -type f -name apksigner -printf '%h\n' | sort -V | tail -1)
+          test -x "$tools/apksigner"
+          test -x "$tools/aapt"
+          test -x "$tools/zipalign"
+          report="$RUNNER_TEMP/apk-audit.txt"
+          : > "$report"
+          for which in previous current; do
+            apk="apk/$which.apk"
+            unzip -tq "$apk"
+            "$tools/apksigner" verify --verbose --print-certs "$apk" > "$which-signature.txt" 2>&1
+            echo "=== $which signature ===" | tee -a "$report"
+            cat "$which-signature.txt" | tee -a "$report"
+            echo "=== $which manifest ===" | tee -a "$report"
+            "$tools/aapt" dump badging "$apk" | \
+              grep -E '^package:|^sdkVersion:|^targetSdkVersion:|^native-code:' | tee -a "$report"
+          done
+          # Newer apksigner versions print "V3.0 Signer:" rather than "Signer #1".
+          pattern='s/^.*Signer(:| #[0-9]+)? certificate SHA-256 digest:[[:space:]]*([[:xdigit:]]{64})[[:space:]]*$/\2/p'
+          old=$(sed -nE "$pattern" previous-signature.txt | head -1)
+          new=$(sed -nE "$pattern" current-signature.txt | head -1)
+          if [[ "$old" =~ ^[[:xdigit:]]{64}$ && "$new" =~ ^[[:xdigit:]]{64}$ ]]; then
+            if [ "$old" = "$new" ]; then matching=yes; else matching=no; fi
+            echo "Previous and current signing certificates match: $matching" | tee -a "$report"
+          else
+            echo 'Could not extract both certificate digests; comparison is inconclusive.' | tee -a "$report"
+          fi
+          echo '=== Current 64-bit native ELF program headers ===' | tee -a "$report"
+          found=0
+          while IFS= read -r library; do
+            found=$((found + 1))
+            binary="$RUNNER_TEMP/$(echo "$library" | tr / _)"
+            unzip -p apk/current.apk "$library" > "$binary"
+            test -s "$binary"
+            header=$(readelf -hW "$binary" | grep -E 'Class:|Machine:' | tr '\n' ' ')
+            alignments=$(readelf -lW "$binary" | awk '$1 == "LOAD" { print $NF }' | sort -u | paste -sd, -)
+            test -n "$alignments"
+            echo "$library $header LOAD=$alignments" | tee -a "$report"
+          done < <(unzip -Z1 apk/current.apk | grep -E '^lib/(arm64-v8a|x86_64)/.*\.so$')
+          test "$found" -ge 2
+          if "$tools/zipalign" -c -P 16 -v 4 apk/current.apk > zipalign-16k.txt 2>&1; then
+            echo 'APK ZIP alignment check for 16 KiB passed.' | tee -a "$report"
+          else
+            detail=$(tail -3 zipalign-16k.txt | tr '\n' ' ' | cut -c1-500)
+            echo "APK ZIP alignment check for 16 KiB failed: $detail" | tee -a "$report"
+          fi
+      - name: Surface package inspection report
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          path = Path(os.environ['RUNNER_TEMP']) / 'apk-audit.txt'
+          if not path.exists():
+              print('::warning title=dezhban-apk-audit::Package inspection did not produce a report.')
+          else:
+              text = path.read_text(errors='replace')[:16000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::notice title=dezhban-apk-audit::{text}')
+          PY
+
+  install:
+    name: Install on API ${{ matrix.api }} (${{ matrix.target }}, ${{ matrix.abi_label }})
+    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') && !contains(github.event.head_commit.message, '[audit-only]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - api: 26
+            target: default
+            expected_page_size: ''
+            abi: ''
+            abi_label: native
+          - api: 29
+            target: default
+            expected_page_size: ''
+            abi: ''
+            abi_label: native
+          - api: 35
+            target: google_apis
+            expected_page_size: '4096'
+            abi: ''
+            abi_label: native
+          - api: 35
+            target: google_apis_ps16k
+            expected_page_size: '16384'
+            abi: ''
+            abi_label: native
+          - api: 35
+            target: google_apis
+            expected_page_size: '4096'
+            abi: arm64-v8a
+            abi_label: ARM64 translated
+          - api: 35
+            target: google_apis_ps16k
+            expected_page_size: '16384'
+            abi: arm64-v8a
+            abi_label: ARM64 translated
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify the exact existing APKs
+        run: bash games/dejban/tools/download_published_apks_for_diagnosis.sh apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check old, update and fresh install
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: ${{ matrix.api }}
+          target: ${{ matrix.target }}
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: bash games/dejban/tools/diagnose_published_apk_on_emulator.sh apk/previous.apk apk/current.apk '${{ matrix.expected_page_size }}' '${{ matrix.abi }}' > install-diagnostics.log 2>&1
+      - name: Surface precise installer diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('install-diagnostics.log')
+          if not log.exists():
+              print('::warning title=dezhban-install-diagnosis::Emulator test did not produce a log.')
+          else:
+              lines = log.read_text(errors='replace').splitlines()
+              if len(lines) > 60:
+                  lines = lines[:35] + ['... log truncated ...'] + lines[-25:]
+              text = '\n'.join(lines)[:20000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::notice title=dezhban-install-diagnosis::{text}')
+          PY
+
+  tap_install:
+    name: Visible installer on API 35 (${{ matrix.target }})
+    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') && contains(github.event.head_commit.message, '[tap-apk]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    strategy:
+      fail-fast: false
+      matrix:
+        target: [google_apis, google_apis_playstore]
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify the exact existing APKs
+        run: bash games/dejban/tools/download_published_apks_for_diagnosis.sh apk
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Install through Android's visible package installer
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: ${{ matrix.target }}
+          arch: x86_64
+          force-avd-creation: false
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect
+          script: bash games/dejban/tools/diagnose_apk_installer_ui.sh apk/current.apk > installer-ui.log 2>&1
+      - name: Surface visible installer diagnostics
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          log = Path('installer-ui.log')
+          if not log.exists():
+              print('::warning title=dezhban-installer-ui::Installer UI test did not produce a log.')
+          else:
+              lines = log.read_text(errors='replace').splitlines()
+              if len(lines) > 60:
+                  lines = lines[:35] + ['... log truncated ...'] + lines[-25:]
+              text = '\n'.join(lines)[:20000]
+              text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+              print(f'::notice title=dezhban-installer-ui::{text}')
+          PY

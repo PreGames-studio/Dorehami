@@ -1,0 +1,74 @@
+# Inspect diagnostic launch logs already produced by the lifecycle workflow.
+name: Dezhban patched launch log inspection
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/dejban-patched-launch-logs.yml"]
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  locate:
+    if: ${{ contains(github.event.head_commit.message, '[patched-logs]') }}
+    runs-on: ubuntu-latest
+    outputs:
+      run_id: ${{ steps.find.outputs.run_id }}
+    steps:
+      - id: find
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          runs=$(gh run list --repo "$GITHUB_REPOSITORY" --workflow dejban-lifecycle-diagnostics.yml \
+            --branch "$GITHUB_REF_NAME" --limit 20 --json databaseId,status --jq '.[]|select(.status=="completed")|.databaseId')
+          found=''
+          for id in $runs; do
+            count=$(gh api "repos/$GITHUB_REPOSITORY/actions/runs/$id/artifacts?per_page=100" \
+              --jq '[.artifacts[]|select((.name|startswith("dezhban-patched-launch-")) and .expired==false)]|length')
+            if [ "$count" -gt 0 ]; then found=$id; break; fi
+          done
+          test -n "$found"
+          echo "run_id=$found" >> "$GITHUB_OUTPUT"
+  inspect:
+    needs: locate
+    name: Inspect ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        label: [x86-4k-4gb-a, x86-4k-4gb-b]
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dezhban-patched-launch-${{ matrix.label }}
+          path: logs
+          run-id: ${{ needs.locate.outputs.run_id }}
+          github-token: ${{ github.token }}
+      - name: Surface compressed launch diagnostics
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          import base64, gzip
+          report=[Path('logs/launch.log').read_text(errors='replace')]
+          source=Path('logs/dezhban-device-logcat.txt')
+          if source.exists():
+              lines=source.read_text(errors='replace').splitlines()
+              pivot=next((i for i,line in enumerate(lines) if 'GodotActivity: Destroying GodotActivity' in line), len(lines))
+              context=lines[max(0,pivot-180):min(len(lines),pivot+30)]
+              report.append('=== Activity destruction context ===\n'+'\n'.join(context))
+          crash=Path('logs/dezhban-device-crash.txt')
+          if crash.exists(): report.append('=== Crash buffer ===\n'+crash.read_text(errors='replace')[:120000])
+          exitinfo=Path('logs/dezhban-device-exit-info.txt')
+          if exitinfo.exists(): report.append('=== Exit info ===\n'+exitinfo.read_text(errors='replace'))
+          raw='\n'.join(report).encode()
+          encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded)>20000:
+              raw='\n'.join(part for part in report if part.startswith('=== Activity destruction context ===')).encode()
+              encoded=base64.b64encode(gzip.compress(raw)).decode()
+          if len(encoded)>20000: raise SystemExit('Launch context exceeds annotation limit')
+          for i in range(0,len(encoded),2500):
+              print(f'::notice title=dezhban-log-part-{i//2500:03d}::{encoded[i:i+2500]}')
+          PY

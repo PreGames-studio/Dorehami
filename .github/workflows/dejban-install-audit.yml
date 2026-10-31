@@ -1,0 +1,198 @@
+# Diagnose existing APKs only. This workflow does not export, re-sign or publish.
+name: Dezhban exact APK installation audit
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/dejban-install-audit.yml"]
+
+permissions:
+  contents: read
+
+env:
+  CANDIDATE_SHA256: d76a3758dae5ad7695cb4a9efc83133a9a3b21c11e84549c8736514e02ee6c4b
+  PREVIOUS_SHA256: a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f
+
+jobs:
+  audit:
+    if: ${{ contains(github.event.head_commit.message, '[install-audit]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify both exact files
+        run: |
+          set -euo pipefail
+          mkdir apk
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/apk-latest"
+          curl --fail --location --retry 3 -o apk/candidate.apk "$base/dezhban-16kb-test.apk"
+          curl --fail --location --retry 3 -o apk/previous.apk "$base/dezhban.apk"
+          echo "$CANDIDATE_SHA256  apk/candidate.apk" | sha256sum -c -
+          echo "$PREVIOUS_SHA256  apk/previous.apk" | sha256sum -c -
+      - name: Inspect archive, signing and manifest
+        run: |
+          set -euo pipefail
+          tools=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f -printf '%h\n' | sort -V | tail -1)
+          report="$RUNNER_TEMP/install-audit.txt"
+          : > "$report"
+          for name in candidate previous; do
+            file="apk/$name.apk"
+            echo "=== $name ===" | tee -a "$report"
+            sha256sum "$file" | tee -a "$report"
+            unzip -tq "$file"
+            "$tools/zipalign" -c 4 "$file"
+            "$tools/apksigner" verify --verbose --print-certs "$file" | tee -a "$report"
+            "$tools/aapt" dump badging "$file" | grep -E '^package:|^sdkVersion:|^targetSdkVersion:|^native-code:|^launchable-activity:' | tee -a "$report"
+            "$tools/aapt" dump xmltree "$file" AndroidManifest.xml > "$RUNNER_TEMP/$name-manifest.txt"
+            grep -E 'android:(testOnly|debuggable|extractNativeLibs|exported)' "$RUNNER_TEMP/$name-manifest.txt" | tee -a "$report" || true
+          done
+          for api in 21 23 26 28 30 34 35; do
+            "$tools/apksigner" verify --min-sdk-version "$api" apk/candidate.apk
+            echo "Candidate signature verified for minimum API $api." | tee -a "$report"
+          done
+          python3 games/dejban/tools/verify_apk_16kb.py apk/candidate.apk "$tools/aapt"
+          python3 games/dejban/tools/patch_android_manifest_config.py --verify apk/candidate.apk
+          python3 - <<'PY' | tee -a "$report"
+          from collections import Counter
+          from zipfile import ZipFile
+          with ZipFile('apk/candidate.apk') as z:
+              entries = z.infolist()
+              duplicates = sorted(name for name, count in Counter(e.filename for e in entries).items() if count > 1)
+              if duplicates:
+                  raise SystemExit(f'Duplicate archive entries: {duplicates}')
+              for entry in entries:
+                  if entry.filename.startswith('/') or '..' in entry.filename.split('/'):
+                      raise SystemExit(f'Unsafe archive path: {entry.filename!r}')
+              libs = sorted(e.filename for e in entries if e.filename.startswith('lib/') and e.filename.endswith('.so'))
+              print(f'Archive contains {len(entries)} distinct entries and these native libraries:')
+              print('\n'.join(libs))
+          PY
+      - name: Surface the audit
+        if: always()
+        run: |
+          python3 - <<'PY'
+          import os
+          from pathlib import Path
+          p = Path(os.environ['RUNNER_TEMP']) / 'install-audit.txt'
+          text = p.read_text(errors='replace')[:18000] if p.exists() else 'No audit report.'
+          text = text.replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::notice title=dezhban-install-audit::{text}')
+          PY
+
+  arm32-installer:
+    # Test the already-published file, not a new export or a re-signed copy.
+    # API 30 provides ARMv7 translation on this x86_64 image. An image without
+    # that ABI is an inconclusive infrastructure failure, not an APK failure.
+    if: ${{ contains(github.event.head_commit.message, '[install-arm32]') }}
+    name: Exact APK with translated ARMv7 on Android 11
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download and verify the exact published APK
+        run: |
+          set -euo pipefail
+          mkdir apk
+          curl --fail --location --retry 3 -o apk/candidate.apk \
+            "https://github.com/$GITHUB_REPOSITORY/releases/download/apk-latest/dezhban-16kb-test.apk"
+          echo "$CANDIDATE_SHA256  apk/candidate.apk" | sha256sum -c -
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Three fresh installs and launches using translated ARMv7
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          script: >-
+            bash -o pipefail -c 'abis=$(adb shell getprop ro.product.cpu.abilist | tr -d "\r"); echo "Emulator ABI list: $abis"; case ",$abis," in *,armeabi-v7a,*) ;; *) echo "INCONCLUSIVE: emulator has no ARMv7 translation" >&2; exit 2;; esac; exec bash games/dejban/tools/verify_standalone_apk_on_device.sh apk/candidate.apk armeabi-v7a 4096 3' > arm32-install.log 2>&1
+      - name: Surface the ARMv7 result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('arm32-install.log')
+          lines = p.read_text(errors='replace').splitlines() if p.exists() else ['No ARMv7 installation log was produced.']
+          if len(lines) > 70:
+              lines = lines[:20] + ['...'] + lines[-50:]
+          text = '\n'.join(lines)[:12000].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::notice title=dezhban-arm32-install::{text}')
+          PY
+      - name: Save the ARMv7 report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-install-arm32-api30
+          path: arm32-install.log
+          if-no-files-found: warn
+          retention-days: 7
+
+  installer:
+    if: ${{ contains(github.event.head_commit.message, '[install-audit]') }}
+    name: Existing APK install on ${{ matrix.label }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - target: google_apis_playstore
+            page_size: '4096'
+            label: play-store-4k
+          - target: google_apis_ps16k
+            page_size: '16384'
+            label: google-16k
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the exact existing APKs
+        run: |
+          set -euo pipefail
+          mkdir apk
+          base="https://github.com/$GITHUB_REPOSITORY/releases/download/apk-latest"
+          curl --fail --location --retry 3 -o apk/candidate.apk "$base/dezhban-16kb-test.apk"
+          curl --fail --location --retry 3 -o apk/previous.apk "$base/dezhban.apk"
+          echo "$CANDIDATE_SHA256  apk/candidate.apk" | sha256sum -c -
+          echo "$PREVIOUS_SHA256  apk/previous.apk" | sha256sum -c -
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Compare update and fresh UI installation on a disposable emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 35
+          target: ${{ matrix.target }}
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          script: bash games/dejban/tools/diagnose_existing_apk_install.sh apk/previous.apk apk/candidate.apk '${{ matrix.page_size }}' > install-audit.log 2>&1
+      - name: Surface installation results
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('install-audit.log')
+          lines = p.read_text(errors='replace').splitlines() if p.exists() else ['No installer log was produced.']
+          if len(lines) > 100:
+              lines = lines[:30] + ['...'] + lines[-70:]
+          text = '\n'.join(lines)[:15000].replace('%', '%25').replace('\r', '%0D').replace('\n', '%0A')
+          print(f'::notice title=dezhban-exact-installer::{text}')
+          PY
+      - name: Save installation report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: dezhban-install-audit-${{ matrix.label }}
+          path: install-audit.log
+          if-no-files-found: warn
+          retention-days: 7

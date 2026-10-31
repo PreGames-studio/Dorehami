@@ -1,0 +1,57 @@
+# Publish the already-tested diagnostic APK separately from the verified release.
+# This does not replace dezhban.apk or imply that the device gates passed.
+name: Dezhban diagnostic APK download
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths: [".github/workflows/dejban-candidate-release.yml"]
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  publish-diagnostic:
+    if: ${{ contains(github.event.head_commit.message, '[publish-diagnostic-apk]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Confirm the diagnostic APK contains the current game and native build changes
+        run: |
+          set -euo pipefail
+          git diff --exit-code 077a73a HEAD -- \
+            games/dejban/godot \
+            games/dejban/tools/build_godot43_android_16kb.sh \
+            games/dejban/tools/patch_godot43_android_ndk.py \
+            games/dejban/tools/replace_android_template_libraries.py
+      - name: Download the exact diagnostic APK that was tested
+        uses: actions/download-artifact@v4
+        with:
+          name: dezhban-lifecycle-patched-test-only
+          path: apk
+          run-id: 41076452793
+          github-token: ${{ github.token }}
+      - name: Recheck and publish as a clearly labelled test build
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tools=$(find "$ANDROID_HOME/build-tools" -name apksigner -type f -printf '%h\n' | sort -V | tail -1)
+          test -x "$tools/apksigner"
+          "$tools/apksigner" verify --verbose --print-certs apk/dezhban-test.apk
+          "$tools/zipalign" -c 4 apk/dezhban-test.apk
+          python3 games/dejban/tools/verify_apk_16kb.py apk/dezhban-test.apk "$tools/aapt"
+          python3 games/dejban/tools/patch_android_manifest_config.py --verify apk/dezhban-test.apk
+          cp apk/dezhban-test.apk dezhban-16kb-test.apk
+          sum=$(sha256sum dezhban-16kb-test.apk | cut -d' ' -f1)
+          gh release upload apk-latest dezhban-16kb-test.apk --repo "$GITHUB_REPOSITORY" --clobber
+          remote=$(gh api "repos/$GITHUB_REPOSITORY/releases/tags/apk-latest" \
+            --jq '.assets[] | select(.name == "dezhban-16kb-test.apk" and .state == "uploaded") | .digest')
+          test "$remote" = "sha256:$sum"
+          echo "::notice title=dezhban-diagnostic-apk::Diagnostic APK SHA-256 $sum"
+          echo "Diagnostic build from run 41076452793; some emulator launch tests failed." >> "$GITHUB_STEP_SUMMARY"
+          echo "SHA-256: $sum" >> "$GITHUB_STEP_SUMMARY"

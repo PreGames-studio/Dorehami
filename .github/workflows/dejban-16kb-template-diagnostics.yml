@@ -1,0 +1,118 @@
+# Verify a Godot 4.3 native-library backport without exporting a game APK.
+name: Dezhban Android 16 KiB template diagnostics
+
+on:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/dejban-16kb-template-diagnostics.yml"
+      - "games/dejban/tools/build_godot43_android_16kb.sh"
+      - "games/dejban/tools/patch_godot43_android_ndk.py"
+      - "games/dejban/tools/verify_elf_16kb.py"
+      - "games/dejban/tools/tests/test_android_16kb.py"
+
+permissions:
+  contents: read
+
+jobs:
+  inspect-published:
+    name: Inspect the reported APK packaging
+    if: ${{ contains(github.event.head_commit.message, '[template-check]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the exact previously published APK
+        run: |
+          set -euo pipefail
+          base='https://github.com/PreGames-studio/Dorehami/releases/download/apk-latest'
+          if ! curl -fsSL --retry 3 -o published.apk "$base/dezhban-before-16kb-backport.apk" 2>/dev/null; then
+            curl -fsSL --retry 3 -o published.apk "$base/dezhban.apk"
+          fi
+          echo 'a76b74e5d0388e0f42a6f558b6e63fd01ff07ecbc35795041fe59aee99c8cf5f  published.apk' | sha256sum -c -
+      - name: Check native-library packaging and manifest
+        run: |
+          set -euo pipefail
+          tools=$(find "$ANDROID_HOME/build-tools" -name aapt -type f -printf '%h\n' | sort -V | tail -1)
+          "$tools/aapt" dump xmltree published.apk AndroidManifest.xml > manifest.txt
+          python3 - <<'PY'
+          from collections import Counter
+          from pathlib import Path
+          from struct import unpack
+          from zipfile import ZipFile
+          report=[]
+          with ZipFile('published.apk') as z, open('published.apk','rb') as raw:
+              names=[i.filename for i in z.infolist()]
+              duplicates=[n for n,c in Counter(names).items() if c > 1]
+              report.append('Duplicate ZIP entries: ' + (', '.join(duplicates) if duplicates else 'none'))
+              for item in z.infolist():
+                  if not item.filename.startswith('lib/') or not item.filename.endswith('.so'):
+                      continue
+                  raw.seek(item.header_offset)
+                  h=raw.read(30)
+                  if len(h) != 30 or h[:4] != b'PK\x03\x04':
+                      raise SystemExit('Invalid local ZIP header: ' + item.filename)
+                  name_len, extra_len=unpack('<HH', h[26:30])
+                  offset=item.header_offset+30+name_len+extra_len
+                  report.append(f'{item.filename}: method={item.compress_type} data_offset_mod_16384={offset%16384}')
+          for line in Path('manifest.txt').read_text().splitlines():
+              if any(name in line for name in ('extractNativeLibs', 'debuggable', 'testOnly', 'targetSdkVersion', 'minSdkVersion')):
+                  report.append(line.strip())
+          Path('packaging-report.txt').write_text('\n'.join(report)+'\n')
+          print('\n'.join(report))
+          PY
+      - name: Surface APK packaging report
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('packaging-report.txt')
+          text=path.read_text() if path.exists() else 'APK packaging report unavailable.'
+          text=text[:15000].replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-apk-packaging::{text}')
+          PY
+
+  compile-native:
+    name: Compile Godot 4.3 native libraries (${{ matrix.arch }})
+    if: ${{ contains(github.event.head_commit.message, '[template-check]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    strategy:
+      fail-fast: false
+      matrix:
+        arch: [arm64, x86_64]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Install SCons
+        run: python3 -m pip install 'scons==4.7.0'
+      - name: Test 16 KiB ELF validation
+        run: python3 -m unittest discover -s games/dejban/tools/tests -p 'test_android_16kb.py' -v
+      - name: Build Android native libraries only
+        run: |
+          set -o pipefail
+          bash games/dejban/tools/build_godot43_android_16kb.sh '${{ matrix.arch }}' native-libs 2>&1 | tee native-build.log
+      - name: Surface native build result
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          path=Path('native-build.log')
+          if path.exists():
+              lines=path.read_text(errors='replace').splitlines()
+              relevant=[s for s in lines if any(t in s.lower() for t in ('error:', 'fatal error', 'undefined reference', 'validation failed', 'built 16 kib', 'load segments support'))]
+              text='\n'.join((relevant or lines)[-35:])[:16000]
+          else:
+              text='Native build did not start.'
+          text=text.replace('%','%25').replace('\r','%0D').replace('\n','%0A')
+          print(f'::notice title=dezhban-native-build::{text}')
+          PY
+      - name: Upload native libraries for inspection
+        uses: actions/upload-artifact@v4
+        with:
+          name: godot43-16kb-${{ matrix.arch }}
+          path: native-libs/*.so
+          if-no-files-found: error
+          retention-days: 3
