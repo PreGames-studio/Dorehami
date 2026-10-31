@@ -312,7 +312,8 @@ func _smoke_scenes() -> void:
 							"برجک در حین کشیدن روی نقطهٔ مجاز باید مرئی و سبز باشد")
 						instance._finish_drag(pt)
 						built = instance.towers.size() == 1
-						built_pos = pt
+						# Snapping may move the tower onto its 2×2 cell; grip the real position.
+						built_pos = instance.towers[0].position if built else pt
 						break
 				if built:
 					break

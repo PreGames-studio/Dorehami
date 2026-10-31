@@ -269,29 +269,31 @@ func _test_pan_and_build(test) -> void:
 	battle._set_pan_offset(Vector2(0, Balance.MAP_MARGIN))
 	battle.begin_weapon_drag("machinegun", Vector2(200, 660))
 	var margin_world := Vector2(500, -60)
-	var margin_screen: Vector2 = battle._world_to_screen(margin_world)
+	var margin_cell: Vector2 = battle.map.snap_build_cell(margin_world, battle.occupied)
+	var margin_screen: Vector2 = battle._world_to_screen(margin_cell)
 	battle._update_ghost(margin_screen)
 	test.check(battle.ghost.ok and not GameMap.in_terrain(margin_world),
 		"بخشی از حاشیهٔ هم‌رنگ باید محل ساخت واقعی باشد")
 	battle._finish_drag(margin_screen)
-	test.check(battle.towers.size() == 2 and battle.towers[1].position.distance_to(margin_world) < 0.01,
-		"ساخت و مختصات برج در حاشیه باید درست باشد")
+	test.check(battle.towers.size() == 2 and battle.towers[1].position.distance_to(margin_cell) < 0.01,
+		"ساخت و مختصات برج در حاشیه باید روی خانهٔ شبکهٔ ۲×۲ باشد")
 
 	# A raw touch drag still builds after panning, rather than moving the map.
 	battle._set_pan_offset(Vector2(-90, 40))
 	var start_world := Vector2(650, 219)
 	var end_world := Vector2(680, 219)
+	var end_cell: Vector2 = battle.map.snap_build_cell(end_world, battle.occupied)
 	touch.index = 2
 	touch.position = battle._world_to_screen(start_world)
 	touch.pressed = true
 	battle._unhandled_input(touch)
 	drag.index = 2
-	drag.position = battle._world_to_screen(end_world)
+	drag.position = battle._world_to_screen(end_cell)
 	battle._input(drag)
 	touch.pressed = false
 	touch.position = drag.position
 	battle._input(touch)
-	test.check(battle.towers.size() == 3 and battle.towers[2].position.distance_to(end_world) < 0.01,
+	test.check(battle.towers.size() == 3 and battle.towers[2].position.distance_to(end_cell) < 0.01,
 		"کشیدن لمسی برای ساخت باید پس از حرکت نقشه همچنان کار کند")
 
 	ProjectSettings.set_setting("input_devices/pointing/emulate_mouse_from_touch", saved_emulation)

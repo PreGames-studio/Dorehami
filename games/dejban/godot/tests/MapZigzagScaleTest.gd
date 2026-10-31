@@ -216,27 +216,32 @@ func _test_real_battle_builds(test) -> void:
 		battle.set_process(false)
 		battle.coins = 9999
 		await test.get_tree().process_frame
+		var cells: Array[Vector2] = []
 		for i in range(scenario["releases"].size()):
 			var screen: Vector2 = battle._world_to_screen(scenario["releases"][i])
-			var expected: Vector2 = battle._world_to_screen(scenario["points"][i])
+			# The drop snaps to the nearest 2×2 house block of this map.
+			var cell: Vector2 = battle.map.snap_build_cell(scenario["releases"][i], battle.occupied)
+			cells.append(cell)
+			var expected: Vector2 = battle._world_to_screen(cell)
 			battle.begin_weapon_drag("machinegun", Vector2(200, 660))
 			battle._update_ghost(screen)
 			test.check(battle.ghost.visible and battle.ghost.ok
 				and battle.ghost.position.distance_to(expected) < 0.01,
-				"پیش‌نمای ساخت در زیگزاگ نقشهٔ %d باید به جای معتبر هدایت شود" % (int(scenario["index"]) + 1))
+				"پیش‌نمای ساخت در زیگزاگ نقشهٔ %d باید به خانهٔ شبکهٔ ۲×۲ برود" % (int(scenario["index"]) + 1))
 			battle._finish_drag(screen)
 		test.check(battle.towers.size() == scenario["points"].size(),
 			"برج‌های زیگزاگ نقشهٔ %d باید واقعاً ساخته شوند" % (int(scenario["index"]) + 1))
-		for i in range(mini(battle.towers.size(), scenario["points"].size())):
-			test.check(battle.towers[i].position.distance_to(scenario["points"][i]) < 0.01,
-				"مختصات برج زیگزاگ باید همان نقطهٔ معتبر پیش‌نمایش باشد")
+		for i in range(mini(battle.towers.size(), cells.size())):
+			test.check(battle.towers[i].position.distance_to(cells[i]) < 0.01,
+				"مختصات برج زیگزاگ باید همان خانهٔ معتبر پیش‌نمایش باشد")
 		if int(scenario["index"]) == 2:
 			# Inject real touch events in another tight row, not just helper calls.
+			var touch_cell: Vector2 = battle.map.snap_build_cell(Vector2(750, 431), battle.occupied)
 			await test._touch_drag(battle._world_to_screen(Vector2(650, 425)),
-				battle._world_to_screen(Vector2(750, 437)))
+				battle._world_to_screen(touch_cell + Vector2(4.0, 5.0)))
 			test.check(battle.towers.size() == 2
-				and battle.towers[1].position.distance_to(Vector2(750, 431)) < 0.01,
-				"کشیدن واقعی انگشت در فاصلهٔ دوخانه‌ای باید برج را در محل مجاز بکارد")
+				and battle.towers[1].position.distance_to(touch_cell) < 0.01,
+				"کشیدن واقعی انگشت در فاصلهٔ دوخانه‌ای باید برج را در خانهٔ مجاز بکارد")
 		battle.queue_free()
 		await test.get_tree().process_frame
 	Game.pending_map = saved_map
