@@ -245,26 +245,49 @@ jobs:
       # «بسته نامعتبر است» / "There was a problem parsing the package".
       - name: Verify the shipped APK (installability gate)
         run: |
-          set -euo pipefail
-          python3 scripts/verify_shipped_apk.py --self-test
+          set -uo pipefail
+          fail=0
+          note() {  # surface the reason as an annotation; logs behind blob URLs are often unreadable
+            printf '::error title=%s::%s\n' "$1" "$(printf '%s' "${2:-failed}" | head -c 900 | tr '\n' ' ')"
+            fail=1
+          }
           apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
-          tools=$(find "${ANDROID_HOME}/build-tools" -maxdepth 1 -mindepth 1 -type d | sort -V | tail -n 1)
-          # 4-byte ZIP alignment: an unaligned archive is rejected by some installers.
-          "$tools/zipalign" -c -v 4 "$apk" > /dev/null
-          # The signature must validate for every minimum SDK the app still claims.
-          for api in 24 26 28 30 33 34 35; do
-            "$tools/apksigner" verify --min-sdk-version "$api" "$apk"
-          done
-          report=$(python3 scripts/verify_shipped_apk.py "$apk" --aapt "$tools/aapt2" --min-sdk 24)
-          printf '%s\n' "$report"
-          echo "APK_SHA256=$(printf '%s\n' "$report" | awk '/^sha256:/{print $2}')" >> "$GITHUB_ENV"
+          echo "APK: $apk ($(du -h "$apk" | cut -f1))"
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          tools=$(find "${sdk:-/nonexistent}/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -n 1)
+          [ -n "${tools:-}" ] || note build-tools "no build-tools directory under '${sdk:-<ANDROID_HOME unset>}'"
+          echo "build-tools: ${tools:-none}"
+
+          self_out=$(python3 scripts/verify_shipped_apk.py --self-test 2>&1) || note self-test "$self_out"
+          echo "$self_out"
+
+          if [ -n "${tools:-}" ]; then
+            # 4-byte ZIP alignment: an unaligned archive is rejected by some installers.
+            zip_out=$("$tools/zipalign" -c -v 4 "$apk" 2>&1) || note zipalign "$(printf '%s\n' "$zip_out" | tail -n 5)"
+            # The signature must validate for every minimum SDK the app still claims.
+            for api in 24 26 28 30 33 34 35; do
+              sig_out=$("$tools/apksigner" verify --min-sdk-version "$api" "$apk" 2>&1) \
+                || note "apksigner-api$api" "$sig_out"
+            done
+            aapt_path=""
+            [ -x "$tools/aapt2" ] && aapt_path="$tools/aapt2"
+            [ -z "$aapt_path" ] && [ -x "$tools/aapt" ] && aapt_path="$tools/aapt"
+            verify_out=$(python3 scripts/verify_shipped_apk.py "$apk" ${aapt_path:+--aapt "$aapt_path"} --min-sdk 24 2>&1) \
+              || note "apk-checks" "$(printf '%s\n' "$verify_out" | grep -E '^\[FAIL\]|verification failed' | head -n 6)"
+          else
+            verify_out=$(python3 scripts/verify_shipped_apk.py "$apk" --min-sdk 24 2>&1) \
+              || note "apk-checks" "$(printf '%s\n' "$verify_out" | grep -E '^\[FAIL\]|verification failed' | head -n 6)"
+          fi
+          printf '%s\n' "$verify_out"
+          echo "APK_SHA256=$(printf '%s\n' "$verify_out" | awk '/^sha256:/{print $2; exit}')" >> "$GITHUB_ENV"
           echo "APK_BYTES=$(stat -c%s "$apk")" >> "$GITHUB_ENV"
           {
-            echo "## ✅ APK installability checks"
+            echo "## $( [ "$fail" -eq 0 ] && echo '✅' || echo '❌' ) APK installability checks"
             echo '```'
-            printf '%s\n' "$report"
+            printf '%s\n' "$verify_out"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          exit "$fail"
 
       # Branch previews: on arena/* branches the verified APK is also published to a
       # per-branch prerelease, so it has a plain direct download URL. main is untouched.
