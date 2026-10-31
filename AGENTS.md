@@ -83,6 +83,14 @@ curl -s localhost:8080/healthz
 (`…/releases/download/debug-latest/Dorehami-debug.apk`)؛ برای انتشار، توکن workflow باید در
 Settings → Actions → General روی «Read and write» باشد (اگر نباشد فقط هشدار می‌دهد و اجرا سبز می‌ماند).
 
+هر push به شاخهٔ `arena/*` هم بیلد را روی ریلیز `preview-<branch>` منتشر می‌کند. پیش از انتشار،
+مرحلهٔ *Verify the shipped APK (installability gate)* همین فایل را با
+`python3 scripts/verify_shipped_apk.py <apk> --min-sdk 24` می‌سنجد (CRC همهٔ ورودی‌ها، امضای
+v1/Signing Block، تراز ۴ بایتی، حضور `assets/dezhban.pck` و `lib/arm64-v8a/libgodot_android.so`)
+و `apksigner verify` را برای بازهٔ SDK اجرا می‌کند؛ پس فایل ناقص یا بی‌امضا هرگز منتشر نمی‌شود.
+خودِ اسکریپت با `--self-test` تست می‌شود. کلید امضای دیباگ بین بیلدها کش می‌شود تا نسخهٔ جدید
+روی نسخهٔ قبلی نصب شود؛ اگر گوشی از زنجیرهٔ بیلد دیگری نسخه دارد، اول آن را حذف کن.
+
 ### تعریف «تمام شد» برای هر تغییر
 
 1. `./gradlew checkAll` سبز است.
