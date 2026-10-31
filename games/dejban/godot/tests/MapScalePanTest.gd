@@ -59,9 +59,13 @@ func _test_first_map_geometry(test) -> void:
 		test.check(ground.g > 0.6 and ground.g > ground.b,
 			"فاصلهٔ چهارخانه‌ای تصویر باید زمین خالی میان جاده‌ها باشد")
 
-## Validate every level, every directional frame and every Gatling animation
-## frame, not just the first static preview. Allow room for actual recoil.
+## Check the original design scales and validate the artwork for every level.
+## Artwork may extend beyond the logical ２×２ placement cell.
 func _test_all_tower_art(test) -> void:
+	test.check(is_equal_approx(MachinegunVisual.IMAGE_SCALE, 0.39)
+		and is_equal_approx(LaserVisual.IMAGE_SCALE, 0.46)
+		and is_equal_approx(TeslaVisual.IMAGE_SCALE, 0.46),
+		"مقیاس برج‌ها باید به اندازهٔ طراحی اصلی برگردد")
 	var groups: Array = []
 	var gun: Array = [{"key": "towers_machinegun/base", "cols": 1, "rows": 1}]
 	var cannon: Array = []
@@ -82,24 +86,18 @@ func _test_all_tower_art(test) -> void:
 		for part in ["tesla", "body", "core"]:
 			tesla.append({"key": "towers_tesla/%s_%d" % [part, level], "cols": 1, "rows": 1})
 		tesla.append({"key": "towers_tesla/head_%d_directions" % level, "cols": 8, "rows": 6})
-	groups.append({"name": "مسلسل", "files": gun, "ground": MachinegunVisual.GROUND,
-		"scale": MachinegunVisual.IMAGE_SCALE, "offset": MachinegunVisual.FOOTPRINT_OFFSET,
-		"recoil": MachinegunVisual.RECOIL_PIXELS * MachinegunVisual.IMAGE_SCALE})
-	groups.append({"name": "توپخانه", "files": cannon, "ground": MachinegunVisual.GROUND,
-		"scale": MachinegunVisual.IMAGE_SCALE, "offset": MachinegunVisual.FOOTPRINT_OFFSET,
-		"recoil": MachinegunVisual.RECOIL_PIXELS * MachinegunVisual.IMAGE_SCALE})
-	groups.append({"name": "لیزر", "files": laser, "ground": LaserVisual.GROUND,
-		"scale": LaserVisual.IMAGE_SCALE, "offset": LaserVisual.FOOTPRINT_OFFSET, "recoil": 0.0})
-	groups.append({"name": "تسلا", "files": tesla, "ground": TeslaVisual.GROUND,
-		"scale": TeslaVisual.IMAGE_SCALE, "offset": TeslaVisual.FOOTPRINT_OFFSET, "recoil": 0.0})
+	groups.append({"name": "مسلسل", "files": gun})
+	groups.append({"name": "توپخانه", "files": cannon})
+	groups.append({"name": "لیزر", "files": laser})
+	groups.append({"name": "تسلا", "files": tesla})
 
 	for group in groups:
 		var errors: Array = []
 		for spec in group["files"]:
-			_check_texture_frames(spec, group, errors)
-		test.check(errors.is_empty(), "همهٔ نماها و سطح‌های %s باید داخل مربع چهارخانه‌ای باشند: %s" % [group["name"], errors.slice(0, 4)])
+			_check_texture_frames(spec, errors)
+		test.check(errors.is_empty(), "تصاویر همهٔ نماها و سطح‌های %s باید معتبر باشند: %s" % [group["name"], errors.slice(0, 4)])
 
-func _check_texture_frames(spec: Dictionary, group: Dictionary, errors: Array) -> void:
+func _check_texture_frames(spec: Dictionary, errors: Array) -> void:
 	var key := String(spec["key"])
 	var texture := Assets.tex(key)
 	if texture == null:
@@ -113,26 +111,11 @@ func _check_texture_frames(spec: Dictionary, group: Dictionary, errors: Array) -
 		image.decompress()
 	var cols := int(spec["cols"])
 	var rows := int(spec["rows"])
-	var width := image.get_width() / cols
-	var height := image.get_height() / rows
-	var multiplier := 1.0 if cols == 1 and rows == 1 else 2.0
-	var anchor: Vector2 = group["ground"]
-	var scale_value := float(group["scale"])
-	var offset: Vector2 = group["offset"]
-	var recoil := float(group["recoil"])
-	var half: float = Balance.TOWER_SIZE * 0.5 + 0.01
-	for frame in cols * rows:
-		var region := Rect2i((frame % cols) * width, (frame / cols) * height, width, height)
-		var used := image.get_region(region).get_used_rect()
-		if used.size == Vector2i.ZERO:
-			continue
-		var left := (used.position.x * multiplier - anchor.x) * scale_value + offset.x - recoil
-		var top := (used.position.y * multiplier - anchor.y) * scale_value + offset.y - recoil
-		var right := (used.end.x * multiplier - anchor.x) * scale_value + offset.x + recoil
-		var bottom := (used.end.y * multiplier - anchor.y) * scale_value + offset.y + recoil
-		if left < -half or right > half or top < -half or bottom > half:
-			errors.append("%s frame %d [%.1f,%.1f,%.1f,%.1f]" % [key, frame, left, top, right, bottom])
-			return
+	if image.get_width() % cols != 0 or image.get_height() % rows != 0:
+		errors.append("invalid atlas dimensions " + key)
+		return
+	if image.get_used_rect().size == Vector2i.ZERO:
+		errors.append("transparent " + key)
 
 func _test_all_map_margins(test) -> void:
 	var saved_map: int = Game.pending_map

@@ -57,15 +57,14 @@ const TOWER_MIN_GAP := TOWER_SIZE
 const BUILD_SNAP := HOUSE_SIZE
 ## گام شبکهٔ کاشت: هر برج = یک بلوک ۲×۲ خانه (۷۱ پیکسل).
 const GRID_STEP := TOWER_SIZE
-## ارتفاع تصویر پایهٔ برج‌ها: ۲۰٪ کوتاه‌تر از هنر اصلی. فقط ارتفاع پایه کم می‌شود؛
-## عرض آن دست‌نخورده است و محور سر/لوله سر جای خودش می‌ماند.
-const TOWER_BASE_HEIGHT := 0.8
-## اندازهٔ کلی برج‌ها: ۲۰٪ کوچک‌تر از اندازهٔ دو بیلد قبل (هم پایه و هم سر).
-const TOWER_ART_SCALE := 0.8
+## نسبت پایه به هنر اصلی: عرض ۲۰٪ کمتر؛ ارتفاع نسبت به پایهٔ قبلی ۲۰٪ کمتر
+## (ارتفاع قبلی خودش ۸۰٪ هنر اصلی بود). محور سر/لوله جابه‌جا نمی‌شود.
+const TOWER_BASE_WIDTH := 0.8
+const TOWER_BASE_HEIGHT := 0.64
 
-## مقیاس نمایش پایه: عرض کامل، ارتفاع کوتاه‌شده (پایین پایه روی زمین می‌ماند).
+## پایین پایه روی لنگر زمین می‌ماند.
 static func base_scale(image_scale: float) -> Vector2:
-	return Vector2(image_scale, image_scale * TOWER_BASE_HEIGHT)
+	return Vector2(image_scale * TOWER_BASE_WIDTH, image_scale * TOWER_BASE_HEIGHT)
 ## نسبت فاصلهٔ محور چرخش سرِ برجک از بالای تصویر.
 const TOWER_PIVOT := 0.18
 

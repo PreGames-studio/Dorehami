@@ -15,8 +15,8 @@ const GATLING_COLUMNS := 16
 const GATLING_ROWS := 24
 const GROUND := Vector2(128.0, 206.0)
 const HEAD_PIVOT := Vector2(128.0, 100.0)
-## The widest animated frame plus recoil fits within the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE * Balance.TOWER_ART_SCALE / FRAME
+## Original design scale; artwork can extend beyond its ２×２ placement cell.
+const IMAGE_SCALE := 0.39
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.35)
 const DEPTH_SQUASH := 0.68
 const MUZZLE := Vector2(100.0, 0.0)

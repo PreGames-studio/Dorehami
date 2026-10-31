@@ -4,8 +4,8 @@ class_name LaserVisual
 extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
-## Even the tallest level and every direction fit in the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE * Balance.TOWER_ART_SCALE / 320.0
+## Original design scale; artwork can extend beyond its ２×２ placement cell.
+const IMAGE_SCALE := 0.46
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0

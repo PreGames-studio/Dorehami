@@ -45,6 +45,8 @@ func run(test) -> void:
 		tower.queue_free()
 		battle.queue_free()
 		return
+	test.check(visual.base.scale.is_equal_approx(Vector2(MachinegunVisual.IMAGE_SCALE * 0.8, MachinegunVisual.IMAGE_SCALE * 0.64)),
+		"عرض و ارتفاع پایه باید هرکدام ۲۰٪ نسبت به حالت قبلی کوچک‌تر شوند")
 	var ghost := BuildGhost.new()
 	test.add_child(ghost)
 	ghost.set_weapon(weapon)

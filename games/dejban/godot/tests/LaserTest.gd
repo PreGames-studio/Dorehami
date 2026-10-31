@@ -102,6 +102,8 @@ func _test_economy_and_visual(test) -> void:
 		tower.queue_free()
 		battle.queue_free()
 		return
+	test.check(visual.base.scale.is_equal_approx(Vector2(LaserVisual.IMAGE_SCALE * 0.8, LaserVisual.IMAGE_SCALE * 0.64)),
+		"عرض و ارتفاع پایه باید هرکدام ۲۰٪ نسبت به حالت قبلی کوچک‌تر شوند")
 	var stable_base: Transform2D = visual.base.transform
 	var text := FileAccess.get_file_as_string("res://assets/sprites/towers_laser/manifest.json")
 	var manifest = JSON.parse_string(text)
