@@ -24,6 +24,9 @@ permissions:
 jobs:
   build-universal:
     name: Build and verify the universal APK
+    concurrency:
+      group: apk-preview-${{ github.ref }}
+      cancel-in-progress: false
     runs-on: ubuntu-latest
     timeout-minutes: 45
     steps:
@@ -88,7 +91,7 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          set -euo pipefail
+          set -uo pipefail
           apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
           branch=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
           sha=$(git rev-parse --short=7 HEAD)
@@ -101,17 +104,38 @@ jobs:
             echo
             echo "| | |"
             echo "|---|---|"
-            echo "| کامیت | \\`${GITHUB_SHA}\\` |"
+            echo "| کامیت | \`${GITHUB_SHA}\` |"
             echo "| حجم | ${mb} مگابایت (${APK_BYTES} بایت) |"
-            echo "| SHA-256 | \\`${APK_SHA256}\\` |"
+            echo "| SHA-256 | \`${APK_SHA256}\` |"
             echo
             echo "**دانلود مستقیم:** ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/${tag}/Dorehami-universal-debug.apk"
             echo
             echo "این فایل هم کتابخانهٔ ۶۴ بیتی (arm64-v8a) دارد و هم ۳۲ بیتی (armeabi-v7a)؛ اگر نسخهٔ عادی"
             echo "با پیام «بستهٔ نامعتبر» رد شد، این را امتحان کن."
-          } > universal-notes.md
+          } > universal-section.md
+
           gh release view "$tag" >/dev/null 2>&1 || \
             gh release create "$tag" --prerelease --title "Preview: ${GITHUB_REF_NAME}" --target "${GITHUB_SHA}" --notes "بیلد پیش‌نمایش ${GITHUB_REF_NAME}"
-          gh release upload "$tag" "Dorehami-universal-debug.apk" "Dorehami-universal-debug.apk.sha256" --clobber
-          gh release edit "$tag" --notes-file universal-notes.md >/dev/null 2>&1 || true
+
+          uploaded=0
+          for attempt in 1 2 3; do
+            if gh release upload "$tag" "Dorehami-universal-debug.apk" "Dorehami-universal-debug.apk.sha256" --clobber 2>&1; then
+              uploaded=1
+              break
+            fi
+            echo "upload attempt $attempt failed; retrying"
+            sleep 15
+          done
+          if [ "$uploaded" -ne 1 ]; then
+            echo "::error title=universal-upload::could not upload the universal APK to ${tag}"
+            exit 1
+          fi
+
+          # Keep the existing notes and append the universal section (never replace them).
+          gh release view "$tag" --json body --jq .body > current-notes.md 2>/dev/null || : > current-notes.md
+          if ! grep -q "بیلد «همه‌جارو»" current-notes.md; then
+            { cat current-notes.md; echo; echo "---"; echo; cat universal-section.md; } > merged-notes.md
+            gh release edit "$tag" --notes-file merged-notes.md >/dev/null 2>&1 || \
+              echo "::warning title=universal-notes::uploaded the APK but could not update the release notes"
+          fi
           echo "published universal APK for ${GITHUB_REF_NAME} (${sha})"

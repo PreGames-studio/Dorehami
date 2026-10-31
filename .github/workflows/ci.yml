@@ -122,6 +122,12 @@ jobs:
 
   build-apk:
     name: Build debug APK
+    # Never republish the same release concurrently: a download that overlaps an
+    # asset replacement receives a truncated file, which Android then rejects as
+    # «بسته معتبر نیست».
+    concurrency:
+      group: apk-preview-${{ github.ref }}
+      cancel-in-progress: false
     # An explicit diagnostic-only branch push inspects an existing APK and must
     # not manufacture a new one. PRs and main retain the normal APK gate.
     if: ${{ !(github.event_name == 'push' && startsWith(github.ref, 'refs/heads/arena/') && contains(github.event.head_commit.message, '[diagnose-apk]')) }}
