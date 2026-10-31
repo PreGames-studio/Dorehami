@@ -14,8 +14,8 @@ on:
         type: boolean
         default: true
   push:
+    # Any arena push may carry the marker; the job is gated on it below.
     branches: ["arena/**"]
-    paths: [".github/workflows/apk-trial.yml"]
 
 permissions:
   contents: write   # only used by the preview-release upload step
@@ -23,6 +23,7 @@ permissions:
 jobs:
   build-trial:
     name: Build the trial APK
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[trial-apk]') }}
     concurrency:
       group: apk-preview-${{ github.ref }}
       cancel-in-progress: false
