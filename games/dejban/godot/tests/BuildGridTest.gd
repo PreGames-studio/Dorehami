@@ -39,23 +39,33 @@ func _test_two_towers_stack_exactly(test) -> void:
 	battle.coins = 9999
 	# همان نقشه‌ای که صحنهٔ نبرد ساخته است (آزمون روی نقشهٔ واقعی اجرا می‌شود).
 	var map: GameMap = battle.map
-	var road_y: float = map.route[0].y
-	var first := Vector2(600.0, road_y + Balance.GRID_STEP * 1.5)
-	var cell_a: Vector2 = map.snap_build_cell(first, {})
-	test.check(map.build_issue(cell_a, {}).is_empty(), "بلوک اول باید قابل ساخت باشد")
+	# A vertical pair of free 2×2 blocks: the exact case the player reported.
+	var cell_a := Vector2.INF
+	for y in range(120, 640, 12):
+		for x in range(120, 1160, 12):
+			var candidate: Vector2 = map.grid_cell(Vector2(x, y))
+			if map.build_issue(candidate, {}).is_empty() \
+					and map.build_issue(candidate + Vector2(0.0, Balance.GRID_STEP), {candidate: true}).is_empty():
+				cell_a = candidate
+				break
+		if cell_a != Vector2.INF:
+			break
+	test.check(cell_a != Vector2.INF, "باید دو بلوک ۲×۲ عمودی آزاد روی نقشه باشد")
+	var first: Vector2 = cell_a + Vector2(9.0, -11.0)
 	# برج دوم: دقیقاً زیر برج اول، به‌علاوهٔ یک برج (نه یک خانه).
 	var below: Vector2 = cell_a + Vector2(0.0, Balance.GRID_STEP)
 	var cell_b: Vector2 = map.snap_build_cell(below + Vector2(6.0, -9.0), {cell_a: true})
 	test.check(cell_b.distance_to(cell_a + Vector2(0.0, Balance.GRID_STEP)) < 0.01,
 		"برج دوم باید دقیقاً یک برج پایین‌تر از برج اول بنشیند")
 	test.check(map.build_issue(cell_b, {cell_a: true}).is_empty(),
-		"برج دوم نباید با برج اول هم‌پوشانی داشته باشد")
+		"برج دوم نباید با برج اول هم‌پوشانی داشته باشد (a=%s b=%s)" % [str(cell_a), str(cell_b)])
 	# کاشت واقعی از همان مسیر بازی: دو برج پشت‌سرهم ساخته می‌شوند.
 	battle.selected_weapon = "machinegun"
 	battle._try_build(first)
 	var built_a: Vector2 = battle.towers[0].position if battle.towers.size() > 0 else Vector2.INF
 	battle._try_build(built_a + Vector2(0.0, Balance.GRID_STEP) + Vector2(5.0, -7.0))
-	test.check(battle.towers.size() == 2, "دو برج پشت‌سرهم باید هر دو کاشته شوند")
+	test.check(battle.towers.size() == 2,
+		"دو برج پشت‌سرهم باید هر دو کاشته شوند (n=%d a=%s)" % [battle.towers.size(), str(built_a)])
 	if battle.towers.size() == 2:
 		var delta: Vector2 = battle.towers[1].position - battle.towers[0].position
 		test.check(absf(delta.x) < 0.01 and is_equal_approx(absf(delta.y), Balance.GRID_STEP),

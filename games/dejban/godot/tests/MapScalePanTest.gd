@@ -293,8 +293,10 @@ func _test_pan_and_build(test) -> void:
 	touch.pressed = false
 	touch.position = drag.position
 	battle._input(touch)
-	test.check(battle.towers.size() == 3 and battle.towers[2].position.distance_to(end_cell) < 0.01,
-		"کشیدن لمسی برای ساخت باید پس از حرکت نقشه همچنان کار کند")
+	var last_pos: Vector2 = battle.towers[2].position if battle.towers.size() > 2 else Vector2(-1.0, -1.0)
+	test.check(battle.towers.size() == 3 and last_pos.distance_to(end_cell) < 0.01,
+		"کشیدن لمسی برای ساخت باید پس از حرکت نقشه همچنان کار کند (n=%d cell=%s tower=%s)"
+			% [battle.towers.size(), str(end_cell), str(last_pos)])
 
 	ProjectSettings.set_setting("input_devices/pointing/emulate_mouse_from_touch", saved_emulation)
 	battle.queue_free()
