@@ -17,8 +17,8 @@ on:
         required: true
         default: "preview-arena-afc269b8-dorehami"
   push:
+    # Any arena push may carry the marker; the job itself is gated on it below.
     branches: ["arena/**"]
-    paths: [".github/workflows/apk-install-proof.yml"]
 
 permissions:
   contents: read

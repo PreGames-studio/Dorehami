@@ -343,9 +343,15 @@ jobs:
             echo "این بیلد با کلید دیباگ امضا شده است؛ اگر نسخهٔ قبلی دورهمی از زنجیرهٔ بیلد دیگری روی گوشی است،"
             echo "اول آن را حذف کن وگرنه اندروید «برنامه نصب نشد» (اختلاف امضا) نشان می‌دهد."
             echo
+            echo "این فایل هم کتابخانهٔ ۳۲ بیتی (armeabi-v7a) دارد و هم ۶۴ بیتی (arm64-v8a)، پس روی گوشی‌های"
+            echo "۳۲ بیتی هم نصب می‌شود."
+            echo
             echo "این فایل پیش از انتشار خودکار اعتبارسنجی شده است: CRC همهٔ ورودی‌ها، امضای v1 و APK Signing Block،"
-            echo "تراز ۴ بایتی (zipalign)، حضور \`assets/dezhban.pck\` و \`lib/arm64-v8a/libgodot_android.so\`،"
+            echo "تراز ۴ بایتی (zipalign)، حضور \`assets/dezhban.pck\` و \`lib/{arm64-v8a,armeabi-v7a}/libgodot_android.so\`،"
             echo "و شناسه و بازهٔ SDK از طریق \`aapt2\`."
+            echo
+            echo "اگر گوشی هنوز نسخهٔ قبلی با امضای دیگر را رد می‌کند، نسخهٔ آزمایشی با شناسهٔ جدا را از همین"
+            echo "ریلیز بگیر: \`Dorehami-trial-debug.apk\` (کنار نسخهٔ قبلی نصب می‌شود)."
           } > release-notes.md
           gh release view "$tag" >/dev/null 2>&1 || \
             gh release create "$tag" --prerelease --title "Preview: ${GITHUB_REF_NAME}" --target "${GITHUB_SHA}" --notes-file release-notes.md
