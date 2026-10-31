@@ -91,8 +91,9 @@ jobs:
           emulator-options: >-
             -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
             -gpu swiftshader_indirect -memory 4096
+          # The runner executes this block with `sh`, where `set -o pipefail` aborts with exit 2
+          # before anything runs (same trap documented in device-check.yml).
           script: |
-            set -o pipefail
             abis=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')
             echo "Emulator ABI list: $abis"
             adb shell settings put global package_verifier_enable 0 || true
