@@ -239,6 +239,10 @@ jobs:
           echo "APK: $apk ($(du -h "$apk" | cut -f1))"
           unzip -l "$apk" | grep -E "assets/dezhban\.pck" || { echo "::error::dezhban.pck missing from APK"; exit 1; }
           unzip -l "$apk" | grep -E "lib/[^ ]+/libgodot_android\.so" || { echo "::error::Godot native library missing from APK"; exit 1; }
+          # A 32-bit phone refuses an arm64-only package, so both phone ABIs ship.
+          for abi in arm64-v8a armeabi-v7a; do
+            unzip -l "$apk" | grep -q "lib/$abi/libgodot_android.so" || { echo "::error::lib/$abi/libgodot_android.so missing from APK"; exit 1; }
+          done
           {
             echo "## Dezhban embedded ✅"
             echo '```'
@@ -278,10 +282,12 @@ jobs:
             aapt_path=""
             [ -x "$tools/aapt2" ] && aapt_path="$tools/aapt2"
             [ -z "$aapt_path" ] && [ -x "$tools/aapt" ] && aapt_path="$tools/aapt"
-            verify_out=$(python3 scripts/verify_shipped_apk.py "$apk" ${aapt_path:+--aapt "$aapt_path"} --min-sdk 24 2>&1) \
+            verify_out=$(python3 scripts/verify_shipped_apk.py "$apk" ${aapt_path:+--aapt "$aapt_path"} --min-sdk 24 \
+              --require-abi arm64-v8a --require-abi armeabi-v7a 2>&1) \
               || note "apk-checks" "$(printf '%s\n' "$verify_out" | grep -E '^\[FAIL\]|verification failed' | head -n 6)"
           else
-            verify_out=$(python3 scripts/verify_shipped_apk.py "$apk" --min-sdk 24 2>&1) \
+            verify_out=$(python3 scripts/verify_shipped_apk.py "$apk" --min-sdk 24 \
+              --require-abi arm64-v8a --require-abi armeabi-v7a 2>&1) \
               || note "apk-checks" "$(printf '%s\n' "$verify_out" | grep -E '^\[FAIL\]|verification failed' | head -n 6)"
           fi
           printf '%s\n' "$verify_out"

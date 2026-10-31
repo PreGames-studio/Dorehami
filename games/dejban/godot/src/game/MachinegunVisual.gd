@@ -54,12 +54,12 @@ func setup(start_level: int) -> void:
 	base.texture = Assets.tex("towers_machinegun/base")
 	base.centered = false
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	add_child(base)
 
 	projection = Node2D.new()
 	projection.name = "AimProjection"
-	projection.position = (HEAD_PIVOT - GROUND) * IMAGE_SCALE
+	projection.position = Balance.head_offset(IMAGE_SCALE, HEAD_PIVOT - GROUND)
 	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
 	add_child(projection)
 	mount = Node2D.new()

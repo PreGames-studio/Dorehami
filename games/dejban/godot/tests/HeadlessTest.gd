@@ -94,6 +94,8 @@ func _ready() -> void:
 	await load("res://tests/MapScalePanTest.gd").new().run(self)
 	print("— بررسی تصویر و فاصلهٔ زیگزاگ‌ها در همهٔ نقشه‌ها…")
 	await load("res://tests/MapZigzagScaleTest.gd").new().run(self)
+	print("— بررسی شبکهٔ کاشت ۲×۲ خانه…")
+	await load("res://tests/BuildGridTest.gd").new().run(self)
 	_test_map_progression()
 	_test_repeatable_run_stars()
 	_test_prestige_fixed_cost()

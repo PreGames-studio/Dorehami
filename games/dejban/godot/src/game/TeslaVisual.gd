@@ -41,10 +41,10 @@ func setup(start_level: int) -> void:
 	base = _sprite("FixedPedestal")
 	base.texture = Assets.tex("towers_tesla/base")
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	body = _sprite("FixedCoilBody")
 	body.offset = -GROUND
-	body.scale = Vector2.ONE * IMAGE_SCALE
+	body.scale = Balance.base_scale(IMAGE_SCALE)
 	projection = Node2D.new()
 	projection.name = "AimProjection"
 	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
@@ -86,7 +86,7 @@ func set_level(value: int) -> void:
 	_set_head_atlas(head, atlas)
 	_set_head_atlas(head_next, atlas)
 	core.texture = Assets.tex("towers_tesla/core_%d" % current_level)
-	var core_position := (center - GROUND) * IMAGE_SCALE
+	var core_position := Balance.head_offset(IMAGE_SCALE, center - GROUND)
 	projection.position = core_position
 	core.position = core_position
 	core.offset = -center

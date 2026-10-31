@@ -33,7 +33,7 @@ func setup(start_level: int) -> void:
 	base = _sprite("FixedLaserPedestal")
 	base.centered = false
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	projection = Node2D.new()
 	projection.name = "LaserAimProjection"
 	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
@@ -73,7 +73,7 @@ func set_level(value: int) -> void:
 	var atlas := Assets.tex("towers_laser/head_%d_directions" % current_level)
 	_set_head_atlas(head, atlas)
 	_set_head_atlas(head_next, atlas)
-	projection.position = (AXIS_CENTERS[current_level - 1] - GROUND) * IMAGE_SCALE
+	projection.position = Balance.head_offset(IMAGE_SCALE, AXIS_CENTERS[current_level - 1] - GROUND)
 	_refresh_head()
 
 ## Input is the screen-space vector from the bore axis to an enemy hit point.

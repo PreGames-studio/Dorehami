@@ -24,6 +24,9 @@ var blocked_tiles: Dictionary = {}
 ## مانع‌های واقعی (سنگ و درخت) با شعاع برخورد؛ ملاک ساخت‌وساز این‌هاست.
 var blockers: Array = []
 var ambient := Color.WHITE
+## مبدأ شبکهٔ کاشت ۲×۲: با محور جادهٔ همین نقشه هم‌تراز می‌شود تا لبهٔ هر برج
+## دقیقاً به لبهٔ جاده بچسبد.
+var grid_origin := Vector2.ZERO
 var rng := RandomNumberGenerator.new()
 
 static func build(map_index: int) -> GameMap:
@@ -66,6 +69,7 @@ func setup(map_index: int) -> void:
 	else:
 		_build_route(int(def["complexity"]))
 	_build_pads(def.get("pads", []))
+	_build_grid_axis()
 	_build_ground()
 	_build_decor(float(def["decor"]))
 
@@ -290,6 +294,68 @@ func _route_torches() -> void:
 			"key": "props/torch", "pos": pos, "rot": 0.0,
 			"scale": 1.0, "flip": i % 2 != 0, "blocking": false,
 		})
+
+# ------------------------------------------------------------------ شبکهٔ کاشت
+
+## محور شبکه از خود مسیر گرفته می‌شود: بلندترین پارهٔ افقی، خط y را و بلندترین
+## پارهٔ عمودی، خط x را تعیین می‌کند. چون جاده و حریم ساخت با مقیاس ۷۱ پیکسلی
+## هماهنگ‌اند، لبهٔ بلوک‌های ۲×۲ دقیقاً روی لبهٔ جاده می‌افتد.
+func _build_grid_axis() -> void:
+	var best_h := 0.0
+	var best_v := 0.0
+	var line_y := keep_pos.y
+	var line_x := keep_pos.x
+	for i in range(1, route.size()):
+		var a := route[i - 1]
+		var b := route[i]
+		var dx := absf(b.x - a.x)
+		var dy := absf(b.y - a.y)
+		if dx >= dy:
+			if dx > best_h + 0.001:
+				best_h = dx
+				line_y = a.y
+		elif dy > best_v + 0.001:
+			best_v = dy
+			line_x = a.x
+	grid_origin = Vector2(line_x, line_y)
+
+## نزدیک‌ترین بلوک ۲×۲ خانه روی شبکهٔ همین نقشه.
+func grid_cell(pos: Vector2) -> Vector2:
+	var step: float = Balance.GRID_STEP
+	return Vector2(
+		grid_origin.x + roundf((pos.x - grid_origin.x) / step) * step,
+		grid_origin.y + roundf((pos.y - grid_origin.y) / step) * step
+	)
+
+## نقطهٔ نهایی کاشت: نقطهٔ انگشت به نزدیک‌ترین بلوک ۲×۲ گرد می‌شود، پس برج‌ها
+## هیچ‌وقت با فاصلهٔ یک خانه کاشته نمی‌شوند و برج دوم دقیقاً زیر برج اول جا می‌شود.
+## اگر خود بلوک ممنوع باشد ولی نقطهٔ انگشت روی زمین آزاد باشد، نزدیک‌ترین بلوک مجاز
+## تا نیم‌برج آن‌طرف‌تر انتخاب می‌شود؛ داخل جاده یا داخل برج دیگر، جابه‌جایی نمی‌کنیم
+## تا خطای واقعی همان‌جا نشان داده شود.
+func snap_build_cell(pos: Vector2, occupied: Dictionary, tolerance := -1.0) -> Vector2:
+	var step: float = Balance.GRID_STEP
+	var cell := grid_cell(pos)
+	if build_issue(cell, occupied).is_empty():
+		return cell
+	if not build_issue(pos, occupied).is_empty():
+		return cell
+	var limit := tolerance if tolerance > 0.0 else step * 1.5
+	var best := cell
+	var best_distance := 1.0e9
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			if dx == 0 and dy == 0:
+				continue
+			var candidate := cell + Vector2(float(dx) * step, float(dy) * step)
+			if not build_issue(candidate, occupied).is_empty():
+				continue
+			var distance := candidate.distance_to(pos)
+			if distance < best_distance:
+				best_distance = distance
+				best = candidate
+	if best_distance <= limit:
+		return best
+	return cell
 
 # ------------------------------------------------------------------ ساخت‌وساز
 
