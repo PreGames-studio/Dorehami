@@ -93,25 +93,9 @@ jobs:
             -gpu swiftshader_indirect -memory 4096
           # The runner executes this block with `sh`, where `set -o pipefail` aborts with exit 2
           # before anything runs (same trap documented in device-check.yml).
-          script: |
-            abis=$(adb shell getprop ro.product.cpu.abilist | tr -d '\r')
-            echo "Emulator ABI list: $abis"
-            adb shell settings put global package_verifier_enable 0 || true
-            adb install -r -t -d apk/Dorehami-debug.apk
-            adb shell pm list packages | grep -F "$PACKAGE_ID"
-            adb logcat -c
-            adb shell monkey -p "$PACKAGE_ID" -c android.intent.category.LAUNCHER 1
-            sleep 25
-            pid=$(adb shell pidof "$PACKAGE_ID" | tr -d '\r')
-            echo "pid: ${pid:-<not running>}"
-            adb logcat -d > logcat.txt || true
-            if grep -qE "FATAL EXCEPTION|INSTALL_FAILED" logcat.txt; then
-              echo "::error::crash or install failure while launching the published APK"
-              grep -E "FATAL EXCEPTION|INSTALL_FAILED" -A 15 logcat.txt | head -n 80
-              exit 1
-            fi
-            [ -n "$pid" ] || { echo "::error::the app process is not running after launch"; exit 1; }
-            echo "Published APK installed and launched successfully."
+          # One command only: the runner feeds this block to `sh`, and multi-line
+          # bash there aborts with exit code 2 (see device-check.yml for the same trap).
+          script: bash tools/apk-proof/install_published_apk.sh apk/Dorehami-debug.apk ir.dorehami.app proof.log
 
       - name: Report
         if: always()
@@ -119,7 +103,16 @@ jobs:
           {
             echo "## Published APK install proof"
             echo
+            echo "### Structural checks"
             echo '```'
             cat verify.txt 2>/dev/null || echo "(no structural report)"
             echo '```'
+            echo "### Emulator install"
+            echo '```'
+            cat proof.log 2>/dev/null || echo "(the install script never started)"
+            echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+          # Annotations survive blob-URL log expiry, so mirror the proof there too.
+          if [ -s proof.log ]; then
+            tail -n 20 proof.log | head -c 4000 | python3 -c "import sys;print('::notice title=apk-install-proof::' + sys.stdin.read().replace('%','%25').replace('\r','%0D').replace('\n','%0A'))"
+          fi
