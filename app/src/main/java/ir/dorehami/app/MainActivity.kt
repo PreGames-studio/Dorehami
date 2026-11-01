@@ -19,6 +19,7 @@ import ir.dorehami.app.ui.SettingsScreen
 import ir.dorehami.app.ui.StoreScreen
 import ir.dorehami.app.store.CoinWallet
 import ir.dorehami.app.ui.theme.DorehamiTheme
+import ir.dorehami.games.backgammon.ui.BackgammonEntry
 import ir.dorehami.games.chess.ui.ChessEntry
 import ir.dorehami.games.dejban.ui.DejbanEntry
 import ir.dorehami.games.hokm.ui.HokmEntry
@@ -38,6 +39,9 @@ sealed interface Screen {
     data object Chess : Screen
 
     data object Pantomime : Screen
+
+    /** Backgammon table (`games/backgammon`): offline bot / pass-and-play, online demo. */
+    data object Backgammon : Screen
 }
 
 class MainActivity : ComponentActivity() {
@@ -74,6 +78,7 @@ private fun EntryApp() {
             onOpenChess = { screen = Screen.Chess },
             onPantomime = { screen = Screen.Pantomime },
             onOpenDejban = { DejbanEntry.launch(context) },
+            onOpenBackgammon = { screen = Screen.Backgammon },
         )
 
         Screen.Hokm -> HokmEntry(onExit = { screen = Screen.Games })
@@ -92,5 +97,6 @@ private fun EntryApp() {
             onBack = { screen = Screen.Chess },
         )
         Screen.Pantomime -> PantohubScreen(onBack = { screen = Screen.Games })
+        Screen.Backgammon -> BackgammonEntry(onExit = { screen = Screen.Games })
     }
 }

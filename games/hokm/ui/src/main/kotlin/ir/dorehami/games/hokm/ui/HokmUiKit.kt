@@ -40,6 +40,7 @@ import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -224,7 +225,7 @@ fun Hokm3DButton(
                 onClick()
             }
             .padding(horizontal = horizontalPadding, vertical = 5.dp),
-        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
+        horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (leading != null) {
@@ -237,25 +238,38 @@ fun Hokm3DButton(
             )
         }
         Column(
+            // Weighted so a long Persian label can wrap inside the button instead of running past
+            // its rounded edge (the clipped-text complaint on the Hokm menu).
+            modifier = Modifier.weight(1f),
             horizontalAlignment = Alignment.CenterHorizontally,
             verticalArrangement = androidx.compose.foundation.layout.Arrangement.Center,
         ) {
             Text(
                 text = text,
                 color = foreground,
-                fontSize = if (height < 48.dp) 13.sp else 15.sp,
+                fontSize = when {
+                    height < 48.dp -> 12.sp
+                    text.length > 16 -> 13.sp
+                    else -> 14.sp
+                },
+                lineHeight = if (height < 48.dp) 15.sp else 18.sp,
                 fontWeight = FontWeight.Bold,
                 textAlign = TextAlign.Center,
-                maxLines = 1,
+                maxLines = 2,
+                softWrap = true,
+                overflow = TextOverflow.Ellipsis,
             )
             if (subtitle != null) {
                 Text(
                     text = subtitle,
                     color = mutedForeground,
                     fontSize = 10.sp,
+                    lineHeight = 13.sp,
                     fontWeight = FontWeight.Medium,
                     textAlign = TextAlign.Center,
-                    maxLines = 1,
+                    maxLines = 2,
+                    softWrap = true,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

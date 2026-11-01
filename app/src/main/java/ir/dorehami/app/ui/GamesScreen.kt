@@ -58,7 +58,7 @@ private val games = listOf(
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", GameAccent.Purple, implemented = true),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban", GameAccent.Gold, implemented = true),
     GameEntry("منچ", "🎲", "بازی خانوادگی روی تخته", "games/mench", GameAccent.Gold),
-    GameEntry("تخته نرد", "⚫", "تاس، مهره و رقابت دونفره", "games/backgammon", GameAccent.Warm),
+    GameEntry("تخته نرد", "⚫", "تاس و مهره • ربات و دونفره", "games/backgammon", GameAccent.Warm, implemented = true),
     GameEntry("مونوپولی", "💼", "خریدوفروش و ساخت امپراتوری", "games/monopoly", GameAccent.Teal),
     GameEntry("مافیا", "🕵️", "نقش‌های پنهان و رأی‌گیری گروهی", "games/mafia", GameAccent.Purple),
 )
@@ -71,6 +71,7 @@ fun GamesScreen(
     onOpenChess: () -> Unit = {},
     onPantomime: () -> Unit = {},
     onOpenDejban: () -> Unit = {},
+    onOpenBackgammon: () -> Unit = {},
 ) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
@@ -129,6 +130,7 @@ fun GamesScreen(
                                     game.module == "games/chess" -> onOpenChess()
                                     game.module == "games/pantohub" -> onPantomime()
                                     game.module == "games/dejban" -> onOpenDejban()
+                                    game.module == "games/backgammon" -> onOpenBackgammon()
                                 }
                             },
                         )

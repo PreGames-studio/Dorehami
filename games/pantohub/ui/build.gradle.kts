@@ -38,4 +38,15 @@ dependencies {
     implementation(libs.androidx.compose.material3)
     implementation(libs.androidx.activity.compose)
     implementation(libs.kotlinx.coroutines.android)
+
+    // JVM tests for the setup wizard's seat maths and text codec (no Compose rendering).
+    testImplementation(kotlin("test"))
+    testImplementation(kotlin("test-junit5"))
+    testImplementation(platform(libs.junit.bom))
+    testImplementation(libs.junit.jupiter)
+    testRuntimeOnly(libs.junit.platform.launcher)
+}
+
+tasks.withType<Test>().configureEach {
+    useJUnitPlatform()
 }

@@ -43,6 +43,9 @@ class NearbyTransport(
 ) : GameTransport {
     companion object {
         const val SERVICE_ID = "ir.dorehami.room"
+
+        /** Hard cap for envelopes queued before a peer's link is confirmed (~3 minutes of chat). */
+        private const val MAX_PENDING_BYTES = 256 * 1024
         private val STRATEGY = Strategy.P2P_STAR
     }
 
@@ -54,6 +57,17 @@ class NearbyTransport(
     private val reassemblers = HashMap<String, Frames.Reassembler>()
     private val ids = Frames.IdCounter()
     @Volatile private var closed = false
+
+    /**
+     * Envelopes addressed to a peer that GMS has not confirmed yet.
+     *
+     * A guest's `lobby.join` is sent the moment `requestConnection` resolves, which is *before*
+     * `onConnectionResult(STATUS_OK)`. Dropping that first envelope used to leave the lobby stuck on
+     * "waiting for the host" until the 20 s timeout — the main reason Bluetooth felt unstable.
+     */
+    private val pending = LinkedHashMap<String, MutableList<ByteArray>>()
+    private val pendingBytes = HashMap<String, Int>()
+    private var advertisedName: String? = null
 
     private val _discovered = MutableStateFlow<List<NearbyRoom>>(emptyList())
 
@@ -85,8 +99,9 @@ class NearbyTransport(
         override fun onConnectionResult(endpointId: String, result: ConnectionResolution) {
             when (result.status.statusCode) {
                 ConnectionsStatusCodes.STATUS_OK -> {
-                    connected += endpointId
+                    synchronized(connected) { connected += endpointId }
                     if (hostEndpoint == null && !advertising) hostEndpoint = endpointId
+                    flushPending(endpointId)
                     inbox.trySend(TransportEvent.PeerConnected(endpointId))
                 }
                 else -> if (!advertising) inbox.trySend(TransportEvent.Closed)
@@ -94,26 +109,43 @@ class NearbyTransport(
         }
 
         override fun onDisconnected(endpointId: String) {
-            connected -= endpointId
+            synchronized(connected) { connected -= endpointId }
             reassemblers.remove(endpointId)
+            synchronized(pending) {
+                pending.remove(endpointId)
+                pendingBytes.remove(endpointId)
+            }
             inbox.trySend(TransportEvent.PeerDisconnected(endpointId))
             if (endpointId == hostEndpoint) hostEndpoint = null
+            // A host keeps its room open after someone walks away: make sure the room is still
+            // discoverable, otherwise the remaining players can never refill the table.
+            val name = advertisedName
+            if (advertising && name != null && !closed) {
+                runCatching {
+                    client.startAdvertising(name, serviceId, lifecycle, advertisingOptions)
+                }
+            }
         }
     }
 
     @Volatile private var advertising = false
 
+    private val advertisingOptions: AdvertisingOptions =
+        AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
+
     // ---- host side ----
 
     /** Starts advertising this room. */
     suspend fun advertise(roomCode: String, hostName: String): Boolean {
+        val name = "$roomCode|$hostName"
         advertising = true
-        val options = AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
-        return await { client.startAdvertising("$roomCode|$hostName", serviceId, lifecycle, options) }
+        advertisedName = name
+        return await { client.startAdvertising(name, serviceId, lifecycle, advertisingOptions) }
     }
 
     fun stopAdvertising() {
         advertising = false
+        advertisedName = null
         client.stopAdvertising()
     }
 
@@ -146,15 +178,49 @@ class NearbyTransport(
 
     override suspend fun send(to: String?, text: String) {
         if (closed) return
-        val targets = if (to != null) listOf(to) else connected.toList()
+        val body = text.toByteArray(Charsets.UTF_8)
+        if (to != null && !isConnected(to)) {
+            synchronized(pending) {
+                val used = pendingBytes[to] ?: 0
+                if (used + body.size > MAX_PENDING_BYTES) return
+                pending.getOrPut(to) { mutableListOf() }.add(body)
+                pendingBytes[to] = used + body.size
+            }
+            return
+        }
+        val chunks = synchronized(ids) { Frames.encode(ids.next(), body) }
+        val targets = if (to != null) listOf(to) else peers()
         if (targets.isEmpty()) return
-        val chunks = Frames.encode(ids.next(), text.toByteArray(Charsets.UTF_8))
         for (chunk in chunks) client.sendPayload(targets, Payload.fromBytes(chunk))
+    }
+
+    private fun isConnected(peer: String): Boolean = synchronized(connected) { peer in connected }
+
+    private fun peers(): List<String> = synchronized(connected) { connected.toList() }
+
+    /** Sends everything that was queued for [endpointId] while the link was still being confirmed. */
+    private fun flushPending(endpointId: String) {
+        val queued: List<ByteArray> = synchronized(pending) {
+            pendingBytes.remove(endpointId)
+            pending.remove(endpointId)
+        } ?: return
+        for (body in queued) {
+            val chunks = synchronized(ids) { Frames.encode(ids.next(), body) }
+            for (chunk in chunks) {
+                runCatching { client.sendPayload(listOf(endpointId), Payload.fromBytes(chunk)) }
+            }
+        }
     }
 
     override suspend fun close() {
         if (closed) return
         closed = true
+        advertising = false
+        advertisedName = null
+        synchronized(pending) {
+            pending.clear()
+            pendingBytes.clear()
+        }
         runCatching { client.stopAdvertising() }
         runCatching { client.stopDiscovery() }
         runCatching { client.stopAllEndpoints() }
