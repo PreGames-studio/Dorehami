@@ -47,7 +47,7 @@ func setup(start_level: int) -> void:
 	body.scale = Balance.base_scale(IMAGE_SCALE)
 	projection = Node2D.new()
 	projection.name = "AimProjection"
-	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
+	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH) * Balance.TOWER_HEAD_SCALE
 	add_child(projection)
 	mount = Node2D.new()
 	mount.name = "RotatingHeadAxis"
@@ -59,14 +59,13 @@ func setup(start_level: int) -> void:
 	head_next = _sprite("ProjectedElectrodesNext")
 	head_next.z_index = 1
 	for view in [head, head_next]:
-		view.offset = -GROUND * (DIRECTION_CELL / FRAME)
-		view.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL)
+		view.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL * Balance.TOWER_HEAD_SCALE)
 	core = _sprite("RoundEnergyCore")
 	core.z_index = 2
 	charge = TeslaCharge.new()
 	charge.name = "ElectricCharge"
 	charge.z_index = 3
-	charge.scale = Vector2.ONE * IMAGE_SCALE
+	charge.scale = Vector2.ONE * (IMAGE_SCALE * Balance.TOWER_HEAD_SCALE)
 	add_child(charge)
 	set_level(start_level)
 
@@ -88,9 +87,12 @@ func set_level(value: int) -> void:
 	core.texture = Assets.tex("towers_tesla/core_%d" % current_level)
 	var core_position := (center - GROUND) * IMAGE_SCALE
 	projection.position = core_position
+	for view in [head, head_next]:
+		view.position = core_position
+		view.offset = -center * (DIRECTION_CELL / FRAME)
 	core.position = core_position
 	core.offset = -center
-	core.scale = Vector2.ONE * IMAGE_SCALE
+	core.scale = Vector2.ONE * (IMAGE_SCALE * Balance.TOWER_HEAD_SCALE)
 	charge.position = core_position
 	charge.configure(current_level, float(CORE_RADII[index]), float(ARM_SPANS[index]))
 	_refresh_head()

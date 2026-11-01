@@ -32,3 +32,7 @@ games/dejban/godot/.godot/
 # OS junk
 .DS_Store
 Thumbs.db
+
+# Python bytecode is generated locally, not source.
+__pycache__/
+*.py[cod]

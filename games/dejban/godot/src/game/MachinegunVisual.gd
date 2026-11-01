@@ -60,7 +60,7 @@ func setup(start_level: int) -> void:
 	projection = Node2D.new()
 	projection.name = "AimProjection"
 	projection.position = (HEAD_PIVOT - GROUND) * IMAGE_SCALE
-	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
+	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH) * Balance.TOWER_HEAD_SCALE
 	add_child(projection)
 	mount = Node2D.new()
 	mount.name = "RotatingHead"
@@ -73,7 +73,7 @@ func setup(start_level: int) -> void:
 	art = Node2D.new()
 	art.name = "IsometricViews"
 	art.position = projection.position
-	art.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL)
+	art.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL * Balance.TOWER_HEAD_SCALE)
 	art.z_index = 1
 	add_child(art)
 	barrel_art = Node2D.new()

@@ -132,12 +132,12 @@ func _test_all_map_margins(test) -> void:
 				"ورودی نقشهٔ %d باید از پشت نوارها بیرون بیاید" % (index + 1))
 		var hud_pos: Vector2 = battle.hud._coins_label.global_position
 		battle._set_pan_offset(Vector2(Balance.MAP_MARGIN * 2.0, -Balance.MAP_MARGIN * 2.0))
-		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN)
+		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN - 120.0)
 			and battle.hud._coins_label.global_position == hud_pos
 			and battle._ground.map.bg_key == battle.map.bg_key and Assets.tex(battle.map.bg_key) != null,
 			"حاشیه و حرکت نقشهٔ %d باید با تصویر خودش و HUD ثابت کار کند" % (index + 1))
 		battle._set_pan_offset(Vector2(-Balance.MAP_MARGIN * 2.0, Balance.MAP_MARGIN * 2.0))
-		test.check(battle._pan_root.position == Vector2(-Balance.MAP_MARGIN, Balance.MAP_MARGIN),
+		test.check(battle._pan_root.position == Vector2(-Balance.MAP_MARGIN, Balance.MAP_MARGIN + Balance.HUD_HEIGHT),
 			"حرکت نقشهٔ %d نباید از حاشیه بیرون برود" % (index + 1))
 		battle.queue_free()
 		await test.get_tree().process_frame
@@ -178,6 +178,11 @@ func _test_pan_and_build(test) -> void:
 	await test._touch(pan_button_center, true)
 	await test._touch(pan_button_center, false)
 	test.check(not battle.pan_mode, "لمس دوبارهٔ دکمه باید حرکت را پایان دهد")
+	battle._set_pan_offset(Vector2.ZERO)
+	await test._touch_drag(Vector2(800, 300), Vector2(840, 345))
+	test.check(battle._pan_root.position.distance_to(Vector2(40, 45)) < 0.1
+		and battle.towers.is_empty() and battle.hud._coins_label.global_position == hud_pos,
+		"کشیدن زمین بدون دکمه نیز باید نقشه را حرکت دهد، نه برج یا HUD را")
 	battle._set_pan_offset(Vector2.ZERO)
 	battle.hud._pan_button.button_pressed = true
 	test.check(battle.pan_mode and battle.hud._pan_button.text == "پایان حرکت", "دکمهٔ حرکت باید حالت نقشه را فعال کند")
@@ -271,7 +276,7 @@ func _test_pan_and_build(test) -> void:
 	touch.index = 2
 	touch.position = battle._world_to_screen(start_world)
 	touch.pressed = true
-	battle._unhandled_input(touch)
+	battle.begin_weapon_drag("machinegun", touch.position)
 	drag.index = 2
 	drag.position = battle._world_to_screen(end_cell)
 	battle._input(drag)

@@ -39,6 +39,8 @@ const GRAB_DRAG_DISTANCE := 14.0
 var _grab_tower = null
 var _grab_start := Vector2.ZERO
 var _pressed_empty := false
+## A drag started on open ground pans; a drag from the weapon bar builds.
+var _map_pan_candidate := false
 ## نقطهٔ شروع کشیدن برای کاشت؛ رهاکردنِ نزدیک به آن کاشت نیست (لمس ساده).
 var _drag_start := Vector2.ZERO
 
@@ -139,7 +141,8 @@ func _set_pan_offset(value: Vector2) -> void:
 	if _pan_root == null:
 		return
 	var margin: float = Balance.MAP_MARGIN
-	_pan_root.position = Vector2(clampf(value.x, -margin, margin), clampf(value.y, -margin, margin))
+	_pan_root.position = Vector2(clampf(value.x, -margin, margin),
+		clampf(value.y, -margin - 120.0, margin + Balance.HUD_HEIGHT))
 
 func _build_keep() -> void:
 	keep = Keep.new()
@@ -383,6 +386,7 @@ func _world_to_screen(world: Vector2) -> Vector2:
 func set_pan_mode(enabled: bool) -> void:
 	pan_mode = enabled
 	_panning = false
+	_map_pan_candidate = false
 	_drag_active = false
 	_grab_tower = null
 	_pressed_empty = false
@@ -425,6 +429,27 @@ func _input(event: InputEvent) -> void:
 				_panning = false
 				get_viewport().set_input_as_handled()
 		return
+	if _map_pan_candidate:
+		var motion_pos := Vector2.INF
+		var touch_id := -1
+		if event is InputEventMouseMotion and _pan_touch_id == -1:
+			motion_pos = _canvas_pointer(event.position)
+		elif not _emulate_mouse_from_touch() and event is InputEventScreenDrag and event.index == _pan_touch_id:
+			motion_pos = _canvas_pointer(event.position)
+			touch_id = event.index
+		if motion_pos != Vector2.INF and motion_pos.distance_to(_grab_start) >= GRAB_DRAG_DISTANCE:
+			_map_pan_candidate = false
+			_pressed_empty = false
+			_drag_active = false
+			if ghost != null:
+				ghost.visible = false
+			_refresh_guide()
+			_begin_pan(_grab_start, touch_id)
+			_move_pan(motion_pos)
+			get_viewport().set_input_as_handled()
+			return
+		if (event is InputEventMouseButton and not event.pressed) or (event is InputEventScreenTouch and not event.pressed and event.index == _pan_touch_id):
+			_map_pan_candidate = false
 	if not _drag_active or selected_weapon.is_empty():
 		return
 	if event is InputEventMouseMotion:
@@ -455,10 +480,14 @@ func _unhandled_input(event: InputEvent) -> void:
 			_update_ghost(_canvas_pointer(event.position))
 	elif event is InputEventMouseButton and event.button_index == MOUSE_BUTTON_LEFT:
 		_handle_build_press(event.pressed, _canvas_pointer(event.position))
+		if event.pressed and _grab_tower == null:
+			_pan_touch_id = -1
 	elif not _emulate_mouse_from_touch() and event is InputEventScreenTouch:
 		var screen := _canvas_pointer(event.position)
 		if hud == null or not hud.is_over_ui(screen):
 			_handle_build_press(event.pressed, screen)
+			if event.pressed and _grab_tower == null:
+				_pan_touch_id = event.index
 	elif not _emulate_mouse_from_touch() and event is InputEventScreenDrag:
 		if not selected_weapon.is_empty():
 			_update_ghost(_canvas_pointer(event.position))
@@ -484,6 +513,7 @@ func _in_build_area(screen: Vector2) -> bool:
 
 ## شروع کشیدن برجک از روی دکمهٔ نوار پایین‌چپ؛ همیشه آن برجک را فعال و از همان لحظه مرئی می‌کند.
 func begin_weapon_drag(id: String, start_world := Vector2(-1.0, -1.0)) -> void:
+	_map_pan_candidate = false
 	if not running or paused:
 		return
 	if pan_mode:
@@ -539,6 +569,7 @@ func _handle_build_press(pressed: bool, screen: Vector2) -> void:
 		if not _in_build_area(screen):
 			return
 		_grab_tower = _tower_at(_screen_to_world(screen))
+		_map_pan_candidate = _grab_tower == null
 		_grab_start = screen
 		_pressed_empty = _grab_tower == null and selected_weapon.is_empty()
 		if selected_weapon.is_empty() or _grab_tower != null:
@@ -668,6 +699,8 @@ func _update_ghost(screen: Vector2) -> void:
 		return
 	var in_area := _in_build_area(screen)
 	var cell := _snap(_screen_to_world(screen))
+	if guide != null and _drag_active:
+		guide.show_lattice(cell)
 	var issue := map.build_issue(cell, occupied) if in_area else "خارج از محدودهٔ کاشت"
 	var preview := _world_to_screen(cell) if in_area else screen
 	ghost.visible = true

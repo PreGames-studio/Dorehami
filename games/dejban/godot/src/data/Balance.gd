@@ -61,6 +61,8 @@ const GRID_STEP := TOWER_SIZE
 ## (ارتفاع قبلی خودش ۸۰٪ هنر اصلی بود). محور سر/لوله جابه‌جا نمی‌شود.
 const TOWER_BASE_WIDTH := 0.8
 const TOWER_BASE_HEIGHT := 0.64
+## اندازهٔ اجزای متحرک نسبت به اندازهٔ فعلی، با حفظ محور چرخش.
+const TOWER_HEAD_SCALE := 1.3
 
 ## پایین پایه روی لنگر زمین می‌ماند.
 static func base_scale(image_scale: float) -> Vector2:

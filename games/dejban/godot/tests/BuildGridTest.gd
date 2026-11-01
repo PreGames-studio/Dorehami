@@ -98,6 +98,5 @@ func _test_every_map_has_a_cell(test) -> void:
 			if found != Vector2.INF:
 				break
 		test.check(found != Vector2.INF, "نقشهٔ %d باید دست‌کم یک بلوک ۲×۲ آزاد داشته باشد" % (index + 1))
-		test.check(is_zero_approx(fposmod(found.x - map.grid_origin.x, Balance.GRID_STEP))
-			and is_zero_approx(fposmod(found.y - map.grid_origin.y, Balance.GRID_STEP)),
-			"بلوک آزاد نقشهٔ %d باید روی شبکه باشد" % (index + 1))
+		test.check(map.build_issue(found, {}).is_empty(),
+			"بلوک آزاد نقشهٔ %d نباید با جاده برخورد کند" % (index + 1))
