@@ -90,8 +90,8 @@ fun BackgammonScreen(
 
             Row(
                 Modifier.fillMaxWidth(),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-                horizontalAlignment = Alignment.CenterHorizontally,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+                verticalAlignment = Alignment.CenterVertically,
             ) {
                 if (state.dice.isEmpty()) {
                     Text("تاس", color = BackgammonPalette.muted, fontSize = 12.sp)
