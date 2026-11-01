@@ -22,6 +22,58 @@ MARGIN_Y = 280  # extra render-only padding for moving beneath HUD panels
 MAP1 = [(3, 148), (931, 148), (931, 361), (349, 361), (349, 574), (994, 574), (994, 716)]
 
 
+def cropped_edge_mask(image: np.ndarray, top: bool) -> np.ndarray:
+    """Find strong foreground shapes interrupted by a horizontal edge.
+
+    Used only for the two flat-colour meadow maps after visual inspection;
+    woodland and snow do not have a uniform enough background for this method.
+    """
+    lab = cv2.cvtColor(image, cv2.COLOR_BGR2LAB).astype(np.float32)
+    band = lab[:100] if top else lab[-100:]
+    background = np.median(band.reshape(-1, 3), axis=0)
+    foreground = (np.linalg.norm(lab - background, axis=2) > 22).astype(np.uint8) * 255
+    foreground = cv2.morphologyEx(foreground, cv2.MORPH_CLOSE, np.ones((5, 5), np.uint8))
+    contours, _ = cv2.findContours(foreground, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask = np.zeros(image.shape[:2], np.uint8)
+    for contour in contours:
+        x, y, w, h = cv2.boundingRect(contour)
+        if ((top and y <= 1) or (not top and y + h >= image.shape[0] - 1)) and h > 3 and w > 3:
+            cv2.drawContours(mask, [contour], -1, 255, cv2.FILLED)
+    return cv2.dilate(mask, np.ones((5, 5), np.uint8))
+
+
+def meadow_extension(clean: np.ndarray) -> np.ndarray:
+    """Continue just cropped edge shapes, not the whole upside-down scene."""
+    top = cropped_edge_mask(clean, True)
+    bottom = cropped_edge_mask(clean, False)
+    # The wrap comes from the opposite edge. Remove the truncated objects there
+    # first so a detached half-bush does not appear at this edge's seam.
+    source = cv2.inpaint(clean, top | bottom, 5, cv2.INPAINT_TELEA)
+    result = cv2.copyMakeBorder(source, MARGIN_Y, MARGIN_Y, MARGIN_X, MARGIN_X, cv2.BORDER_WRAP)
+    reflected = cv2.copyMakeBorder(clean, MARGIN_Y, MARGIN_Y, MARGIN_X, MARGIN_X, cv2.BORDER_REFLECT_101)
+    for area, mask in ((slice(0, MARGIN_Y), top), (slice(MARGIN_Y + 720, None), bottom)):
+        mask = cv2.copyMakeBorder(mask, MARGIN_Y, MARGIN_Y, MARGIN_X, MARGIN_X, cv2.BORDER_REFLECT_101)
+        alpha = cv2.GaussianBlur(mask, (5, 5), 1).astype(np.float32)[area, :, None] / 255.0
+        result[area] = (reflected[area] * alpha + result[area] * (1.0 - alpha)).astype(np.uint8)
+    return result
+
+
+def clean_meadow_fragments(image: np.ndarray, index: int) -> None:
+    """Remove known detached wrap fragments in the padding, never in the map."""
+    boxes = [(75, 1092, 220, 1215), (1335, 1092, 1500, 1215)]
+    if index == 3:
+        boxes += [(0, 172, 295, 280), (454, 235, 585, 280), (1290, 172, 1579, 280)]
+    mask = np.zeros(image.shape[:2], np.float32)
+    for x0, y0, x1, y1 in boxes:
+        cv2.rectangle(mask, (x0, y0), (x1, y1), 1.0, -1)
+    mask = cv2.GaussianBlur(mask, (0, 0), 5)
+    mask[MARGIN_Y:MARGIN_Y + 720, MARGIN_X:MARGIN_X + 1280] = 0
+    # The sampled strip is uninterrupted meadow for these two maps.
+    backdrop = np.repeat(image[:, 650:651, :], image.shape[1], axis=1)
+    alpha = mask[:, :, None]
+    image[:] = (image * (1.0 - alpha) + backdrop * alpha).astype(np.uint8)
+
+
 def make_margin(index: int) -> None:
     src = SRC / f'map_{index:02}.jpg'
     image = cv2.imread(str(src), cv2.IMREAD_COLOR)
@@ -42,7 +94,11 @@ def make_margin(index: int) -> None:
     pts = np.rint(points).astype(np.int32).reshape((-1, 1, 2))
     cv2.polylines(road, [pts], False, 255, width, lineType=cv2.LINE_8)
     clean = cv2.inpaint(image, road, 5, cv2.INPAINT_TELEA)
-    extended = cv2.copyMakeBorder(clean, MARGIN_Y, MARGIN_Y, MARGIN_X, MARGIN_X, cv2.BORDER_WRAP)
+    if index in (2, 3):
+        extended = meadow_extension(clean)
+        clean_meadow_fragments(extended, index)
+    else:
+        extended = cv2.copyMakeBorder(clean, MARGIN_Y, MARGIN_Y, MARGIN_X, MARGIN_X, cv2.BORDER_WRAP)
     # Match the side edge to itself rather than cutting off an unrelated
     # object copied from the far side of the map. Only horizontal reflection
     # is used here, so trees are not flipped upside-down.
