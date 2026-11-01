@@ -19,6 +19,9 @@ internal enum class SetupStep { COUNT, PLAYERS }
 
 internal const val MIN_TEAMS = 2
 internal const val MAX_TEAMS = 8
+
+/** Shared-preferences file that keeps the last wizard state on this device. */
+internal const val SETUP_PREFS = "pantohub-setup"
 internal const val MIN_PLAYERS_PER_TEAM = 1
 internal const val MAX_PLAYERS_PER_TEAM = 6
 
