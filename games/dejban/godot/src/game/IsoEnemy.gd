@@ -121,6 +121,7 @@ func _update_transform(delta: float, _current_speed := 46.0) -> void:
 		_smooth_dir = raw_dir
 	var perp := Vector2(-_smooth_dir.y, _smooth_dir.x)
 	position = map.point_at(t) + perp * lane - _smooth_dir * (_hit_jolt * 2.0)
+	_update_entrance_visibility()
 	if not sieging and _player != null:
 		# ردیف شیت از جهت مسیر، در گام‌های ۴۵ درجه.
 		_set_dir(IsoSheet.dir_from_vector(_smooth_dir, dir))

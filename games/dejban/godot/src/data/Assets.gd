@@ -105,6 +105,7 @@ const MANIFEST := {
 	"props/tree_palm": "res://assets/sprites/props/tree_palm.png",
 	"props/tree_pine": "res://assets/sprites/props/tree_pine.png",
 	"props/tree_round": "res://assets/sprites/props/tree_round.png",
+	"structures/entrance": "res://assets/sprites/structures/entrance.png",
 	"structures/gate": "res://assets/sprites/structures/gate.png",
 	"structures/keep": "res://assets/sprites/structures/keep.png",
 	"towers/base": "res://assets/sprites/towers/base.png",

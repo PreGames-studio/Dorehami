@@ -2,8 +2,10 @@
 """Generate natural, road-free borders from the restored map artwork.
 
 Offline tool: pip install numpy opencv-python-headless. The gameplay image is
-not changed: a separate image is drawn behind it. Wrapping terrain preserves each map's palette and plants, while inpainting road bands first avoids fake roads
-outside the playable routes. Eight extra pixels cover camera shake.
+not changed: a separate image is drawn behind it. Road bands are inpainted
+before extending terrain. Side borders continue edge objects horizontally
+instead of abruptly joining an unrelated portion of the opposite edge.
+Eight extra pixels cover camera shake.
 """
 from pathlib import Path
 
@@ -29,10 +31,24 @@ def make_margin(index: int) -> None:
     path = MAP1 if index == 1 else layout['path']
     width = 86 if index == 1 else int(max(b[1] for b in layout['x'] + layout['y']) + 18)
     road = np.zeros(image.shape[:2], dtype=np.uint8)
-    pts = np.rint(np.asarray(path)).astype(np.int32).reshape((-1, 1, 2))
+    # Some measured paths stop short of the painted arrow/road at the image
+    # edge. Extend both ends along the tangent before removing the road from
+    # the border source; otherwise arrows and asphalt leak into the margin.
+    points = np.asarray(path, dtype=np.float64)
+    first = points[1] - points[0]
+    last = points[-1] - points[-2]
+    points[0] -= first / np.linalg.norm(first) * 160.0
+    points[-1] += last / np.linalg.norm(last) * 160.0
+    pts = np.rint(points).astype(np.int32).reshape((-1, 1, 2))
     cv2.polylines(road, [pts], False, 255, width, lineType=cv2.LINE_8)
     clean = cv2.inpaint(image, road, 5, cv2.INPAINT_TELEA)
     extended = cv2.copyMakeBorder(clean, MARGIN_Y, MARGIN_Y, MARGIN_X, MARGIN_X, cv2.BORDER_WRAP)
+    # Match the side edge to itself rather than cutting off an unrelated
+    # object copied from the far side of the map. Only horizontal reflection
+    # is used here, so trees are not flipped upside-down.
+    side = cv2.copyMakeBorder(clean, 0, 0, MARGIN_X, MARGIN_X, cv2.BORDER_REFLECT_101)
+    extended[MARGIN_Y:MARGIN_Y + 720, :MARGIN_X] = side[:, :MARGIN_X]
+    extended[MARGIN_Y:MARGIN_Y + 720, MARGIN_X + 1280:] = side[:, MARGIN_X + 1280:]
     # The true artwork is drawn on top at runtime, but retaining it here makes
     # the generated image independently inspectable.
     extended[MARGIN_Y:MARGIN_Y + 720, MARGIN_X:MARGIN_X + 1280] = image
@@ -42,6 +58,8 @@ def make_margin(index: int) -> None:
 
 
 if __name__ == '__main__':
-    for i in range(1, 13):
+    # map_01 is an individually retouched border; do not overwrite it with
+    # the automatic approximation. The original gameplay image stays separate.
+    for i in range(2, 13):
         make_margin(i)
         print(f'generated map_{i:02} margin')

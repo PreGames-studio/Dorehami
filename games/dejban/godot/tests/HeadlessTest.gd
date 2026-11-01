@@ -357,10 +357,14 @@ func _smoke_scenes() -> void:
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt)
 			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید برجک بکارد")
-			# کاشت با گرفتن، کشیدن و رهاکردن در جای مجاز
+			# Even a drag starting on the ground must not create a tower.
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt + Vector2(30.0, 0.0))
-			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id, "کاشت با کشیدن و رهاکردن انجام نشد")
+			check(instance.towers.size() == 1 and not instance._drag_active, "کشیدن زمین نباید کاشت را شروع کند")
+			# Only a drag from the weapon bar may build.
+			instance.begin_weapon_drag(armed_id, Vector2(180.0, 660.0))
+			instance._finish_drag(free_pt + Vector2(30.0, 0.0))
+			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id, "کاشت با کشیدن از نوار و رهاکردن انجام نشد")
 			# لغو با رها کردن روی دکمهٔ آمادهٔ نوار
 			var bar_center: Vector2 = instance.hud._weapon_panel.get_global_rect().get_center()
 			instance.begin_weapon_drag(armed_id, bar_center)
