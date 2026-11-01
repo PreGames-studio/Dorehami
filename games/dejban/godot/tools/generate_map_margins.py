@@ -74,6 +74,46 @@ def clean_meadow_fragments(image: np.ndarray, index: int) -> None:
     image[:] = (image * (1.0 - alpha) + backdrop * alpha).astype(np.uint8)
 
 
+def retouch_known_streaks(image: np.ndarray, index: int) -> None:
+    """Replace selected inpaint streaks with nearby terrain, outside the map.
+
+    The coordinates and source patches were chosen per image, not inferred
+    from the road. Keeping the gameplay rectangle masked out is important:
+    the separately drawn original map must still align with the border.
+    """
+    patches = {
+        4: [
+            ((1090, 200, 140, 80), (650, 150)),
+            ((0, 280, 150, 80), (650, 150)),
+            ((440, 1000, 80, 75), (650, 150)),
+            ((1430, 1000, 150, 90), (650, 150)),
+        ],
+        7: [
+            ((194, 148, 110, 120), (190, 275)),
+            ((1470, 148, 110, 120), (190, 275)),
+            ((0, 865, 110, 120), (190, 275)),
+            ((0, 390, 150, 90), (500, 290)),
+            ((160, 1104, 140, 95), (500, 290)),
+            ((1430, 1104, 150, 95), (500, 290)),
+        ],
+    }
+    for (x, y, width, height), (source_x, source_y) in patches.get(index, []):
+        source = image[source_y:source_y + height, source_x:source_x + width].copy()
+        alpha = np.ones((height, width), np.float32)
+        for edge in range(20):
+            amount = (edge + 1) / 21.0
+            alpha[edge, :] *= amount
+            alpha[-1 - edge, :] *= amount
+            alpha[:, edge] *= amount
+            alpha[:, -1 - edge] *= amount
+        yy, xx = np.mgrid[y:y + height, x:x + width]
+        alpha[(xx >= MARGIN_X) & (xx < MARGIN_X + 1280) &
+              (yy >= MARGIN_Y) & (yy < MARGIN_Y + 720)] = 0
+        alpha = alpha[:, :, None]
+        destination = image[y:y + height, x:x + width]
+        destination[:] = (source * alpha + destination * (1 - alpha)).astype(np.uint8)
+
+
 def make_margin(index: int) -> None:
     src = SRC / f'map_{index:02}.jpg'
     image = cv2.imread(str(src), cv2.IMREAD_COLOR)
@@ -108,6 +148,7 @@ def make_margin(index: int) -> None:
     # The true artwork is drawn on top at runtime, but retaining it here makes
     # the generated image independently inspectable.
     extended[MARGIN_Y:MARGIN_Y + 720, MARGIN_X:MARGIN_X + 1280] = image
+    retouch_known_streaks(extended, index)
     OUT.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(OUT / src.name), extended, [cv2.IMWRITE_JPEG_QUALITY, 94]):
         raise RuntimeError(f'could not write margin for {src}')
