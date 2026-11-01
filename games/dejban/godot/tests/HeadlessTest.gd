@@ -276,6 +276,8 @@ func _smoke_scenes() -> void:
 			check(_find_label(texts, "موتور: Godot") < 0, "خط موتور باید از شناسنامه پاک شده باشد")
 			check(_find_label(texts, "فونت: وزیرمتن") < 0, "خط فونت باید از شناسنامه پاک شده باشد")
 		if path.ends_with("Battle.tscn"):
+			# The following fixture uses world positions as screen coordinates.
+			instance._set_pan_offset(Vector2.ZERO)
 			check(instance.hud != null and instance.hud._coins_label is Button and instance.hud._lives_label is Button
 				and instance.hud._wave_label is Button and instance.hud._enemies_label is Button,
 				"اطلاعات نوار بالای نبرد باید به‌صورت دکمه نمایش داده شوند")
@@ -357,10 +359,14 @@ func _smoke_scenes() -> void:
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt)
 			check(instance.towers.size() == 1 and instance.selected_weapon == armed_id, "لمس ساده در فضای آزاد نباید برجک بکارد")
-			# کاشت با گرفتن، کشیدن و رهاکردن در جای مجاز
+			# Even a drag starting on the ground must not create a tower.
 			instance._handle_build_press(true, free_pt)
 			instance._handle_build_press(false, free_pt + Vector2(30.0, 0.0))
-			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id, "کاشت با کشیدن و رهاکردن انجام نشد")
+			check(instance.towers.size() == 1 and not instance._drag_active, "کشیدن زمین نباید کاشت را شروع کند")
+			# Only a drag from the weapon bar may build.
+			instance.begin_weapon_drag(armed_id, Vector2(180.0, 660.0))
+			instance._finish_drag(free_pt + Vector2(30.0, 0.0))
+			check(instance.towers.size() == 2 and instance.selected_weapon == armed_id, "کاشت با کشیدن از نوار و رهاکردن انجام نشد")
 			# لغو با رها کردن روی دکمهٔ آمادهٔ نوار
 			var bar_center: Vector2 = instance.hud._weapon_panel.get_global_rect().get_center()
 			instance.begin_weapon_drag(armed_id, bar_center)
@@ -1597,6 +1603,7 @@ func _test_touch_upgrade_flow() -> void:
 	add_child(battle)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	battle._set_pan_offset(Vector2.ZERO)
 	var screen := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
 	var hud = battle.hud
 	battle.coins = 9000

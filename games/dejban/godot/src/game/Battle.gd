@@ -10,6 +10,7 @@ const HUMANOID_ENEMIES := ["soldier", "commando"]
 
 var map: GameMap = null
 var keep: Keep = null
+var entrance: Node2D = null
 var ghost: BuildGhost = null
 var guide: BuildGuide = null
 var hud = null
@@ -71,6 +72,7 @@ func _ready() -> void:
 	lives = Balance.START_LIVES
 	_build_layers()
 	_reveal_entrance()
+	_build_entrance()
 	_build_keep()
 	guide = BuildGuide.new()
 	guide.z_index = 18
@@ -129,13 +131,23 @@ func _build_layers() -> void:
 	_fx_layer.z_index = 30
 	_world.add_child(_fx_layer)
 
-## ورودی‌هایی که زیر نوار پایین یا بالای صفحه‌اند از همان ابتدا دیده شوند.
+## Keep the entire portal in view at the start, including entries at map
+## edges or behind the HUD. Players can still pan freely afterwards.
 func _reveal_entrance() -> void:
-	var y: float = map.entry_pos.y
-	if y > Balance.WORLD_SIZE.y - 125.0:
-		_set_pan_offset(Vector2(0.0, Balance.WORLD_SIZE.y - 145.0 - y))
-	elif y < Balance.HUD_HEIGHT + 16.0:
-		_set_pan_offset(Vector2(0.0, Balance.HUD_HEIGHT + 26.0 - y))
+	var pos: Vector2 = map.entry_pos
+	var shift := Vector2.ZERO
+	var half_width := 98.0
+	if pos.x < half_width:
+		shift.x = half_width - pos.x
+	elif pos.x > Balance.WORLD_SIZE.x - half_width:
+		shift.x = Balance.WORLD_SIZE.x - half_width - pos.x
+	var min_y: float = Balance.HUD_HEIGHT + 139.0
+	var max_y: float = Balance.WORLD_SIZE.y - 145.0
+	if pos.y < min_y:
+		shift.y = min_y - pos.y
+	elif pos.y > max_y:
+		shift.y = max_y - pos.y
+	_set_pan_offset(shift)
 
 func _set_pan_offset(value: Vector2) -> void:
 	if _pan_root == null:
@@ -143,6 +155,22 @@ func _set_pan_offset(value: Vector2) -> void:
 	var margin: float = Balance.MAP_MARGIN
 	_pan_root.position = Vector2(clampf(value.x, -margin, margin),
 		clampf(value.y, -margin - 120.0, margin + Balance.HUD_HEIGHT))
+
+## The portal shares the first waypoint with every enemy. Keep the artwork
+## behind units so they appear out of its dark opening rather than on the roof.
+func _build_entrance() -> void:
+	entrance = Node2D.new()
+	entrance.name = "EnemyEntrance"
+	entrance.position = map.entry_pos
+	entrance.z_index = -10
+	var sprite := Sprite2D.new()
+	sprite.texture = Assets.tex("structures/entrance")
+	sprite.scale = Vector2(1.0, 0.9)
+	sprite.centered = false
+	if sprite.texture != null:
+		sprite.offset = Vector2(-sprite.texture.get_width() * 0.5, -sprite.texture.get_height() + 8.0)
+	entrance.add_child(sprite)
+	_world.add_child(entrance)
 
 func _build_keep() -> void:
 	keep = Keep.new()
@@ -562,8 +590,7 @@ func _finish_drag(screen: Vector2) -> void:
 
 ## لمس یا کشیدن روی برجک کاشته‌شده همیشه همان برجک را انتخاب و پنل ارتقا/فروش را باز می‌کند
 ## (حتی زمانی که سلاحی در نوار پایین آماده است).
-## در فضای آزاد، کاشت سلاح آماده فقط با کشیدن انجام می‌شود و لمس خالی هنگام باز بودن پنل
-## برجک، انتخاب را می‌بندد.
+## فضای آزاد فقط برای انتخاب‌زدایی یا حرکت نقشه است؛ کاشت صرفاً از نوار سلاح آغاز می‌شود.
 func _handle_build_press(pressed: bool, screen: Vector2) -> void:
 	if pressed:
 		if not _in_build_area(screen):
@@ -571,15 +598,7 @@ func _handle_build_press(pressed: bool, screen: Vector2) -> void:
 		_grab_tower = _tower_at(_screen_to_world(screen))
 		_map_pan_candidate = _grab_tower == null
 		_grab_start = screen
-		_pressed_empty = _grab_tower == null and selected_weapon.is_empty()
-		if selected_weapon.is_empty() or _grab_tower != null:
-			return
-		_drag_active = true
-		_drag_start = screen
-		_refresh_guide()
-		if ghost != null:
-			ghost.set_weapon(Weapons.by_id(selected_weapon))
-		_update_ghost(screen)
+		_pressed_empty = _grab_tower == null
 		return
 	if _grab_tower != null:
 		var grabbed = _grab_tower
@@ -690,7 +709,7 @@ func _refresh_ghost() -> void:
 func _update_ghost(screen: Vector2) -> void:
 	if ghost == null or selected_weapon.is_empty() or pan_mode:
 		return
-	if not _drag_active and not _in_build_area(screen):
+	if not _drag_active:
 		ghost.visible = false
 		return
 	var weapon := Weapons.by_id(selected_weapon)

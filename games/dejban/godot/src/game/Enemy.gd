@@ -185,6 +185,11 @@ func _tick_effects(delta: float) -> void:
 		_hit_jolt = maxf(0.0, _hit_jolt - delta * 7.5)
 	_update_tint()
 
+## Reveal progressively while leaving the dark portal. Route and combat timing
+## stay unchanged for both the humanoid and tank implementations.
+func _update_entrance_visibility() -> void:
+	modulate.a = clampf(progress / 36.0, 0.0, 1.0)
+
 func _update_transform(delta: float, current_speed := 46.0) -> void:
 	if map == null:
 		return
@@ -197,6 +202,7 @@ func _update_transform(delta: float, current_speed := 46.0) -> void:
 	var perp := Vector2(-_smooth_dir.y, _smooth_dir.x)
 	var jolt_vec := -_smooth_dir * (_hit_jolt * 3.8)
 	position = map.point_at(t) + perp * lane + jolt_vec
+	_update_entrance_visibility()
 	if _sprite == null:
 		return
 

@@ -130,6 +130,13 @@ func _test_all_map_margins(test) -> void:
 		if battle.map.entry_pos.y < Balance.HUD_HEIGHT + 16.0 or battle.map.entry_pos.y > Balance.WORLD_SIZE.y - 125.0:
 			test.check(initial_entry.y > Balance.HUD_HEIGHT and initial_entry.y < Balance.WORLD_SIZE.y - 125.0,
 				"ورودی نقشهٔ %d باید از پشت نوارها بیرون بیاید" % (index + 1))
+		test.check(initial_entry.x >= 97.0 and initial_entry.x <= Balance.WORLD_SIZE.x - 97.0
+			and initial_entry.y >= Balance.HUD_HEIGHT + 138.0,
+			"دروازهٔ ورودی نقشهٔ %d باید کامل داخل صفحه و زیر نوار بالا باشد" % (index + 1))
+		for repair in Ground.MARGIN_REPAIRS.get(battle.map.bg_key, []):
+			var repair_key: String = repair[0]
+			test.check(Assets.has_key(repair_key) and Assets.tex(repair_key) != null,
+				"ترمیم حاشیهٔ نقشهٔ %d باید بارگذاری شود" % (index + 1))
 		var hud_pos: Vector2 = battle.hud._coins_label.global_position
 		battle._set_pan_offset(Vector2(Balance.MAP_MARGIN * 2.0, -Balance.MAP_MARGIN * 2.0))
 		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN - 120.0)
@@ -164,6 +171,25 @@ func _test_pan_and_build(test) -> void:
 	battle.coins = 9999
 	await test.get_tree().process_frame
 
+	# The visual portal sits at the first waypoint for all map variants.
+	for i in range(Maps.count()):
+		var level := GameMap.build(i)
+		test.check(level.entry_pos.distance_to(level.route[0]) < 0.01,
+			"ورودی باید روی آغاز مسیر هر نقشه باشد")
+	test.check(battle.entrance != null and battle.entrance.position == battle.map.entry_pos
+		and Assets.tex("structures/entrance") != null, "تونل باید در ورودی ساخته شود")
+	for enemy_id in ["soldier", "tank"]:
+		battle._spawn_enemy(enemy_id)
+		var enemy = battle.enemies.back()
+		test.check(is_zero_approx(enemy.modulate.a) and enemy.position.distance_to(battle.map.entry_pos) < 3.0,
+			"دشمن باید در دهانهٔ تونل پدیدار شود")
+		enemy.progress = 36.0
+		enemy._update_transform(0.0)
+		test.check(is_equal_approx(enemy.modulate.a, 1.0), "دشمن باید پس از خروج کامل دیده شود")
+		battle.enemies.erase(enemy)
+		enemy.queue_free()
+
+	battle._set_pan_offset(Vector2.ZERO)
 	var hud_pos: Vector2 = battle.hud._coins_label.global_position
 	# Exercise the real touch → emulated-mouse → GUI/unhandled input path,
 	# including the on-screen mode button, rather than only calling helpers.
@@ -248,6 +274,15 @@ func _test_pan_and_build(test) -> void:
 	battle._finish_drag(screen)
 	test.check(battle.towers.size() == 1 and battle.towers[0].position.distance_to(desired) < 0.01,
 		"رهاکردن پس از حرکت باید برج را در همان خانهٔ شبکهٔ ۲×۲ بسازد")
+	# Real touch on empty terrain after building cannot arm or place a tower.
+	await test._touch(Vector2(800, 300), true)
+	await test._touch(Vector2(800, 300), false)
+	test.check(battle.towers.size() == 1 and not battle._drag_active and not battle.ghost.visible,
+		"لمس زمین پس از ساخت نباید کاشت یا پیش‌نمای برج را شروع کند")
+	await test._touch_drag(Vector2(800, 300), Vector2(840, 345))
+	test.check(battle.towers.size() == 1 and not battle._drag_active,
+		"کشیدن از زمین باید فقط نقشه را حرکت دهد، نه برج بکارد")
+	battle._set_pan_offset(Vector2(90, -80))
 	battle._handle_build_press(true, screen)
 	battle._handle_build_press(false, screen)
 	test.check(battle.selected_tower == battle.towers[0], "انتخاب برج ساخته‌شده پس از حرکت باید درست باشد")
