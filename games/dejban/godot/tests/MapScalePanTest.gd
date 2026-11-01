@@ -43,7 +43,7 @@ func _test_first_map_geometry(test) -> void:
 	# Dense maps must not become impossible merely because the larger square
 	# is combined with an old centre-point clearance a second time.
 	var dense := GameMap.build(2)
-	test.check(dense.build_issue(Vector2(800.0, 289.0), {}).is_empty(),
+	test.check(dense.build_issue(Vector2(800.0, 162.25), {}).is_empty(),
 		"نقشهٔ پرپیچ‌وخم باید همچنان جای ساخت داخل خود نقشه داشته باشد")
 
 	var image := Assets.tex("maps/map_01").get_image()

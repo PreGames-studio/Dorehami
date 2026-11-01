@@ -83,6 +83,10 @@ jobs:
         run: |
           MSG=$(tail -n 80 /tmp/dezhban-test.log | tr '\n' ' ' | sed 's/%/%25/g; s/\r//g' | head -c 3500)
           if [ "${{ steps.selftest.outputs.result }}" = "fail" ]; then
+            while IFS= read -r line; do
+              safe=$(printf '%s' "$line" | sed 's/%/%25/g; s/\r//g')
+              echo "::error title=dezhban-test-failure::${safe}"
+            done < <(grep '✗' /tmp/dezhban-test.log || true)
             echo "::error title=dezhban-self-test::${MSG}"
             exit 1
           fi

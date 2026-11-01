@@ -48,10 +48,19 @@ func _test_all_views(test) -> void:
 			var image_scale: float = MachinegunVisual.IMAGE_SCALE if visual is MachinegunVisual else LaserVisual.IMAGE_SCALE
 			var expected_view_scale := image_scale * 2.0 * 1.3
 			var actual_view_scale: Vector2 = visual.art.scale if visual is MachinegunVisual else visual.head.scale
+			var pivot_in_frame: Vector2
+			if visual is MachinegunVisual:
+				pivot_in_frame = MachinegunVisual.HEAD_PIVOT * 0.5
+			elif visual is TeslaVisual:
+				pivot_in_frame = TeslaVisual.CORE_CENTERS[level - 1] * 0.5
+			else:
+				pivot_in_frame = LaserVisual.AXIS_CENTERS[level - 1] * 0.5
 			test.check(actual_view_scale.is_equal_approx(Vector2.ONE * expected_view_scale)
 				and visual.projection.scale.is_equal_approx(Vector2(image_scale, image_scale * 0.68) * 1.3)
-				and visual.head.to_global(-visual.head.offset).distance_to(visual.pivot_global()) < 0.01
-				and visual.head_next.to_global(-visual.head_next.offset).distance_to(visual.pivot_global()) < 0.01,
+				and visual.head.offset.is_equal_approx(-pivot_in_frame)
+				and visual.head_next.offset.is_equal_approx(-pivot_in_frame)
+				and visual.head.to_global(Vector2.ZERO).distance_to(visual.pivot_global()) < 0.01
+				and visual.head_next.to_global(Vector2.ZERO).distance_to(visual.pivot_global()) < 0.01,
 				"سر %s سطح %d باید ۳۰٪ بزرگ‌تر و حول محور اصلی باشد" % [id, level])
 			if visual is TeslaVisual:
 				test.check(visual.core.scale.is_equal_approx(Vector2.ONE * image_scale * 1.3)

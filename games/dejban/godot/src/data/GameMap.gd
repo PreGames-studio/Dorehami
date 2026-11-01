@@ -363,6 +363,12 @@ func grid_cell(pos: Vector2) -> Vector2:
 ## تا خطای واقعی همان‌جا نشان داده شود.
 func snap_build_cell(pos: Vector2, occupied: Dictionary, tolerance := -1.0) -> Vector2:
 	var step: float = Balance.GRID_STEP
+	# A direct drop on an existing tower must remain invalid, even when the
+	# locally aligned grid changes between the tower and the pointer.
+	for other in occupied.keys():
+		var center: Vector2 = other
+		if absf(pos.x - center.x) < step * 0.5 and absf(pos.y - center.y) < step * 0.5:
+			return center
 	var cell := grid_cell(pos)
 	# Neighbouring towers stay on exactly the same 2×2 lattice even where
 	# the nearest road changes the local grid's phase.
