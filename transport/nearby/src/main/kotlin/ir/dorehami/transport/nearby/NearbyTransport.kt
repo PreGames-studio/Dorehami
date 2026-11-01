@@ -90,7 +90,12 @@ class NearbyTransport(
         override fun onPayloadTransferUpdate(endpointId: String, update: PayloadTransferUpdate) = Unit
     }
 
-    private val lifecycle = object : ConnectionLifecycleCallback() {
+    @Volatile private var advertising = false
+
+    private val advertisingOptions: AdvertisingOptions =
+        AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
+
+    private val lifecycle: ConnectionLifecycleCallback = object : ConnectionLifecycleCallback() {
         override fun onConnectionInitiated(endpointId: String, info: ConnectionInfo) {
             // Same app, same service id, same room: accept. (Auth token could be shown for paranoia.)
             client.acceptConnection(endpointId, payloadCallback)
@@ -127,11 +132,6 @@ class NearbyTransport(
             }
         }
     }
-
-    @Volatile private var advertising = false
-
-    private val advertisingOptions: AdvertisingOptions =
-        AdvertisingOptions.Builder().setStrategy(STRATEGY).build()
 
     // ---- host side ----
 
