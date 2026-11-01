@@ -38,24 +38,16 @@ func _draw() -> void:
 	_draw_route()
 	_draw_decor()
 
-## امتداد هر لبه از خودِ همان تصویر ساخته می‌شود؛ چمن، برف، کویر و
-## جاده‌ها در اتصال با تصویر اصلی پیوسته می‌مانند و به دارایی جدیدی نیاز ندارند.
+## حاشیهٔ مستقل از چشم‌انداز همان نقشه، بدون بازتاب یا ادامهٔ آسفالت.
 func _draw_map_with_margin(bg: Texture2D) -> void:
-	# کمی پوشش اضافه فقط برای لرزش میدان، تا گوشه‌های صفحه سیاه نشوند.
-	var margin: float = Balance.MAP_MARGIN + 8.0
-	for mx in range(-1, 2):
-		for my in range(-1, 2):
-			var x: float = 0.0 if mx <= 0 else Balance.WORLD_SIZE.x - margin
-			var y: float = 0.0 if my <= 0 else Balance.WORLD_SIZE.y - margin
-			var width: float = Balance.WORLD_SIZE.x if mx == 0 else margin
-			var height: float = Balance.WORLD_SIZE.y if my == 0 else margin
-			var origin := Vector2(2.0 * Balance.WORLD_SIZE.x if mx > 0 else 0.0,
-				2.0 * Balance.WORLD_SIZE.y if my > 0 else 0.0)
-			var flip := Vector2(1.0 if mx == 0 else -1.0, 1.0 if my == 0 else -1.0)
-			var source := Rect2(x, y, width, height)
-			draw_set_transform(origin, 0.0, flip)
-			draw_texture_rect_region(bg, source, source)
-	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+	var key := map.bg_key.replace("maps/", "map_margins/")
+	var margin_bg: Texture2D = Assets.tex(key) if Assets.has_key(key) else null
+	if margin_bg != null:
+		# ۱۴۲ پیکسل حاشیهٔ واقعی است؛ لبهٔ اضافی فقط زیر HUD و لرزش دیده می‌شود.
+		draw_texture(margin_bg, Vector2(-150.0, -280.0))
+	else:
+		draw_rect(Balance.BUILD_RECT.grow(140.0), Color(0.43, 0.62, 0.30))
+	draw_texture_rect(bg, Balance.TERRAIN_RECT, false)
 
 func _draw_tiles() -> void:
 	for y in Balance.ROWS:

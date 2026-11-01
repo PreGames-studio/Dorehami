@@ -94,6 +94,8 @@ func _ready() -> void:
 	await load("res://tests/MapScalePanTest.gd").new().run(self)
 	print("— بررسی تصویر و فاصلهٔ زیگزاگ‌ها در همهٔ نقشه‌ها…")
 	await load("res://tests/MapZigzagScaleTest.gd").new().run(self)
+	print("— بررسی شبکهٔ کاشت ۲×۲ خانه…")
+	await load("res://tests/BuildGridTest.gd").new().run(self)
 	_test_map_progression()
 	_test_repeatable_run_stars()
 	_test_prestige_fixed_cost()
@@ -310,7 +312,8 @@ func _smoke_scenes() -> void:
 							"برجک در حین کشیدن روی نقطهٔ مجاز باید مرئی و سبز باشد")
 						instance._finish_drag(pt)
 						built = instance.towers.size() == 1
-						built_pos = pt
+						# Snapping may move the tower onto its 2×2 cell; grip the real position.
+						built_pos = instance.towers[0].position if built else pt
 						break
 				if built:
 					break

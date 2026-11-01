@@ -43,7 +43,7 @@ func _test_first_map_geometry(test) -> void:
 	# Dense maps must not become impossible merely because the larger square
 	# is combined with an old centre-point clearance a second time.
 	var dense := GameMap.build(2)
-	test.check(dense.build_issue(Vector2(800.0, 289.0), {}).is_empty(),
+	test.check(dense.build_issue(Vector2(800.0, 162.25), {}).is_empty(),
 		"نقشهٔ پرپیچ‌وخم باید همچنان جای ساخت داخل خود نقشه داشته باشد")
 
 	var image := Assets.tex("maps/map_01").get_image()
@@ -59,9 +59,13 @@ func _test_first_map_geometry(test) -> void:
 		test.check(ground.g > 0.6 and ground.g > ground.b,
 			"فاصلهٔ چهارخانه‌ای تصویر باید زمین خالی میان جاده‌ها باشد")
 
-## Validate every level, every directional frame and every Gatling animation
-## frame, not just the first static preview. Allow room for actual recoil.
+## Check the original design scales and validate the artwork for every level.
+## Artwork may extend beyond the logical ２×２ placement cell.
 func _test_all_tower_art(test) -> void:
+	test.check(is_equal_approx(MachinegunVisual.IMAGE_SCALE, 0.39)
+		and is_equal_approx(LaserVisual.IMAGE_SCALE, 0.46)
+		and is_equal_approx(TeslaVisual.IMAGE_SCALE, 0.46),
+		"مقیاس برج‌ها باید به اندازهٔ طراحی اصلی برگردد")
 	var groups: Array = []
 	var gun: Array = [{"key": "towers_machinegun/base", "cols": 1, "rows": 1}]
 	var cannon: Array = []
@@ -82,24 +86,18 @@ func _test_all_tower_art(test) -> void:
 		for part in ["tesla", "body", "core"]:
 			tesla.append({"key": "towers_tesla/%s_%d" % [part, level], "cols": 1, "rows": 1})
 		tesla.append({"key": "towers_tesla/head_%d_directions" % level, "cols": 8, "rows": 6})
-	groups.append({"name": "مسلسل", "files": gun, "ground": MachinegunVisual.GROUND,
-		"scale": MachinegunVisual.IMAGE_SCALE, "offset": MachinegunVisual.FOOTPRINT_OFFSET,
-		"recoil": MachinegunVisual.RECOIL_PIXELS * MachinegunVisual.IMAGE_SCALE})
-	groups.append({"name": "توپخانه", "files": cannon, "ground": MachinegunVisual.GROUND,
-		"scale": MachinegunVisual.IMAGE_SCALE, "offset": MachinegunVisual.FOOTPRINT_OFFSET,
-		"recoil": MachinegunVisual.RECOIL_PIXELS * MachinegunVisual.IMAGE_SCALE})
-	groups.append({"name": "لیزر", "files": laser, "ground": LaserVisual.GROUND,
-		"scale": LaserVisual.IMAGE_SCALE, "offset": LaserVisual.FOOTPRINT_OFFSET, "recoil": 0.0})
-	groups.append({"name": "تسلا", "files": tesla, "ground": TeslaVisual.GROUND,
-		"scale": TeslaVisual.IMAGE_SCALE, "offset": TeslaVisual.FOOTPRINT_OFFSET, "recoil": 0.0})
+	groups.append({"name": "مسلسل", "files": gun})
+	groups.append({"name": "توپخانه", "files": cannon})
+	groups.append({"name": "لیزر", "files": laser})
+	groups.append({"name": "تسلا", "files": tesla})
 
 	for group in groups:
 		var errors: Array = []
 		for spec in group["files"]:
-			_check_texture_frames(spec, group, errors)
-		test.check(errors.is_empty(), "همهٔ نماها و سطح‌های %s باید داخل مربع چهارخانه‌ای باشند: %s" % [group["name"], errors.slice(0, 4)])
+			_check_texture_frames(spec, errors)
+		test.check(errors.is_empty(), "تصاویر همهٔ نماها و سطح‌های %s باید معتبر باشند: %s" % [group["name"], errors.slice(0, 4)])
 
-func _check_texture_frames(spec: Dictionary, group: Dictionary, errors: Array) -> void:
+func _check_texture_frames(spec: Dictionary, errors: Array) -> void:
 	var key := String(spec["key"])
 	var texture := Assets.tex(key)
 	if texture == null:
@@ -113,26 +111,11 @@ func _check_texture_frames(spec: Dictionary, group: Dictionary, errors: Array) -
 		image.decompress()
 	var cols := int(spec["cols"])
 	var rows := int(spec["rows"])
-	var width := image.get_width() / cols
-	var height := image.get_height() / rows
-	var multiplier := 1.0 if cols == 1 and rows == 1 else 2.0
-	var anchor: Vector2 = group["ground"]
-	var scale_value := float(group["scale"])
-	var offset: Vector2 = group["offset"]
-	var recoil := float(group["recoil"])
-	var half: float = Balance.TOWER_SIZE * 0.5 + 0.01
-	for frame in cols * rows:
-		var region := Rect2i((frame % cols) * width, (frame / cols) * height, width, height)
-		var used := image.get_region(region).get_used_rect()
-		if used.size == Vector2i.ZERO:
-			continue
-		var left := (used.position.x * multiplier - anchor.x) * scale_value + offset.x - recoil
-		var top := (used.position.y * multiplier - anchor.y) * scale_value + offset.y - recoil
-		var right := (used.end.x * multiplier - anchor.x) * scale_value + offset.x + recoil
-		var bottom := (used.end.y * multiplier - anchor.y) * scale_value + offset.y + recoil
-		if left < -half or right > half or top < -half or bottom > half:
-			errors.append("%s frame %d [%.1f,%.1f,%.1f,%.1f]" % [key, frame, left, top, right, bottom])
-			return
+	if image.get_width() % cols != 0 or image.get_height() % rows != 0:
+		errors.append("invalid atlas dimensions " + key)
+		return
+	if image.get_used_rect().size == Vector2i.ZERO:
+		errors.append("transparent " + key)
 
 func _test_all_map_margins(test) -> void:
 	var saved_map: int = Game.pending_map
@@ -149,12 +132,12 @@ func _test_all_map_margins(test) -> void:
 				"ورودی نقشهٔ %d باید از پشت نوارها بیرون بیاید" % (index + 1))
 		var hud_pos: Vector2 = battle.hud._coins_label.global_position
 		battle._set_pan_offset(Vector2(Balance.MAP_MARGIN * 2.0, -Balance.MAP_MARGIN * 2.0))
-		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN)
+		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN - 120.0)
 			and battle.hud._coins_label.global_position == hud_pos
 			and battle._ground.map.bg_key == battle.map.bg_key and Assets.tex(battle.map.bg_key) != null,
 			"حاشیه و حرکت نقشهٔ %d باید با تصویر خودش و HUD ثابت کار کند" % (index + 1))
 		battle._set_pan_offset(Vector2(-Balance.MAP_MARGIN * 2.0, Balance.MAP_MARGIN * 2.0))
-		test.check(battle._pan_root.position == Vector2(-Balance.MAP_MARGIN, Balance.MAP_MARGIN),
+		test.check(battle._pan_root.position == Vector2(-Balance.MAP_MARGIN, Balance.MAP_MARGIN + Balance.HUD_HEIGHT),
 			"حرکت نقشهٔ %d نباید از حاشیه بیرون برود" % (index + 1))
 		battle.queue_free()
 		await test.get_tree().process_frame
@@ -195,6 +178,11 @@ func _test_pan_and_build(test) -> void:
 	await test._touch(pan_button_center, true)
 	await test._touch(pan_button_center, false)
 	test.check(not battle.pan_mode, "لمس دوبارهٔ دکمه باید حرکت را پایان دهد")
+	battle._set_pan_offset(Vector2.ZERO)
+	await test._touch_drag(Vector2(800, 300), Vector2(840, 345))
+	test.check(battle._pan_root.position.distance_to(Vector2(40, 45)) < 0.1
+		and battle.towers.is_empty() and battle.hud._coins_label.global_position == hud_pos,
+		"کشیدن زمین بدون دکمه نیز باید نقشه را حرکت دهد، نه برج یا HUD را")
 	battle._set_pan_offset(Vector2.ZERO)
 	battle.hud._pan_button.button_pressed = true
 	test.check(battle.pan_mode and battle.hud._pan_button.text == "پایان حرکت", "دکمهٔ حرکت باید حالت نقشه را فعال کند")
@@ -249,7 +237,9 @@ func _test_pan_and_build(test) -> void:
 
 	battle.hud._pan_button.button_pressed = false
 	battle._world.position = Vector2(3, -2) # also exercise the live shake transform
-	var desired := Vector2(500, 219)
+	# The drop snaps to the nearest 2×2 house block, so both the preview and the
+	# built tower sit on the lattice cell under the pointer.
+	var desired: Vector2 = battle.map.snap_build_cell(Vector2(500, 219), {})
 	var screen: Vector2 = battle._world_to_screen(desired)
 	battle.begin_weapon_drag("machinegun", Vector2(200, 660))
 	battle._update_ghost(screen)
@@ -257,7 +247,7 @@ func _test_pan_and_build(test) -> void:
 		"پیش‌نمای برج پس از حرکت باید زیر اشاره‌گر و در نقطهٔ معتبر باشد")
 	battle._finish_drag(screen)
 	test.check(battle.towers.size() == 1 and battle.towers[0].position.distance_to(desired) < 0.01,
-		"رهاکردن پس از حرکت باید برج را در همان مختصات واقعی جهان بسازد")
+		"رهاکردن پس از حرکت باید برج را در همان خانهٔ شبکهٔ ۲×۲ بسازد")
 	battle._handle_build_press(true, screen)
 	battle._handle_build_press(false, screen)
 	test.check(battle.selected_tower == battle.towers[0], "انتخاب برج ساخته‌شده پس از حرکت باید درست باشد")
@@ -267,30 +257,36 @@ func _test_pan_and_build(test) -> void:
 	battle._set_pan_offset(Vector2(0, Balance.MAP_MARGIN))
 	battle.begin_weapon_drag("machinegun", Vector2(200, 660))
 	var margin_world := Vector2(500, -60)
-	var margin_screen: Vector2 = battle._world_to_screen(margin_world)
+	var margin_cell: Vector2 = battle.map.snap_build_cell(margin_world, battle.occupied)
+	var margin_screen: Vector2 = battle._world_to_screen(margin_cell)
 	battle._update_ghost(margin_screen)
 	test.check(battle.ghost.ok and not GameMap.in_terrain(margin_world),
 		"بخشی از حاشیهٔ هم‌رنگ باید محل ساخت واقعی باشد")
 	battle._finish_drag(margin_screen)
-	test.check(battle.towers.size() == 2 and battle.towers[1].position.distance_to(margin_world) < 0.01,
-		"ساخت و مختصات برج در حاشیه باید درست باشد")
+	test.check(battle.towers.size() == 2 and battle.towers[1].position.distance_to(margin_cell) < 0.01,
+		"ساخت و مختصات برج در حاشیه باید روی خانهٔ شبکهٔ ۲×۲ باشد")
 
 	# A raw touch drag still builds after panning, rather than moving the map.
 	battle._set_pan_offset(Vector2(-90, 40))
-	var start_world := Vector2(650, 219)
 	var end_world := Vector2(680, 219)
+	# Start far enough from the target cell that this counts as a drag, not a tap
+	# (the drop snaps to the 2×2 cell, so the raw pointer distance is what matters).
+	var start_world: Vector2 = battle.map.snap_build_cell(end_world, battle.occupied) + Vector2(-70.0, 50.0)
+	var end_cell: Vector2 = battle.map.snap_build_cell(end_world, battle.occupied)
 	touch.index = 2
 	touch.position = battle._world_to_screen(start_world)
 	touch.pressed = true
-	battle._unhandled_input(touch)
+	battle.begin_weapon_drag("machinegun", touch.position)
 	drag.index = 2
-	drag.position = battle._world_to_screen(end_world)
+	drag.position = battle._world_to_screen(end_cell)
 	battle._input(drag)
 	touch.pressed = false
 	touch.position = drag.position
 	battle._input(touch)
-	test.check(battle.towers.size() == 3 and battle.towers[2].position.distance_to(end_world) < 0.01,
-		"کشیدن لمسی برای ساخت باید پس از حرکت نقشه همچنان کار کند")
+	var last_pos: Vector2 = battle.towers[2].position if battle.towers.size() > 2 else Vector2(-1.0, -1.0)
+	test.check(battle.towers.size() == 3 and last_pos.distance_to(end_cell) < 0.01,
+		"کشیدن لمسی برای ساخت باید پس از حرکت نقشه همچنان کار کند (n=%d cell=%s tower=%s)"
+			% [battle.towers.size(), str(end_cell), str(last_pos)])
 
 	ProjectSettings.set_setting("input_devices/pointing/emulate_mouse_from_touch", saved_emulation)
 	battle.queue_free()

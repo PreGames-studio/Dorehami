@@ -97,6 +97,9 @@ func _test_art_levels_and_aim(test) -> void:
 		tower.queue_free()
 		battle.queue_free()
 		return
+	test.check(visual.base.scale.is_equal_approx(Vector2(TeslaVisual.IMAGE_SCALE * 0.8, TeslaVisual.IMAGE_SCALE * 0.64)),
+		"عرض و ارتفاع پایه باید هرکدام ۲۰٪ نسبت به حالت قبلی کوچک‌تر شوند")
+	test.check(visual.body.scale.is_equal_approx(visual.base.scale), "بدنه و پایهٔ تسلا باید هم‌مقیاس بمانند")
 	var fixed_texture: Texture2D = visual.base.texture
 	var fixed_transform: Transform2D = visual.base.transform
 	var idle_angle: float = visual.mount.rotation

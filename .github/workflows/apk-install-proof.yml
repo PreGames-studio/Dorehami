@@ -1,0 +1,120 @@
+# Published APK install proof — the last mile the build gate cannot cover.
+#
+# `ci.yml` proves the file is complete, aligned and correctly signed. This workflow proves a real
+# Android device accepts that exact published file: it downloads the APK from a release, checks the
+# release's own `.sha256`, then installs and launches it on an emulator.
+#
+# Run it by hand (Actions → Published APK install proof → Run workflow) with the release tag you
+# want to prove, or push to an `arena/**` branch with `[install-proof]` in the commit message.
+name: Published APK install proof
+# Re-run on any push that touches this file to re-prove the rolling preview APK.
+
+on:
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "تگ ریلیزی که APK آن تست می‌شود"
+        required: true
+        default: "preview-arena-afc269b8-dorehami"
+  push:
+    # Any arena push may carry the marker; the job itself is gated on it below.
+    branches: ["arena/**"]
+
+permissions:
+  contents: read
+
+env:
+  PACKAGE_ID: ir.dorehami.app
+
+jobs:
+  install-proof:
+    name: Install and launch the published APK
+    if: ${{ github.event_name == 'workflow_dispatch' || contains(github.event.head_commit.message, '[install-proof]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Download the published APK and its checksum
+        env:
+          GH_TOKEN: ${{ github.token }}
+          TAG: ${{ inputs.tag || 'preview-arena-afc269b8-dorehami' }}
+        run: |
+          set -euo pipefail
+          mkdir -p apk
+          # A concurrent build may republish the rolling asset mid-download, so retry the
+          # download+checksum pair instead of failing on a transient mismatch.
+          for attempt in 1 2 3; do
+            gh release download "$TAG" --pattern 'Dorehami-debug.apk' \
+              --pattern 'Dorehami-debug.apk.sha256' --dir apk --clobber
+            if (cd apk && sha256sum -c Dorehami-debug.apk.sha256); then
+              break
+            fi
+            echo "checksum mismatch on attempt $attempt; the asset was probably republished"
+            sleep 20
+            if [ "$attempt" = 3 ]; then
+              echo "::error::published APK does not match its own .sha256 file"
+              exit 1
+            fi
+          done
+          ls -l apk
+
+      - name: Structural checks on the downloaded file
+        run: |
+          set -euo pipefail
+          python3 scripts/verify_shipped_apk.py --self-test
+          sdk="${ANDROID_HOME:-${ANDROID_SDK_ROOT:-}}"
+          tools=$(find "${sdk:-/nonexistent}/build-tools" -maxdepth 1 -mindepth 1 -type d 2>/dev/null | sort -V | tail -n 1)
+          python3 scripts/verify_shipped_apk.py apk/Dorehami-debug.apk \
+            ${tools:+--aapt "$tools/aapt2"} --min-sdk 24 \
+            --require-abi arm64-v8a --require-abi armeabi-v7a | tee verify.txt
+          "$tools/zipalign" -c -v 4 apk/Dorehami-debug.apk > /dev/null
+          for api in 24 26 28 30 33 34 35; do
+            "$tools/apksigner" verify --min-sdk-version "$api" apk/Dorehami-debug.apk
+          done
+
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      # ARM64 translation on an x86_64 image is what lets the shipped arm64-v8a APK actually run
+      # here. When the image has no translation the result is inconclusive, not a failure.
+      - name: Install and launch on an emulator
+        uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 30
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none
+            -gpu swiftshader_indirect -memory 4096
+          # The runner executes this block with `sh`, where `set -o pipefail` aborts with exit 2
+          # before anything runs (same trap documented in device-check.yml).
+          # One command only: the runner feeds this block to `sh`, and multi-line
+          # bash there aborts with exit code 2 (see device-check.yml for the same trap).
+          script: bash tools/apk-proof/install_published_apk.sh apk/Dorehami-debug.apk ir.dorehami.app proof.log
+
+      - name: Report
+        if: always()
+        run: |
+          {
+            echo "## Published APK install proof"
+            echo
+            echo "### Structural checks"
+            echo '```'
+            cat verify.txt 2>/dev/null || echo "(no structural report)"
+            echo '```'
+            echo "### Emulator install"
+            echo '```'
+            cat proof.log 2>/dev/null || echo "(the install script never started)"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          # Annotations survive blob-URL log expiry, so mirror the proof there too.
+          if [ -s proof.log ]; then
+            tail -n 20 proof.log | head -c 4000 | python3 -c "import sys;print('::notice title=apk-install-proof::' + sys.stdin.read().replace('%','%25').replace('\r','%0D').replace('\n','%0A'))"
+          fi

@@ -15,8 +15,8 @@ const GATLING_COLUMNS := 16
 const GATLING_ROWS := 24
 const GROUND := Vector2(128.0, 206.0)
 const HEAD_PIVOT := Vector2(128.0, 100.0)
-## The widest animated frame plus recoil fits within the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / FRAME
+## Original design scale; artwork can extend beyond its ２×２ placement cell.
+const IMAGE_SCALE := 0.39
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.35)
 const DEPTH_SQUASH := 0.68
 const MUZZLE := Vector2(100.0, 0.0)
@@ -54,13 +54,13 @@ func setup(start_level: int) -> void:
 	base.texture = Assets.tex("towers_machinegun/base")
 	base.centered = false
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	add_child(base)
 
 	projection = Node2D.new()
 	projection.name = "AimProjection"
 	projection.position = (HEAD_PIVOT - GROUND) * IMAGE_SCALE
-	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
+	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH) * Balance.TOWER_HEAD_SCALE
 	add_child(projection)
 	mount = Node2D.new()
 	mount.name = "RotatingHead"
@@ -73,7 +73,7 @@ func setup(start_level: int) -> void:
 	art = Node2D.new()
 	art.name = "IsometricViews"
 	art.position = projection.position
-	art.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL)
+	art.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL * Balance.TOWER_HEAD_SCALE)
 	art.z_index = 1
 	add_child(art)
 	barrel_art = Node2D.new()

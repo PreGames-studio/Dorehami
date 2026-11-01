@@ -7,6 +7,7 @@ var index := 0
 var title := ""
 var biome_key := "meadow"
 var bg_key := ""
+var road_half_width := 35.5
 var biome: Dictionary = {}
 var seed := 1
 var keep_tile := Vector2i.ZERO
@@ -24,6 +25,9 @@ var blocked_tiles: Dictionary = {}
 ## مانع‌های واقعی (سنگ و درخت) با شعاع برخورد؛ ملاک ساخت‌وساز این‌هاست.
 var blockers: Array = []
 var ambient := Color.WHITE
+## مبدأ شبکهٔ کاشت ۲×۲: با محور جادهٔ همین نقشه هم‌تراز می‌شود تا لبهٔ هر برج
+## دقیقاً به لبهٔ جاده بچسبد.
+var grid_origin := Vector2.ZERO
 var rng := RandomNumberGenerator.new()
 
 static func build(map_index: int) -> GameMap:
@@ -54,6 +58,7 @@ func setup(map_index: int) -> void:
 	title = String(def["name"])
 	biome_key = String(def["biome"])
 	bg_key = String(def.get("bg", ""))
+	road_half_width = float(Maps.ROAD_WIDTHS.get(bg_key, 71.0)) * 0.5
 	biome = Maps.BIOMES.get(biome_key, Maps.BIOMES["meadow"])
 	seed = int(def["seed"])
 	ambient = biome["ambient"]
@@ -66,6 +71,7 @@ func setup(map_index: int) -> void:
 	else:
 		_build_route(int(def["complexity"]))
 	_build_pads(def.get("pads", []))
+	_build_grid_axis()
 	_build_ground()
 	_build_decor(float(def["decor"]))
 
@@ -76,7 +82,9 @@ func _build_pads(raw_pads: Array) -> void:
 	var row_h := Balance.TERRAIN_RECT.size.y / float(Balance.ROWS)
 	for item in raw_pads:
 		var g := item as Vector2
-		pads.append(Vector2(g.x * Balance.TILE, Balance.TERRAIN_TOP + g.y * row_h))
+		var pad := Vector2(g.x * Balance.TILE, Balance.TERRAIN_TOP + g.y * row_h)
+		if build_issue(pad, {}).is_empty():
+			pads.append(pad)
 
 func _build_custom_route(waypoints: Array, square_corners := false) -> void:
 	var pts: Array[Vector2] = []
@@ -291,6 +299,111 @@ func _route_torches() -> void:
 			"scale": 1.0, "flip": i % 2 != 0, "blocking": false,
 		})
 
+# ------------------------------------------------------------------ شبکهٔ کاشت
+
+## محور شبکه از خود مسیر گرفته می‌شود: بلندترین پارهٔ افقی، خط y را و بلندترین
+## پارهٔ عمودی، خط x را تعیین می‌کند. چون جاده و حریم ساخت با مقیاس ۷۱ پیکسلی
+## هماهنگ‌اند، لبهٔ بلوک‌های ۲×۲ دقیقاً روی لبهٔ جاده می‌افتد.
+func _build_grid_axis() -> void:
+	var best_h := 0.0
+	var best_v := 0.0
+	var line_y := keep_pos.y
+	var line_x := keep_pos.x
+	for i in range(1, route.size()):
+		var a := route[i - 1]
+		var b := route[i]
+		var dx := absf(b.x - a.x)
+		var dy := absf(b.y - a.y)
+		if dx >= dy:
+			if dx > best_h + 0.001:
+				best_h = dx
+				line_y = a.y
+		elif dy > best_v + 0.001:
+			best_v = dy
+			line_x = a.x
+	grid_origin = Vector2(line_x, line_y)
+
+## شبکهٔ محلی با لبهٔ نزدیک‌ترین مسیرهای افقی و عمودی هم‌راستا می‌شود.
+## عرض جاده‌های اصلی یکسان نیست؛ گام خودِ برج همچنان ۷۱ پیکسل است.
+func local_grid_origin(pos: Vector2) -> Vector2:
+	var origin := grid_origin
+	var nearest_h := INF
+	var nearest_v := INF
+	var setback := road_half_width + Balance.TOWER_SIZE * 0.5
+	for i in range(1, route.size()):
+		var a := route[i - 1]
+		var b := route[i]
+		if is_equal_approx(a.y, b.y) and pos.x >= minf(a.x, b.x) - Balance.TOWER_SIZE \
+				and pos.x <= maxf(a.x, b.x) + Balance.TOWER_SIZE:
+			var distance := absf(pos.y - a.y)
+			if distance < nearest_h:
+				nearest_h = distance
+				origin.y = a.y + setback
+		elif is_equal_approx(a.x, b.x) and pos.y >= minf(a.y, b.y) - Balance.TOWER_SIZE \
+				and pos.y <= maxf(a.y, b.y) + Balance.TOWER_SIZE:
+			var distance := absf(pos.x - a.x)
+			if distance < nearest_v:
+				nearest_v = distance
+				origin.x = a.x + setback
+	return origin
+
+## نزدیک‌ترین بلوک ۲×۲ خانه به انگشت، بر اساس جاده‌های همان ناحیه.
+func grid_cell(pos: Vector2) -> Vector2:
+	var step: float = Balance.GRID_STEP
+	var origin := local_grid_origin(pos)
+	return Vector2(
+		origin.x + roundf((pos.x - origin.x) / step) * step,
+		origin.y + roundf((pos.y - origin.y) / step) * step
+	)
+
+## نقطهٔ نهایی کاشت: نقطهٔ انگشت به نزدیک‌ترین بلوک ۲×۲ گرد می‌شود، پس برج‌ها
+## هیچ‌وقت با فاصلهٔ یک خانه کاشته نمی‌شوند و برج دوم دقیقاً زیر برج اول جا می‌شود.
+## اگر خود بلوک ممنوع باشد ولی نقطهٔ انگشت روی زمین آزاد باشد، نزدیک‌ترین بلوک مجاز
+## تا نیم‌برج آن‌طرف‌تر انتخاب می‌شود؛ داخل جاده یا داخل برج دیگر، جابه‌جایی نمی‌کنیم
+## تا خطای واقعی همان‌جا نشان داده شود.
+func snap_build_cell(pos: Vector2, occupied: Dictionary, tolerance := -1.0) -> Vector2:
+	var step: float = Balance.GRID_STEP
+	# A direct drop on an existing tower must remain invalid, even when the
+	# locally aligned grid changes between the tower and the pointer.
+	for other in occupied.keys():
+		var center: Vector2 = other
+		if absf(pos.x - center.x) < step * 0.5 and absf(pos.y - center.y) < step * 0.5:
+			return center
+	var cell := grid_cell(pos)
+	# Neighbouring towers stay on exactly the same 2×2 lattice even where
+	# the nearest road changes the local grid's phase.
+	var best_distance := cell.distance_to(pos) if build_issue(cell, occupied).is_empty() else INF
+	var best_adjacent := cell
+	for other in occupied.keys():
+		var center: Vector2 = other
+		for offset in [Vector2(step, 0), Vector2(-step, 0), Vector2(0, step), Vector2(0, -step)]:
+			var candidate: Vector2 = center + offset
+			var distance := candidate.distance_to(pos)
+			if distance < best_distance and distance <= step * 0.5 and build_issue(candidate, occupied).is_empty():
+				best_distance = distance
+				best_adjacent = candidate
+	if best_distance < INF:
+		return best_adjacent
+	if not build_issue(pos, occupied).is_empty():
+		return cell
+	var limit := tolerance if tolerance > 0.0 else step * 1.5
+	var best := cell
+	best_distance = 1.0e9
+	for dy in range(-2, 3):
+		for dx in range(-2, 3):
+			if dx == 0 and dy == 0:
+				continue
+			var candidate := cell + Vector2(float(dx) * step, float(dy) * step)
+			if not build_issue(candidate, occupied).is_empty():
+				continue
+			var distance := candidate.distance_to(pos)
+			if distance < best_distance:
+				best_distance = distance
+				best = candidate
+	if best_distance <= limit:
+		return best
+	return cell
+
 # ------------------------------------------------------------------ ساخت‌وساز
 
 ## آیا می‌توان روی این نقطه برجک ساخت؟
@@ -377,28 +490,14 @@ static func _segment_intersects_rect(a: Vector2, b: Vector2, rect: Rect2) -> boo
 			return false
 	return true
 
-## تصویر حاشیه بازتاب لبه‌های همان نقشه است. حریم راه‌های بازتاب‌شده را هم
-## بررسی می‌کنیم تا بازیکن در حاشیه روی راهِ دیده‌شده برج نکارد.
-static func _mirrored_point(point: Vector2, mx: int, my: int) -> Vector2:
-	var x: float = -point.x if mx < 0 else (2.0 * Balance.WORLD_SIZE.x - point.x if mx > 0 else point.x)
-	var y: float = -point.y if my < 0 else (2.0 * Balance.WORLD_SIZE.y - point.y if my > 0 else point.y)
-	return Vector2(x, y)
-
+## فقط مسیر واقعی داخل تصویر دارای آسفالت است؛ حاشیه راه بازتابی ندارد.
 func _road_overlaps_footprint(pos: Vector2) -> bool:
-	# The road art and route use the same two-house width on every map.
-	# ROUTE_CLEARANCE is a centre-point exclusion, not the road half-width;
-	# adding it to the square footprint would make dense maps unbuildable.
-	var road_half: float = Balance.HOUSE_SIZE
 	var half: float = Balance.TOWER_SIZE * 0.5
 	var footprint := Rect2(pos - Vector2.ONE * half, Vector2.ONE * Balance.TOWER_SIZE)
-	# کاهش ناچیز برای مجاز بودنِ تماس دقیق لبهٔ برج و لبهٔ جاده.
-	var forbidden := footprint.grow(road_half - 0.001)
-	for mx in range(-1, 2):
-		for my in range(-1, 2):
-			for i in range(1, route.size()):
-				if _segment_intersects_rect(_mirrored_point(route[i - 1], mx, my),
-						_mirrored_point(route[i], mx, my), forbidden):
-					return true
+	var forbidden := footprint.grow(road_half_width - 0.001)
+	for i in range(1, route.size()):
+		if _segment_intersects_rect(route[i - 1], route[i], forbidden):
+			return true
 	return false
 
 ## ساخت آزاد است، ولی تمام مربع چهارخانه‌ای باید در میدان یا حاشیه جا شود
@@ -425,28 +524,23 @@ func snap_build_position(pos: Vector2, occupied: Dictionary, tolerance := 12.0) 
 		return pos
 	var best := pos
 	var best_distance := tolerance + 0.001
-	for mx in range(-1, 2):
-		for my in range(-1, 2):
-			for i in range(1, route.size()):
-				var a := _mirrored_point(route[i - 1], mx, my)
-				var b := _mirrored_point(route[i], mx, my)
-				var horizontal := is_equal_approx(a.y, b.y)
-				var vertical := is_equal_approx(a.x, b.x)
-				if not horizontal and not vertical:
-					continue
-				# A distant segment on the same horizontal/vertical line must not
-				# attract the pointer from the other side of the map.
-				if horizontal and (pos.x < minf(a.x, b.x) - Balance.TOWER_SIZE
-						or pos.x > maxf(a.x, b.x) + Balance.TOWER_SIZE):
-					continue
-				if vertical and (pos.y < minf(a.y, b.y) - Balance.TOWER_SIZE
-						or pos.y > maxf(a.y, b.y) + Balance.TOWER_SIZE):
-					continue
-				for side in [-1.0, 1.0]:
-					var candidate := Vector2(pos.x, a.y + float(side) * Balance.TOWER_SIZE) if horizontal \
-						else Vector2(a.x + float(side) * Balance.TOWER_SIZE, pos.y)
-					var distance := candidate.distance_to(pos)
-					if distance < best_distance and build_issue(candidate, occupied).is_empty():
-						best = candidate
-						best_distance = distance
+	var setback := road_half_width + Balance.TOWER_SIZE * 0.5
+	for i in range(1, route.size()):
+		var a := route[i - 1]
+		var b := route[i]
+		var horizontal := is_equal_approx(a.y, b.y)
+		var vertical := is_equal_approx(a.x, b.x)
+		if not horizontal and not vertical:
+			continue
+		if horizontal and (pos.x < minf(a.x, b.x) - Balance.TOWER_SIZE or pos.x > maxf(a.x, b.x) + Balance.TOWER_SIZE):
+			continue
+		if vertical and (pos.y < minf(a.y, b.y) - Balance.TOWER_SIZE or pos.y > maxf(a.y, b.y) + Balance.TOWER_SIZE):
+			continue
+		for side in [-1.0, 1.0]:
+			var candidate := Vector2(pos.x, a.y + float(side) * setback) if horizontal \
+				else Vector2(a.x + float(side) * setback, pos.y)
+			var distance := candidate.distance_to(pos)
+			if distance < best_distance and build_issue(candidate, occupied).is_empty():
+				best = candidate
+				best_distance = distance
 	return best

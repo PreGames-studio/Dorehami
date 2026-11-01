@@ -41,6 +41,13 @@ jobs:
       - name: Prepare embedded Dezhban Godot pack
         run: bash games/dejban/tools/prepare_android_pack.sh
 
+      # Same stable debug signing key used by the branch preview builds.
+      - name: Reuse debug signing key
+        uses: actions/cache@v4
+        with:
+          path: ~/.android/debug.keystore
+          key: dorehami-debug-keystore-v1
+
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
@@ -48,6 +55,20 @@ jobs:
         run: |
           set -o pipefail
           ./gradlew :app:assembleDebug --stacktrace 2>&1 | tee build.log
+
+      # Do not publish a corrupt, unsigned, misaligned or single-ABI file.
+      - name: Verify APK installability
+        run: |
+          set -euo pipefail
+          apk=$(ls app/build/outputs/apk/debug/*.apk | head -n 1)
+          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -n 1)
+          python3 scripts/verify_shipped_apk.py --self-test
+          python3 scripts/verify_shipped_apk.py "$apk" --aapt "$tools/aapt2" --min-sdk 24 \
+            --require-abi arm64-v8a --require-abi armeabi-v7a
+          "$tools/zipalign" -c -v 4 "$apk" > /dev/null
+          for api in 24 26 28 30 33 34 35; do
+            "$tools/apksigner" verify --min-sdk-version "$api" "$apk"
+          done
 
       - name: Package and describe the APK
         run: |
@@ -58,6 +79,7 @@ jobs:
           ref_name=$(echo "${GITHUB_REF_NAME}" | tr '/' '-')
           cp "$src" dist/Dorehami-debug.apk
           cp "$src" "dist/Dorehami-debug-${ref_name}-${sha}.apk"
+          (cd dist && sha256sum Dorehami-debug.apk > Dorehami-debug.apk.sha256)
           size=$(du -h dist/Dorehami-debug.apk | cut -f1)
           sum=$(sha256sum dist/Dorehami-debug.apk | cut -c1-16)
           aapt2=$(ls -d "$ANDROID_HOME"/build-tools/* 2>/dev/null | sort -V | tail -n 1 || true)
@@ -86,7 +108,9 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: dorehami-debug-apk
-          path: dist/*.apk
+          path: |
+            dist/*.apk
+            dist/*.sha256
           if-no-files-found: error
           retention-days: 7
 
@@ -157,7 +181,8 @@ jobs:
           اجرا: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}"
           gh release view debug-latest >/dev/null 2>&1 || \
             gh release create debug-latest --prerelease --title "Debug APK (rolling)" --target "${GITHUB_SHA}" --notes "$notes"
-          gh release upload debug-latest "$apk" --clobber
+          gh release upload debug-latest "$apk" apk/Dorehami-debug.apk.sha256 "apk/Dorehami-debug-main-${GITHUB_SHA:0:7}.apk" --clobber
+          gh release edit debug-latest --target "$GITHUB_SHA" --notes "$notes"
           echo "published: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/debug-latest/Dorehami-debug.apk"
 
       - name: Hint when publishing was not allowed

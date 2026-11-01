@@ -4,8 +4,8 @@ class_name LaserVisual
 extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
-## Even the tallest level and every direction fit in the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+## Original design scale; artwork can extend beyond its ２×２ placement cell.
+const IMAGE_SCALE := 0.46
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
@@ -33,10 +33,10 @@ func setup(start_level: int) -> void:
 	base = _sprite("FixedLaserPedestal")
 	base.centered = false
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	projection = Node2D.new()
 	projection.name = "LaserAimProjection"
-	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
+	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH) * Balance.TOWER_HEAD_SCALE
 	add_child(projection)
 	mount = Node2D.new()
 	mount.name = "RotatingLaserAxis"
@@ -46,8 +46,7 @@ func setup(start_level: int) -> void:
 	head_next = _sprite("LaserHeadNext")
 	for view in [head, head_next]:
 		view.centered = false
-		view.offset = -GROUND * (DIRECTION_CELL / FRAME)
-		view.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL)
+		view.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL * Balance.TOWER_HEAD_SCALE)
 		view.z_index = 1
 	set_level(start_level)
 
@@ -73,7 +72,12 @@ func set_level(value: int) -> void:
 	var atlas := Assets.tex("towers_laser/head_%d_directions" % current_level)
 	_set_head_atlas(head, atlas)
 	_set_head_atlas(head_next, atlas)
-	projection.position = (AXIS_CENTERS[current_level - 1] - GROUND) * IMAGE_SCALE
+	var axis: Vector2 = AXIS_CENTERS[current_level - 1]
+	projection.position = (axis - GROUND) * IMAGE_SCALE
+	# Scale each upright head around the unchanged physical pivot, not ground.
+	for view in [head, head_next]:
+		view.position = projection.position
+		view.offset = -axis * (DIRECTION_CELL / FRAME)
 	_refresh_head()
 
 ## Input is the screen-space vector from the bore axis to an enemy hit point.

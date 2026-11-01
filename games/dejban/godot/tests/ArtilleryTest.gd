@@ -60,6 +60,8 @@ func _test_art_and_aim(test) -> void:
 		tower.queue_free()
 		battle.queue_free()
 		return
+	test.check(visual.base.scale.is_equal_approx(Vector2(MachinegunVisual.IMAGE_SCALE * 0.8, MachinegunVisual.IMAGE_SCALE * 0.64)),
+		"عرض و ارتفاع پایه باید هرکدام ۲۰٪ نسبت به حالت قبلی کوچک‌تر شوند")
 	var base_transform: Transform2D = visual.base.transform
 	test.check(is_equal_approx(visual.mount.rotation, -TAU / 8.0),
 		"نمای شروع میدان باید با نمای مایل تصویر و پیش‌نمای کاشت یکسان باشد")

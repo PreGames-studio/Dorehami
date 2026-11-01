@@ -5,8 +5,8 @@ class_name TeslaVisual
 extends Node2D
 
 const GROUND := Vector2(192.0, 345.0)
-## Even the tallest level and every direction fit in the ２×２-cell footprint.
-const IMAGE_SCALE: float = Balance.TOWER_SIZE / 320.0
+## Original design scale; artwork can extend beyond its ２×２ placement cell.
+const IMAGE_SCALE := 0.46
 const FOOTPRINT_OFFSET := Vector2(0.0, Balance.TOWER_SIZE * 0.48)
 const DEPTH_SQUASH := 0.68
 const FRAME := 384.0
@@ -41,13 +41,13 @@ func setup(start_level: int) -> void:
 	base = _sprite("FixedPedestal")
 	base.texture = Assets.tex("towers_tesla/base")
 	base.offset = -GROUND
-	base.scale = Vector2.ONE * IMAGE_SCALE
+	base.scale = Balance.base_scale(IMAGE_SCALE)
 	body = _sprite("FixedCoilBody")
 	body.offset = -GROUND
-	body.scale = Vector2.ONE * IMAGE_SCALE
+	body.scale = Balance.base_scale(IMAGE_SCALE)
 	projection = Node2D.new()
 	projection.name = "AimProjection"
-	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH)
+	projection.scale = Vector2(IMAGE_SCALE, IMAGE_SCALE * DEPTH_SQUASH) * Balance.TOWER_HEAD_SCALE
 	add_child(projection)
 	mount = Node2D.new()
 	mount.name = "RotatingHeadAxis"
@@ -59,14 +59,13 @@ func setup(start_level: int) -> void:
 	head_next = _sprite("ProjectedElectrodesNext")
 	head_next.z_index = 1
 	for view in [head, head_next]:
-		view.offset = -GROUND * (DIRECTION_CELL / FRAME)
-		view.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL)
+		view.scale = Vector2.ONE * (IMAGE_SCALE * FRAME / DIRECTION_CELL * Balance.TOWER_HEAD_SCALE)
 	core = _sprite("RoundEnergyCore")
 	core.z_index = 2
 	charge = TeslaCharge.new()
 	charge.name = "ElectricCharge"
 	charge.z_index = 3
-	charge.scale = Vector2.ONE * IMAGE_SCALE
+	charge.scale = Vector2.ONE * (IMAGE_SCALE * Balance.TOWER_HEAD_SCALE)
 	add_child(charge)
 	set_level(start_level)
 
@@ -88,9 +87,12 @@ func set_level(value: int) -> void:
 	core.texture = Assets.tex("towers_tesla/core_%d" % current_level)
 	var core_position := (center - GROUND) * IMAGE_SCALE
 	projection.position = core_position
+	for view in [head, head_next]:
+		view.position = core_position
+		view.offset = -center * (DIRECTION_CELL / FRAME)
 	core.position = core_position
 	core.offset = -center
-	core.scale = Vector2.ONE * IMAGE_SCALE
+	core.scale = Vector2.ONE * (IMAGE_SCALE * Balance.TOWER_HEAD_SCALE)
 	charge.position = core_position
 	charge.configure(current_level, float(CORE_RADII[index]), float(ARM_SPANS[index]))
 	_refresh_head()
