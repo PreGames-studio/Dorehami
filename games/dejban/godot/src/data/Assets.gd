@@ -52,6 +52,8 @@ const MANIFEST := {
 	"ground/rock": "res://assets/sprites/ground/rock.png",
 	"ground/sand": "res://assets/sprites/ground/sand.png",
 	"ground/snow": "res://assets/sprites/ground/snow.png",
+	"map_margin_repairs/map_05_top_left": "res://assets/sprites/map_margin_repairs/map_05_top_left.png",
+	"map_margin_repairs/map_05_top_right": "res://assets/sprites/map_margin_repairs/map_05_top_right.png",
 	"map_margins/map_01": "res://assets/sprites/map_margins/map_01.jpg",
 	"map_margins/map_02": "res://assets/sprites/map_margins/map_02.jpg",
 	"map_margins/map_03": "res://assets/sprites/map_margins/map_03.jpg",

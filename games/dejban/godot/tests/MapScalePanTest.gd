@@ -133,6 +133,10 @@ func _test_all_map_margins(test) -> void:
 		test.check(initial_entry.x >= 97.0 and initial_entry.x <= Balance.WORLD_SIZE.x - 97.0
 			and initial_entry.y >= Balance.HUD_HEIGHT + 138.0,
 			"دروازهٔ ورودی نقشهٔ %d باید کامل داخل صفحه و زیر نوار بالا باشد" % (index + 1))
+		for repair in Ground.MARGIN_REPAIRS.get(battle.map.bg_key, []):
+			var repair_key: String = repair[0]
+			test.check(Assets.has_key(repair_key) and Assets.tex(repair_key) != null,
+				"ترمیم حاشیهٔ نقشهٔ %d باید بارگذاری شود" % (index + 1))
 		var hud_pos: Vector2 = battle.hud._coins_label.global_position
 		battle._set_pan_offset(Vector2(Balance.MAP_MARGIN * 2.0, -Balance.MAP_MARGIN * 2.0))
 		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN - 120.0)

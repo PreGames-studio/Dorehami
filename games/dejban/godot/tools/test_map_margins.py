@@ -9,7 +9,8 @@ import unittest
 import cv2
 import numpy as np
 
-from generate_map_margins import MARGIN_X, MARGIN_Y, OUT, SRC
+from generate_map_margins import MARGIN_X, MARGIN_Y, OUT, SRC, ROOT
+from map_scale_layouts import LAYOUTS
 
 
 class MapMarginTest(unittest.TestCase):
@@ -43,6 +44,28 @@ class MapMarginTest(unittest.TestCase):
                 large = [tuple(row) for row in stats[1:]
                          if row[4] > 1000 and (row[2] > 110 or row[3] > 110)]
                 self.assertFalse(large, f'map {index}: {large}')
+
+    def test_forest_repairs_stay_clear_of_road(self):
+        road = np.zeros((1280, 1580), np.uint8)
+        points = np.asarray(LAYOUTS[5]['path'], dtype=np.float64)
+        first = points[1] - points[0]
+        last = points[-1] - points[-2]
+        points[0] -= first / np.linalg.norm(first) * 100
+        points[-1] += last / np.linalg.norm(last) * 100
+        points += (MARGIN_X, MARGIN_Y)
+        cv2.polylines(road, [np.rint(points).astype(np.int32).reshape(-1, 1, 2)],
+                      False, 255, 100)
+        for name, x, y, width, height in (
+                ('map_05_top_left', 0, 100, 600, 330),
+                ('map_05_top_right', 1240, 110, 340, 340)):
+            with self.subTest(patch=name):
+                image = cv2.imread(str(ROOT / 'assets/sprites/map_margin_repairs' / (name + '.png')),
+                                   cv2.IMREAD_UNCHANGED)
+                self.assertIsNotNone(image)
+                self.assertEqual(image.shape, (height, width, 4))
+                self.assertGreater(int(image[:, :, 3].max()), 0)
+                self.assertFalse(np.any(image[:, :, 3][road[y:y + height, x:x + width] != 0]),
+                                 'repair must not cover the route or its entry/exit')
 
 
 if __name__ == '__main__':

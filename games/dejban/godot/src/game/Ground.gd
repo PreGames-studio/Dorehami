@@ -3,6 +3,15 @@
 class_name Ground
 extends Node2D
 
+# Local artwork repairs straddle the seam without changing the source map or
+# its route. Positions use the same world coordinates as the original map.
+const MARGIN_REPAIRS := {
+	"maps/map_05": [
+		["map_margin_repairs/map_05_top_left", Vector2(-150.0, -180.0)],
+		["map_margin_repairs/map_05_top_right", Vector2(1090.0, -170.0)],
+	],
+}
+
 var map: GameMap = null
 var _decor: Array = []
 var _route_steps := PackedVector2Array()
@@ -48,6 +57,12 @@ func _draw_map_with_margin(bg: Texture2D) -> void:
 	else:
 		draw_rect(Balance.BUILD_RECT.grow(140.0), Color(0.43, 0.62, 0.30))
 	draw_texture_rect(bg, Balance.TERRAIN_RECT, false)
+	for repair in MARGIN_REPAIRS.get(map.bg_key, []):
+		var repair_key: String = repair[0]
+		if Assets.has_key(repair_key):
+			var texture: Texture2D = Assets.tex(repair_key)
+			if texture != null:
+				draw_texture(texture, repair[1])
 
 func _draw_tiles() -> void:
 	for y in Balance.ROWS:
