@@ -15,6 +15,9 @@ const MARGIN_REPAIRS := {
 		["map_margin_repairs/map_08_tree_cluster", Vector2(320.0, -180.0)],
 		["map_margin_repairs/map_08_tree_cluster", Vector2(320.0, 540.0)],
 	],
+	"maps/map_12": [
+		["map_margin_repairs/map_12_top_right", Vector2(950.0, -280.0)],
+	],
 }
 
 var map: GameMap = null

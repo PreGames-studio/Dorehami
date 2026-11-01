@@ -56,6 +56,7 @@ const MANIFEST := {
 	"map_margin_repairs/map_05_top_right": "res://assets/sprites/map_margin_repairs/map_05_top_right.png",
 	"map_margin_repairs/map_05_bottom_left": "res://assets/sprites/map_margin_repairs/map_05_bottom_left.png",
 	"map_margin_repairs/map_08_tree_cluster": "res://assets/sprites/map_margin_repairs/map_08_tree_cluster.png",
+	"map_margin_repairs/map_12_top_right": "res://assets/sprites/map_margin_repairs/map_12_top_right.png",
 	"map_margins/map_01": "res://assets/sprites/map_margins/map_01.jpg",
 	"map_margins/map_02": "res://assets/sprites/map_margins/map_02.jpg",
 	"map_margins/map_03": "res://assets/sprites/map_margins/map_03.jpg",

@@ -63,6 +63,7 @@ class MapMarginTest(unittest.TestCase):
             (5, 'map_05_bottom_left', 0, 1000, 800, 280),
             (8, 'map_08_tree_cluster', 470, 100, 330, 330),
             (8, 'map_08_tree_cluster', 470, 820, 330, 330),
+            (12, 'map_12_top_right', 1100, 0, 480, 490),
         )
         for index, name, x, y, width, height in patches:
             with self.subTest(patch=name, y=y):
