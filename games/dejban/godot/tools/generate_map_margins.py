@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Generate natural, road-free borders from the restored map artwork.
 
-Offline tool: pip install numpy opencv-python-headless. The gameplay image is
-not changed: a separate image is drawn behind it. Road bands are inpainted
+Offline tool: pip install 'numpy<2' opencv-contrib-python-headless==4.10.0.84.
+The gameplay image is not changed: a separate image is drawn behind it.
+Road bands are inpainted
 before extending terrain. Side borders continue edge objects horizontally
 instead of abruptly joining an unrelated portion of the opposite edge.
 Eight extra pixels cover camera shake.
@@ -133,7 +134,16 @@ def make_margin(index: int) -> None:
     points[-1] += last / np.linalg.norm(last) * 160.0
     pts = np.rint(points).astype(np.int32).reshape((-1, 1, 2))
     cv2.polylines(road, [pts], False, 255, width, lineType=cv2.LINE_8)
-    clean = cv2.inpaint(image, road, 5, cv2.INPAINT_TELEA)
+    if index in (8, 12):
+        # Patch-based reconstruction avoids the long coloured streaks that
+        # Telea creates when a broad road mask overlaps snow or desert props.
+        # xphoto uses the opposite mask convention (255 = known pixels).
+        if not hasattr(cv2, 'xphoto'):
+            raise RuntimeError('Install opencv-contrib-python-headless for xphoto')
+        clean = np.empty_like(image)
+        cv2.xphoto.inpaint(image, 255 - road, clean, cv2.xphoto.INPAINT_SHIFTMAP)
+    else:
+        clean = cv2.inpaint(image, road, 5, cv2.INPAINT_TELEA)
     if index in (2, 3):
         extended = meadow_extension(clean)
         clean_meadow_fragments(extended, index)

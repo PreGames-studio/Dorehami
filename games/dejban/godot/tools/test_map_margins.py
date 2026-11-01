@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Offline image sanity checks (pip install numpy opencv-python-headless).
+"""Offline image sanity checks (pip install 'numpy<2' opencv-contrib-python-headless==4.10.0.84).
 
 These checks do not replace visual review: in particular they cannot detect
 seams, cropped scenery, or every possible piece of road.
