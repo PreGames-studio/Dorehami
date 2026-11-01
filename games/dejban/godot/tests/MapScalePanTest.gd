@@ -131,7 +131,7 @@ func _test_all_map_margins(test) -> void:
 			test.check(initial_entry.y > Balance.HUD_HEIGHT and initial_entry.y < Balance.WORLD_SIZE.y - 125.0,
 				"ورودی نقشهٔ %d باید از پشت نوارها بیرون بیاید" % (index + 1))
 		test.check(initial_entry.x >= 97.0 and initial_entry.x <= Balance.WORLD_SIZE.x - 97.0
-			and initial_entry.y >= Balance.HUD_HEIGHT + 153.0,
+			and initial_entry.y >= Balance.HUD_HEIGHT + 138.0,
 			"دروازهٔ ورودی نقشهٔ %d باید کامل داخل صفحه و زیر نوار بالا باشد" % (index + 1))
 		var hud_pos: Vector2 = battle.hud._coins_label.global_position
 		battle._set_pan_offset(Vector2(Balance.MAP_MARGIN * 2.0, -Balance.MAP_MARGIN * 2.0))

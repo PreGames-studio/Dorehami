@@ -141,7 +141,7 @@ func _reveal_entrance() -> void:
 		shift.x = half_width - pos.x
 	elif pos.x > Balance.WORLD_SIZE.x - half_width:
 		shift.x = Balance.WORLD_SIZE.x - half_width - pos.x
-	var min_y: float = Balance.HUD_HEIGHT + 154.0
+	var min_y: float = Balance.HUD_HEIGHT + 139.0
 	var max_y: float = Balance.WORLD_SIZE.y - 145.0
 	if pos.y < min_y:
 		shift.y = min_y - pos.y
@@ -165,6 +165,7 @@ func _build_entrance() -> void:
 	entrance.z_index = -10
 	var sprite := Sprite2D.new()
 	sprite.texture = Assets.tex("structures/entrance")
+	sprite.scale = Vector2(1.0, 0.9)
 	sprite.centered = false
 	if sprite.texture != null:
 		sprite.offset = Vector2(-sprite.texture.get_width() * 0.5, -sprite.texture.get_height() + 8.0)
