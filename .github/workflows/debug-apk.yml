@@ -167,13 +167,13 @@ jobs:
           name: dorehami-debug-apk
           path: apk
 
-      # Best effort: on repos whose workflow token is read-only this fails, and we say so instead
-      # of turning the run red (the artifact above is already the deliverable).
+      # This job downloads artifacts without checking out the repository, so
+      # gh needs an explicit repository. A failed upload must fail the workflow.
       - name: Upload to debug-latest release
         id: publish
-        continue-on-error: true
         env:
           GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
         run: |
           set -euo pipefail
           apk=apk/Dorehami-debug.apk
@@ -184,8 +184,3 @@ jobs:
           gh release upload debug-latest "$apk" apk/Dorehami-debug.apk.sha256 "apk/Dorehami-debug-main-${GITHUB_SHA:0:7}.apk" --clobber
           gh release edit debug-latest --target "$GITHUB_SHA" --notes "$notes"
           echo "published: ${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}/releases/download/debug-latest/Dorehami-debug.apk"
-
-      - name: Hint when publishing was not allowed
-        if: steps.publish.outcome == 'failure'
-        run: |
-          echo "⚠️ انتشار روی ریلیز انجام نشد (احتمالاً توکن workflow فقط read-only است). خود APK در Artifacts همین اجرا موجود است. برای فعال‌کردن: Settings → Actions → General → Workflow permissions → «Read and write permissions»." >> "$GITHUB_STEP_SUMMARY"
