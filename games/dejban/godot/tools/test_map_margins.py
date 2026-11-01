@@ -45,6 +45,17 @@ class MapMarginTest(unittest.TestCase):
                          if row[4] > 1000 and (row[2] > 110 or row[3] > 110)]
                 self.assertFalse(large, f'map {index}: {large}')
 
+    def test_map_six_inpaint_stripes_stay_reduced(self):
+        # These rectangles used to contain conspicuous saturated blue bands.
+        # This does not verify cliffs or tree seams elsewhere in the image.
+        image = cv2.imread(str(OUT / 'map_06.jpg'))
+        self.assertIsNotNone(image)
+        hsv = cv2.cvtColor(image, cv2.COLOR_BGR2HSV)
+        for x0, y0, x1, y1 in ((0, 320, 28, 800), (265, 1050, 305, 1260),
+                               (780, 1100, 830, 1260)):
+            with self.subTest(box=(x0, y0, x1, y1)):
+                self.assertLess(float(hsv[y0:y1, x0:x1, 1].mean()), 30.0)
+
     def test_repairs_stay_clear_of_road(self):
         patches = (
             (5, 'map_05_top_left', 0, 100, 600, 330),

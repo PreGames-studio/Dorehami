@@ -121,6 +121,33 @@ def retouch_known_streaks(image: np.ndarray, index: int) -> None:
         destination[:] = (source * alpha + destination * (1 - alpha)).astype(np.uint8)
 
 
+def clean_snow_six_streaks(image: np.ndarray) -> None:
+    """Replace conspicuous road-inpainting streaks in map 6's padding.
+
+    The sampled snow is from a road-free part of the same map.  These boxes
+    are confined to padding; the original map is never changed.
+    """
+    sample = image[480:620, 950:1040].copy()
+    # Remove the occasional tiny rock from the otherwise empty snow sample so
+    # tiling it cannot create regularly spaced dark specks.
+    dark = (cv2.cvtColor(sample, cv2.COLOR_BGR2GRAY) < 215).astype(np.uint8) * 255
+    dark = cv2.dilate(dark, np.ones((5, 5), np.uint8))
+    sample = cv2.inpaint(sample, dark, 4, cv2.INPAINT_TELEA)
+    background = np.tile(sample, (10, 20, 1))[:image.shape[0], :image.shape[1]]
+    mask = np.zeros(image.shape[:2], np.uint8)
+    for (x0, y0), (x1, y1) in (
+            ((0, 285), (39, 826)), ((248, 0), (316, 100)),
+            ((260, 48), (830, 110)), ((790, 0), (840, 105)),
+            ((1131, 0), (1195, 275)), ((252, 1003), (317, 1279)),
+            ((774, 1085), (1196, 1143)), ((774, 1100), (835, 1279)),
+            ((1130, 1085), (1190, 1279)), ((1540, 1000), (1579, 1279))):
+        cv2.rectangle(mask, (x0, y0), (x1, y1), 255, -1)
+    mask = cv2.GaussianBlur(mask, (0, 0), 12)
+    mask[MARGIN_Y:MARGIN_Y + 720, MARGIN_X:MARGIN_X + 1280] = 0
+    alpha = mask.astype(np.float32)[:, :, None] / 255.0
+    image[:] = (image * (1 - alpha) + background * alpha).astype(np.uint8)
+
+
 def desert_ten_borders(extended: np.ndarray, image: np.ndarray) -> None:
     """Rebuild the flat top/bottom sand on map 10 without inpaint streaks.
 
@@ -229,6 +256,8 @@ def make_margin(index: int) -> None:
     # The true artwork is drawn on top at runtime, but retaining it here makes
     # the generated image independently inspectable.
     extended[MARGIN_Y:MARGIN_Y + 720, MARGIN_X:MARGIN_X + 1280] = image
+    if index == 6:
+        clean_snow_six_streaks(extended)
     if index == 10:
         desert_ten_borders(extended, image)
     retouch_known_streaks(extended, index)
