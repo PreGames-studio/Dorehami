@@ -45,20 +45,30 @@ class MapMarginTest(unittest.TestCase):
                          if row[4] > 1000 and (row[2] > 110 or row[3] > 110)]
                 self.assertFalse(large, f'map {index}: {large}')
 
-    def test_forest_repairs_stay_clear_of_road(self):
-        road = np.zeros((1280, 1580), np.uint8)
-        points = np.asarray(LAYOUTS[5]['path'], dtype=np.float64)
-        first = points[1] - points[0]
-        last = points[-1] - points[-2]
-        points[0] -= first / np.linalg.norm(first) * 100
-        points[-1] += last / np.linalg.norm(last) * 100
-        points += (MARGIN_X, MARGIN_Y)
-        cv2.polylines(road, [np.rint(points).astype(np.int32).reshape(-1, 1, 2)],
-                      False, 255, 100)
-        for name, x, y, width, height in (
-                ('map_05_top_left', 0, 100, 600, 330),
-                ('map_05_top_right', 1240, 110, 340, 340)):
-            with self.subTest(patch=name):
+    def test_repairs_stay_clear_of_road(self):
+        patches = (
+            (5, 'map_05_top_left', 0, 100, 600, 330),
+            (5, 'map_05_top_right', 1240, 110, 340, 340),
+            (5, 'map_05_bottom_left', 0, 1000, 800, 280),
+            (8, 'map_08_tree_cluster', 470, 100, 330, 330),
+            (8, 'map_08_tree_cluster', 470, 820, 330, 330),
+        )
+        for index, name, x, y, width, height in patches:
+            with self.subTest(patch=name, y=y):
+                road = np.zeros((1280, 1580), np.uint8)
+                layout = LAYOUTS[index]
+                points = np.asarray(layout['path'], dtype=np.float64)
+                first, last = points[1] - points[0], points[-1] - points[-2]
+                points[0] -= first / np.linalg.norm(first) * 100
+                points[-1] += last / np.linalg.norm(last) * 100
+                points += (MARGIN_X, MARGIN_Y)
+                road_width = int(max(b[1] for b in layout['x'] + layout['y']) + 60)
+                cv2.polylines(road, [np.rint(points).astype(np.int32).reshape(-1, 1, 2)],
+                              False, 255, road_width)
+                if name == 'map_05_bottom_left':
+                    # This patch lies entirely outside the original image;
+                    # the artificially extended safety band is not a road.
+                    road[MARGIN_Y + 720:] = 0
                 image = cv2.imread(str(ROOT / 'assets/sprites/map_margin_repairs' / (name + '.png')),
                                    cv2.IMREAD_UNCHANGED)
                 self.assertIsNotNone(image)

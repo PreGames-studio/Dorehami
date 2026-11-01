@@ -97,6 +97,12 @@ def retouch_known_streaks(image: np.ndarray, index: int) -> None:
             ((160, 1104, 140, 95), (500, 290)),
             ((1430, 1104, 150, 95), (500, 290)),
         ],
+        9: [
+            # Dark inpaint slivers left by the road's corners, on snow only.
+            ((395, 150, 80, 80), (650, 600)),
+            ((1100, 150, 80, 80), (750, 600)),
+            ((1100, 1040, 80, 80), (750, 600)),
+        ],
     }
     for (x, y, width, height), (source_x, source_y) in patches.get(index, []):
         source = image[source_y:source_y + height, source_x:source_x + width].copy()
@@ -113,6 +119,71 @@ def retouch_known_streaks(image: np.ndarray, index: int) -> None:
         alpha = alpha[:, :, None]
         destination = image[y:y + height, x:x + width]
         destination[:] = (source * alpha + destination * (1 - alpha)).astype(np.uint8)
+
+
+def desert_ten_borders(extended: np.ndarray, image: np.ndarray) -> None:
+    """Rebuild the flat top/bottom sand on map 10 without inpaint streaks.
+
+    This map's top and bottom edge pixels are sand, not cut-off objects. A
+    softly continued edge color, sparse grains, and whole cacti extracted from
+    the original keep the padding road-free. Never edit the gameplay image.
+    """
+    cactus = image[660:720, 560:620].copy()
+    hsv = cv2.cvtColor(cactus, cv2.COLOR_BGR2HSV)
+    green = ((hsv[:, :, 0] >= 28) & (hsv[:, :, 0] < 90) &
+             (hsv[:, :, 1] > 50) & (hsv[:, :, 2] < 220)).astype(np.uint8) * 255
+    count, labels, stats, _ = cv2.connectedComponentsWithStats(green)
+    if count <= 1:
+        raise ValueError('could not extract the map 10 cactus')
+    largest = max(range(1, count), key=lambda label: stats[label, 4])
+    mask = (labels == largest).astype(np.uint8) * 255
+    mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, np.ones((3, 3), np.uint8))
+    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    mask[:] = 0
+    cv2.drawContours(mask, contours, -1, 255, -1)
+    mask = cv2.dilate(mask, np.ones((5, 5), np.uint8))
+    mask = cv2.GaussianBlur(mask, (3, 3), 0.5)
+    sprite = np.dstack((cactus, mask))
+    rng = np.random.default_rng(10)
+    for top, start in ((True, 0), (False, MARGIN_Y + 720)):
+        edge = image[:1] if top else image[-1:]
+        edge = cv2.GaussianBlur(edge, (31, 1), 0).astype(float)
+        edge = cv2.copyMakeBorder(edge, 0, 0, MARGIN_X, MARGIN_X, cv2.BORDER_REFLECT_101)
+        background = np.repeat(edge, MARGIN_Y, axis=0)
+        mean = np.median(edge.reshape(-1, 3), axis=0)
+        distance = np.arange(MARGIN_Y - 1, -1, -1) if top else np.arange(MARGIN_Y)
+        strength = np.clip(distance / 65.0, 0, 1)[:, None, None]
+        background = background * (1 - strength) + mean * strength
+        if not top:
+            # Continue dune shapes rather than stretching the final row.
+            strip = image[-65:].copy()
+            hsv_strip = cv2.cvtColor(strip, cv2.COLOR_BGR2HSV)
+            objects = ((hsv_strip[:, :, 0] > 32) | (hsv_strip[:, :, 2] < 165)).astype(np.uint8) * 255
+            objects = cv2.dilate(objects, np.ones((7, 7), np.uint8))
+            strip = cv2.inpaint(strip, objects, 5, cv2.INPAINT_TELEA)
+            strip = cv2.copyMakeBorder(strip, 0, 0, MARGIN_X, MARGIN_X, cv2.BORDER_REFLECT_101)
+            strip = cv2.flip(strip, 0).astype(float)
+            blend = (1 - np.arange(65) / 65.0)[:, None, None]
+            background[:65] = strip * blend + background[:65] * (1 - blend)
+        for _ in range(210):
+            x, y = int(rng.integers(0, 1580)), int(rng.integers(0, MARGIN_Y))
+            distance_from_edge = MARGIN_Y - y if top else y
+            strength = min(1.0, distance_from_edge / 55.0)
+            if strength < 0.1:
+                continue
+            color = tuple(float(v) for v in background[y, x] - np.array([13, 20, 27]) * strength)
+            cv2.ellipse(background, (x, y), (int(rng.integers(1, 4)), 1),
+                        int(rng.integers(-15, 15)), 0, 360, color, -1)
+        background = np.clip(background, 0, 255).astype(np.uint8)
+        positions = ([(210, 45, 1), (480, 145, .75), (850, 40, .85), (1190, 145, 1), (1450, 55, .75)]
+                     if top else [(200, 110, .85), (520, 50, .75), (820, 150, 1), (1130, 60, .75), (1440, 150, .85)])
+        for x, y, scale in positions:
+            size = int(60 * scale)
+            prop = cv2.resize(sprite, (size, size), interpolation=cv2.INTER_AREA)
+            alpha = prop[:, :, 3:4].astype(float) / 255.0
+            target = background[y:y + size, x:x + size]
+            target[:] = (prop[:, :, :3] * alpha + target * (1 - alpha)).astype(np.uint8)
+        extended[start:start + MARGIN_Y] = background
 
 
 def make_margin(index: int) -> None:
@@ -158,6 +229,8 @@ def make_margin(index: int) -> None:
     # The true artwork is drawn on top at runtime, but retaining it here makes
     # the generated image independently inspectable.
     extended[MARGIN_Y:MARGIN_Y + 720, MARGIN_X:MARGIN_X + 1280] = image
+    if index == 10:
+        desert_ten_borders(extended, image)
     retouch_known_streaks(extended, index)
     OUT.mkdir(parents=True, exist_ok=True)
     if not cv2.imwrite(str(OUT / src.name), extended, [cv2.IMWRITE_JPEG_QUALITY, 94]):

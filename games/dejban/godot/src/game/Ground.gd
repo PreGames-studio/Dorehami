@@ -9,6 +9,11 @@ const MARGIN_REPAIRS := {
 	"maps/map_05": [
 		["map_margin_repairs/map_05_top_left", Vector2(-150.0, -180.0)],
 		["map_margin_repairs/map_05_top_right", Vector2(1090.0, -170.0)],
+		["map_margin_repairs/map_05_bottom_left", Vector2(-150.0, 720.0)],
+	],
+	"maps/map_08": [
+		["map_margin_repairs/map_08_tree_cluster", Vector2(320.0, -180.0)],
+		["map_margin_repairs/map_08_tree_cluster", Vector2(320.0, 540.0)],
 	],
 }
 
