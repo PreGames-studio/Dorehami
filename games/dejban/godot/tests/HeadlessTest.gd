@@ -276,6 +276,8 @@ func _smoke_scenes() -> void:
 			check(_find_label(texts, "موتور: Godot") < 0, "خط موتور باید از شناسنامه پاک شده باشد")
 			check(_find_label(texts, "فونت: وزیرمتن") < 0, "خط فونت باید از شناسنامه پاک شده باشد")
 		if path.ends_with("Battle.tscn"):
+			# The following fixture uses world positions as screen coordinates.
+			instance._set_pan_offset(Vector2.ZERO)
 			check(instance.hud != null and instance.hud._coins_label is Button and instance.hud._lives_label is Button
 				and instance.hud._wave_label is Button and instance.hud._enemies_label is Button,
 				"اطلاعات نوار بالای نبرد باید به‌صورت دکمه نمایش داده شوند")
@@ -1601,6 +1603,7 @@ func _test_touch_upgrade_flow() -> void:
 	add_child(battle)
 	await get_tree().process_frame
 	await get_tree().process_frame
+	battle._set_pan_offset(Vector2.ZERO)
 	var screen := Rect2(Vector2.ZERO, get_viewport().get_visible_rect().size)
 	var hud = battle.hud
 	battle.coins = 9000

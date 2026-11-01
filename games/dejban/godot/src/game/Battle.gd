@@ -131,13 +131,23 @@ func _build_layers() -> void:
 	_fx_layer.z_index = 30
 	_world.add_child(_fx_layer)
 
-## ورودی‌هایی که زیر نوار پایین یا بالای صفحه‌اند از همان ابتدا دیده شوند.
+## Keep the entire portal in view at the start, including entries at map
+## edges or behind the HUD. Players can still pan freely afterwards.
 func _reveal_entrance() -> void:
-	var y: float = map.entry_pos.y
-	if y > Balance.WORLD_SIZE.y - 125.0:
-		_set_pan_offset(Vector2(0.0, Balance.WORLD_SIZE.y - 145.0 - y))
-	elif y < Balance.HUD_HEIGHT + 16.0:
-		_set_pan_offset(Vector2(0.0, Balance.HUD_HEIGHT + 26.0 - y))
+	var pos: Vector2 = map.entry_pos
+	var shift := Vector2.ZERO
+	var half_width := 98.0
+	if pos.x < half_width:
+		shift.x = half_width - pos.x
+	elif pos.x > Balance.WORLD_SIZE.x - half_width:
+		shift.x = Balance.WORLD_SIZE.x - half_width - pos.x
+	var min_y: float = Balance.HUD_HEIGHT + 154.0
+	var max_y: float = Balance.WORLD_SIZE.y - 145.0
+	if pos.y < min_y:
+		shift.y = min_y - pos.y
+	elif pos.y > max_y:
+		shift.y = max_y - pos.y
+	_set_pan_offset(shift)
 
 func _set_pan_offset(value: Vector2) -> void:
 	if _pan_root == null:

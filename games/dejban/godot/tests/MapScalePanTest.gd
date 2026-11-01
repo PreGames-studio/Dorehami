@@ -130,6 +130,9 @@ func _test_all_map_margins(test) -> void:
 		if battle.map.entry_pos.y < Balance.HUD_HEIGHT + 16.0 or battle.map.entry_pos.y > Balance.WORLD_SIZE.y - 125.0:
 			test.check(initial_entry.y > Balance.HUD_HEIGHT and initial_entry.y < Balance.WORLD_SIZE.y - 125.0,
 				"ورودی نقشهٔ %d باید از پشت نوارها بیرون بیاید" % (index + 1))
+		test.check(initial_entry.x >= 97.0 and initial_entry.x <= Balance.WORLD_SIZE.x - 97.0
+			and initial_entry.y >= Balance.HUD_HEIGHT + 153.0,
+			"دروازهٔ ورودی نقشهٔ %d باید کامل داخل صفحه و زیر نوار بالا باشد" % (index + 1))
 		var hud_pos: Vector2 = battle.hud._coins_label.global_position
 		battle._set_pan_offset(Vector2(Balance.MAP_MARGIN * 2.0, -Balance.MAP_MARGIN * 2.0))
 		test.check(battle._pan_root.position == Vector2(Balance.MAP_MARGIN, -Balance.MAP_MARGIN - 120.0)
@@ -182,6 +185,7 @@ func _test_pan_and_build(test) -> void:
 		battle.enemies.erase(enemy)
 		enemy.queue_free()
 
+	battle._set_pan_offset(Vector2.ZERO)
 	var hud_pos: Vector2 = battle.hud._coins_label.global_position
 	# Exercise the real touch → emulated-mouse → GUI/unhandled input path,
 	# including the on-screen mode button, rather than only calling helpers.
