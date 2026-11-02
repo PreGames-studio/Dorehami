@@ -46,6 +46,7 @@ dependencies {
     implementation(libs.androidx.lifecycle.runtime.compose)
     implementation(libs.kotlinx.coroutines.android)
 
+    testImplementation(project(":core:testkit"))
     testImplementation(kotlin("test"))
     testImplementation(kotlin("test-junit5"))
     testImplementation(platform(libs.junit.bom))
