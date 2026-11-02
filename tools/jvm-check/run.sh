@@ -27,7 +27,11 @@ echo "== compile pure UI helpers (no Android/Compose)"
   "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/PersianDigits.kt" \
   "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/TeamSetup.kt" \
   "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/TurnFlow.kt" \
-  "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmCinematics.kt" 2>&1 | grep -v "^warning" || true
+  "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmCinematics.kt" \
+  "$R/core/uikit/src/main/kotlin/ir/dorehami/uikit/FaDigits.kt" \
+  "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/TableAnimationQueue.kt" \
+  "$STUBS/hokm" 2>&1 | grep -v "^warning" || true
+# `TableAnimationQueueTest` needs `HokmUiState`, which lives in the Compose table; it runs on CI.
 echo "== compile pure UI tests"
 "$KC" -nowarn -Xallow-kotlin-package -Xfriend-paths="$OUT/ui.jar" -cp "$OUT/ui.jar:$LIB/kotlin-test.jar" -d "$OUT/uitest.jar" \
   "$R/games/pantohub/ui/src/test/kotlin/ir/dorehami/games/pantohub/ui/TurnFlowTest.kt" \
