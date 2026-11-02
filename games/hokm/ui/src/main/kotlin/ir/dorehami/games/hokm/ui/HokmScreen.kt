@@ -16,11 +16,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 import androidx.compose.foundation.background
@@ -84,6 +83,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -104,15 +104,26 @@ private val SEAT_BADGE_HEIGHT = 34.dp
 private const val MAX_VISIBLE_BACKS = 7
 
 private object Table {
-    val feltLight = Color(0xFF177E78)
-    val feltDark = Color(0xFF1E1A26)
-    val rimLight = Color(0xFF8B5A2B)
-    val rimDark = Color(0xFF2A2433)
-    val brass = Color(0xFFFFB86B)
-    val chip = Color(0xD91E1A26)
-    val turnGlow = Color(0xFFFFB86B)
-    val ours = Color(0xFF5FD3C7)
-    val theirs = Color(0xFFC9A5FF)
+    /** The cloth: warm linen, the same bone the app paints its cards and boards on. */
+    val feltLight = Color(0xFFFCF3DE)
+    val feltDark = Color(0xFFE6D0A4)
+
+    /** The frame around it: light oak with the app's gold hairline. */
+    val rimLight = Color(0xFFE3C48C)
+    val rimDark = Color(0xFFB98C4F)
+
+    /** Gold inlay and brass detail on the wood. */
+    val brass = Color(0xFFC9A96B)
+
+    /** Chrome: white glass cards floating on the cloth. */
+    val chip = Color(0xF5FFFFFF)
+    val ink = Color(0xFF2E2415)
+    val inkSoft = Color(0xFF5B4B33)
+    val line = Color(0xFFC9A96B)
+
+    val turnGlow = Color(0xFFD9480F)
+    val ours = Color(0xFF0E8F87)
+    val theirs = Color(0xFF7B4CC2)
 }
 
 /**
@@ -291,6 +302,11 @@ fun HokmScreen(
                 StockPile(state.stockCount, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
             }
 
+            // ---- the deck and the cards in the air while dealing
+            if (state.dealStock != null || state.dealFlights.isNotEmpty()) {
+                DealLayer(state, Modifier.fillMaxSize())
+            }
+
             // ---- trick area
             TrickArea(
                 state = state,
@@ -336,7 +352,8 @@ fun HokmScreen(
             // ---- overlays
             if (state.iChooseHokm) {
                 HokmChooser(
-                    hand = state.myHand,
+                    // Only the five cards actually dealt so far: the rest are still in the deck.
+                    hand = state.visibleHand,
                     onChoose = onChooseHokm,
                     onTap = { onUiSound("tap") },
                     modifier = Modifier.align(Alignment.Center),
@@ -473,76 +490,88 @@ fun HokmScreen(
 
 // --------------------------------------------------------------------------------------- felt
 
-/** Photographic baize + walnut rim, with a soft vignette and the brass medallion painted on top. */
+/**
+ * The table: a light oak frame around a warm linen cloth, with a faint gold medallion in the middle.
+ *
+ * The old background was a photographic night baize, which made Hokm the only dark screen in the
+ * app. This is drawn from the same material palette as the shell and the backgammon board, so the
+ * table belongs with the rest of the product — and it is three gradients, not a decoded bitmap.
+ */
 @Composable
 private fun TableBackground() {
-    Image(
-        painter = painterResource(R.drawable.hokm_table),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
-    )
-    // The chosen table skin is a cheap wash + a few strokes over the same photograph.
-    HokmSkinWash(LocalHokmLook.current.table, Modifier.fillMaxSize())
-    // Overhead spotlight + vignette: two static gradients, readable on cheap phones without bloom.
-    SpotlightVignette(Modifier.fillMaxSize())
+    // The shop's table skin still means something: it tints the cloth and the inlay, at a strength
+    // that cannot break the light palette the rest of the app uses.
+    val skin = LocalHokmLook.current.table
     Canvas(Modifier.fillMaxSize()) {
-        // A light teal wash brings the existing felt into the app's palette without hiding its grain.
-        drawRect(Color(0xFF0E8F87).copy(alpha = 0.14f))
-        drawRect(
-            Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)),
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.75f,
-            ),
-        )
-        val c = Offset(size.width / 2f, size.height * 0.45f)
-        drawCircle(Table.brass.copy(alpha = 0.14f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
-        drawCircle(Table.brass.copy(alpha = 0.09f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
-    }
-}
-
-/** Vector fallback of the table (not used by default). */
-@Suppress("unused")
-@Composable
-private fun FeltBackground() {
-    Canvas(Modifier.fillMaxSize()) {
-        val rim = 14.dp.toPx()
-        // walnut rim
+        val w = size.width
+        val h = size.height
+        // Paper behind the table.
+        drawRect(Brush.verticalGradient(listOf(Color(0xFFFFF4DC), Color(0xFFF3E0BB))))
+        // Oak frame.
+        val rim = (w * 0.035f).coerceIn(10.dp.toPx(), 26.dp.toPx())
         drawRect(Brush.verticalGradient(listOf(Table.rimLight, Table.rimDark)))
-        // baize
-        val inner = androidx.compose.ui.geometry.Rect(rim, rim, size.width - rim, size.height - rim)
+        drawRect(skin.rim.copy(alpha = 0.16f))
+        // Linen cloth, inset by the frame.
+        val inset = rim
+        val clothRect = androidx.compose.ui.geometry.Rect(
+            inset,
+            inset,
+            w - inset,
+            h - inset,
+        )
         drawRoundRect(
             brush = Brush.radialGradient(
                 colors = listOf(Table.feltLight, Table.feltDark),
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.7f,
+                center = Offset(w * 0.5f, h * 0.34f),
+                radius = h * 0.8f,
             ),
-            topLeft = inner.topLeft,
-            size = inner.size,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.12f),
+            topLeft = clothRect.topLeft,
+            size = clothRect.size,
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.055f),
         )
-        // brass inlay line
+        // The chosen cloth colour, as a wash over the linen.
+        drawRoundRect(
+            color = skin.wash.copy(alpha = 0.09f),
+            topLeft = clothRect.topLeft,
+            size = clothRect.size,
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.055f),
+        )
+        // Gold inlay just inside the frame.
         drawRoundRect(
             color = Table.brass.copy(alpha = 0.55f),
-            topLeft = Offset(inner.left + 6.dp.toPx(), inner.top + 6.dp.toPx()),
-            size = androidx.compose.ui.geometry.Size(inner.width - 12.dp.toPx(), inner.height - 12.dp.toPx()),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.11f),
+            topLeft = Offset(inset + 3.dp.toPx(), inset + 3.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(
+                clothRect.width - 6.dp.toPx(),
+                clothRect.height - 6.dp.toPx(),
+            ),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.05f),
             style = Stroke(1.5.dp.toPx()),
         )
-        // felt grain: very faint diagonal hatch
-        val step = 7.dp.toPx()
-        var x = -size.height
-        while (x < size.width) {
-            drawLine(Color.White.copy(alpha = 0.025f), Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = 1f)
-            x += step
+        // The skin's own accent on a second, finer line.
+        drawRoundRect(
+            color = skin.accent.copy(alpha = 0.35f),
+            topLeft = Offset(inset + 6.dp.toPx(), inset + 6.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(
+                clothRect.width - 12.dp.toPx(),
+                clothRect.height - 12.dp.toPx(),
+            ),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.05f),
+            style = Stroke(1.dp.toPx()),
+        )
+        // Faint weave: two hairlines every twelfth of an inch, cheap and static.
+        val step = 9.dp.toPx()
+        var y = inset + step
+        while (y < h - inset) {
+            drawLine(Color(0xFF8A6B3A).copy(alpha = 0.045f), Offset(inset, y), Offset(w - inset, y), 1f)
+            y += step
         }
-        // central medallion
-        val c = Offset(size.width / 2f, size.height * 0.45f)
-        drawCircle(Table.brass.copy(alpha = 0.12f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
-        drawCircle(Table.brass.copy(alpha = 0.08f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
+        // Medallion: where the cards are played.
+        val c = Offset(w / 2f, h * 0.45f)
+        drawCircle(Table.brass.copy(alpha = 0.22f), w * 0.22f, c, style = Stroke(1.5.dp.toPx()))
+        drawCircle(Table.brass.copy(alpha = 0.14f), w * 0.16f, c, style = Stroke(1.dp.toPx()))
     }
 }
+
 
 // --------------------------------------------------------------------------------------- seats
 
@@ -578,10 +607,10 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
             modifier = modifier
                 .heightIn(min = 40.dp)
                 .clip(shape)
-                .background(Brush.verticalGradient(listOf(Color(0xF22A2436), Color(0xF2191522))))
+                .background(Brush.verticalGradient(listOf(Color(0xFBFFFFFF), Color(0xF6FFF3DF))))
                 .border(
                     width = if (isTurn) 1.8.dp else 1.dp,
-                    color = if (isTurn) Table.turnGlow.copy(alpha = glow) else Color.White.copy(alpha = 0.16f),
+                    color = if (isTurn) Table.turnGlow.copy(alpha = 0.35f + 0.65f * glow) else Table.line.copy(alpha = 0.75f),
                     shape = shape,
                 )
                 .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
@@ -603,7 +632,7 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
             ) {
                 Text(
                     text = info.name.take(1),
-                    color = Color(0xFF12101A),
+                    color = Color.White,
                     fontWeight = FontWeight.Black,
                     fontSize = 15.sp,
                 )
@@ -613,10 +642,10 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
                     verticalAlignment = Alignment.CenterVertically,
                     horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    if (isHakem) HokmIconView(HokmIcon.Crown, color = Table.brass, size = 11.dp)
+                    if (isHakem) HokmIconView(HokmIcon.Crown, color = Table.turnGlow, size = 11.dp)
                     Text(
                         text = info.name,
-                        color = Color.White,
+                        color = Table.ink,
                         fontWeight = FontWeight.Bold,
                         fontSize = 12.5.sp,
                         maxLines = 1,
@@ -639,10 +668,10 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
                         fontSize = 9.5.sp,
                         fontWeight = FontWeight.SemiBold,
                     )
-                    Box(Modifier.size(2.5.dp).clip(CircleShape).background(Color.White.copy(alpha = 0.35f)))
+                    Box(Modifier.size(2.5.dp).clip(CircleShape).background(Table.inkSoft.copy(alpha = 0.45f)))
                     Text(
                         text = "${state.tricksWon.getOrElse(team) { 0 }.toFa()} دست",
-                        color = Color.White.copy(alpha = 0.72f),
+                        color = Table.inkSoft,
                         fontSize = 9.5.sp,
                     )
                 }
@@ -976,8 +1005,8 @@ private fun ScoreBar(
                 .fillMaxWidth()
                 .heightIn(min = 58.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xE62A2433), Color(0xF21E1A26))))
-                .border(1.dp, Color(0xFF9A90A8).copy(alpha = 0.42f), RoundedCornerShape(16.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFBFFFFFF), Color(0xF7FFF3DF))))
+                .border(1.dp, Table.line.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
                 .clickable(onClick = onSheet)
                 .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
@@ -1021,18 +1050,18 @@ private fun ScoreBar(
 private fun HokmBadge(state: HokmUiState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            Text("حکم:", color = Table.inkSoft, fontSize = 12.sp)
             val hokm = state.hokm
             if (hokm != null) {
-                SuitIcon(hokm, 18.dp, onDark = true)
-                Text(hokm.titleFa, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                SuitIcon(hokm, 18.dp)
+                Text(hokm.titleFa, color = Table.ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             } else {
-                Text("—", color = Color.White, fontSize = 13.sp)
+                Text("—", color = Table.ink, fontSize = 13.sp)
             }
         }
         Text(
             "دست ${state.handNumber.toFa()} • تا ${state.targetPoints.toFa()} امتیاز",
-            color = Color.White.copy(alpha = 0.7f),
+            color = Table.inkSoft,
             fontSize = 9.5.sp,
             maxLines = 1,
         )
@@ -1044,7 +1073,7 @@ private fun TeamScore(label: String, score: Int, tricks: Int, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(score.toFa(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text(score.toFa(), color = Table.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(HokmRules.TRICKS_TO_WIN_HAND) { i ->
@@ -1052,7 +1081,7 @@ private fun TeamScore(label: String, score: Int, tricks: Int, color: Color) {
                     Modifier
                         .size(7.dp)
                         .clip(CircleShape)
-                        .background(if (i < tricks) color else Color.White.copy(alpha = 0.18f)),
+                        .background(if (i < tricks) color else Table.ink.copy(alpha = 0.14f)),
                 )
             }
         }
@@ -1162,7 +1191,7 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
             // Compact headline instead of a big panel: the table stays visible while cards fly.
             Text(
                 text = "تعیین حاکم · اولین آس حاکم می‌شود",
-                color = Table.brass,
+                color = Table.ink,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -1170,7 +1199,7 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
                     .padding(top = 8.dp)
                     .clip(RoundedCornerShape(50))
                     .background(Table.chip)
-                    .border(1.dp, Table.brass.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .border(1.dp, Table.line.copy(alpha = 0.7f), RoundedCornerShape(50))
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
@@ -1233,7 +1262,7 @@ private fun BoxScope.DealtCard(
                 }
             }
             if (isAce) {
-                HokmPill("آس · حاکم", icon = HokmIcon.Crown, color = Table.brass, modifier = Modifier.padding(top = 3.dp))
+                HokmPill("آس · حاکم", icon = HokmIcon.Crown, color = Table.turnGlow, modifier = Modifier.padding(top = 3.dp))
             }
         }
     }
@@ -1252,7 +1281,8 @@ private fun TrumpSlamOverlay(suit: Suit, modifier: Modifier = Modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val p = hit.value
             drawCircle(
-                color = Color.White.copy(alpha = (1f - p) * 0.35f),
+                // A hot ring, not a white one: the cloth is pale now, white would vanish.
+                color = Color(0xFFD9480F).copy(alpha = (1f - p) * 0.55f),
                 radius = size.minDimension * (0.42f + 0.5f * p),
                 style = Stroke(width = 3.dp.toPx() * (1f - p).coerceAtLeast(0.05f)),
             )
@@ -1304,8 +1334,8 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
             Column(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xF22A2433), Color(0xF23A3346))))
-                    .border(1.5.dp, Table.brass, RoundedCornerShape(20.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFCFFFFFF), Color(0xFAFFF3DF))))
+                    .border(1.5.dp, Table.line, RoundedCornerShape(20.dp))
                     .padding(horizontal = 26.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -1313,13 +1343,13 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
                     b.suit?.let { suit ->
                         HokmSuitPip(
                             suit = suit,
-                            color = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFFF8A8A) else Color.White,
+                            color = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFB3202B) else Table.ink,
                             size = if (b.big) 24.dp else 19.dp,
                         )
                     }
-                    Text(b.title, color = Table.brass, fontWeight = FontWeight.Black, fontSize = if (b.big) 24.sp else 18.sp, textAlign = TextAlign.Center)
+                    Text(b.title, color = Table.ink, fontWeight = FontWeight.Black, fontSize = if (b.big) 24.sp else 18.sp, textAlign = TextAlign.Center)
                 }
-                b.subtitle?.let { Text(it, color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, textAlign = TextAlign.Center) }
+                b.subtitle?.let { Text(it, color = Table.inkSoft, fontSize = 13.sp, textAlign = TextAlign.Center) }
             }
         }
     }
@@ -1331,7 +1361,7 @@ private fun FeedChip(text: String, modifier: Modifier = Modifier) {
     // through the middle of its letters and read as gibberish.
     Text(
         text = text,
-        color = Color.White.copy(alpha = 0.92f),
+        color = Table.inkSoft,
         fontSize = 11.5.sp,
         lineHeight = 15.sp,
         maxLines = 1,
@@ -1340,7 +1370,7 @@ private fun FeedChip(text: String, modifier: Modifier = Modifier) {
         modifier = modifier
             .clip(RoundedCornerShape(11.dp))
             .background(Table.chip)
-            .border(1.dp, Color.White.copy(alpha = 0.08f), RoundedCornerShape(11.dp))
+            .border(1.dp, Table.line.copy(alpha = 0.55f), RoundedCornerShape(11.dp))
             .padding(horizontal = 12.dp, vertical = 4.dp),
     )
 }
@@ -1432,6 +1462,98 @@ private fun GameOverDialog(
 
 // --------------------------------------------------------------------------------------- two-player panels
 
+/**
+ * The deal, drawn for real: the deck sits in the middle of the table and every card that a hand
+ * picks up is a card that was seen leaving that deck.
+ *
+ * Nothing here invents a card — [HokmUiState.dealFlights] is the table's own list of cards in the
+ * air, and each one is animated from the deck to the fan of the seat it belongs to.
+ */
+@Composable
+private fun DealLayer(state: HokmUiState, modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier) {
+        val w = maxWidth
+        val h = maxHeight
+        // The deck shrinks as it empties, so the pile reads as a deck being used up.
+        state.dealStock?.let { left -> if (left > 0) DealDeck(left, Modifier.align(Alignment.Center).offset(y = (-6).dp)) }
+        state.dealFlights.forEach { flight ->
+            key(flight.id) {
+                val target = HokmSeatLayout.fanTarget(flight.seat, state.mySeat, state.playerCount)
+                val progress = remember(flight.id) { Animatable(0f) }
+                LaunchedEffect(flight.id) {
+                    progress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(HokmTable.DEAL_FLIGHT_MS.toInt(), easing = FastOutSlowInEasing),
+                    )
+                }
+                val cardW = 34.dp
+                Box(
+                    Modifier
+                        .offset {
+                            val t = progress.value
+                            val cx = w.toPx() * 0.5f
+                            val cy = h.toPx() * 0.5f
+                            val tx = w.toPx() * target.x
+                            val ty = h.toPx() * target.y
+                            // A small arc: the card is thrown, not slid along a rail.
+                            val lift = sin(t * PI).toFloat() * h.toPx() * 0.05f
+                            IntOffset(
+                                x = (cx + (tx - cx) * t - cardW.toPx() / 2f).roundToInt(),
+                                y = (cy + (ty - cy) * t - lift).roundToInt(),
+                            )
+                        }
+                        .graphicsLayer {
+                            val t = progress.value
+                            scaleX = 1f - 0.22f * t
+                            scaleY = 1f - 0.22f * t
+                            rotationZ = -9f + 15f * t
+                            // Handed over as it lands: the fan takes the card at that exact beat.
+                            alpha = if (t > 0.92f) ((1f - t) / 0.08f).coerceIn(0f, 1f) else 1f
+                        },
+                ) {
+                    CardBackView(width = cardW, elevation = 6.dp)
+                }
+            }
+        }
+    }
+}
+
+/** The deck on the table while it is being dealt: a stack of backs that thins out as it empties. */
+@Composable
+private fun DealDeck(count: Int, modifier: Modifier = Modifier) {
+    val layers = (1 + count / 8).coerceAtMost(8)
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(46.dp, 64.dp)
+                    .offset(y = 4.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Color(0x33000000)),
+            )
+            repeat(layers) { i ->
+                CardBackView(
+                    width = 44.dp,
+                    elevation = 3.dp,
+                    modifier = Modifier.offset(x = (i * 0.7f).dp, y = (-i * 0.9f).dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text(
+            "${count.toFa()} برگ",
+            color = Table.ink,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Table.chip)
+                .border(1.dp, Table.line.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+    }
+}
+
 @Composable
 private fun StockPile(count: Int, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1439,7 +1561,7 @@ private fun StockPile(count: Int, modifier: Modifier = Modifier) {
             repeat(minOf(5, 1 + count / 9)) { i -> CardBackView(width = 44.dp, elevation = 2.dp, modifier = Modifier.offset(x = (i * 1.5f).dp, y = (-i * 1.5f).dp)) }
         }
         Spacer(Modifier.height(4.dp))
-        Text("${count.toFa()} برگ", color = Color.White, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Table.chip).padding(horizontal = 8.dp, vertical = 2.dp))
+        Text("${count.toFa()} برگ", color = Table.ink, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Table.chip).padding(horizontal = 8.dp, vertical = 2.dp))
     }
 }
 
@@ -1752,7 +1874,7 @@ private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfee
         }
     }
     val color = when {
-        !mine -> Color.White.copy(alpha = 0.55f)
+        !mine -> Table.inkSoft.copy(alpha = 0.55f)
         urgency == TurnUrgency.WARNING -> Color(0xFFEF5350)
         urgency == TurnUrgency.GOLD -> Color(0xFFFFB300)
         else -> Table.turnGlow
@@ -1766,19 +1888,20 @@ private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfee
         Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                drawCircle(Color.Black.copy(alpha = 0.45f))
+                drawCircle(Color.White.copy(alpha = 0.92f))
+                drawCircle(Table.line.copy(alpha = 0.65f), style = Stroke(1.dp.toPx()))
                 if (mine && urgency == TurnUrgency.WARNING && motionScale > 0f) {
                     drawCircle(Color(0xFFEF5350).copy(alpha = 0.10f * pulse * motionScale))
                 }
-                drawArc(Color.White.copy(alpha = 0.15f), -90f, 360f, useCenter = false, style = stroke)
+                drawArc(Table.ink.copy(alpha = 0.12f), -90f, 360f, useCenter = false, style = stroke)
                 drawArc(color.copy(alpha = pulse), -90f, 360f * frac, useCenter = false, style = stroke)
             }
-            Text(secs.toFa(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(secs.toFa(), color = Table.ink, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
         if (mine && urgency == TurnUrgency.WARNING) {
             Text(
                 "ربات کارت خواهد زد",
-                color = Color(0xFFFFCDD2),
+                color = Color(0xFFB3261E),
                 fontSize = 9.sp,
                 textAlign = TextAlign.Center,
             )
@@ -1841,7 +1964,7 @@ private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () ->
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text("برای بستن ضربه بزنید", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+            Text("برای بستن ضربه بزنید", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
         }
     }
 }
@@ -1860,15 +1983,15 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                 Modifier
                     .fillMaxWidth(0.88f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Brush.verticalGradient(listOf(Color(0xFF2A2433), Color(0xFF1E1A26))))
-                    .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFFFF4DC))))
+                    .border(1.dp, Table.line, RoundedCornerShape(22.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                     .padding(16.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("برگهٔ امتیاز", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("برگهٔ امتیاز", color = Table.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Table.inkSoft, fontSize = 10.sp)
                     }
                     Hokm3DButton(
                         text = "بستن",
@@ -1882,11 +2005,11 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "هدف: ${state.targetPoints.toFa()} امتیاز",
-                    color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp,
+                    color = Table.inkSoft, fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(10.dp))
                 if (state.handHistory.isEmpty()) {
-                    Text("هنوز دستی تمام نشده.", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                    Text("هنوز دستی تمام نشده.", color = Table.inkSoft, fontSize = 14.sp)
                 } else {
                     Row(Modifier.fillMaxWidth()) {
                         SheetCell("دست", Modifier.weight(0.7f), header = true)
@@ -1908,14 +2031,14 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                             Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(if (i % 2 == 0) Color.White.copy(alpha = 0.04f) else Color.Transparent)
+                                    .background(if (i % 2 == 0) Table.ink.copy(alpha = 0.05f) else Color.Transparent)
                                     .padding(vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 SheetCell((i + 1).toFa(), Modifier.weight(0.7f))
                                 SheetCell(hakemName, Modifier.weight(1.3f))
                                 Box(Modifier.weight(0.7f), contentAlignment = Alignment.Center) {
-                                    hnd.hokm?.let { SuitIcon(it, 16.dp, onDark = true) }
+                                    hnd.hokm?.let { SuitIcon(it, 16.dp) }
                                 }
                                 SheetCell(kind, Modifier.weight(1.5f), color = if (mine) Table.ours else Table.theirs)
                                 SheetCell("+" + hnd.points.toFa(), Modifier.weight(0.8f), color = if (mine) Table.ours else Table.theirs)
@@ -1941,12 +2064,12 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
 }
 
 @Composable
-private fun SheetCell(text: String, modifier: Modifier, header: Boolean = false, color: Color = Color.White) {
+private fun SheetCell(text: String, modifier: Modifier, header: Boolean = false, color: Color = Table.ink) {
     Text(
         text,
         modifier = modifier,
         textAlign = TextAlign.Center,
-        color = if (header) Table.brass else color,
+        color = if (header) Table.inkSoft else color,
         fontSize = if (header) 11.sp else 13.sp,
         fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
     )

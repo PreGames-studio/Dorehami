@@ -68,4 +68,50 @@ class HokmDealRevealTest {
         assertEquals(TableAudio.PLAY, TableAudio.cardLands(trump = false, cut = false))
         assertTrue(TableAudio.SLAM != TableAudio.PLAY)
     }
+
+    @Test
+    fun `the deck waits on the table while the hakem picks a trump, and input stays free`() {
+        val s = HokmUiState(
+            playerCount = 4,
+            mySeat = 0,
+            myHand = hand,
+            handCounts = listOf(13, 13, 13, 13),
+            handReveal = listOf(5, 0, 0, 0),
+            dealStock = 47,
+            hakem = 0,
+        )
+        // Display-only: the five are on screen, but nothing is animating and nothing is blocked.
+        assertEquals(5, s.visibleCount(0))
+        assertEquals(0, s.visibleCount(1))
+        assertEquals(hand, s.visibleHand)
+        assertTrue(s.isCalm, "a paused deal must not block the hakem's choice")
+        assertEquals(47, s.dealStock)
+    }
+
+    @Test
+    fun `a reveal can never show more cards than the seat really holds`() {
+        val s = HokmUiState(
+            playerCount = 4,
+            mySeat = 0,
+            handCounts = listOf(2, 0, 0, 0),
+            handReveal = listOf(5, 0, 0, 0),
+        )
+        assertEquals(2, s.visibleCount(0))
+        assertEquals(0, s.visibleCount(1))
+    }
+
+    @Test
+    fun `while the cards are in the air the table is busy`() {
+        val s = HokmUiState(
+            playerCount = 4,
+            mySeat = 0,
+            handCounts = listOf(13, 13, 13, 13),
+            dealReveal = listOf(3, 2, 2, 1),
+            dealStock = 44,
+            dealFlights = listOf(DealFlight(id = 1, seat = 2, slot = 2)),
+        )
+        assertTrue(!s.isCalm, "a running deal must hold the table")
+        assertEquals(3, s.visibleCount(0))
+        assertEquals(1, s.dealFlights.size)
+    }
 }
