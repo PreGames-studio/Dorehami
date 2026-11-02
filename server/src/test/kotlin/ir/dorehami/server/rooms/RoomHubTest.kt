@@ -10,6 +10,7 @@ import ir.dorehami.session.SessionEvent
 import ir.dorehami.transport.GameTransport
 import ir.dorehami.transport.TransportEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -94,8 +95,12 @@ class RoomHubTest {
             val ga = GuestController(ta, scope, "ROOM1", "authority", pa)
             val gb = GuestController(tb, scope, "ROOM1", "authority", pb)
             val errsB = ArrayList<SessionEvent.Error>()
-            scope.launch { gb.events.collect { if (it is SessionEvent.Error) errsB += it } }
-            delay(40)
+            // `events` is a replay-0 SharedFlow, so the collector must be subscribed *before* the
+            // guest sends anything; UNDISPATCHED subscribes inline instead of racing a delay().
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                gb.events.collect { if (it is SessionEvent.Error) errsB += it }
+            }
+            delay(20)
             ga.join(); gb.join()
             awaitUntil { ga.state.value.seat == 0 && gb.state.value.seat == 1 }
             assertEquals(0, ga.state.value.seat); assertEquals(1, gb.state.value.seat)
