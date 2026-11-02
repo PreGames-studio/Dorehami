@@ -874,7 +874,7 @@ private fun ScoreBar(
         ) {
             Hokm3DButton(
                 text = "خروج",
-                leading = "‹",
+                leadingIcon = HokmIcon.Back,
                 tone = HokmButtonTone.GLASS,
                 height = 39.dp,
                 modifier = Modifier.width(74.dp),
@@ -1412,7 +1412,7 @@ private fun DrawPanel(
                 Hokm3DButton(
                     text = "نگه می‌دارم",
                     subtitle = "همین کارت",
-                    leading = "✓",
+                    leadingIcon = HokmIcon.Check,
                     tone = HokmButtonTone.EMERALD,
                     height = 54.dp,
                     modifier = Modifier.weight(1f),
@@ -1422,7 +1422,7 @@ private fun DrawPanel(
                 Hokm3DButton(
                     text = "رد می‌کنم",
                     subtitle = "بعدی را کور بردار",
-                    leading = "↻",
+                    leadingIcon = HokmIcon.Bolt,
                     tone = HokmButtonTone.GLASS,
                     height = 54.dp,
                     modifier = Modifier.weight(1f),

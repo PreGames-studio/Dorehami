@@ -1045,14 +1045,14 @@ private fun StatsCard(stats: HokmStats, onReset: () -> Unit, onTap: () -> Unit) 
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-            StatCell("بازی", stats.games.toFa(), "▣")
+            StatCell("بازی", stats.games.toFa(), HokmIcon.Deck)
             StatCell("برد", stats.wins.toFa(), HokmIcon.Trophy)
             StatCell("کُت", stats.kots.toFa(), HokmIcon.Star)
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-            StatCell("درصد برد", "٪${stats.winRate.toFa()}", "↗")
-            StatCell("دست برده", "${stats.handsWon.toFa()} / ${stats.hands.toFa()}", "♧")
+            StatCell("درصد برد", "٪${stats.winRate.toFa()}", HokmIcon.Target)
+            StatCell("دست برده", "${stats.handsWon.toFa()} / ${stats.hands.toFa()}", HokmIcon.Check)
         }
     }
 }

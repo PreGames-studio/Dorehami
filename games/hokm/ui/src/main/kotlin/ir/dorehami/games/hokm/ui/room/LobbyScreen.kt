@@ -50,6 +50,8 @@ import ir.dorehami.games.hokm.ui.Hokm3DButton
 import ir.dorehami.games.hokm.ui.HokmBackdrop
 import ir.dorehami.games.hokm.ui.HokmButtonTone
 import ir.dorehami.games.hokm.ui.HokmGlassPanel
+import ir.dorehami.games.hokm.ui.HokmIcon
+import ir.dorehami.games.hokm.ui.HokmIconView
 import ir.dorehami.games.hokm.ui.HokmPalette
 import ir.dorehami.games.hokm.ui.HokmPill
 import ir.dorehami.session.Member
@@ -85,7 +87,7 @@ fun LobbyScreen(
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                 Hokm3DButton(
                     text = "بازگشت",
-                    leading = "‹",
+                    leadingIcon = HokmIcon.Back,
                     tone = HokmButtonTone.GLASS,
                     height = 42.dp,
                     modifier = Modifier.width(104.dp),
@@ -133,7 +135,7 @@ private fun BluetoothChoose(flow: RoomFlow, playerCount: Int, onTap: () -> Unit)
     }
 
     HokmGlassPanel(Modifier.fillMaxWidth(), contentPadding = 19.dp) {
-        HokmPill("نزدیک هم، بدون اینترنت", icon = "⌁", color = HokmPalette.mint)
+        HokmPill("نزدیک هم، بدون اینترنت", icon = HokmIcon.Bolt, color = HokmPalette.mint)
         Spacer(Modifier.height(10.dp))
         Text("دورهمیِ واقعی", color = HokmPalette.text, fontSize = 22.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
@@ -148,7 +150,7 @@ private fun BluetoothChoose(flow: RoomFlow, playerCount: Int, onTap: () -> Unit)
         Hokm3DButton(
             text = "ساختن اتاق",
             subtitle = "میزبان شو و دوستانت را دعوت کن",
-            leading = "＋",
+            leadingIcon = HokmIcon.Star,
             tone = HokmButtonTone.EMERALD,
             height = 62.dp,
             modifier = Modifier.fillMaxWidth(),
@@ -159,7 +161,7 @@ private fun BluetoothChoose(flow: RoomFlow, playerCount: Int, onTap: () -> Unit)
         Hokm3DButton(
             text = "پیوستن به اتاق دوستان",
             subtitle = "اتاق‌های نزدیک را پیدا کن",
-            leading = "↗",
+            leadingIcon = HokmIcon.Target,
             tone = HokmButtonTone.GLASS,
             height = 60.dp,
             modifier = Modifier.fillMaxWidth(),
@@ -182,7 +184,7 @@ private fun OnlineChoose(
     var code by rememberSaveable { mutableStateOf("") }
     val addressError by flow.serverAddressError
     HokmGlassPanel(Modifier.fillMaxWidth(), contentPadding = 19.dp) {
-        HokmPill("بازی از راه دور", icon = "◎", color = HokmPalette.mint)
+        HokmPill("بازی از راه دور", icon = HokmIcon.Globe, color = HokmPalette.mint)
         Spacer(Modifier.height(10.dp))
         Text("میزت را آنلاین بچین", color = HokmPalette.text, fontSize = 22.sp, fontWeight = FontWeight.Black)
         Spacer(Modifier.height(5.dp))
@@ -197,7 +199,7 @@ private fun OnlineChoose(
         Hokm3DButton(
             text = "ساختن اتاق خصوصی",
             subtitle = "کد را برای دوستانت بفرست",
-            leading = "＋",
+            leadingIcon = HokmIcon.Star,
             tone = HokmButtonTone.EMERALD,
             modifier = Modifier.fillMaxWidth(),
             height = 60.dp,
@@ -230,7 +232,7 @@ private fun OnlineChoose(
         Hokm3DButton(
             text = "حریف تصادفی",
             subtitle = "اگر منتظر بمانی، ربات هم وارد می‌شود",
-            leading = "✦",
+            leadingIcon = HokmIcon.Sparkle,
             tone = HokmButtonTone.GLASS,
             modifier = Modifier.fillMaxWidth(),
             height = 58.dp,
@@ -285,7 +287,7 @@ private fun Discovering(flow: RoomFlow, onTap: () -> Unit) {
             Hokm3DButton(
                 text = "اتاق ${room.name}",
                 subtitle = "کد ${room.roomCode} · برای پیوستن بزن",
-                leading = "↗",
+                leadingIcon = HokmIcon.Target,
                 tone = HokmButtonTone.GLASS,
                 modifier = Modifier.fillMaxWidth(),
                 height = 58.dp,
@@ -332,14 +334,14 @@ private fun Lobby(flow: RoomFlow, state: RoomStage.Lobby, playerCount: Int, onTa
             Spacer(Modifier.height(7.dp))
         }
         if (!clientState.connected) {
-            HokmPill("ارتباط قطع است · تلاش برای اتصال مجدد", icon = "!", color = HokmPalette.coral)
+            HokmPill("ارتباط قطع است · تلاش برای اتصال مجدد", icon = HokmIcon.Bolt, color = HokmPalette.coral)
             Spacer(Modifier.height(10.dp))
         }
         if (state.canStart) {
             Hokm3DButton(
                 text = if (humans < playerCount) "شروع با ربات‌های جایگزین" else "شروع بازی",
                 subtitle = if (humans < playerCount) "ربات ${(playerCount - humans).toFa()} صندلی خالی را پر می‌کند" else "میز برای همهٔ اعضا شروع می‌شود",
-                leading = "▶",
+                leadingIcon = HokmIcon.Play,
                 tone = HokmButtonTone.EMERALD,
                 modifier = Modifier.fillMaxWidth(),
                 height = 58.dp,
@@ -348,7 +350,7 @@ private fun Lobby(flow: RoomFlow, state: RoomStage.Lobby, playerCount: Int, onTa
             )
         } else {
             // Joining a room *is* being ready: only the host presses start, guests just wait.
-            HokmPill("شما در اتاق هستید", icon = "✓", color = HokmPalette.mint)
+            HokmPill("شما در اتاق هستید", icon = HokmIcon.Check, color = HokmPalette.mint)
             Spacer(Modifier.height(8.dp))
             Text(
                 "به‌محض اینکه میزبان بازی را شروع کند، میز باز می‌شود.",
@@ -478,7 +480,7 @@ private fun Failed(message: String, onExit: () -> Unit, onTap: () -> Unit) {
         Spacer(Modifier.height(15.dp))
         Hokm3DButton(
             text = "بازگشت به منو",
-            leading = "‹",
+            leadingIcon = HokmIcon.Back,
             tone = HokmButtonTone.GOLD,
             modifier = Modifier.fillMaxWidth(),
             onSound = onTap,
