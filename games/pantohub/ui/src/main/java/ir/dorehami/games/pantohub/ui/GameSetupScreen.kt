@@ -46,6 +46,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import ir.dorehami.games.pantohub.Difficulty
+import ir.dorehami.games.pantohub.PlayMode
 import ir.dorehami.games.pantohub.GameSettings
 import ir.dorehami.games.pantohub.GameState
 import ir.dorehami.games.pantohub.NewGameRequest
@@ -111,6 +112,17 @@ internal fun GameSetupScreen(
     // Sound and motion are device-wide settings shared with the Settings page, so they keep their existing store.
     var soundEnabled by remember { mutableStateOf(preferences.getBoolean("sound", true)) }
     var animationsEnabled by remember { mutableStateOf(preferences.getBoolean("animations", true)) }
+    /**
+     * 「سرعتی」 keeps guessing words back to back; 「عادی」 lets the performer pick difficulty and
+     * category before every turn. The default is the classic speedy table.
+     */
+    var playMode by remember {
+        mutableStateOf(
+            setupPrefs.getString("playMode", null)
+                ?.let { name -> PlayMode.entries.firstOrNull { it.name == name } }
+                ?: PlayMode.SPEEDY,
+        )
+    }
     var difficulties by remember {
         mutableStateOf(
             setupPrefs.getStringSet("difficulties", null)
@@ -129,7 +141,7 @@ internal fun GameSetupScreen(
     LaunchedEffect(
         gameName, roundsPerTeam, turnSeconds, finalRoundSeconds, finalRoundMultiplier,
         easyPoints, mediumPoints, hardPoints, skipPenalty, maxSkips, allowSkip, cardsEnabled,
-        finalRoundEnabled, individualStatsEnabled, difficulties, categories, teams.toList(), playersPerTeam,
+        finalRoundEnabled, individualStatsEnabled, difficulties, categories, teams.toList(), playersPerTeam, playMode,
     ) {
         setupPrefs.edit()
             .putString("gameName", gameName)
@@ -149,6 +161,7 @@ internal fun GameSetupScreen(
             .putStringSet("difficulties", difficulties.map { it.name }.toSet())
             .putStringSet("categories", categories.toSet())
             .putInt("playersPerTeam", playersPerTeam)
+            .putString("playMode", playMode.name)
             .putString("teamsV2", encodeTeams(teams.toList()))
             .apply()
     }
@@ -284,7 +297,7 @@ internal fun GameSetupScreen(
                     ) { Text("+") }
                 }
                 Text(
-                    "جمع بازیکن‌ها: ${(teams.size * playersPerTeam).toString().toPersianDigits()} نفر · " +
+                    "حالت ${playMode.labelFa} · جمع بازیکن‌ها: ${(teams.size * playersPerTeam).toString().toPersianDigits()} نفر · " +
                         "نام‌های یکسان در تیم‌های مختلف مجازند.",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -450,6 +463,27 @@ internal fun GameSetupScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    SectionTitle("حالت بازی")
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        PlayMode.entries.forEach { mode ->
+                            FilterChip(
+                                colors = pantohubChipColors(PantohubTint.Mint),
+                                selected = mode == playMode,
+                                onClick = { playMode = mode; errorMessage = null },
+                                label = { Text(mode.labelFa) },
+                            )
+                        }
+                    }
+                    Text(
+                        if (playMode == PlayMode.NORMAL) {
+                            "عادی: اجراکننده پیش از هر نوبت سختی و موضوع را خودش انتخاب می‌کند و نوبت با اولین کلمهٔ درست تمام می‌شود."
+                        } else {
+                            "سرعتی: کلمه‌ها پشت‌سرهم تا پایان زمان نوبت؛ سختی و موضوع از همین صفحه انتخاب می‌شود."
+                        },
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+
                     SectionTitle("زمان و تعداد دورها")
                     SettingChoiceRow(
                         title = "زمان هر نوبت",
@@ -580,10 +614,13 @@ internal fun GameSetupScreen(
                                     )
                                 }
                                 val settings = GameSettings(
+                                    // Normal mode lets the performer choose per turn, so the
+                                    // table itself must not restrict difficulty or category.
+                                    playMode = playMode,
                                     turnSeconds = turnSeconds,
                                     roundsPerTeam = roundsPerTeam,
-                                    allowedDifficulties = difficulties,
-                                    allowedCategories = categories,
+                                    allowedDifficulties = if (playMode == PlayMode.NORMAL) Difficulty.entries.toSet() else difficulties,
+                                    allowedCategories = if (playMode == PlayMode.NORMAL) emptySet() else categories,
                                     easyPoints = easyPoints,
                                     mediumPoints = mediumPoints,
                                     hardPoints = hardPoints,

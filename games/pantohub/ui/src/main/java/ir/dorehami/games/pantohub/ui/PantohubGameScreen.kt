@@ -55,12 +55,15 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
+import ir.dorehami.games.pantohub.Difficulty
 import ir.dorehami.games.pantohub.GameAction
 import ir.dorehami.games.pantohub.GameActionResult
 import ir.dorehami.games.pantohub.GameMoment
 import ir.dorehami.games.pantohub.GamePhase
 import ir.dorehami.games.pantohub.GameState
+import ir.dorehami.games.pantohub.GameSettings
 import ir.dorehami.games.pantohub.PantohubEngine
+import ir.dorehami.games.pantohub.PlayMode
 import ir.dorehami.games.pantohub.SpecialCard
 import ir.dorehami.games.pantohub.TurnProgress
 import ir.dorehami.games.pantohub.WordOutcome
@@ -98,6 +101,29 @@ internal fun PantohubGameScreen(
     // True right after an outcome: the performer still holds the phone, so the next word is put on
     // their screen immediately instead of flashing the public one.
     var revealNextWord by remember { mutableStateOf(false) }
+    // Normal mode: the performer picks the difficulty (and optionally a category) before each turn.
+    var turnDifficulty by remember(state.id) { mutableStateOf(Difficulty.MEDIUM) }
+    var turnCategory by remember(state.id) { mutableStateOf<String?>(null) }
+    var turnCategories by remember(state.id) { mutableStateOf(emptyList<String>()) }
+    val isNormalMode = state.settings.playMode == PlayMode.NORMAL
+
+    LaunchedEffect(state.id, isNormalMode) {
+        if (isNormalMode) {
+            turnCategories = runCatching {
+                withContext(Dispatchers.IO) { repository.listCategories() }
+            }.getOrDefault(emptyList())
+        }
+    }
+
+    /** Normal mode narrows the word pool to this turn's choice; speedy mode uses the table's own filters. */
+    fun tableSettingsForTurn(): GameSettings = if (isNormalMode) {
+        state.settings.copy(
+            allowedDifficulties = setOf(turnDifficulty),
+            allowedCategories = turnCategory?.let { setOf(it) } ?: emptySet(),
+        )
+    } else {
+        state.settings
+    }
 
     DisposableEffect(tone) {
         onDispose { tone?.release() }
@@ -162,7 +188,7 @@ internal fun PantohubGameScreen(
     fun startNextTurn() {
         val current = latestState
         scope.launch {
-            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
+            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(tableSettingsForTurn(), current.usedWordIds) } }
             if (selection.isFailure) {
                 errorMessage = "واژه بارگذاری نشد؛ فضای ذخیره‌سازی را بررسی کن."
                 return@launch
@@ -178,7 +204,7 @@ internal fun PantohubGameScreen(
     fun resolve(outcome: WordOutcome) {
         val current = latestState
         scope.launch {
-            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(current.settings, current.usedWordIds) } }
+            val selection = runCatching { withContext(Dispatchers.IO) { repository.pickWord(tableSettingsForTurn(), current.usedWordIds) } }
             if (selection.isFailure) {
                 errorMessage = "واژه بارگذاری نشد؛ پاسخ این واژه هنوز ثبت نشده است."
                 return@launch
@@ -285,6 +311,40 @@ internal fun PantohubGameScreen(
                                         Text("دور ${(done + 1).toString().toPersianDigits()} از ${state.settings.roundsPerTeam.toString().toPersianDigits()}")
                                     } else {
                                         Text("هر تیم واجد شرایط یک نوبت اضافه می‌گیرد؛ ضریب امتیاز ${state.settings.finalRoundMultiplier.toString().toPersianDigits()} برابر است.")
+                                    }
+                                    if (isNormalMode) {
+                                        Spacer(Modifier.height(12.dp))
+                                        Text("این نوبت چه سختی‌ای؟", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                        Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
+                                            Difficulty.entries.forEach { difficulty ->
+                                                FilterChip(
+                                                    selected = difficulty == turnDifficulty,
+                                                    onClick = { turnDifficulty = difficulty; errorMessage = null },
+                                                    label = { Text(difficulty.labelFa) },
+                                                )
+                                            }
+                                        }
+                                        if (turnCategories.isNotEmpty()) {
+                                            Spacer(Modifier.height(6.dp))
+                                            Text("موضوع (اختیاری)", style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                                            Row(
+                                                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                                                modifier = Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+                                            ) {
+                                                FilterChip(
+                                                    selected = turnCategory == null,
+                                                    onClick = { turnCategory = null },
+                                                    label = { Text("همه") },
+                                                )
+                                                turnCategories.forEach { category ->
+                                                    FilterChip(
+                                                        selected = turnCategory == category,
+                                                        onClick = { turnCategory = category },
+                                                        label = { Text(category) },
+                                                    )
+                                                }
+                                            }
+                                        }
                                     }
                                     Spacer(Modifier.height(16.dp))
                                     Button(onClick = ::startNextTurn, modifier = Modifier.fillMaxWidth()) {
