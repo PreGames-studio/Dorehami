@@ -32,9 +32,14 @@ class TeamSetupTest {
     }
 
     @Test
-    fun `seat counts are clamped to the wizard's buttons`() {
-        assertEquals(MAX_PLAYERS_PER_TEAM, team().withSeatCount(99).players.size)
+    fun `a team has no upper limit and only the floor is clamped`() {
         assertEquals(MIN_PLAYERS_PER_TEAM, team().withSeatCount(0).players.size)
+        assertEquals(1, team().withSeatCount(-4).players.size)
+        // A big night: fifteen people on one side must be allowed, not silently cut to the
+        // quick-pick buttons.
+        assertEquals(15, team().withSeatCount(15).players.size)
+        assertEquals(40, team().withSeatCount(40).players.size)
+        assertEquals(QUICK_SEAT_PICKS, team().withSeatCount(QUICK_SEAT_PICKS).players.size)
     }
 
     @Test
@@ -115,11 +120,11 @@ class TeamSetupTest {
 
     @Test
     fun `a big team of ten seats is allowed`() {
-        // A real party table turned up with ten people on one side; the wizard used to stop at six.
+        // Ten people on one side is a normal Friday night; the wizard now labels all of them.
         val big = team("جمع").withSeatCount(10)
         assertEquals(10, big.players.size)
         assertEquals("بازیکن ۱", big.players.first())
         assertEquals("بازیکن ۱۰", big.players.last())
-        assertTrue(MAX_PLAYERS_PER_TEAM >= 10)
+        assertEquals(QUICK_SEAT_PICKS, big.withSeatCount(QUICK_SEAT_PICKS).players.size)
     }
 }

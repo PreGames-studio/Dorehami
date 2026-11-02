@@ -24,18 +24,19 @@ internal const val MAX_TEAMS = 8
 internal const val SETUP_PREFS = "pantohub-setup"
 internal const val MIN_PLAYERS_PER_TEAM = 1
 /**
- * Seats per team. Raised from 6 to 12: a real party table turned up with ten people on one side and
- * the wizard simply refused the seventh seat. Twelve keeps even a big family in one team while the
- * chip grid below stays two rows of six.
+ * How many quick-pick buttons the wizard shows per team (two rows of six on a phone).
+ *
+ * This is a shortcut, **not** a limit: the − / + stepper goes past it, and [withSeatCount] never
+ * truncates, because a party table is however many people actually showed up.
  */
-internal const val MAX_PLAYERS_PER_TEAM = 12
+internal const val QUICK_SEAT_PICKS = 12
 
 /** 1-based seat label, e.g. «بازیکن ۲». */
 internal fun defaultPlayerName(seat: Int): String = "بازیکن ${seat.toPersianDigits()}"
 
 /** Grows or shrinks a team to exactly [perTeam] seats, keeping the names already typed. */
 internal fun TeamDraft.withSeatCount(perTeam: Int): TeamDraft {
-    val seats = perTeam.coerceIn(MIN_PLAYERS_PER_TEAM, MAX_PLAYERS_PER_TEAM)
+    val seats = perTeam.coerceAtLeast(MIN_PLAYERS_PER_TEAM)
     return copy(
         players = List(seats) { index ->
             players.getOrNull(index)?.takeIf { it.isNotBlank() } ?: defaultPlayerName(index + 1)

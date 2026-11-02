@@ -464,7 +464,7 @@ private fun DrawScope.drawChecker(
     )
     if (highlighted) {
         drawCircle(
-            color = BackgammonPalette.gold,
+            color = BackgammonPalette.accent,
             radius = radius * 1.05f,
             center = Offset(centreX, centreY),
             style = Stroke(width = radius * 0.16f),

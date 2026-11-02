@@ -59,7 +59,7 @@ internal fun BackgammonSettingsPage(
     BackgammonPage {
         BackgammonHeader(title = "تنظیمات تخته نرد", subtitle = "نام، امتیاز هدف و ظاهر میز", onBack = onBack)
         BackgammonCard(Modifier.fillMaxWidth()) {
-            Text("نام نمایشی", color = BackgammonPalette.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text("نام نمایشی", color = BackgammonPalette.ink, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             androidx.compose.material3.OutlinedTextField(
                 value = name,
@@ -68,20 +68,20 @@ internal fun BackgammonSettingsPage(
                 singleLine = true,
                 modifier = Modifier.fillMaxWidth(),
                 colors = androidx.compose.material3.OutlinedTextFieldDefaults.colors(
-                    focusedTextColor = BackgammonPalette.text,
-                    unfocusedTextColor = BackgammonPalette.text,
-                    focusedContainerColor = BackgammonPalette.night.copy(alpha = 0.35f),
-                    unfocusedContainerColor = BackgammonPalette.night.copy(alpha = 0.35f),
-                    focusedBorderColor = BackgammonPalette.gold,
-                    unfocusedBorderColor = BackgammonPalette.goldDim,
-                    focusedLabelColor = BackgammonPalette.gold,
-                    unfocusedLabelColor = BackgammonPalette.muted,
-                    cursorColor = BackgammonPalette.gold,
+                    focusedTextColor = BackgammonPalette.ink,
+                    unfocusedTextColor = BackgammonPalette.ink,
+                    focusedContainerColor = BackgammonPalette.cardAlt.copy(alpha = 0.7f),
+                    unfocusedContainerColor = BackgammonPalette.cardAlt.copy(alpha = 0.55f),
+                    focusedBorderColor = BackgammonPalette.accent,
+                    unfocusedBorderColor = BackgammonPalette.line,
+                    focusedLabelColor = BackgammonPalette.accent,
+                    unfocusedLabelColor = BackgammonPalette.inkSoft,
+                    cursorColor = BackgammonPalette.accent,
                 ),
             )
         }
         BackgammonCard(Modifier.fillMaxWidth()) {
-            Text("امتیاز پایان مسابقه", color = BackgammonPalette.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Text("امتیاز پایان مسابقه", color = BackgammonPalette.ink, fontSize = 13.sp, fontWeight = FontWeight.Bold)
             Spacer(Modifier.height(8.dp))
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 ir.dorehami.games.backgammon.BackgammonModule.ALLOWED_TARGETS.forEach { target ->
@@ -90,10 +90,10 @@ internal fun BackgammonSettingsPage(
                             .weight(1f)
                             .height(46.dp)
                             .clip(RoundedCornerShape(14.dp))
-                            .background(if (target == targetPoints) BackgammonPalette.gold else BackgammonPalette.walnutLight)
+                            .background(if (target == targetPoints) BackgammonPalette.accent else BackgammonPalette.cardAlt)
                             .border(
                                 1.dp,
-                                if (target == targetPoints) BackgammonPalette.gold else BackgammonPalette.goldDim.copy(alpha = 0.5f),
+                                if (target == targetPoints) BackgammonPalette.accent else BackgammonPalette.line.copy(alpha = 0.5f),
                                 RoundedCornerShape(14.dp),
                             )
                             .clickable(role = Role.Button) { onTargetPoints(target) },
@@ -101,7 +101,7 @@ internal fun BackgammonSettingsPage(
                     ) {
                         Text(
                             target.toFa(),
-                            color = if (target == targetPoints) BackgammonPalette.night else BackgammonPalette.text,
+                            color = if (target == targetPoints) Color.White else BackgammonPalette.ink,
                             fontSize = 16.sp,
                             fontWeight = FontWeight.Bold,
                         )
@@ -113,11 +113,11 @@ internal fun BackgammonSettingsPage(
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 BoardThumbnail(BackgammonSkins.board(boardId), width = 84.dp)
                 Column(Modifier.weight(1f)) {
-                    Text(BackgammonSkins.board(boardId).titleFa, color = BackgammonPalette.text, fontSize = 14.sp, fontWeight = FontWeight.Bold)
-                    Text(BackgammonSkins.pieces(pieceId).titleFa, color = BackgammonPalette.muted, fontSize = 11.sp)
+                    Text(BackgammonSkins.board(boardId).titleFa, color = BackgammonPalette.ink, fontSize = 14.sp, fontWeight = FontWeight.Bold)
+                    Text(BackgammonSkins.pieces(pieceId).titleFa, color = BackgammonPalette.inkSoft, fontSize = 11.sp)
                     Text(
                         "بردهای تو: ${wins.toFa()}",
-                        color = BackgammonPalette.muted,
+                        color = BackgammonPalette.inkSoft,
                         fontSize = 11.sp,
                     )
                 }
@@ -134,7 +134,7 @@ internal fun BackgammonSettingsPage(
         BackgammonCard(Modifier.fillMaxWidth()) {
             Text(
                 "بازی همیشه به‌صورت افقی اجرا می‌شود تا تخته کامل در صفحه جا شود؛ با خروج از میز، چرخش گوشی آزاد می‌شود.",
-                color = BackgammonPalette.muted,
+                color = BackgammonPalette.inkSoft,
                 fontSize = 12.sp,
                 lineHeight = 18.sp,
             )
@@ -156,17 +156,17 @@ internal fun BackgammonShopPage(
         BackgammonHeader(title = "فروشگاه تخته نرد", subtitle = "با بردهای خودت طرح باز کن", onBack = onBack)
         BackgammonCard(Modifier.fillMaxWidth()) {
             Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                BackgammonIconView(BackgammonIcon.Trophy, color = BackgammonPalette.gold, size = 18.dp)
+                BackgammonIconView(BackgammonIcon.Trophy, color = BackgammonPalette.accent, size = 18.dp)
                 Text(
                     "بردهای تو: ${wins.toFa()} · هیچ طرحی خریدنی با پول نیست",
-                    color = BackgammonPalette.text,
+                    color = BackgammonPalette.ink,
                     fontSize = 12.sp,
                     fontWeight = FontWeight.Bold,
                 )
             }
         }
 
-        Text("تخته‌ها", color = BackgammonPalette.gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text("تخته‌ها", color = BackgammonPalette.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         BackgammonSkins.boards.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { skin ->
@@ -186,7 +186,7 @@ internal fun BackgammonShopPage(
         }
 
         Spacer(Modifier.height(4.dp))
-        Text("مهره‌ها", color = BackgammonPalette.gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        Text("مهره‌ها", color = BackgammonPalette.accent, fontSize = 15.sp, fontWeight = FontWeight.Bold)
         BackgammonSkins.pieces.chunked(2).forEach { row ->
             Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 row.forEach { skin ->
@@ -195,7 +195,7 @@ internal fun BackgammonShopPage(
                         subtitle = if (BackgammonSkins.unlocked(skin.winsRequired, wins)) skin.subtitleFa else "${(skin.winsRequired - wins).toFa()} برد دیگر",
                         selected = skin.id == pieceId,
                         unlocked = BackgammonSkins.unlocked(skin, wins),
-                        accent = BackgammonPalette.gold,
+                        accent = BackgammonPalette.accent,
                         modifier = Modifier.weight(1f),
                         onClick = { onPickPieces(skin.id) },
                         preview = { CheckerPipsPreview(skin) },
@@ -225,7 +225,7 @@ private fun BackgammonShopTile(
         modifier
             .heightIn(min = 132.dp)
             .clip(shape)
-            .background(BackgammonPalette.walnut.copy(alpha = 0.94f))
+            .background(BackgammonPalette.card.copy(alpha = 0.94f))
             .border(if (selected) 2.dp else 1.dp, accent.copy(alpha = if (selected) 0.95f else 0.45f), shape)
             .clickable(enabled = unlocked, role = Role.Button, onClick = onClick)
             .padding(10.dp),
@@ -246,10 +246,10 @@ private fun BackgammonShopTile(
                 }
             }
         }
-        Text(title, color = BackgammonPalette.text, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(title, color = BackgammonPalette.ink, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text(
             if (selected) "انتخاب‌شده" else subtitle,
-            color = if (selected) BackgammonPalette.gold else BackgammonPalette.muted,
+            color = if (selected) BackgammonPalette.accent else BackgammonPalette.inkSoft,
             fontSize = 10.sp,
             maxLines = 1,
         )
@@ -293,7 +293,7 @@ private fun CheckerPipsPreview(skin: BackgammonPieceSkin) {
         Modifier
             .size(width = 130.dp, height = 74.dp)
             .clip(RoundedCornerShape(12.dp))
-            .background(BackgammonPalette.night.copy(alpha = 0.55f)),
+            .background(BackgammonPalette.cardAlt.copy(alpha = 0.6f)),
     ) {
         val r = size.minDimension * 0.22f
         val cy = size.height / 2f

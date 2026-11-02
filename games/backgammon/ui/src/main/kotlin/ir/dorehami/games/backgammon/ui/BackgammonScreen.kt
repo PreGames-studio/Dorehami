@@ -158,9 +158,9 @@ fun BackgammonScreen(
         if (state.finished && state.outcomeTitle != null) {
             AlertDialog(
                 onDismissRequest = {},
-                containerColor = BackgammonPalette.walnut,
-                titleContentColor = BackgammonPalette.gold,
-                textContentColor = BackgammonPalette.text,
+                containerColor = BackgammonPalette.card,
+                titleContentColor = BackgammonPalette.accent,
+                textContentColor = BackgammonPalette.ink,
                 title = { Text(state.outcomeTitle, fontWeight = FontWeight.Bold) },
                 text = { Text(state.outcomeDetail ?: "") },
                 confirmButton = {
@@ -214,8 +214,8 @@ private fun DiceRow(state: BackgammonUiState, onDie: (Int) -> Unit) {
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (state.dice.isEmpty()) {
-            BackgammonIconView(BackgammonIcon.Dice, color = BackgammonPalette.muted, size = 16.dp)
-            Text("تاس", color = BackgammonPalette.muted, fontSize = 12.sp)
+            BackgammonIconView(BackgammonIcon.Dice, color = BackgammonPalette.inkSoft, size = 16.dp)
+            Text("تاس", color = BackgammonPalette.inkSoft, fontSize = 12.sp)
         } else {
             state.dice.forEachIndexed { index, die ->
                 BackgammonDie(
@@ -233,7 +233,7 @@ private fun DiceRow(state: BackgammonUiState, onDie: (Int) -> Unit) {
         if (state.dice.isNotEmpty()) {
             Text(
                 if (state.selectedDie != 0) "تاس ${state.selectedDie.toFa()} انتخاب شد" else "یک تاس را بزن",
-                color = BackgammonPalette.muted,
+                color = BackgammonPalette.inkSoft,
                 fontSize = 11.sp,
             )
         }
@@ -280,27 +280,27 @@ private fun ActionRows(
 private fun StatusNotes(state: BackgammonUiState) {
     Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(4.dp)) {
         when {
-            state.finished -> BackgammonNote("مسابقه تمام شد", BackgammonPalette.gold, bold = true)
-            state.thinking -> BackgammonNote("ربات دارد فکر می‌کند…", BackgammonPalette.mint)
-            state.canRoll -> BackgammonNote("نوبت ${state.turnName} است؛ اول تاس بریز.", BackgammonPalette.text, bold = true)
+            state.finished -> BackgammonNote("مسابقه تمام شد", BackgammonPalette.accent, bold = true)
+            state.thinking -> BackgammonNote("ربات دارد فکر می‌کند…", BackgammonPalette.teal)
+            state.canRoll -> BackgammonNote("نوبت ${state.turnName} است؛ اول تاس بریز.", BackgammonPalette.ink, bold = true)
             state.canMove && state.pending.isEmpty() -> BackgammonNote(
                 "یک مهره را بزن (تاس مناسب خودکار انتخاب می‌شود) یا اول یک تاس را لمس کن.",
-                BackgammonPalette.text,
+                BackgammonPalette.ink,
             )
             state.canMove -> BackgammonNote(
                 "ادامه بده: ${state.pending.size.toFa()} حرکت انجام شد.",
-                BackgammonPalette.muted,
+                BackgammonPalette.inkSoft,
             )
-            else -> BackgammonNote("منتظر نوبت حریف…", BackgammonPalette.muted)
+            else -> BackgammonNote("منتظر نوبت حریف…", BackgammonPalette.inkSoft)
         }
-        state.error?.let { message -> BackgammonNote(message, BackgammonPalette.coral, bold = true) }
+        state.error?.let { message -> BackgammonNote(message, BackgammonPalette.danger, bold = true) }
         BackgammonNote(
             "مسابقه تا ${state.target.toFa()} امتیاز · دست ${state.gameNumber.toFa()}",
-            BackgammonPalette.muted,
+            BackgammonPalette.inkSoft,
         )
         Text(
             text = "برای بردن یک دست باید همهٔ ۱۵ مهره را از خانه بیرون ببری؛ گمون ۲ و بک‌گمون ۳ امتیاز دارد.",
-            color = BackgammonPalette.muted.copy(alpha = 0.75f),
+            color = BackgammonPalette.inkSoft.copy(alpha = 0.75f),
             fontSize = 10.sp,
             lineHeight = 15.sp,
             textAlign = TextAlign.Center,
@@ -320,18 +320,18 @@ private fun ScoreBoard(
     Column(
         modifier
             .clip(RoundedCornerShape(16.dp))
-            .background(BackgammonPalette.walnut.copy(alpha = 0.9f))
+            .background(BackgammonPalette.card.copy(alpha = 0.9f))
             .border(
                 width = if (active) 2.dp else 1.dp,
-                color = if (active) BackgammonPalette.gold else BackgammonPalette.goldDim.copy(alpha = 0.45f),
+                color = if (active) BackgammonPalette.accent else BackgammonPalette.line.copy(alpha = 0.45f),
                 shape = RoundedCornerShape(16.dp),
             )
             .padding(horizontal = 12.dp, vertical = 9.dp),
     ) {
-        Text(name, color = BackgammonPalette.text, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+        Text(name, color = BackgammonPalette.ink, fontSize = 13.sp, fontWeight = FontWeight.Bold, maxLines = 1)
         Text(
             "امتیاز ${score.toFa()} · بیرون ${borneOff.toFa()} از ${15.toFa()}",
-            color = BackgammonPalette.muted,
+            color = BackgammonPalette.inkSoft,
             fontSize = 11.sp,
         )
     }
@@ -360,7 +360,7 @@ private fun BackgammonDie(
             roll.snapTo(1f)
         }
     }
-    val accent = BackgammonPalette.gold
+    val accent = BackgammonPalette.accent
     Box(
         Modifier
             .size(48.dp)
@@ -383,7 +383,7 @@ private fun BackgammonDie(
             )
             .border(
                 width = if (chosen) 2.dp else 1.dp,
-                color = if (chosen) accent else BackgammonPalette.goldDim.copy(alpha = 0.85f),
+                color = if (chosen) accent else BackgammonPalette.line.copy(alpha = 0.85f),
                 shape = RoundedCornerShape(12.dp),
             )
             .clickable(enabled = selectable, role = Role.Button, onClick = onClick),
@@ -392,7 +392,7 @@ private fun BackgammonDie(
         Canvas(Modifier.fillMaxSize().padding(9.dp)) {
             val r = size.minDimension
             val pip = r * 0.10f
-            val ink = if (chosen) BackgammonPalette.night else Color(0xFF2A2433)
+            val ink = if (chosen) Color.White else BackgammonPalette.ink
             fun dot(x: Float, y: Float) {
                 drawCircle(Color.Black.copy(alpha = 0.10f), radius = pip, center = Offset(x + pip * 0.18f, y + pip * 0.22f))
                 drawCircle(ink, radius = pip, center = Offset(x, y))
@@ -443,14 +443,14 @@ fun TableButton(
             .clip(RoundedCornerShape(14.dp))
             .background(
                 when {
-                    !enabled -> BackgammonPalette.walnutLight.copy(alpha = 0.5f)
-                    primary -> BackgammonPalette.gold
-                    else -> BackgammonPalette.walnutLight
+                    !enabled -> BackgammonPalette.cardAlt.copy(alpha = 0.5f)
+                    primary -> BackgammonPalette.accent
+                    else -> BackgammonPalette.cardAlt
                 },
             )
             .border(
                 1.dp,
-                if (primary && enabled) BackgammonPalette.gold else BackgammonPalette.goldDim.copy(alpha = 0.6f),
+                if (primary && enabled) BackgammonPalette.accent else BackgammonPalette.line.copy(alpha = 0.6f),
                 RoundedCornerShape(14.dp),
             )
             .clickable(enabled = enabled, role = Role.Button, onClick = onClick)
@@ -460,9 +460,9 @@ fun TableButton(
         Text(
             text = text,
             color = when {
-                !enabled -> BackgammonPalette.muted
-                primary -> BackgammonPalette.night
-                else -> BackgammonPalette.text
+                !enabled -> BackgammonPalette.inkSoft
+                primary -> Color.White
+                else -> BackgammonPalette.ink
             },
             fontSize = 13.sp,
             fontWeight = FontWeight.Bold,

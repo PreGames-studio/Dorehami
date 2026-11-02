@@ -52,26 +52,31 @@ fun BackgammonLookProvider(boardId: String?, pieceId: String?, content: @Composa
 }
 
 object BackgammonSkins {
+    /**
+     * The default board speaks the app's language: bone playing field, the app's teal for the dark
+     * points and its burnt orange for the accents — the same three colours the shell, the game
+     * picker and chess use, instead of a separate dark-wood world.
+     */
     val DefaultBoard = BackgammonBoardSkin(
-        id = "walnut",
-        titleFa = "گردوی کلاسیک",
-        subtitleFa = "چوب گرم با حاشیه برنجی",
-        woodDark = Color(0xFF3A2718),
-        woodLight = Color(0xFF573B24),
-        pointLight = Color(0xFFD9B98A),
-        pointDark = Color(0xFF6E3F22),
-        accent = Color(0xFFE0B65A),
+        id = "paper",
+        titleFa = "کاغذ و فیروزه",
+        subtitleFa = "هم‌خانوادهٔ بقیهٔ اپ",
+        woodDark = Color(0xFFE7D3A8),
+        woodLight = Color(0xFFF7ECD6),
+        pointLight = Color(0xFFF3E2BE),
+        pointDark = Color(0xFF0E8F87),
+        accent = Color(0xFFD9480F),
         winsRequired = 0,
     )
 
     val DefaultPieces = BackgammonPieceSkin(
         id = "classic",
-        titleFa = "عاج و آبنوس",
+        titleFa = "عاج و گردو",
         subtitleFa = "مهره‌های همیشگی",
-        whiteFace = Color(0xFFF4E7CE),
-        whiteRim = Color(0xFFC8B291),
-        blackFace = Color(0xFF1F1B17),
-        blackRim = Color(0xFF4A423A),
+        whiteFace = Color(0xFFFDFBF4),
+        whiteRim = Color(0xFFC9A96B),
+        blackFace = Color(0xFF3A2A12),
+        blackRim = Color(0xFF7A5A2E),
         winsRequired = 0,
     )
 
@@ -113,8 +118,8 @@ object BackgammonSkins {
         BackgammonBoardSkin(
             id = "marble",
             titleFa = "سنگ مرمر",
-            subtitleFa = "روشن و مینیمال",
-            woodDark = Color(0xFFDFD8CC),
+            subtitleFa = "سنگ روشن و مینیمال",
+            woodDark = Color(0xFFD9D2C6),
             woodLight = Color(0xFFF2EDE4),
             pointLight = Color(0xFFB3202B),
             pointDark = Color(0xFF2A2433),

@@ -132,6 +132,58 @@ object HokmCinematics {
         return CardPose(baseX + nx * offset, baseY + ny * offset, direction * 220f * t)
     }
 
+    /**
+     * The arc a played card travels on from its seat to its slot on the felt.
+     *
+     * A smoothstep walk toward the slot, a sine lift so the card rises and settles instead of
+     * sliding, and a short spin that has stopped by the time it lands. Draw-phase only.
+     */
+    fun fallPose(
+        startX: Float,
+        startY: Float,
+        endX: Float,
+        endY: Float,
+        progress: Float,
+        liftPx: Float,
+        spinDeg: Float,
+    ): CardPose {
+        val t = progress.coerceIn(0f, 1f)
+        val eased = t * t * (3f - 2f * t)
+        val lift = sin(PI * t).toFloat()
+        return CardPose(
+            x = startX + (endX - startX) * eased,
+            y = startY + (endY - startY) * eased - lift * liftPx,
+            rotationDeg = spinDeg * (1f - eased),
+        )
+    }
+
+    /** Cards arrive a touch larger than they left the hand, which reads as "landing". */
+    fun fallScale(progress: Float): Float = 0.9f + 0.1f * progress.coerceIn(0f, 1f)
+
+    /**
+     * Per-card progress of the trick sweep: the pile peels off one card at a time in
+     * [cardIndex] order instead of all four cards bolting at once.
+     */
+    fun sweepProgress(progress: Float, cardIndex: Int, cardCount: Int): Float {
+        val t = progress.coerceIn(0f, 1f)
+        if (cardCount <= 1) return t
+        val span = 0.34f
+        val last = (cardCount - 1).toFloat()
+        val start = (0.66f) * (cardIndex.coerceIn(0, cardCount - 1) / last)
+        val local = ((t - start) / span).coerceIn(0f, 1f)
+        return local * local * (3f - 2f * local)
+    }
+
+    /** The pile gathers into the winner's stack, so it shrinks on the way. */
+    fun sweepScale(progress: Float, end: Float = 0.55f): Float =
+        1f + (end - 1f) * progress.coerceIn(0f, 1f)
+
+    /** Solid for most of the sweep, then a late fade right as the cards reach the winner. */
+    fun sweepAlpha(progress: Float): Float {
+        val fade = ((progress.coerceIn(0f, 1f) - 0.55f) / 0.45f).coerceIn(0f, 1f)
+        return 1f - 0.92f * (fade * fade)
+    }
+
     /** Symmetric arc-fan tilt, in degrees, for a card at [index] of [count]. */
     fun fanAngle(index: Int, count: Int, maxDegrees: Float): Float {
         if (count <= 1) return 0f

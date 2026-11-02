@@ -182,7 +182,7 @@ abstract class HokmTable(
         const val BOT_THINK_MS = 650L
         const val BOT_LEAD_MS = 900L
         const val TRICK_SHOW_MS = 1150L
-        const val COLLECT_MS = 520L
+        const val COLLECT_MS = 760L
         const val INTRO_CARD_MS = 420L
         const val DEAL_MS = 1400L
         const val HAND_BANNER_MS = 2600L

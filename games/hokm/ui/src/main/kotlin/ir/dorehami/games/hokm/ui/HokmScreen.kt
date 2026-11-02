@@ -665,7 +665,7 @@ private fun TrickArea(
         val collect = remember { Animatable(0f) }
         LaunchedEffect(collectTo) {
             if (collectTo != null) {
-                collect.animateTo(1f, tween(480, easing = FastOutSlowInEasing))
+                collect.animateTo(1f, tween(680, easing = FastOutSlowInEasing))
             } else {
                 collect.snapTo(0f)
             }
@@ -682,6 +682,7 @@ private fun TrickArea(
                     collectTarget = collectTo?.let { origin(it) },
                     collect = collectValue,
                     cardIndex = index,
+                    cardCount = state.tableCards.size,
                     sheen = sheen,
                 )
             }
@@ -698,6 +699,7 @@ private fun TableCard(
     collectTarget: Pair<Dp, Dp>?,
     collect: () -> Float,
     cardIndex: Int = 0,
+    cardCount: Int = 1,
     sheen: State<HokmSheen> = NeutralSheenState,
 ) {
     // One-shot entry animation, read in the draw phase only.
@@ -720,31 +722,42 @@ private fun TableCard(
         sheen = sheen,
         modifier = Modifier.graphicsLayer {
             val p = progress.value
-            val c = collect()
-            val baseX = originX.toPx() + (slotX.toPx() - originX.toPx()) * p
-            val baseY = originY.toPx() + (slotY.toPx() - originY.toPx()) * p
-            if (targetX != null && targetY != null && c > 0f && motionScale > 0f) {
+            // The fall: an arc with a short spin, not a straight slide.
+            val fall = HokmCinematics.fallPose(
+                startX = originX.toPx(),
+                startY = originY.toPx(),
+                endX = slotX.toPx(),
+                endY = slotY.toPx(),
+                progress = p,
+                liftPx = 26f * motionScale,
+                spinDeg = 12f * motionScale * (if (play.seat % 2 == 0) 1f else -1f),
+            )
+            var x = fall.x
+            var y = fall.y
+            var rotation = tilt + fall.rotationDeg
+            // The sweep: cards peel off the pile one after another and gather at the winner.
+            val sweep = HokmCinematics.sweepProgress(collect(), cardIndex, cardCount)
+            if (targetX != null && targetY != null && sweep > 0f) {
                 val pose = HokmCinematics.collectSwirl(
-                    startX = baseX,
-                    startY = baseY,
+                    startX = x,
+                    startY = y,
                     endX = targetX.toPx(),
                     endY = targetY.toPx(),
-                    progress = c,
-                    swirlPx = 20f * motionScale,
+                    progress = sweep,
+                    swirlPx = 26f * motionScale,
                     cardIndex = cardIndex,
                 )
-                translationX = pose.x
-                translationY = pose.y
-                rotationZ = tilt + pose.rotationDeg * 0.1f
-            } else {
-                translationX = baseX + ((targetX?.toPx() ?: baseX) - baseX) * c
-                translationY = baseY + ((targetY?.toPx() ?: baseY) - baseY) * c
-                rotationZ = tilt
+                x = pose.x
+                y = pose.y
+                rotation += pose.rotationDeg * 0.12f
             }
-            val sc = 0.85f + 0.15f * p
-            scaleX = sc
-            scaleY = sc
-            alpha = 1f - c * 0.9f
+            translationX = x
+            translationY = y
+            rotationZ = rotation
+            val scale = HokmCinematics.fallScale(p) * HokmCinematics.sweepScale(sweep)
+            scaleX = scale
+            scaleY = scale
+            alpha = HokmCinematics.sweepAlpha(sweep)
         },
     )
 }

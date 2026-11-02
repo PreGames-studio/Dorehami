@@ -333,12 +333,6 @@ internal fun SimplePantoPage(title: String, onBack: () -> Unit, content: @Compos
     PantohubPageFrame(title, onBack) { content() }
 }
 
-internal fun Int.toPersianDigits(): String = toString().toPersianDigits()
-
-internal fun String.toPersianDigits(): String = map { char ->
-    if (char in '0'..'9') '۰' + (char - '0') else char
-}.joinToString("")
-
 @Composable
 private fun PantohubSettingsScreen(onBack: () -> Unit, onMotionChange: (Boolean) -> Unit) {
     val context = LocalContext.current

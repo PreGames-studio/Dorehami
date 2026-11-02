@@ -84,7 +84,7 @@ internal fun GameSetupScreen(
     // Every choice is kept on this device, so the next game starts from the same setup.
     val setupPrefs = remember { context.getSharedPreferences(SETUP_PREFS, 0) }
     val teams = remember {
-        val seats = setupPrefs.getInt("playersPerTeam", 2).coerceIn(MIN_PLAYERS_PER_TEAM, MAX_PLAYERS_PER_TEAM)
+        val seats = setupPrefs.getInt("playersPerTeam", 2).coerceAtLeast(MIN_PLAYERS_PER_TEAM)
         val restored = decodeTeams(setupPrefs.getString("teamsV2", null), seats)
         mutableStateListOf<TeamDraft>().apply { addAll(restored ?: defaultTeams(seats, teamColors)) }
     }
@@ -92,7 +92,7 @@ internal fun GameSetupScreen(
     var step by remember { mutableStateOf(SetupStep.COUNT) }
     var playersPerTeam by remember {
         mutableStateOf(
-            setupPrefs.getInt("playersPerTeam", 2).coerceIn(MIN_PLAYERS_PER_TEAM, MAX_PLAYERS_PER_TEAM),
+            setupPrefs.getInt("playersPerTeam", 2).coerceAtLeast(MIN_PLAYERS_PER_TEAM),
         )
     }
     var roundsPerTeam by remember { mutableStateOf(setupPrefs.getInt("roundsPerTeam", 3)) }
@@ -177,8 +177,8 @@ internal fun GameSetupScreen(
                 // Step 1 — purely graphical: no typing, just how many people play.
                 Text("چند نفر در هر تیم؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 // Two rows of six: one long row of twelve chips would leave every target too small
-                // to hit on a phone.
-                (MIN_PLAYERS_PER_TEAM..MAX_PLAYERS_PER_TEAM).toList().chunked(6).forEach { line ->
+                // to hit on a phone. These are shortcuts — the stepper below goes past them.
+                (MIN_PLAYERS_PER_TEAM..QUICK_SEAT_PICKS).toList().chunked(6).forEach { line ->
                     Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                         line.forEach { count ->
                             val selected = count == playersPerTeam
@@ -215,6 +215,41 @@ internal fun GameSetupScreen(
                             }
                         }
                     }
+                }
+                // No ceiling: the buttons above are shortcuts, this is how a table of nine or
+                // fifteen on one side gets set up.
+                Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
+                    Column(modifier = Modifier.weight(1f)) {
+                        Text("تیم پرجمعیت‌تر؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                        Text(
+                            "با + و − هر تعدادی، حتی بیشتر از ۱۲ نفر؛ سقفی ندارد.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    OutlinedButton(
+                        onClick = {
+                            if (playersPerTeam > MIN_PLAYERS_PER_TEAM) {
+                                val next = playersPerTeam - 1
+                                playersPerTeam = next
+                                resizeTeams(teams.toList(), next).forEachIndexed { index, team -> teams[index] = team }
+                            }
+                        },
+                        enabled = playersPerTeam > MIN_PLAYERS_PER_TEAM,
+                    ) { Text("−") }
+                    Text(
+                        playersPerTeam.toString().toPersianDigits(),
+                        fontWeight = FontWeight.Bold,
+                        modifier = Modifier.padding(horizontal = 12.dp),
+                    )
+                    OutlinedButton(
+                        onClick = {
+                            val next = playersPerTeam + 1
+                            playersPerTeam = next
+                            resizeTeams(teams.toList(), next).forEachIndexed { index, team -> teams[index] = team }
+                            errorMessage = null
+                        },
+                    ) { Text("+") }
                 }
                 Row(verticalAlignment = Alignment.CenterVertically, modifier = Modifier.fillMaxWidth()) {
                     Column(modifier = Modifier.weight(1f)) {
