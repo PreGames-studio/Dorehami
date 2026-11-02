@@ -36,10 +36,12 @@ internal class BackgammonGeometry(val width: Float, val height: Float) {
     fun isTop(index: Int): Boolean = index >= 12
 
     fun leftOf(index: Int): Float = when {
+        // Near half (white's home board, points 1..6): point 1 sits in the corner, 6 by the bar.
         index in 0..5 -> half + bar + (5 - index) * cell
         index in 6..11 -> (11 - index) * cell
         index in 12..17 -> (index - 12) * cell
-        else -> half + bar + (23 - index) * cell
+        // Far half (black's home board, points 19..24): point 24 sits above point 1, 19 by the bar.
+        else -> half + bar + (index - 18) * cell
     }
 
     /** Index under a touch, or [BackgammonRules.FROM_BAR] for the bar; `null` outside the board. */
@@ -54,7 +56,7 @@ internal class BackgammonGeometry(val width: Float, val height: Float) {
             !top && rightHalf -> 5 - column
             !top -> 11 - column
             top && !rightHalf -> 12 + column
-            else -> 23 - column
+            else -> 18 + column
         }
     }
 }
