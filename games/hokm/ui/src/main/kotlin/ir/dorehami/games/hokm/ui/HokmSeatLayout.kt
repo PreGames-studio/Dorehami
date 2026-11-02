@@ -21,6 +21,33 @@ internal object HokmSeatLayout {
         return (mySeat + offset) % playerCount
     }
 
+    /**
+     * Where a seat's hand actually sits on screen, as a fraction of the table (0..1).
+     *
+     * The deal flies every card from the deck at the centre of the table to this point, so a card
+     * visibly belongs to the chair it is dealt to. The values mirror the chair layout in
+     * `HokmScreen`, not the abstract [direction] used for the trick slots.
+     */
+    fun fanTarget(seat: Int, mySeat: Int, playerCount: Int): Direction = when (playerCount) {
+        2 -> if (relativePosition(seat, mySeat, playerCount) == 0) {
+            Direction(0.5f, 0.90f)
+        } else {
+            Direction(0.5f, 0.13f)
+        }
+        3 -> when (relativePosition(seat, mySeat, playerCount)) {
+            0 -> Direction(0.5f, 0.90f)
+            1 -> Direction(0.84f, 0.17f)
+            else -> Direction(0.16f, 0.17f)
+        }
+        4 -> when (relativePosition(seat, mySeat, playerCount)) {
+            0 -> Direction(0.5f, 0.90f)
+            1 -> Direction(0.93f, 0.34f)
+            2 -> Direction(0.5f, 0.13f)
+            else -> Direction(0.07f, 0.34f)
+        }
+        else -> error("Hokm tables support 2 to 4 players")
+    }
+
     fun direction(seat: Int, mySeat: Int, playerCount: Int): Direction =
         when (playerCount) {
             2 -> if (relativePosition(seat, mySeat, playerCount) == 0) {

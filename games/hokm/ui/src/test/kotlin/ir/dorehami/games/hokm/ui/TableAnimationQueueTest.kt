@@ -143,7 +143,7 @@ class TableAnimationQueueTest {
 
         val again = TableEvents.appendCard(two.plays, second)
         assertTrue(again.duplicate)
-        assertEquals(-1, TableEvents.turnAfter(again, second, players = 4), "a duplicate changes nobody's turn")
+        assertNull(TableEvents.turnAfter(again, second, players = 4), "a duplicate changes nobody's turn")
     }
 
     @Test
@@ -214,6 +214,37 @@ class TableAnimationQueueTest {
             "a stale snapshot cannot clear the gate either",
         )
         assertFalse(TableEvents.sendingAfterSnapshot(4, 4, wasSending = false), "nothing to clear")
+    }
+
+    @Test
+    fun `a finished-hand banner survives the roll-over into the next hand`() {
+        val summary = HandSummary(3, winnerTeam = 1, points = 3, kind = HandWinKind.NORMAL, hakem = 2, tricks = listOf(4, 7))
+        val nextHand = summary.handNumber + 1
+
+        // The bug this guards: filed under the hand that just ended, the banner is stale by the
+        // time refresh() reads the next hand and is silently dropped.
+        val filedOld = TableAnimQueue()
+        filedOld.offer(banner(hand = summary.handNumber, trick = 7, title = "این دست را باختیم!"))
+        assertEquals(1, filedOld.dropBeforeHand(nextHand), "the old filing is exactly what got dropped")
+        assertTrue(filedOld.isEmpty)
+
+        // Fixed filing: the swept trick is stale, the banner that announces the new hand is not.
+        val queue = TableAnimQueue()
+        queue.offer(collect(hand = summary.handNumber, trick = 7, winner = 2))
+        queue.offer(banner(hand = TableEvents.bannerHand(summary), trick = 7, title = "این دست را باختیم!"))
+        assertEquals(1, queue.dropBeforeHand(nextHand), "only the swept trick is stale")
+        assertEquals(1, queue.size, "the hand banner is still played")
+        assertEquals(nextHand, queue.peek()!!.handNumber)
+    }
+
+    @Test
+    fun `a closed trick stays on the table until the sweep is over`() {
+        val calm = HokmUiState(playerCount = 4, mySeat = 0, turn = 2, handPhase = HandPhase.PLAYING)
+        assertTrue(calm.isCalm, "a half-played trick is drawn straight from the snapshot")
+        val holding = calm.copy(holdingTrick = true)
+        assertFalse(holding.isCalm, "while the finished trick is held, a snapshot must not replace it")
+        assertFalse(holding.isMyTurn, "nobody may play into a trick that is being collected")
+        assertTrue(calm.copy(collectingTo = 1).copy(holdingTrick = false).let { !it.isCalm })
     }
 
     @Test

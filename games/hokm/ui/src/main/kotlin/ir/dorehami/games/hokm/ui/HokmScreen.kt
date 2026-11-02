@@ -16,11 +16,10 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.scaleIn
 import androidx.compose.animation.scaleOut
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
-import androidx.compose.ui.layout.ContentScale
-import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.graphics.graphicsLayer
+import kotlin.math.PI
 import kotlin.math.cos
+import kotlin.math.roundToInt
 import kotlin.math.sin
 import kotlin.random.Random
 import androidx.compose.foundation.background
@@ -47,6 +46,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,7 +81,9 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -94,19 +96,34 @@ import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
 
 /** Dark table chrome uses the app's own orange, teal, purple and aubergine surface colors. */
-/** How long the "dealing the rest of the deck" overlay runs; kept in sync with the table loop. */
-private const val DEAL_PREVIEW_MS = 1400
+/** One fixed chair badge, identical on every side of the table. */
+private val SEAT_BADGE_WIDTH = 104.dp
+private val SEAT_BADGE_HEIGHT = 34.dp
+
+/** Never paint more than this many card backs for one opponent; the rest is a "+n" pill. */
+private const val MAX_VISIBLE_BACKS = 7
 
 private object Table {
-    val feltLight = Color(0xFF177E78)
-    val feltDark = Color(0xFF1E1A26)
-    val rimLight = Color(0xFF8B5A2B)
-    val rimDark = Color(0xFF2A2433)
-    val brass = Color(0xFFFFB86B)
-    val chip = Color(0xD91E1A26)
-    val turnGlow = Color(0xFFFFB86B)
-    val ours = Color(0xFF5FD3C7)
-    val theirs = Color(0xFFC9A5FF)
+    /** The cloth: warm linen, the same bone the app paints its cards and boards on. */
+    val feltLight = Color(0xFFFCF3DE)
+    val feltDark = Color(0xFFE6D0A4)
+
+    /** The frame around it: light oak with the app's gold hairline. */
+    val rimLight = Color(0xFFE3C48C)
+    val rimDark = Color(0xFFB98C4F)
+
+    /** Gold inlay and brass detail on the wood. */
+    val brass = Color(0xFFC9A96B)
+
+    /** Chrome: white glass cards floating on the cloth. */
+    val chip = Color(0xF5FFFFFF)
+    val ink = Color(0xFF2E2415)
+    val inkSoft = Color(0xFF5B4B33)
+    val line = Color(0xFFC9A96B)
+
+    val turnGlow = Color(0xFFD9480F)
+    val ours = Color(0xFF0E8F87)
+    val theirs = Color(0xFF7B4CC2)
 }
 
 /**
@@ -135,6 +152,7 @@ fun HokmScreen(
     var stickerTray by remember { mutableStateOf(false) }
     var showLastTrick by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
+
     BackHandler {
         when {
             stickerTray -> stickerTray = false
@@ -228,14 +246,14 @@ fun HokmScreen(
                         haptics?.performHapticFeedback(HapticFeedbackType.TextHandleMove)
                     },
                 )
-                Box(Modifier.height(26.dp), contentAlignment = Alignment.Center) {
+                Box(Modifier.heightIn(min = 22.dp).fillMaxWidth(0.92f), contentAlignment = Alignment.Center) {
                     val line = state.feed.lastOrNull()
                     if (line != null && state.banner == null && state.introShown == null) FeedChip(line)
                 }
                 if (topSeat != null) {
                     SeatWithBubble(state, topSeat)
                     Spacer(Modifier.height(6.dp))
-                    OpponentHand(count = state.handCounts.getOrElse(topSeat) { 0 }, rotation = 180f, horizontal = true)
+                    OpponentHand(count = state.visibleCount(topSeat), side = SeatSide.TOP)
                 } else {
                     // Three players: relative offset 2 is upper-left, offset 1 upper-right.
                     val leftSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 2, state.playerCount)
@@ -244,12 +262,12 @@ fun HokmScreen(
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             SeatWithBubble(state, leftSeat)
                             Spacer(Modifier.height(6.dp))
-                            OpponentHand(count = state.handCounts.getOrElse(leftSeat) { 0 }, rotation = 150f, horizontal = true)
+                            OpponentHand(count = state.visibleCount(leftSeat), side = SeatSide.TOP)
                         }
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             SeatWithBubble(state, rightSeat)
                             Spacer(Modifier.height(6.dp))
-                            OpponentHand(count = state.handCounts.getOrElse(rightSeat) { 0 }, rotation = 210f, horizontal = true)
+                            OpponentHand(count = state.visibleCount(rightSeat), side = SeatSide.TOP)
                         }
                     }
                 }
@@ -259,21 +277,34 @@ fun HokmScreen(
             if (state.playerCount == 4) {
                 val rightSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 1, state.playerCount)
                 val leftSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 3, state.playerCount)
-                Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Both chairs sit at the same height, above the band where the played cards land, so
+                // a card never covers a name and the two sides stay symmetrical.
+                Column(
+                    Modifier.align(Alignment.CenterEnd).offset(y = (-66).dp).padding(end = 3.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     SeatWithBubble(state, rightSeat)
-                    Spacer(Modifier.height(6.dp))
-                    OpponentHand(count = state.handCounts.getOrElse(rightSeat) { 0 }, rotation = 270f, horizontal = false)
+                    Spacer(Modifier.height(4.dp))
+                    OpponentHand(count = state.visibleCount(rightSeat), side = SeatSide.RIGHT)
                 }
-                Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier.align(Alignment.CenterStart).offset(y = (-66).dp).padding(start = 3.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     SeatWithBubble(state, leftSeat)
-                    Spacer(Modifier.height(6.dp))
-                    OpponentHand(count = state.handCounts.getOrElse(leftSeat) { 0 }, rotation = 90f, horizontal = false)
+                    Spacer(Modifier.height(4.dp))
+                    OpponentHand(count = state.visibleCount(leftSeat), side = SeatSide.LEFT)
                 }
             }
 
             // ---- two players: the stock sits beside the table centre while drawing
             if (state.playerCount == 2 && state.handPhase == HandPhase.DRAWING && state.stockCount > 0) {
                 StockPile(state.stockCount, Modifier.align(Alignment.CenterStart).padding(start = 18.dp))
+            }
+
+            // ---- the deck and the cards in the air while dealing
+            if (state.dealStock != null || state.dealFlights.isNotEmpty()) {
+                DealLayer(state, Modifier.fillMaxSize())
             }
 
             // ---- trick area
@@ -283,8 +314,8 @@ fun HokmScreen(
                 sheen = sheenState,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .size(w * 0.62f, h * 0.36f)
-                    .offset(y = (-12).dp),
+                    .size(w * 0.54f, h * 0.34f)
+                    .offset(y = (-8).dp),
             )
 
             // ---- my hand
@@ -302,6 +333,7 @@ fun HokmScreen(
                 Spacer(Modifier.height(4.dp))
                 HandFan(
                     cards = state.myHand,
+                    revealed = state.visibleHand.size,
                     legal = if (state.iDiscard) state.myHand.toSet() else state.legalCards,
                     enabled = (state.isMyTurn && !state.iDraw && !state.iChooseHokm) || state.iDiscard,
                     selected = state.selectedForDiscard,
@@ -320,7 +352,8 @@ fun HokmScreen(
             // ---- overlays
             if (state.iChooseHokm) {
                 HokmChooser(
-                    hand = state.myHand,
+                    // Only the five cards actually dealt so far: the rest are still in the deck.
+                    hand = state.visibleHand,
                     onChoose = onChooseHokm,
                     onTap = { onUiSound("tap") },
                     modifier = Modifier.align(Alignment.Center),
@@ -370,7 +403,6 @@ fun HokmScreen(
             state.introShown?.let { shown ->
                 HakemDrawOverlay(state, shown, Modifier.fillMaxSize())
             }
-            if (state.dealing) DealingOverlay(state, Modifier.align(Alignment.Center))
             state.trumpReveal?.let { suit -> TrumpSlamOverlay(suit, Modifier.align(Alignment.Center)) }
 
             FxOverlay(state, tableCardWidth = tableCardW, quality = quality, modifier = Modifier.fillMaxSize())
@@ -458,79 +490,97 @@ fun HokmScreen(
 
 // --------------------------------------------------------------------------------------- felt
 
-/** Photographic baize + walnut rim, with a soft vignette and the brass medallion painted on top. */
+/**
+ * The table: a light oak frame around a warm linen cloth, with a faint gold medallion in the middle.
+ *
+ * The old background was a photographic night baize, which made Hokm the only dark screen in the
+ * app. This is drawn from the same material palette as the shell and the backgammon board, so the
+ * table belongs with the rest of the product — and it is three gradients, not a decoded bitmap.
+ */
 @Composable
 private fun TableBackground() {
-    Image(
-        painter = painterResource(R.drawable.hokm_table),
-        contentDescription = null,
-        contentScale = ContentScale.Crop,
-        modifier = Modifier.fillMaxSize(),
-    )
-    // The chosen table skin is a cheap wash + a few strokes over the same photograph.
-    HokmSkinWash(LocalHokmLook.current.table, Modifier.fillMaxSize())
-    // Overhead spotlight + vignette: two static gradients, readable on cheap phones without bloom.
-    SpotlightVignette(Modifier.fillMaxSize())
+    // The shop's table skin still means something: it tints the cloth and the inlay, at a strength
+    // that cannot break the light palette the rest of the app uses.
+    val skin = LocalHokmLook.current.table
     Canvas(Modifier.fillMaxSize()) {
-        // A light teal wash brings the existing felt into the app's palette without hiding its grain.
-        drawRect(Color(0xFF0E8F87).copy(alpha = 0.14f))
-        drawRect(
-            Brush.radialGradient(
-                colors = listOf(Color.Transparent, Color.Black.copy(alpha = 0.35f)),
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.75f,
-            ),
-        )
-        val c = Offset(size.width / 2f, size.height * 0.45f)
-        drawCircle(Table.brass.copy(alpha = 0.14f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
-        drawCircle(Table.brass.copy(alpha = 0.09f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
-    }
-}
-
-/** Vector fallback of the table (not used by default). */
-@Suppress("unused")
-@Composable
-private fun FeltBackground() {
-    Canvas(Modifier.fillMaxSize()) {
-        val rim = 14.dp.toPx()
-        // walnut rim
+        val w = size.width
+        val h = size.height
+        // Paper behind the table.
+        drawRect(Brush.verticalGradient(listOf(Color(0xFFFFF4DC), Color(0xFFF3E0BB))))
+        // Oak frame.
+        val rim = (w * 0.035f).coerceIn(10.dp.toPx(), 26.dp.toPx())
         drawRect(Brush.verticalGradient(listOf(Table.rimLight, Table.rimDark)))
-        // baize
-        val inner = androidx.compose.ui.geometry.Rect(rim, rim, size.width - rim, size.height - rim)
+        drawRect(skin.rim.copy(alpha = 0.16f))
+        // Linen cloth, inset by the frame.
+        val inset = rim
+        val clothRect = androidx.compose.ui.geometry.Rect(
+            inset,
+            inset,
+            w - inset,
+            h - inset,
+        )
         drawRoundRect(
             brush = Brush.radialGradient(
                 colors = listOf(Table.feltLight, Table.feltDark),
-                center = Offset(size.width / 2f, size.height * 0.45f),
-                radius = size.height * 0.7f,
+                center = Offset(w * 0.5f, h * 0.34f),
+                radius = h * 0.8f,
             ),
-            topLeft = inner.topLeft,
-            size = inner.size,
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.12f),
+            topLeft = clothRect.topLeft,
+            size = clothRect.size,
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.055f),
         )
-        // brass inlay line
+        // The chosen cloth colour, as a wash over the linen.
+        drawRoundRect(
+            color = skin.wash.copy(alpha = 0.09f),
+            topLeft = clothRect.topLeft,
+            size = clothRect.size,
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.055f),
+        )
+        // Gold inlay just inside the frame.
         drawRoundRect(
             color = Table.brass.copy(alpha = 0.55f),
-            topLeft = Offset(inner.left + 6.dp.toPx(), inner.top + 6.dp.toPx()),
-            size = androidx.compose.ui.geometry.Size(inner.width - 12.dp.toPx(), inner.height - 12.dp.toPx()),
-            cornerRadius = androidx.compose.ui.geometry.CornerRadius(size.width * 0.11f),
+            topLeft = Offset(inset + 3.dp.toPx(), inset + 3.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(
+                clothRect.width - 6.dp.toPx(),
+                clothRect.height - 6.dp.toPx(),
+            ),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.05f),
             style = Stroke(1.5.dp.toPx()),
         )
-        // felt grain: very faint diagonal hatch
-        val step = 7.dp.toPx()
-        var x = -size.height
-        while (x < size.width) {
-            drawLine(Color.White.copy(alpha = 0.025f), Offset(x, size.height), Offset(x + size.height, 0f), strokeWidth = 1f)
-            x += step
+        // The skin's own accent on a second, finer line.
+        drawRoundRect(
+            color = skin.accent.copy(alpha = 0.35f),
+            topLeft = Offset(inset + 6.dp.toPx(), inset + 6.dp.toPx()),
+            size = androidx.compose.ui.geometry.Size(
+                clothRect.width - 12.dp.toPx(),
+                clothRect.height - 12.dp.toPx(),
+            ),
+            cornerRadius = androidx.compose.ui.geometry.CornerRadius(w * 0.05f),
+            style = Stroke(1.dp.toPx()),
+        )
+        // Faint weave: two hairlines every twelfth of an inch, cheap and static.
+        val step = 9.dp.toPx()
+        var y = inset + step
+        while (y < h - inset) {
+            drawLine(Color(0xFF8A6B3A).copy(alpha = 0.045f), Offset(inset, y), Offset(w - inset, y), 1f)
+            y += step
         }
-        // central medallion
-        val c = Offset(size.width / 2f, size.height * 0.45f)
-        drawCircle(Table.brass.copy(alpha = 0.12f), size.width * 0.22f, c, style = Stroke(2.dp.toPx()))
-        drawCircle(Table.brass.copy(alpha = 0.08f), size.width * 0.16f, c, style = Stroke(1.dp.toPx()))
+        // Medallion: where the cards are played.
+        val c = Offset(w / 2f, h * 0.45f)
+        drawCircle(Table.brass.copy(alpha = 0.22f), w * 0.22f, c, style = Stroke(1.5.dp.toPx()))
+        drawCircle(Table.brass.copy(alpha = 0.14f), w * 0.16f, c, style = Stroke(1.dp.toPx()))
     }
 }
 
+
 // --------------------------------------------------------------------------------------- seats
 
+/**
+ * One chair: a round avatar with the player's initial, the name beside it, and a quiet second line
+ * ("تیم ما" / "حریف" + the tricks they took). The old badge was a wide rectangle whose text ran into
+ * its own edges at large font scales; a round avatar reads at a glance from any distance and never
+ * needs a fixed width to look even.
+ */
 @Composable
 private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifier) {
     val info = state.seats.getOrNull(seat) ?: return
@@ -540,6 +590,7 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
         )
     val isHakem = state.hakem == seat
     val team = state.teamOf(seat)
+    val mine = seat == state.mySeat
     val teamColor = if (team == state.myTeam) Table.ours else Table.theirs
 
     val pulse = rememberInfiniteTransition(label = "turn")
@@ -550,88 +601,140 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
         label = "glow",
     )
 
+    val shape = RoundedCornerShape(percent = 50)
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
-            modifier
-                .clip(RoundedCornerShape(22.dp))
-                .background(Table.chip)
+            modifier = modifier
+                .heightIn(min = 40.dp)
+                .clip(shape)
+                .background(Brush.verticalGradient(listOf(Color(0xFBFFFFFF), Color(0xF6FFF3DF))))
                 .border(
-                    width = if (isTurn) 2.dp else 1.dp,
-                    color = if (isTurn) Table.turnGlow.copy(alpha = glow) else teamColor.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(22.dp),
+                    width = if (isTurn) 1.8.dp else 1.dp,
+                    color = if (isTurn) Table.turnGlow.copy(alpha = 0.35f + 0.65f * glow) else Table.line.copy(alpha = 0.75f),
+                    shape = shape,
                 )
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(start = 4.dp, end = 10.dp, top = 4.dp, bottom = 4.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(7.dp),
         ) {
+            // Avatar — the initial on the team colour, with a brass ring for the hakem.
             Box(
                 Modifier
-                    .size(30.dp)
+                    .size(31.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(teamColor, teamColor.copy(alpha = 0.6f)))),
+                    .background(Brush.linearGradient(listOf(teamColor, teamColor.copy(alpha = 0.55f))))
+                    .border(
+                        width = if (isHakem) 1.8.dp else 0.dp,
+                        color = if (isHakem) Table.brass else Color.Transparent,
+                        shape = CircleShape,
+                    ),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(info.name.take(1), color = Color.Black, fontWeight = FontWeight.Bold)
-            }
-            Column {
-                Text(info.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
                 Text(
-                    when {
-                        state.isTeamGame -> if (team == state.myTeam) "تیم ما" else "حریف"
-                        seat == state.mySeat -> "شما"
-                        else -> "${state.scores.getOrElse(team) { 0 }.toFa()} امتیاز"
-                    },
-                    color = teamColor,
-                    fontSize = 11.sp,
+                    text = info.name.take(1),
+                    color = Color.White,
+                    fontWeight = FontWeight.Black,
+                    fontSize = 15.sp,
                 )
             }
-            if (isHakem) {
-                Box(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Table.brass)
-                        .padding(horizontal = 7.dp, vertical = 2.dp),
+            Column(horizontalAlignment = Alignment.Start) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text("👑 حاکم", color = Color(0xFF3E2410), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    if (isHakem) HokmIconView(HokmIcon.Crown, color = Table.turnGlow, size = 11.dp)
+                    Text(
+                        text = info.name,
+                        color = Table.ink,
+                        fontWeight = FontWeight.Bold,
+                        fontSize = 12.5.sp,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 76.dp),
+                    )
+                }
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
+                ) {
+                    Text(
+                        text = when {
+                            mine -> "شما"
+                            info.isBot -> "ربات"
+                            team == state.myTeam -> "هم‌تیمی"
+                            else -> "حریف"
+                        },
+                        color = teamColor.copy(alpha = 0.92f),
+                        fontSize = 9.5.sp,
+                        fontWeight = FontWeight.SemiBold,
+                    )
+                    Box(Modifier.size(2.5.dp).clip(CircleShape).background(Table.inkSoft.copy(alpha = 0.45f)))
+                    Text(
+                        text = "${state.tricksWon.getOrElse(team) { 0 }.toFa()} دست",
+                        color = Table.inkSoft,
+                        fontSize = 9.5.sp,
+                    )
                 }
             }
-            if (info.isBot && state.introShown == null && !state.dealing) {
-                val hint = when {
-                    state.handPhase == HandPhase.CHOOSING_HOKM && isHakem -> "در حال انتخاب حکم…"
-                    state.handPhase == HandPhase.DISCARDING && state.turn == seat -> "دارد کارت می‌سوزاند…"
-                    state.handPhase == HandPhase.DRAWING && state.turn == seat -> "دارد کارت برمی‌دارد…"
-                    else -> null
-                }
-                if (hint != null) Text(hint, color = Table.turnGlow, fontSize = 11.sp)
+            if (isTurn) {
+                Box(Modifier.size(7.dp).clip(CircleShape).background(Table.turnGlow.copy(alpha = glow)))
             }
-            // Digital stack counter: how many tricks this seat (or team) has swept so far.
-            TrickCounterChip(
-                count = state.tricksWon.getOrElse(team) { 0 },
-                modifier = Modifier.padding(start = 2.dp),
-            )
         }
     }
 }
 
+/** Which way an opponent sits, so their hand is stacked the way a real one would be. */
+private enum class SeatSide { TOP, LEFT, RIGHT }
+
+/**
+ * An opponent's hand: a tidy fan of card backs, never a brick of thirteen.
+ *
+ * At most [MAX_VISIBLE_BACKS] backs are drawn (the rest become a small "+n" pill), which keeps the
+ * count readable without painting a wall of pattern over the table.
+ */
 @Composable
-private fun OpponentHand(count: Int, rotation: Float, horizontal: Boolean, modifier: Modifier = Modifier) {
+private fun OpponentHand(count: Int, side: SeatSide, modifier: Modifier = Modifier) {
     if (count <= 0) return
-    val cardW = 30.dp
-    val step = 9.dp
-    val n = count.coerceAtMost(13)
+    val shown = count.coerceAtMost(MAX_VISIBLE_BACKS)
+    val cardW = 27.dp
     val cardH = cardW / CARD_ASPECT
-    val span = step * (n - 1)
-    val boxW = if (horizontal) cardW + span else cardH
-    val boxH = if (horizontal) cardH else cardH + span
+    val step = if (shown > 5) 6.dp else 9.dp
+    val span = step * (shown - 1)
+    val vertical = side != SeatSide.TOP
+    val boxW = if (vertical) cardH else cardW + span
+    val boxH = if (vertical) cardW + span else cardH
     Box(modifier.size(boxW, boxH), contentAlignment = Alignment.Center) {
-        for (i in 0 until n) {
-            val off = (i - (n - 1) / 2f) * step.value
+        for (i in 0 until shown) {
+            val rel = i - (shown - 1) / 2f
+            val mid = ((shown - 1) / 2f).coerceAtLeast(1f)
             CardBackView(
                 width = cardW,
-                elevation = 2.dp,
+                elevation = 1.dp,
                 modifier = Modifier
-                    .offset(x = if (horizontal) off.dp else 0.dp, y = if (horizontal) 0.dp else off.dp)
-                    .rotate(rotation + (i - (n - 1) / 2f) * 1.5f),
+                    .offset(
+                        x = if (vertical) 0.dp else step * rel,
+                        y = if (vertical) step * rel else 0.dp,
+                    )
+                    .rotate(
+                        if (vertical) {
+                            (if (side == SeatSide.LEFT) 90f else -90f) + rel * 1.4f
+                        } else {
+                            180f - (rel / mid) * 10f
+                        },
+                    ),
+            )
+        }
+        if (count > shown) {
+            Text(
+                text = "+${(count - shown).toFa()}",
+                color = Color.White,
+                fontSize = 8.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier
+                    .align(if (vertical) Alignment.BottomCenter else Alignment.BottomEnd)
+                    .clip(RoundedCornerShape(6.dp))
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 3.dp, vertical = 1.dp),
             )
         }
     }
@@ -665,7 +768,7 @@ private fun TrickArea(
         val collect = remember { Animatable(0f) }
         LaunchedEffect(collectTo) {
             if (collectTo != null) {
-                collect.animateTo(1f, tween(680, easing = FastOutSlowInEasing))
+                collect.animateTo(1f, tween(780, easing = FastOutSlowInEasing))
             } else {
                 collect.snapTo(0f)
             }
@@ -704,7 +807,7 @@ private fun TableCard(
 ) {
     // One-shot entry animation, read in the draw phase only.
     val progress = remember { Animatable(0f) }
-    LaunchedEffect(Unit) { progress.animateTo(1f, tween(300, easing = FastOutSlowInEasing)) }
+    LaunchedEffect(Unit) { progress.animateTo(1f, tween(340, easing = FastOutSlowInEasing)) }
     val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
     // A believable, slightly careless throw: a little tilt that depends on the card, not on chance.
     val tilt = (play.card.rank.ordinal % 5 - 2) * 3f + (play.seat * 7 % 11 - 5)
@@ -764,6 +867,13 @@ private fun TableCard(
 
 // --------------------------------------------------------------------------------------- hand
 
+/**
+ * My hand.
+ *
+ * The fan is laid out for the *whole* hand and [revealed] only fades cards in, so dealing never
+ * reflows the cards already in the air. The box reserves room for the rotated corners, which is what
+ * used to push the outer cards over the bottom edge of the screen.
+ */
 @Composable
 private fun HandFan(
     cards: List<Card>,
@@ -775,9 +885,15 @@ private fun HandFan(
     onDrop: (Card) -> Unit = {},
     selected: Set<Card> = emptySet(),
     sheen: State<HokmSheen> = NeutralSheenState,
+    /** How many cards of [cards] are visible (dealing reveals them one by one). */
+    revealed: Int = Int.MAX_VALUE,
 ) {
     val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
-    BoxWithConstraints(Modifier.fillMaxWidth().height(cardWidth / CARD_ASPECT + 26.dp)) {
+    val cardH = cardWidth / CARD_ASPECT
+    // A rotated card's corner hangs lower than its layout box: reserve that, or the fan bleeds off
+    // the bottom of the phone.
+    val cornerDrop = cardWidth * 0.30f
+    BoxWithConstraints(Modifier.fillMaxWidth().height(cardH + cornerDrop + 10.dp)) {
         val n = cards.size
         if (n == 0) return@BoxWithConstraints
         val available = maxWidth - 24.dp
@@ -787,11 +903,17 @@ private fun HandFan(
         val startX = (maxWidth - total) / 2
         cards.forEachIndexed { i, card ->
             key(card.code) {
-                // Natural arc fan: symmetric tilt, quadratic lift, no cramped hit targets.
-                val angle = HokmCinematics.fanAngle(i, n, if (n > 8) 18f else 12f)
-                val lift = HokmCinematics.fanLift(i, n, 14f).dp
-                val playable = enabled && card in legal
+                val angle = HokmCinematics.fanAngle(i, n, if (n > 8) 15f else 12f)
+                val lift = HokmCinematics.fanLift(i, n, 13f).dp
+                val visible = i < revealed
+                val playable = enabled && visible && card in legal
                 val isSelected = card in selected
+                // Each card of the deal lands on its own beat: no reflow, just a card that appears.
+                val appear by animateFloatAsState(
+                    targetValue = if (visible) 1f else 0f,
+                    animationSpec = tween(if (motionScale <= 0f) 1 else 240, easing = FastOutSlowInEasing),
+                    label = "card-dealt",
+                )
                 val raise by animateFloatAsState(if (isSelected) 2.2f else if (playable) 1f else 0f, tween(180), label = "raise")
                 var dragX by remember { mutableStateOf(0f) }
                 var dragY by remember { mutableStateOf(0f) }
@@ -808,18 +930,20 @@ private fun HandFan(
                 PlayingCardView(
                     card = card,
                     width = cardWidth,
-                    elevation = if (lifted) 18.dp else if (playable) 10.dp else 4.dp,
+                    elevation = if (lifted) 14.dp else if (playable) 8.dp else 3.dp,
                     dimmed = enabled && !playable,
                     sheen = sheen,
                     modifier = Modifier
-                        .offset(x = startX + step * i, y = 20.dp + lift - (12.dp * raise))
+                        .offset(x = startX + step * i, y = 6.dp - lift - (12.dp * raise))
                         .rotate(angle)
                         .graphicsLayer {
                             translationX = dragX
-                            translationY = dragY - 10f * liftAmount
-                            scaleX = 1f + 0.06f * liftAmount
-                            scaleY = 1f + 0.06f * liftAmount
+                            translationY = dragY - 10f * liftAmount - (1f - appear) * 44f
+                            val scale = (1f + 0.06f * liftAmount) * (0.94f + 0.06f * appear)
+                            scaleX = scale
+                            scaleY = scale
                             rotationY = (dragX * 0.08f).coerceIn(-8f, 8f)
+                            alpha = appear.coerceIn(0f, 1f)
                         }
                         .pointerInput(card.code, playable) {
                             if (!playable || motionScale <= 0f) return@pointerInput
@@ -854,6 +978,7 @@ private fun HandFan(
                         .clickable(
                             interactionSource = remember { MutableInteractionSource() },
                             indication = null,
+                            enabled = visible,
                             onClick = {
                                 if (dragPlayed) dragPlayed = false else onTap(card)
                             },
@@ -878,19 +1003,20 @@ private fun ScoreBar(
         Row(
             modifier
                 .fillMaxWidth()
+                .heightIn(min = 58.dp)
                 .clip(RoundedCornerShape(16.dp))
-                .background(Brush.verticalGradient(listOf(Color(0xE62A2433), Color(0xF21E1A26))))
-                .border(1.dp, Color(0xFF9A90A8).copy(alpha = 0.42f), RoundedCornerShape(16.dp))
+                .background(Brush.verticalGradient(listOf(Color(0xFBFFFFFF), Color(0xF7FFF3DF))))
+                .border(1.dp, Table.line.copy(alpha = 0.85f), RoundedCornerShape(16.dp))
                 .clickable(onClick = onSheet)
-                .padding(horizontal = 8.dp, vertical = 5.dp),
+                .padding(horizontal = 8.dp, vertical = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Hokm3DButton(
                 text = "خروج",
                 leadingIcon = HokmIcon.Back,
                 tone = HokmButtonTone.GLASS,
-                height = 39.dp,
-                modifier = Modifier.width(74.dp),
+                height = 36.dp,
+                modifier = Modifier.width(70.dp),
                 onSound = onTap,
                 onClick = onExit,
             )
@@ -924,19 +1050,20 @@ private fun ScoreBar(
 private fun HokmBadge(state: HokmUiState) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text("حکم:", color = Color.White.copy(alpha = 0.8f), fontSize = 12.sp)
+            Text("حکم:", color = Table.inkSoft, fontSize = 12.sp)
             val hokm = state.hokm
             if (hokm != null) {
-                SuitIcon(hokm, 18.dp, onDark = true)
-                Text(hokm.titleFa, color = Color.White, fontWeight = FontWeight.Bold, fontSize = 13.sp)
+                SuitIcon(hokm, 18.dp)
+                Text(hokm.titleFa, color = Table.ink, fontWeight = FontWeight.Bold, fontSize = 13.sp)
             } else {
-                Text("—", color = Color.White, fontSize = 13.sp)
+                Text("—", color = Table.ink, fontSize = 13.sp)
             }
         }
         Text(
             "دست ${state.handNumber.toFa()} • تا ${state.targetPoints.toFa()} امتیاز",
-            color = Color.White.copy(alpha = 0.7f),
-            fontSize = 10.sp,
+            color = Table.inkSoft,
+            fontSize = 9.5.sp,
+            maxLines = 1,
         )
     }
 }
@@ -946,7 +1073,7 @@ private fun TeamScore(label: String, score: Int, tricks: Int, color: Color) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
         Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(6.dp)) {
             Text(label, color = color, fontSize = 12.sp, fontWeight = FontWeight.SemiBold)
-            Text(score.toFa(), color = Color.White, fontSize = 20.sp, fontWeight = FontWeight.Black)
+            Text(score.toFa(), color = Table.ink, fontSize = 20.sp, fontWeight = FontWeight.Black)
         }
         Row(horizontalArrangement = Arrangement.spacedBy(2.dp)) {
             repeat(HokmRules.TRICKS_TO_WIN_HAND) { i ->
@@ -954,7 +1081,7 @@ private fun TeamScore(label: String, score: Int, tricks: Int, color: Color) {
                     Modifier
                         .size(7.dp)
                         .clip(CircleShape)
-                        .background(if (i < tricks) color else Color.White.copy(alpha = 0.18f)),
+                        .background(if (i < tricks) color else Table.ink.copy(alpha = 0.14f)),
                 )
             }
         }
@@ -981,35 +1108,44 @@ private fun HokmChooser(
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         HokmGlassPanel(
             modifier.padding(14.dp).fillMaxWidth(0.94f),
-            contentPadding = 15.dp,
+            contentPadding = 16.dp,
         ) {
             Text("حاکم هستی؛ حکم را انتخاب کن", color = HokmPalette.text, fontWeight = FontWeight.Black, fontSize = 17.sp)
-            Spacer(Modifier.height(3.dp))
-            Text("پنج کارت اولت را ببین و خالِ حکم را بگو", color = HokmPalette.muted, fontSize = 11.sp)
-            Spacer(Modifier.height(11.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy((-14).dp)) {
-                hand.forEach { PlayingCardView(it, width = 48.dp, elevation = 5.dp) }
+            Spacer(Modifier.height(4.dp))
+            Text("این پنج کارت اولت است؛ خالِ حکم را بگو", color = HokmPalette.muted, fontSize = 11.sp)
+            Spacer(Modifier.height(10.dp))
+            Row(horizontalArrangement = Arrangement.spacedBy((-12).dp)) {
+                hand.forEach { PlayingCardView(it, width = 46.dp, elevation = 4.dp) }
             }
             Spacer(Modifier.height(14.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.fillMaxWidth()) {
-                Suit.entries.forEach { suit ->
-                    val count = hand.count { it.suit == suit }
-                    val suitColor = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
-                        MaterialTheme.colorScheme.error
-                    } else {
-                        HokmPalette.text
+            // Two per row: four buttons in one row were too narrow for «گشنیز» and «خشت» and the
+            // labels wrapped mid-word.
+            val suits = listOf(
+                Suit.HEARTS to Suit.DIAMONDS,
+                Suit.CLUBS to Suit.SPADES,
+            )
+            suits.forEachIndexed { row, (first, second) ->
+                if (row > 0) Spacer(Modifier.height(8.dp))
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                    listOf(first, second).forEach { suit ->
+                        val count = hand.count { it.suit == suit }
+                        val suitColor = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
+                            MaterialTheme.colorScheme.error
+                        } else {
+                            HokmPalette.text
+                        }
+                        Hokm3DButton(
+                            text = suit.titleFa,
+                            subtitle = "${count.toFa()} برگ",
+                            leadingSuit = suit,
+                            leadingColor = suitColor,
+                            tone = HokmButtonTone.GLASS,
+                            height = 58.dp,
+                            modifier = Modifier.weight(1f),
+                            onSound = onTap,
+                            onClick = { onChoose(suit) },
+                        )
                     }
-                    Hokm3DButton(
-                        text = suit.titleFa,
-                        subtitle = "${count.toFa()} برگ",
-                        leadingSuit = suit,
-                        leadingColor = suitColor,
-                        tone = HokmButtonTone.GLASS,
-                        height = 66.dp,
-                        modifier = Modifier.weight(1f),
-                        onSound = onTap,
-                        onClick = { onChoose(suit) },
-                    )
                 }
             }
         }
@@ -1055,7 +1191,7 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
             // Compact headline instead of a big panel: the table stays visible while cards fly.
             Text(
                 text = "تعیین حاکم · اولین آس حاکم می‌شود",
-                color = Table.brass,
+                color = Table.ink,
                 fontSize = 12.5.sp,
                 fontWeight = FontWeight.Bold,
                 modifier = Modifier
@@ -1063,7 +1199,7 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
                     .padding(top = 8.dp)
                     .clip(RoundedCornerShape(50))
                     .background(Table.chip)
-                    .border(1.dp, Table.brass.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .border(1.dp, Table.line.copy(alpha = 0.7f), RoundedCornerShape(50))
                     .padding(horizontal = 12.dp, vertical = 6.dp),
             )
         }
@@ -1104,8 +1240,12 @@ private fun BoxScope.DealtCard(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // The card is sized by its own layout, so the sheen must be told the same box:
+            // `fillMaxSize()` here asked for the whole screen, and the gold sweep was drawn as a
+            // big yellow rectangle across the table the moment the ace was revealed.
             Box(
                 Modifier
+                    .size(cardWidth, cardWidth / CARD_ASPECT)
                     .clip(RoundedCornerShape(5.dp))
                     .then(
                         if (isAce) Modifier.border(2.dp, Table.turnGlow, RoundedCornerShape(5.dp)) else Modifier,
@@ -1117,65 +1257,17 @@ private fun BoxScope.DealtCard(
                     elevation = if (isAce) 12.dp else 3.dp,
                 )
                 if (isAce && isNewest) {
-                    // Deterministic one-shot sheen: no infinite transition, no per-frame recompose.
-                    GoldFoilGloss(Modifier.fillMaxSize(), progress = fly.value)
+                    // Deterministic one-shot sheen inside the card, never across the table.
+                    GoldFoilGloss(Modifier.matchParentSize(), progress = fly.value)
                 }
             }
             if (isAce) {
-                HokmPill("آس · حاکم", icon = HokmIcon.Crown, color = Table.brass, modifier = Modifier.padding(top = 3.dp))
+                HokmPill("آس · حاکم", icon = HokmIcon.Crown, color = Table.turnGlow, modifier = Modifier.padding(top = 3.dp))
             }
         }
     }
 }
 
-@Composable
-private fun DealingOverlay(state: HokmUiState, modifier: Modifier = Modifier) {
-    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
-    val t = remember { Animatable(0f) }
-    LaunchedEffect(Unit) {
-        t.animateTo(1f, tween(DEAL_PREVIEW_MS, easing = LinearEasing))
-    }
-    Box(modifier.size(220.dp), contentAlignment = Alignment.Center) {
-        // A short stack that visibly thins out as the deal runs.
-        repeat(4) { i ->
-            CardBackView(width = 54.dp, elevation = 2.dp, modifier = Modifier.offset(y = (-i).dp))
-        }
-        // One card per seat: it flies to that seat on its own slice of the timeline. Every value is
-        // read inside `graphicsLayer`, so the deal never recomposes or re-measures a card.
-        repeat(state.playerCount) { step ->
-            val direction = HokmSeatLayout.direction(
-                HokmSeatLayout.seatAtOffset(state.mySeat, step, state.playerCount),
-                state.mySeat,
-                state.playerCount,
-            )
-            CardBackView(
-                width = 54.dp,
-                elevation = 6.dp,
-                modifier = Modifier.graphicsLayer {
-                    val total = state.playerCount.toFloat()
-                    val raw = (t.value * total - step).coerceIn(0f, 1f)
-                    val f = raw
-                    // Arc: linear travel plus a sine lift, and a fixed spin that settles at landing.
-                    translationX = 210f * direction.x * f * motionScale
-                    translationY = 210f * direction.y * f * motionScale - kotlin.math.sin(f * Math.PI).toFloat() * 40f * motionScale
-                    rotationZ = 180f * f * motionScale
-                    alpha = if (f >= 1f) 0f else 1f - f * 0.35f
-                },
-            )
-        }
-        Text(
-            "در حال پخش کارت‌ها…",
-            color = Color.White,
-            fontSize = 12.sp,
-            modifier = Modifier.align(Alignment.BottomCenter).clip(RoundedCornerShape(10.dp)).background(Table.chip).padding(horizontal = 10.dp, vertical = 4.dp),
-        )
-    }
-}
-
-/**
- * The trump card hitting the table: a heavy card that drops in with an overshoot, a shockwave ring
- * and the suit pip painted in the centre. Purely a draw-phase animation (one Animatable).
- */
 @Composable
 private fun TrumpSlamOverlay(suit: Suit, modifier: Modifier = Modifier) {
     val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
@@ -1189,7 +1281,8 @@ private fun TrumpSlamOverlay(suit: Suit, modifier: Modifier = Modifier) {
         Canvas(Modifier.fillMaxSize()) {
             val p = hit.value
             drawCircle(
-                color = Color.White.copy(alpha = (1f - p) * 0.35f),
+                // A hot ring, not a white one: the cloth is pale now, white would vanish.
+                color = Color(0xFFD9480F).copy(alpha = (1f - p) * 0.55f),
                 radius = size.minDimension * (0.42f + 0.5f * p),
                 style = Stroke(width = 3.dp.toPx() * (1f - p).coerceAtLeast(0.05f)),
             )
@@ -1241,8 +1334,8 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
             Column(
                 Modifier
                     .clip(RoundedCornerShape(20.dp))
-                    .background(Brush.horizontalGradient(listOf(Color(0xF22A2433), Color(0xF23A3346))))
-                    .border(1.5.dp, Table.brass, RoundedCornerShape(20.dp))
+                    .background(Brush.horizontalGradient(listOf(Color(0xFCFFFFFF), Color(0xFAFFF3DF))))
+                    .border(1.5.dp, Table.line, RoundedCornerShape(20.dp))
                     .padding(horizontal = 26.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
@@ -1250,13 +1343,13 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
                     b.suit?.let { suit ->
                         HokmSuitPip(
                             suit = suit,
-                            color = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFFF8A8A) else Color.White,
+                            color = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFB3202B) else Table.ink,
                             size = if (b.big) 24.dp else 19.dp,
                         )
                     }
-                    Text(b.title, color = Table.brass, fontWeight = FontWeight.Black, fontSize = if (b.big) 24.sp else 18.sp, textAlign = TextAlign.Center)
+                    Text(b.title, color = Table.ink, fontWeight = FontWeight.Black, fontSize = if (b.big) 24.sp else 18.sp, textAlign = TextAlign.Center)
                 }
-                b.subtitle?.let { Text(it, color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, textAlign = TextAlign.Center) }
+                b.subtitle?.let { Text(it, color = Table.inkSoft, fontSize = 13.sp, textAlign = TextAlign.Center) }
             }
         }
     }
@@ -1264,14 +1357,21 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
 
 @Composable
 private fun FeedChip(text: String, modifier: Modifier = Modifier) {
+    // One line, ellipsised: the old chip was a bare Text in a 26dp strip, so a long line was cut
+    // through the middle of its letters and read as gibberish.
     Text(
-        text,
-        color = Color.White.copy(alpha = 0.9f),
-        fontSize = 12.sp,
+        text = text,
+        color = Table.inkSoft,
+        fontSize = 11.5.sp,
+        lineHeight = 15.sp,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        textAlign = TextAlign.Center,
         modifier = modifier
-            .clip(RoundedCornerShape(10.dp))
+            .clip(RoundedCornerShape(11.dp))
             .background(Table.chip)
-            .padding(horizontal = 10.dp, vertical = 3.dp),
+            .border(1.dp, Table.line.copy(alpha = 0.55f), RoundedCornerShape(11.dp))
+            .padding(horizontal = 12.dp, vertical = 4.dp),
     )
 }
 
@@ -1362,6 +1462,98 @@ private fun GameOverDialog(
 
 // --------------------------------------------------------------------------------------- two-player panels
 
+/**
+ * The deal, drawn for real: the deck sits in the middle of the table and every card that a hand
+ * picks up is a card that was seen leaving that deck.
+ *
+ * Nothing here invents a card — [HokmUiState.dealFlights] is the table's own list of cards in the
+ * air, and each one is animated from the deck to the fan of the seat it belongs to.
+ */
+@Composable
+private fun DealLayer(state: HokmUiState, modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier) {
+        val w = maxWidth
+        val h = maxHeight
+        // The deck shrinks as it empties, so the pile reads as a deck being used up.
+        state.dealStock?.let { left -> if (left > 0) DealDeck(left, Modifier.align(Alignment.Center).offset(y = (-6).dp)) }
+        state.dealFlights.forEach { flight ->
+            key(flight.id) {
+                val target = HokmSeatLayout.fanTarget(flight.seat, state.mySeat, state.playerCount)
+                val progress = remember(flight.id) { Animatable(0f) }
+                LaunchedEffect(flight.id) {
+                    progress.animateTo(
+                        targetValue = 1f,
+                        animationSpec = tween(HokmTable.DEAL_FLIGHT_MS.toInt(), easing = FastOutSlowInEasing),
+                    )
+                }
+                val cardW = 34.dp
+                Box(
+                    Modifier
+                        .offset {
+                            val t = progress.value
+                            val cx = w.toPx() * 0.5f
+                            val cy = h.toPx() * 0.5f
+                            val tx = w.toPx() * target.x
+                            val ty = h.toPx() * target.y
+                            // A small arc: the card is thrown, not slid along a rail.
+                            val lift = sin(t * PI).toFloat() * h.toPx() * 0.05f
+                            IntOffset(
+                                x = (cx + (tx - cx) * t - cardW.toPx() / 2f).roundToInt(),
+                                y = (cy + (ty - cy) * t - lift).roundToInt(),
+                            )
+                        }
+                        .graphicsLayer {
+                            val t = progress.value
+                            scaleX = 1f - 0.22f * t
+                            scaleY = 1f - 0.22f * t
+                            rotationZ = -9f + 15f * t
+                            // Handed over as it lands: the fan takes the card at that exact beat.
+                            alpha = if (t > 0.92f) ((1f - t) / 0.08f).coerceIn(0f, 1f) else 1f
+                        },
+                ) {
+                    CardBackView(width = cardW, elevation = 6.dp)
+                }
+            }
+        }
+    }
+}
+
+/** The deck on the table while it is being dealt: a stack of backs that thins out as it empties. */
+@Composable
+private fun DealDeck(count: Int, modifier: Modifier = Modifier) {
+    val layers = (1 + count / 8).coerceAtMost(8)
+    Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
+        Box(contentAlignment = Alignment.Center) {
+            Box(
+                Modifier
+                    .size(46.dp, 64.dp)
+                    .offset(y = 4.dp)
+                    .clip(RoundedCornerShape(7.dp))
+                    .background(Color(0x33000000)),
+            )
+            repeat(layers) { i ->
+                CardBackView(
+                    width = 44.dp,
+                    elevation = 3.dp,
+                    modifier = Modifier.offset(x = (i * 0.7f).dp, y = (-i * 0.9f).dp),
+                )
+            }
+        }
+        Spacer(Modifier.height(7.dp))
+        Text(
+            "${count.toFa()} برگ",
+            color = Table.ink,
+            fontSize = 11.sp,
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier
+                .clip(RoundedCornerShape(8.dp))
+                .background(Table.chip)
+                .border(1.dp, Table.line.copy(alpha = 0.6f), RoundedCornerShape(8.dp))
+                .padding(horizontal = 8.dp, vertical = 2.dp),
+        )
+    }
+}
+
 @Composable
 private fun StockPile(count: Int, modifier: Modifier = Modifier) {
     Column(modifier, horizontalAlignment = Alignment.CenterHorizontally) {
@@ -1369,7 +1561,7 @@ private fun StockPile(count: Int, modifier: Modifier = Modifier) {
             repeat(minOf(5, 1 + count / 9)) { i -> CardBackView(width = 44.dp, elevation = 2.dp, modifier = Modifier.offset(x = (i * 1.5f).dp, y = (-i * 1.5f).dp)) }
         }
         Spacer(Modifier.height(4.dp))
-        Text("${count.toFa()} برگ", color = Color.White, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Table.chip).padding(horizontal = 8.dp, vertical = 2.dp))
+        Text("${count.toFa()} برگ", color = Table.ink, fontSize = 11.sp, modifier = Modifier.clip(RoundedCornerShape(8.dp)).background(Table.chip).padding(horizontal = 8.dp, vertical = 2.dp))
     }
 }
 
@@ -1476,7 +1668,8 @@ private fun SeatWithBubble(state: HokmUiState, seat: Int) {
 @Composable
 private fun StickerButton(onClick: () -> Unit, onTap: () -> Unit) {
     Hokm3DButton(
-        text = "☺",
+        text = "",
+        leadingIcon = HokmIcon.Star,
         tone = HokmButtonTone.GLASS,
         height = 42.dp,
         modifier = Modifier.width(45.dp),
@@ -1681,7 +1874,7 @@ private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfee
         }
     }
     val color = when {
-        !mine -> Color.White.copy(alpha = 0.55f)
+        !mine -> Table.inkSoft.copy(alpha = 0.55f)
         urgency == TurnUrgency.WARNING -> Color(0xFFEF5350)
         urgency == TurnUrgency.GOLD -> Color(0xFFFFB300)
         else -> Table.turnGlow
@@ -1695,19 +1888,20 @@ private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfee
         Box(Modifier.size(46.dp), contentAlignment = Alignment.Center) {
             Canvas(Modifier.fillMaxSize()) {
                 val stroke = Stroke(width = 4.dp.toPx(), cap = androidx.compose.ui.graphics.StrokeCap.Round)
-                drawCircle(Color.Black.copy(alpha = 0.45f))
+                drawCircle(Color.White.copy(alpha = 0.92f))
+                drawCircle(Table.line.copy(alpha = 0.65f), style = Stroke(1.dp.toPx()))
                 if (mine && urgency == TurnUrgency.WARNING && motionScale > 0f) {
                     drawCircle(Color(0xFFEF5350).copy(alpha = 0.10f * pulse * motionScale))
                 }
-                drawArc(Color.White.copy(alpha = 0.15f), -90f, 360f, useCenter = false, style = stroke)
+                drawArc(Table.ink.copy(alpha = 0.12f), -90f, 360f, useCenter = false, style = stroke)
                 drawArc(color.copy(alpha = pulse), -90f, 360f * frac, useCenter = false, style = stroke)
             }
-            Text(secs.toFa(), color = Color.White, fontWeight = FontWeight.Bold, fontSize = 14.sp)
+            Text(secs.toFa(), color = Table.ink, fontWeight = FontWeight.Bold, fontSize = 14.sp)
         }
         if (mine && urgency == TurnUrgency.WARNING) {
             Text(
                 "ربات کارت خواهد زد",
-                color = Color(0xFFFFCDD2),
+                color = Color(0xFFB3261E),
                 fontSize = 9.sp,
                 textAlign = TextAlign.Center,
             )
@@ -1770,7 +1964,7 @@ private fun LastTrickOverlay(state: HokmUiState, cardWidth: Dp, onDismiss: () ->
                 }
             }
             Spacer(Modifier.height(8.dp))
-            Text("برای بستن ضربه بزنید", color = Color.White.copy(alpha = 0.5f), fontSize = 12.sp)
+            Text("برای بستن ضربه بزنید", color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp)
         }
     }
 }
@@ -1789,15 +1983,15 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                 Modifier
                     .fillMaxWidth(0.88f)
                     .clip(RoundedCornerShape(22.dp))
-                    .background(Brush.verticalGradient(listOf(Color(0xFF2A2433), Color(0xFF1E1A26))))
-                    .border(1.dp, Table.brass.copy(alpha = 0.6f), RoundedCornerShape(22.dp))
+                    .background(Brush.verticalGradient(listOf(Color(0xFFFFFFFF), Color(0xFFFFF4DC))))
+                    .border(1.dp, Table.line, RoundedCornerShape(22.dp))
                     .clickable(interactionSource = remember { MutableInteractionSource() }, indication = null) { }
                     .padding(16.dp),
             ) {
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Column(Modifier.weight(1f)) {
-                        Text("برگهٔ امتیاز", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                        if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Color.White.copy(alpha = 0.6f), fontSize = 10.sp)
+                        Text("برگهٔ امتیاز", color = Table.ink, fontWeight = FontWeight.Black, fontSize = 18.sp)
+                        if (state.modeLabel.isNotEmpty()) Text(state.modeLabel, color = Table.inkSoft, fontSize = 10.sp)
                     }
                     Hokm3DButton(
                         text = "بستن",
@@ -1811,11 +2005,11 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                 Spacer(Modifier.height(6.dp))
                 Text(
                     "هدف: ${state.targetPoints.toFa()} امتیاز",
-                    color = Color.White.copy(alpha = 0.7f), fontSize = 12.sp,
+                    color = Table.inkSoft, fontSize = 12.sp,
                 )
                 Spacer(Modifier.height(10.dp))
                 if (state.handHistory.isEmpty()) {
-                    Text("هنوز دستی تمام نشده.", color = Color.White.copy(alpha = 0.7f), fontSize = 14.sp)
+                    Text("هنوز دستی تمام نشده.", color = Table.inkSoft, fontSize = 14.sp)
                 } else {
                     Row(Modifier.fillMaxWidth()) {
                         SheetCell("دست", Modifier.weight(0.7f), header = true)
@@ -1837,14 +2031,14 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
                             Row(
                                 Modifier
                                     .fillMaxWidth()
-                                    .background(if (i % 2 == 0) Color.White.copy(alpha = 0.04f) else Color.Transparent)
+                                    .background(if (i % 2 == 0) Table.ink.copy(alpha = 0.05f) else Color.Transparent)
                                     .padding(vertical = 2.dp),
                                 verticalAlignment = Alignment.CenterVertically,
                             ) {
                                 SheetCell((i + 1).toFa(), Modifier.weight(0.7f))
                                 SheetCell(hakemName, Modifier.weight(1.3f))
                                 Box(Modifier.weight(0.7f), contentAlignment = Alignment.Center) {
-                                    hnd.hokm?.let { SuitIcon(it, 16.dp, onDark = true) }
+                                    hnd.hokm?.let { SuitIcon(it, 16.dp) }
                                 }
                                 SheetCell(kind, Modifier.weight(1.5f), color = if (mine) Table.ours else Table.theirs)
                                 SheetCell("+" + hnd.points.toFa(), Modifier.weight(0.8f), color = if (mine) Table.ours else Table.theirs)
@@ -1870,12 +2064,12 @@ private fun ScoreSheetOverlay(state: HokmUiState, onDismiss: () -> Unit, onTap: 
 }
 
 @Composable
-private fun SheetCell(text: String, modifier: Modifier, header: Boolean = false, color: Color = Color.White) {
+private fun SheetCell(text: String, modifier: Modifier, header: Boolean = false, color: Color = Table.ink) {
     Text(
         text,
         modifier = modifier,
         textAlign = TextAlign.Center,
-        color = if (header) Table.brass else color,
+        color = if (header) Table.inkSoft else color,
         fontSize = if (header) 11.sp else 13.sp,
         fontWeight = if (header) FontWeight.SemiBold else FontWeight.Normal,
     )

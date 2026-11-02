@@ -29,6 +29,29 @@ import kotlinx.serialization.json.intOrNull
 import kotlinx.serialization.json.jsonPrimitive
 import kotlinx.serialization.json.put
 
+/**
+ * Which sound a card makes when it hits the table.
+ *
+ * A trump card gets the same heavy slap the opening ace gets — whether it is a fat lead, a cut on
+ * somebody else's suit, or just a trump following a trump — and everything else is the soft
+ * card-on-felt tick. Pure so the rule can be tested without a device or a speaker.
+ */
+internal object TableAudio {
+    /**
+     * The slab: one heavy slap, one asset (`hokm_card_slam.wav`). The hakem's ace, the trump card
+     * landing on the table and the "حکم شد" slap all play *this* string, so there is exactly one
+     * slap in the game and no way for the trump to sound like something else.
+     */
+    const val SLAM = "card_slam"
+    const val PLAY = "card_play"
+    const val DEAL = "card_deal"
+
+    fun cardLands(trump: Boolean, cut: Boolean): String = if (trump || cut) SLAM else PLAY
+
+    /** The card the opening draw turns face up: an ace gets the slab, anything else a soft tick. */
+    fun hakemDraw(rank: Rank): String = if (rank == Rank.ACE) SLAM else DEAL
+}
+
 /** A player as drawn on the table. */
 data class SeatInfo(val seat: Int, val name: String, val isBot: Boolean)
 
@@ -94,6 +117,15 @@ enum class FxKind {
 data class TableFx(val kind: FxKind, val seat: Int, val stamp: Long)
 
 /**
+ * One card in the air during the deal: it left the deck at the centre of the table and is on its way
+ * to [seat], where it becomes that hand's card number [slot] (0-based).
+ *
+ * The deck is a real, visible pile of cards and every card in a hand is one of its cards: the table
+ * never grows a hand out of thin air, and the screen never has to invent a card to fly.
+ */
+data class DealFlight(val id: Int, val seat: Int, val slot: Int)
+
+/**
  * Everything the screen draws. Built **only** from the human player's `privateView()` plus the
  * UI-side animation bookkeeping — the screen never touches the session.
  */
@@ -126,12 +158,36 @@ data class HokmUiState(
     val tableCards: List<Play> = emptyList(),
     /** Seat that is sweeping the current trick, while the collect animation runs. */
     val collectingTo: Int? = null,
+    /**
+     * A closed trick is on screen and waiting to be swept (HK-010).
+     *
+     * Without this the engine had already moved to the next trick by the time the four cards were
+     * shown, so any snapshot read during that window replaced them with an empty table and the cards
+     * seemed to vanish instead of being collected.
+     */
+    val holdingTrick: Boolean = false,
     val lastHand: HandSummary? = null,
     val banner: Banner? = null,
     val hakemDraw: List<Play> = emptyList(),
     /** How many of [hakemDraw] are face-up during the opening animation (`null` = intro finished). */
     val introShown: Int? = null,
     val dealing: Boolean = false,
+    /**
+     * While a deal animates: how many cards each seat has visibly received (`null` = show the real
+     * counts). The engine hands out a whole hand at once, so the table plays the deal itself, one
+     * card per seat per beat, exactly like a person would deal around the table.
+     */
+    val dealReveal: List<Int>? = null,
+    /**
+     * How many cards each seat is holding on screen while the deal is paused (the hakem's five,
+     * before the trump is named). Display only: it does not block input the way [dealReveal] does,
+     * so the hakem can pick a trump while the deck waits on the table.
+     */
+    val handReveal: List<Int>? = null,
+    /** Cards still in the deck at the centre of the table (`null` = no deck on screen). */
+    val dealStock: Int? = null,
+    /** The cards currently in the air, oldest first — only the last few are drawn. */
+    val dealFlights: List<DealFlight> = emptyList(),
     /** Trump suit while the "حکم شد" card is being slapped onto the table (short-lived). */
     val trumpReveal: Suit? = null,
     val error: String? = null,
@@ -163,7 +219,9 @@ data class HokmUiState(
      * Nothing is being animated, so a snapshot may be drawn as-is: no collect, banner, deal or
      * opening draw is on screen (`HokmTable.refresh()` and the event queue both use this gate).
      */
-    val isCalm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
+    val isCalm: Boolean get() =
+        !finished && introShown == null && collectingTo == null && !holdingTrick && !dealing &&
+            banner == null && dealReveal == null
     val isMyTurn: Boolean get() = isCalm && !isSendingMove && handPhase == HandPhase.PLAYING && turn == mySeat
     val iChooseHokm: Boolean get() = isCalm && !isSendingMove && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
     val iDiscard: Boolean get() =
@@ -171,6 +229,20 @@ data class HokmUiState(
     val iDraw: Boolean get() =
         isCalm && !isSendingMove && handPhase == HandPhase.DRAWING && turn == mySeat && revealed != null
     val isTeamGame: Boolean get() = playerCount == 4
+
+    /** Cards [seat] has visibly picked up (the deal animation hides the rest). */
+    fun visibleCount(seat: Int): Int {
+        val reveal = dealReveal ?: handReveal ?: return handCounts.getOrElse(seat) { 0 }
+        return reveal.getOrNull(seat)?.coerceIn(0, handCounts.getOrElse(seat) { 0 })
+            ?: handCounts.getOrElse(seat) { 0 }
+    }
+
+    /** My hand as it is visible right now: the deal reveals it card by card. */
+    val visibleHand: List<Card>
+        get() {
+            val reveal = dealReveal ?: handReveal ?: return myHand
+            return myHand.take(reveal.getOrElse(mySeat) { 0 }.coerceIn(0, myHand.size))
+        }
 }
 
 /**
@@ -187,13 +259,25 @@ abstract class HokmTable(
     protected val mySeat: Int,
     protected val onSound: (String) -> Unit,
 ) {
-    protected companion object {
+    internal companion object {
         const val BOT_THINK_MS = 650L
         const val BOT_LEAD_MS = 900L
         const val TRICK_SHOW_MS = 1150L
-        const val COLLECT_MS = 760L
+        const val COLLECT_MS = 820L
         const val INTRO_CARD_MS = 420L
         const val DEAL_MS = 1400L
+
+        /** One card per beat while dealing — fast enough to feel like a dealer, slow enough to see. */
+        const val DEAL_CARD_MS = 120L
+
+        /** How long a dealt card spends travelling from the deck to its seat. */
+        const val DEAL_FLIGHT_MS = 300L
+
+        /**
+         * How many cards leave the deck before the first one lands. Two or three are always in the
+         * air, so the deal reads as a stream of cards instead of one slow card at a time.
+         */
+        const val DEAL_LAND_LAG = 3
         const val HAND_BANNER_MS = 2600L
     }
 
@@ -226,7 +310,6 @@ abstract class HokmTable(
     protected val _state = mutableStateOf(HokmUiState(seats = seats, playerCount = playerCount, mySeat = mySeat))
     private var stickerStamp = 0L
     private var fxStamp = 0L
-    private var cutPending = false
     val state: State<HokmUiState> get() = _state
 
     protected fun pushFx(kind: FxKind, seat: Int, ttlMs: Long = 1400) {
@@ -391,7 +474,7 @@ abstract class HokmTable(
             _state.value = _state.value.copy(introShown = i)
             val card = draw[i - 1].card
             // The first ace decides the hakem: give it the heavy slap instead of a soft deal tick.
-            onSound(if (card.rank == Rank.ACE) "card_slam" else "card_deal")
+            onSound(TableAudio.hakemDraw(card.rank))
             if (card.rank == Rank.ACE) {
                 pushFx(FxKind.CUT, draw[i - 1].seat, 900)
                 delay(240)
@@ -404,11 +487,130 @@ abstract class HokmTable(
         )
         onSound("hokm_chosen")
         delay(1500)
-        // Hakem receives the first five cards; the rest is dealt after hokm is named.
-        onSound("card_deal")
+        // Real tables deal the hakem their first five cards before the trump is named — one card at
+        // a time, not a hand that pops into existence.
         _state.value = _state.value.copy(introShown = null, banner = null)
         refresh()
+        dealFirstFive(hakem)
         wake.trySend(Unit)
+    }
+
+    /** Every card in the deck this table deals: 52 in a four-player game, 51 with three. */
+    private fun deckTotal(): Int = playerCount * HokmRules.cardsPerPlayer(playerCount)
+
+    private var dealFlightId = 0
+
+    /** Puts one card in the air between the deck and [seat]; older flights are already gone. */
+    private fun pushDealFlight(seat: Int, slot: Int) {
+        val flight = DealFlight(++dealFlightId, seat, slot)
+        _state.value = _state.value.copy(dealFlights = (_state.value.dealFlights + flight).takeLast(DEAL_LAND_LAG))
+    }
+
+    /**
+     * Publishes the deal as it stands: [landed] is what each hand shows, [launched] is how many
+     * cards have left the deck. The two differ by the cards still in the air, so a hand grows the
+     * moment its card arrives rather than the moment it was thrown.
+     */
+    private fun publishDeal(landed: List<Int>, launched: Int, animating: Boolean) {
+        _state.value = _state.value.copy(
+            dealReveal = if (animating) landed else null,
+            handReveal = landed,
+            dealStock = if (playerCount >= 3) (deckTotal() - launched).coerceAtLeast(0) else null,
+        )
+    }
+
+    /**
+     * Flies every card in [order] out of the deck, one beat each, and grows the hands as the cards
+     * land. [counts] is updated in place so the caller keeps the hands it dealt.
+     */
+    private suspend fun flyDeal(order: List<Int>, counts: MutableList<Int>) {
+        val inFlight = ArrayDeque<Int>()
+        var launched = 0
+        fun landOne() {
+            val seat = inFlight.removeFirst()
+            counts[seat] = counts.getOrElse(seat) { 0 } + 1
+            onSound("card_deal")
+        }
+        for (seat in order) {
+            // The card being dealt is the next one in that seat's fan, on top of what is in the air.
+            pushDealFlight(seat, counts.getOrElse(seat) { 0 } + inFlight.count { it == seat })
+            inFlight.addLast(seat)
+            launched++
+            if (inFlight.size > DEAL_LAND_LAG) landOne()
+            publishDeal(counts.toList(), launched, animating = true)
+            delay(DEAL_CARD_MS)
+        }
+        // Let the last cards land before anybody plays.
+        while (inFlight.isNotEmpty()) {
+            landOne()
+            publishDeal(counts.toList(), launched, animating = true)
+            delay(DEAL_CARD_MS)
+        }
+    }
+
+    /**
+     * Hands the hakem five cards from a deck that is visibly on the table, one card at a time. The
+     * five stay on the table (and the rest of the deck with them) while the trump is named.
+     */
+    private suspend fun dealFirstFive(hakem: Int) {
+        val counts = MutableList(playerCount) { 0 }
+        _state.value = _state.value.copy(dealFlights = emptyList())
+        publishDeal(counts.toList(), 0, animating = true)
+        // A beat with the whole deck sitting in the middle, before the first card moves.
+        delay(260)
+        flyDeal(List(HokmRules.HAKEM_FIRST_DEAL) { hakem }, counts)
+        // Not animating any more: the hakem must be able to choose while the deck waits.
+        val keepDeck = playerCount >= 3
+        _state.value = _state.value.copy(
+            dealReveal = null,
+            dealFlights = emptyList(),
+            handReveal = if (keepDeck) counts.toList() else null,
+            dealStock = if (keepDeck) (deckTotal() - counts.sum()).coerceAtLeast(0) else null,
+        )
+    }
+
+    /** Waits (briefly) until the view shows the fully dealt hand, then gives up quietly. */
+    private suspend fun awaitDealtHands() {
+        if (playerCount < 3) return
+        var waited = 0
+        while (_state.value.handPhase == HandPhase.CHOOSING_HOKM && waited < 1_500) {
+            delay(50)
+            waited += 50
+            refresh()
+        }
+    }
+
+    /**
+     * Deals everything the engine handed out at once, card by card, in the real order.
+     *
+     * The snapshot arrives with thirteen cards per seat; this walks [HokmRules.dealOrder] and lifts
+     * a per-seat curtain one card per beat, so the table shows five to everybody else, then rounds
+     * of four — the same order a person would deal.
+     */
+    private suspend fun dealTheRest() {
+        val n = playerCount
+        if (n < 3) return
+        val hakem = _state.value.hakem
+        val order = HokmRules.dealOrder(players = n, hakem = hakem)
+        if (order.isEmpty()) return
+        // Continue from the five the hakem already picked up: hands only ever grow, never shrink
+        // back to zero when the trump is named.
+        val start = _state.value.handReveal?.takeIf { it.size == n }
+            ?: List(n) { seat -> if (seat == hakem) HokmRules.HAKEM_FIRST_DEAL else 0 }
+        val counts = start.toMutableList()
+        onSound("shuffle")
+        _state.value = _state.value.copy(dealFlights = emptyList())
+        publishDeal(counts.toList(), deckTotal() - counts.sum(), animating = true)
+        delay(240)
+        flyDeal(order, counts)
+        // The deck is empty and every hand is full.
+        _state.value = _state.value.copy(
+            dealReveal = null,
+            handReveal = null,
+            dealStock = null,
+            dealFlights = emptyList(),
+        )
+        delay(160)
     }
 
     protected suspend fun loop() {
@@ -456,6 +658,9 @@ abstract class HokmTable(
     private suspend fun runStep(step: TableStep) {
         when (step) {
             is TableStep.CollectTrick -> {
+                // Hold the four cards on screen before the sweep: a snapshot read must not empty
+                // the table while the player is still looking at the finished trick.
+                _state.value = _state.value.copy(holdingTrick = true)
                 delay(TRICK_SHOW_MS)
                 _state.value = _state.value.copy(collectingTo = step.winner)
                 onSound("whoosh")
@@ -463,7 +668,11 @@ abstract class HokmTable(
                 onSound(if (mine) "trick_won" else "trick_lost")
                 pushFx(FxKind.TRICK_WIN, step.winner, 900)
                 delay(COLLECT_MS)
-                _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
+                _state.value = _state.value.copy(
+                    tableCards = emptyList(),
+                    collectingTo = null,
+                    holdingTrick = false,
+                )
             }
             is TableStep.ShowBanner -> {
                 _state.value = _state.value.copy(banner = step.banner)
@@ -472,8 +681,12 @@ abstract class HokmTable(
             }
             is TableStep.Deal -> {
                 _state.value = _state.value.copy(dealing = true)
-                onSound("shuffle")
-                delay(DEAL_MS)
+                // The hands are already in the snapshot: read it first, then reveal it card by card.
+                // In a room the full hands arrive with the same burst as the trump; give that
+                // snapshot a beat so the deal is not animated against the five-card view.
+                awaitDealtHands()
+                refresh()
+                dealTheRest()
                 _state.value = _state.value.copy(dealing = false)
             }
         }
@@ -510,10 +723,11 @@ abstract class HokmTable(
         for (e in emissions) {
             when (e) {
                 is Emission.Sound -> when (e.name) {
-                    "card_played" -> {
-                        onSound(if (cutPending) "card_cut" else "card_play")
-                        cutPending = false
-                    }
+                    // Voiced from the card itself, in the Public branch below: the sound event may
+                    // arrive in a different batch from the card it belongs to (rooms deliver them
+                    // one by one), so a flag carried over from an earlier card decided the wrong
+                    // sound and a trump could land as a quiet tick instead of the slab.
+                    "card_played" -> Unit
                     "hokm_chosen" -> onSound("hokm_chosen")
                     "trick_won" -> Unit // voiced when the collect animation starts
                     "shuffle" -> Unit // voiced when the deal animation starts
@@ -531,17 +745,21 @@ abstract class HokmTable(
                         if (!update.duplicate) {
                             val lead = cur.tableCards.firstOrNull()?.card?.suit
                             val hokm = cur.hokm
-                            if (lead != null && hokm != null && card.suit == hokm && lead != hokm) {
-                                cutPending = true
+                            val trump = hokm != null && card.suit == hokm
+                            val cut = trump && lead != null && lead != hokm
+                            if (cut) {
                                 pushFx(FxKind.CUT, seat)
                                 feed += "${seats[seat].name} با حکم برید!"
                             }
+                            // Every trump — led, cut, or following a trump — makes the ace's slab,
+                            // whoever plays it and whichever batch the event arrived in.
+                            onSound(TableAudio.cardLands(trump = trump, cut = cut))
                             _state.value = cur.copy(
                                 tableCards = update.plays,
                                 myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
                                 legalCards = if (seat == mySeat) emptySet() else cur.legalCards,
                                 // While a closed trick sits on the table nobody is "on turn".
-                                turn = TableEvents.turnAfter(update, Play(seat, card), playerCount),
+                                turn = TableEvents.turnAfter(update, Play(seat, card), playerCount) ?: cur.turn,
                             )
                         }
                     }
@@ -561,7 +779,10 @@ abstract class HokmTable(
                             // result is. Scores/winner still come from a validated snapshot.
                             val myTeam = HokmRules.teamOf(mySeat, playerCount)
                             val banner = TableEvents.handBanner(summary, playerCount, myTeam, ::teamName)
-                            val hand = summary.handNumber
+                            // The banner reports the hand that just ended, but it is shown while the
+                            // next one is already on the table: tag it with the new hand number, or
+                            // `dropBeforeHand` in refresh() throws it away before it is ever played.
+                            val hand = TableEvents.bannerHand(summary)
                             val revision = _state.value.revision
                             animQueue.offer(
                                 TableStep.ShowBanner(
@@ -595,6 +816,7 @@ abstract class HokmTable(
 
                     "discarded" -> {
                         val seat = e.payload["seat"]!!.jsonPrimitive.int
+                        onSound(TableAudio.PLAY)
                         feed += "${seats[seat].name} ${e.payload["count"]!!.jsonPrimitive.int.toFaDigitsLocal()} کارت سوزاند"
                     }
 
@@ -643,8 +865,8 @@ abstract class HokmTable(
                                 )
                             }
                         }
-                        // The trump card lands on the baize: its own punchy slap + a short reveal.
-                        onSound("card_slam")
+                        // The trump card lands on the baize: the same slab the ace makes.
+                        onSound(TableAudio.SLAM)
                         _state.value = _state.value.copy(trumpReveal = suit)
                         scope.launch {
                             delay(1600)
@@ -732,6 +954,24 @@ abstract class HokmTable(
             // Only a newer revision is the answer to my move; re-reading the same view is not.
             isSendingMove = TableEvents.sendingAfterSnapshot(old.revision, snapshot.revision, old.isSendingMove),
         )
-        _state.value = next.copy(tableCards = TableSync.tableCards(snapshot, next.tableCards, next.isCalm))
+        // A fresh hand starts the way a real one does: five cards to the hakem, the rest of the
+        // deck still on the table. Without this the chairs flash a full thirteen before the deal
+        // runs and the same cards are dealt a second time.
+        val dealt = if (next.handNumber != old.handNumber) {
+            val opening = next.playerCount >= 3 && next.handPhase == HandPhase.CHOOSING_HOKM
+            next.copy(
+                dealFlights = emptyList(),
+                handReveal = if (opening) {
+                    List(next.playerCount) { seat -> if (seat == next.hakem) HokmRules.HAKEM_FIRST_DEAL else 0 }
+                } else null,
+                dealStock = if (opening) {
+                    (next.playerCount * HokmRules.cardsPerPlayer(next.playerCount) -
+                        HokmRules.HAKEM_FIRST_DEAL).coerceAtLeast(0)
+                } else null,
+            )
+        } else {
+            next
+        }
+        _state.value = dealt.copy(tableCards = TableSync.tableCards(snapshot, dealt.tableCards, dealt.isCalm))
     }
 }

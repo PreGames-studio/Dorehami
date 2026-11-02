@@ -61,7 +61,7 @@ private fun Context.findActivity(): Activity? {
     return null
 }
 
-private enum class BackgammonDestination { MENU, OFFLINE, ONLINE, SETUP, PLAYING, SETTINGS, SHOP }
+private enum class BackgammonDestination { MENU, OFFLINE, ONLINE, BLUETOOTH, SETUP, PLAYING, SETTINGS, SHOP }
 
 /** Which local table is being set up. */
 private enum class LocalKind { VS_BOT, PASS_AND_PLAY }
@@ -154,7 +154,14 @@ private fun BackgammonEntryContent(onExit: () -> Unit) {
                 localKind = LocalKind.PASS_AND_PLAY
                 destination = BackgammonDestination.SETUP
             },
+            onBluetooth = { destination = BackgammonDestination.BLUETOOTH },
             onBack = { destination = BackgammonDestination.MENU },
+        )
+
+        BackgammonDestination.BLUETOOTH -> BackgammonBluetoothRoom(
+            playerName = playerName.ifBlank { "بازیکن" },
+            targetPoints = targetPoints,
+            onExit = { destination = BackgammonDestination.OFFLINE },
         )
 
         BackgammonDestination.ONLINE -> BackgammonOnlinePage(onBack = { destination = BackgammonDestination.MENU })
@@ -304,7 +311,12 @@ private fun BackgammonMenuPage(
 }
 
 @Composable
-private fun BackgammonOfflinePage(onBot: () -> Unit, onPassAndPlay: () -> Unit, onBack: () -> Unit) {
+private fun BackgammonOfflinePage(
+    onBot: () -> Unit,
+    onPassAndPlay: () -> Unit,
+    onBluetooth: () -> Unit,
+    onBack: () -> Unit,
+) {
     BackHandler(onBack = onBack)
     BackgammonPage {
         BackgammonHeader(title = "تخته نرد آفلاین", subtitle = "بدون سرور و بدون اینترنت", onBack = onBack)
@@ -312,10 +324,9 @@ private fun BackgammonOfflinePage(onBot: () -> Unit, onPassAndPlay: () -> Unit, 
         BackgammonMenuAction(BackgammonIcon.TwoPlayers, "دونفره روی همین گوشی", "نوبتی بازی کن و گوشی را به حریف بده", onClick = onPassAndPlay)
         BackgammonMenuAction(
             icon = BackgammonIcon.Bluetooth,
-            title = "بلوتوث (به‌زودی)",
-            subtitle = "اتاق نزدیک در همین مرحله فعال نیست",
-            enabled = false,
-            onClick = {},
+            title = "بازی بلوتوثی",
+            subtitle = "دو گوشی نزدیک، بدون اینترنت و بدون سرور",
+            onClick = onBluetooth,
         )
         BackgammonRulesCard()
     }
@@ -482,3 +493,53 @@ private val rules = listOf(
     "مسابقه تا رسیدن یکی از بازیکن‌ها به امتیاز هدف ادامه دارد؛ برندهٔ هر دست، دست بعد را شروع می‌کند.",
     "ربات فقط تختهٔ عمومی، تاس‌ها و همین قوانین را می‌بیند؛ هیچ مهره یا اطلاعات پنهانی در کار نیست و حرکتش در لاگ بازی ثبت می‌شود.",
 )
+
+/**
+ * A Bluetooth table: the lobby first, then the very same [BackgammonScreen] the offline table uses,
+ * fed by [BackgammonSessionMatch] instead of the local engine.
+ */
+@Composable
+private fun BackgammonBluetoothRoom(
+    playerName: String,
+    targetPoints: Int,
+    onExit: () -> Unit,
+) {
+    val context = LocalContext.current
+    val scope = remember { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
+    val flow = remember { BackgammonRoomFlow(context.applicationContext, scope, playerName, targetPoints) }
+    DisposableEffect(Unit) {
+        onDispose {
+            flow.leave()
+            scope.cancel()
+        }
+    }
+    val stage by flow.stage
+    val playing = stage as? BackgammonRoomStage.Playing
+    if (playing == null) {
+        BackgammonLobbyScreen(flow = flow, onExit = onExit)
+        return
+    }
+    // The board is landscape: hold the orientation while the shared table is open, like the
+    // offline table does, and give control back when the room closes.
+    DisposableEffect(playing.client) {
+        val activity = context.findActivity()
+        val previous = activity?.requestedOrientation
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        onDispose { if (previous != null) activity?.requestedOrientation = previous }
+    }
+    val match = remember(playing.client) { BackgammonSessionMatch(scope, playing.client, "بلوتوث") }
+    DisposableEffect(match) { onDispose { match.stop() } }
+    LaunchedEffect(match) { match.begin() }
+    val state by match.state
+    BackgammonScreen(
+        state = state,
+        modeLabel = "بلوتوث",
+        onPoint = match::tapPoint,
+        onDie = match::tapDie,
+        onRoll = match::roll,
+        onUndo = match::undo,
+        onSubmit = match::submitTurn,
+        onPlayAgain = onExit,
+        onExit = onExit,
+    )
+}

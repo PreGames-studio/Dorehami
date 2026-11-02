@@ -19,7 +19,7 @@ import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -212,7 +212,9 @@ fun Hokm3DButton(
 
     Row(
         modifier = modifier
-            .height(height)
+            // A minimum, not a fixed height: at a large system font the label and its subtitle need
+            // the room, and clipping a Persian word in half is worse than a slightly taller button.
+            .heightIn(min = height)
             .offset(y = (pressDepth * 1.5f).dp)
             .alpha(if (enabled) 1f else 0.52f)
             .shadow(if (enabled) 4.dp else 0.dp, shape)
