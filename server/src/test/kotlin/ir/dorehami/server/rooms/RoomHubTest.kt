@@ -55,9 +55,13 @@ class RoomHubTest {
      * coroutines, so `delay(40)` was a coin toss on a loaded CI runner (the "record stored" test
      * failed intermittently for exactly that reason).
      */
-    private suspend fun awaitUntil(timeoutMs: Long = 5_000, condition: () -> Boolean) {
-        withTimeout(timeoutMs) {
-            while (!condition()) delay(5)
+    private suspend fun awaitUntil(label: String, timeoutMs: Long = 15_000, condition: () -> Boolean) {
+        try {
+            withTimeout(timeoutMs) {
+                while (!condition()) delay(5)
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            throw AssertionError("timed out waiting for: $label", e)
         }
     }
 
@@ -102,17 +106,17 @@ class RoomHubTest {
             }
             delay(20)
             ga.join(); gb.join()
-            awaitUntil { ga.state.value.seat == 0 && gb.state.value.seat == 1 }
+            awaitUntil("both guests seated") { ga.state.value.seat == 0 && gb.state.value.seat == 1 }
             assertEquals(0, ga.state.value.seat); assertEquals(1, gb.state.value.seat)
             assertTrue(ga.state.value.isHost, "first human owns the room")
 
             gb.requestStart()
-            awaitUntil { errsB.any { it.code == "auth.unauthorized" } }
+            awaitUntil("unauthorized start error") { errsB.any { it.code == "auth.unauthorized" } }
             assertTrue(errsB.any { it.code == "auth.unauthorized" }, "only the owner may start")
             ga.requestStart()
-            awaitUntil { room.started }
+            awaitUntil("room started") { room.started }
             assertTrue(room.started)
-            awaitUntil { ga.state.value.room?.members?.size == 4 }
+            awaitUntil("four members") { ga.state.value.room?.members?.size == 4 }
             assertEquals(4, ga.state.value.room!!.members.size)
 
             withTimeout(60_000) {
@@ -120,10 +124,10 @@ class RoomHubTest {
                     val a = move(ga); val b = move(gb); delay(if (a || b) 15 else 5)
                 }
             }
-            awaitUntil { store.get("ROOM1") != null }
+            awaitUntil("match record persisted") { store.get("ROOM1") != null }
             assertNotNull(store.get("ROOM1"), "record persisted on finish")
             assertEquals(ga.state.value.result!!["result"].toString(), gb.state.value.result!!["result"].toString())
-            awaitUntil { hub.get("ROOM1") == null }
+            awaitUntil("room reaped") { hub.get("ROOM1") == null }
             assertNull(hub.get("ROOM1"), "finished room reaped")
         } finally { scope.cancel() }
     }
