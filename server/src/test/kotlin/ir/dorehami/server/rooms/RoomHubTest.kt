@@ -10,6 +10,7 @@ import ir.dorehami.session.SessionEvent
 import ir.dorehami.transport.GameTransport
 import ir.dorehami.transport.TransportEvent
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.cancel
@@ -49,6 +50,21 @@ class RoomHubTest {
         override suspend fun close() { hub.detach(code, player.id, sink); inbox.trySend(TransportEvent.Closed) }
     }
 
+    /**
+     * Waits for a condition instead of sleeping a fixed number of milliseconds: the hub hops between
+     * coroutines, so `delay(40)` was a coin toss on a loaded CI runner (the "record stored" test
+     * failed intermittently for exactly that reason).
+     */
+    private suspend fun awaitUntil(label: String, timeoutMs: Long = 15_000, condition: suspend () -> Boolean) {
+        try {
+            withTimeout(timeoutMs) {
+                while (!condition()) delay(5)
+            }
+        } catch (e: kotlinx.coroutines.TimeoutCancellationException) {
+            throw AssertionError("timed out waiting for: $label", e)
+        }
+    }
+
     private suspend fun move(g: GuestController): Boolean {
         val s = g.state.value
         val legal = s.legalActions
@@ -83,16 +99,24 @@ class RoomHubTest {
             val ga = GuestController(ta, scope, "ROOM1", "authority", pa)
             val gb = GuestController(tb, scope, "ROOM1", "authority", pb)
             val errsB = ArrayList<SessionEvent.Error>()
-            scope.launch { gb.events.collect { if (it is SessionEvent.Error) errsB += it } }
-            delay(40)
-            ga.join(); delay(40); gb.join(); delay(40)
+            // `events` is a replay-0 SharedFlow, so the collector must be subscribed *before* the
+            // guest sends anything; UNDISPATCHED subscribes inline instead of racing a delay().
+            scope.launch(start = CoroutineStart.UNDISPATCHED) {
+                gb.events.collect { if (it is SessionEvent.Error) errsB += it }
+            }
+            delay(20)
+            ga.join(); gb.join()
+            awaitUntil("both guests seated") { ga.state.value.seat == 0 && gb.state.value.seat == 1 }
             assertEquals(0, ga.state.value.seat); assertEquals(1, gb.state.value.seat)
             assertTrue(ga.state.value.isHost, "first human owns the room")
 
-            gb.requestStart(); delay(40)
+            gb.requestStart()
+            awaitUntil("unauthorized start error") { errsB.any { it.code == "auth.unauthorized" } }
             assertTrue(errsB.any { it.code == "auth.unauthorized" }, "only the owner may start")
-            ga.requestStart(); delay(60)
+            ga.requestStart()
+            awaitUntil("room started") { room.started }
             assertTrue(room.started)
+            awaitUntil("four members") { ga.state.value.room?.members?.size == 4 }
             assertEquals(4, ga.state.value.room!!.members.size)
 
             withTimeout(60_000) {
@@ -100,9 +124,15 @@ class RoomHubTest {
                     val a = move(ga); val b = move(gb); delay(if (a || b) 15 else 5)
                 }
             }
+            awaitUntil("match record persisted") { store.get("ROOM1") != null }
             assertNotNull(store.get("ROOM1"), "record persisted on finish")
             assertEquals(ga.state.value.result!!["result"].toString(), gb.state.value.result!!["result"].toString())
-            hub.reap()
+            // The host marks the room finished a moment after the broadcast, so keep reaping while
+            // waiting instead of calling reap() once and hoping the flag was already set.
+            awaitUntil("room reaped") {
+                hub.reap()
+                hub.get("ROOM1") == null
+            }
             assertNull(hub.get("ROOM1"), "finished room reaped")
         } finally { scope.cancel() }
     }

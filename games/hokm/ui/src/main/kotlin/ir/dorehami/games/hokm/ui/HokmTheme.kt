@@ -1,10 +1,8 @@
 package ir.dorehami.games.hokm.ui
 
-import androidx.compose.foundation.isSystemInDarkTheme
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
-import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
@@ -51,32 +49,6 @@ private fun hokmTypography(): Typography {
 
 private val HokmTypography = hokmTypography()
 
-private val HokmLightColors = lightColorScheme(
-    primary = Color(0xFFD9480F),
-    onPrimary = Color(0xFFFFFFFF),
-    primaryContainer = Color(0xFFFFE08A),
-    onPrimaryContainer = Color(0xFF5C2A00),
-    secondary = Color(0xFF0E8F87),
-    onSecondary = Color(0xFFFFFFFF),
-    secondaryContainer = Color(0xFFC9F2EC),
-    onSecondaryContainer = Color(0xFF00302C),
-    tertiary = Color(0xFF7B4CC2),
-    onTertiary = Color(0xFFFFFFFF),
-    tertiaryContainer = Color(0xFFEEE7FF),
-    onTertiaryContainer = Color(0xFF3A1A6B),
-    background = Color(0xFFFFF4DC),
-    onBackground = Color(0xFF3A2A12),
-    surface = Color(0xFFFFFFFF),
-    onSurface = Color(0xFF2E2415),
-    surfaceVariant = Color(0xFFFFE9C2),
-    onSurfaceVariant = Color(0xFF5B4B33),
-    outline = Color(0xFFC9A96B),
-    error = Color(0xFFB3261E),
-    onError = Color(0xFFFFFFFF),
-    errorContainer = Color(0xFFFFEBDD),
-    onErrorContainer = Color(0xFF7F1D1D),
-)
-
 private val HokmDarkColors = darkColorScheme(
     primary = Color(0xFFFFB86B),
     onPrimary = Color(0xFF3B2000),
@@ -103,11 +75,19 @@ private val HokmDarkColors = darkColorScheme(
     onErrorContainer = Color(0xFFFFDAD4),
 )
 
-/** Hokm-local wrapper around the app's shared orange/teal palette and Vazirmatn type scale. */
+/**
+ * Hokm-local wrapper around the app's shared orange/teal palette and Vazirmatn type scale.
+ *
+ * The table itself is always a night table (dark walnut, felt and brass are baked into the artwork
+ * and into [Table]), so the menu must be dark too. Picking the light scheme on a light-mode phone
+ * mixed cream panels with a dark table and pale buttons whose white labels disappeared into the
+ * tint — the "empty green box" bug on the آفلاین/آنلاین cards. One deliberate scheme removes the
+ * whole class of contrast failures.
+ */
 @Composable
 internal fun HokmTheme(content: @Composable () -> Unit) {
     MaterialTheme(
-        colorScheme = if (isSystemInDarkTheme()) HokmDarkColors else HokmLightColors,
+        colorScheme = HokmDarkColors,
         typography = HokmTypography,
         content = content,
     )

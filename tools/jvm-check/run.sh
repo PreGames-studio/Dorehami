@@ -20,5 +20,22 @@ echo "== compile tests"
 "$KC" -nowarn -Xallow-kotlin-package -cp "$OUT/main.jar:$LIB/kotlin-test.jar:$CO" -d "$OUT/test.jar" \
   "$R/core/gamesdk/src/test/kotlin" "$R/games/hokm/core/src/test/kotlin" "$R/core/session/src/test/kotlin" \
   "$R/transport/api/src/test/kotlin" "$R/server/src/test/kotlin/ir/dorehami/server/rooms" "$STUBS/junit" 2>&1 | grep -v "^warning" || true
+
+echo "== compile pure UI helpers (no Android/Compose)"
+"$KC" -nowarn -cp "$OUT/main.jar" -d "$OUT/ui.jar" \
+  "$STUBS/pantohub" \
+  "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/PersianDigits.kt" \
+  "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/TeamSetup.kt" \
+  "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/TurnFlow.kt" \
+  "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmCinematics.kt" \
+  "$R/core/uikit/src/main/kotlin/ir/dorehami/uikit/FaDigits.kt" \
+  "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/TableAnimationQueue.kt" \
+  "$STUBS/hokm" 2>&1 | grep -v "^warning" || true
+# `TableAnimationQueueTest` needs `HokmUiState`, which lives in the Compose table; it runs on CI.
+echo "== compile pure UI tests"
+"$KC" -nowarn -Xallow-kotlin-package -Xfriend-paths="$OUT/ui.jar" -cp "$OUT/ui.jar:$LIB/kotlin-test.jar" -d "$OUT/uitest.jar" \
+  "$R/games/pantohub/ui/src/test/kotlin/ir/dorehami/games/pantohub/ui/TurnFlowTest.kt" \
+  "$R/games/hokm/ui/src/test/kotlin/ir/dorehami/games/hokm/ui/HokmCinematicsTest.kt" \
+  "$STUBS/junit" 2>&1 | grep -v "^warning" || true
 echo "== run"
-java -cp "$OUT/main.jar:$OUT/test.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$LIB/kotlin-reflect.jar:$CO" sandbox.RunnerKt "$OUT/test.jar"
+java -cp "$OUT/main.jar:$OUT/test.jar:$OUT/ui.jar:$OUT/uitest.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$LIB/kotlin-reflect.jar:$CO" sandbox.RunnerKt "$OUT/test.jar" && java -cp "$OUT/main.jar:$OUT/ui.jar:$OUT/uitest.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$CO" sandbox.RunnerKt "$OUT/uitest.jar"

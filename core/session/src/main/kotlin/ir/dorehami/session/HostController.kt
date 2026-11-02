@@ -220,13 +220,15 @@ class HostController(
                 peerOf[info.id]?.let { playerOfPeer.remove(it) }
                 peerOf[info.id] = peer
                 playerOfPeer[peer] = info.id
-                members[info.id] = existing.copy(connected = true, player = info)
+                // Reconnecting also means "still here and ready": a seat never loses readiness.
+                members[info.id] = existing.copy(connected = true, ready = true, player = info)
             }
             started -> return sendTo(peer, Msg.LOBBY_REJECTED, buildJsonObject { put("code", ErrCodes.ROOM_IN_PROGRESS) })
             members.values.count { !it.isBot } >= partySize -> return sendTo(peer, Msg.LOBBY_REJECTED, buildJsonObject { put("code", ErrCodes.ROOM_FULL) })
             else -> {
                 val seat = (0 until partySize).first { s -> members.values.none { it.seat == s } }
-                members[info.id] = Member(info, seat = seat, ready = false, connected = true, isHost = ownerId == null)
+                // Joining the room is the readiness signal (the lobby has no separate "ready" step).
+                members[info.id] = Member(info, seat = seat, ready = true, connected = true, isHost = ownerId == null)
                 peerOf[info.id] = peer
                 playerOfPeer[peer] = info.id
                 if (ownerId == null) ownerId = info.id
@@ -293,13 +295,15 @@ class HostController(
         }
         if (eng.session.result() != null && !finishedSent) {
             finishedSent = true
+            // Persist before announcing: players (and the room store the server exposes) must never
+            // observe a finished match that has no record yet.
+            onFinished?.invoke(eng.record())
             val payload = buildJsonObject {
                 put("result", resultJson(eng))
                 put("record", recordJson(eng))
             }
             broadcast(Msg.SESSION_FINISHED, payload)
             _state.value = _state.value.copy(result = payload, phase = "FINISHED")
-            onFinished?.invoke(eng.record())
         }
     }
 

@@ -106,4 +106,58 @@ class HokmCinematicsTest {
         assertEquals("۱۳", HokmCinematics.faDigits(13))
         assertEquals("\u2212۲", HokmCinematics.faDigits(-2))
     }
+
+    @Test
+    fun `a played card lands exactly on its slot after an arc, never a straight slide`() {
+        val start = HokmCinematics.fallPose(0f, 400f, 200f, 100f, 0f, liftPx = 26f, spinDeg = 12f)
+        assertEquals(0f, start.x, 0.001f)
+        assertEquals(400f, start.y, 0.001f)
+        assertEquals(12f, start.rotationDeg, 0.001f)
+
+        val land = HokmCinematics.fallPose(0f, 400f, 200f, 100f, 1f, liftPx = 26f, spinDeg = 12f)
+        assertEquals(200f, land.x, 0.001f)
+        assertEquals(100f, land.y, 0.001f)
+        assertEquals(0f, land.rotationDeg, 0.001f)
+
+        // Halfway the card is above the straight line between the two seats: that is the arc.
+        val straightY = 250f
+        val mid = HokmCinematics.fallPose(0f, 400f, 200f, 100f, 0.5f, liftPx = 26f, spinDeg = 12f)
+        assertTrue(mid.y < straightY - 10f, "expected an arc, got ${mid.y}")
+        assertTrue(mid.rotationDeg > 0f && mid.rotationDeg < 12f, "spin should settle, got ${mid.rotationDeg}")
+    }
+
+    @Test
+    fun `fall scale grows from 0_9 to 1 and clamps outside the timeline`() {
+        assertEquals(0.9f, HokmCinematics.fallScale(0f), 0.001f)
+        assertEquals(1f, HokmCinematics.fallScale(1f), 0.001f)
+        assertEquals(0.9f, HokmCinematics.fallScale(-2f), 0.001f)
+        assertEquals(1f, HokmCinematics.fallScale(3f), 0.001f)
+        assertTrue(HokmCinematics.fallScale(0.5f) > HokmCinematics.fallScale(0.25f))
+    }
+
+    @Test
+    fun `the trick sweeps one card at a time and every card is home by the end`() {
+        val count = 4
+        // At the start of the sweep nothing has moved yet.
+        for (i in 0 until count) assertEquals(0f, HokmCinematics.sweepProgress(0f, i, count), 0.001f)
+        // At the end every card has reached the winner.
+        for (i in 0 until count) assertEquals(1f, HokmCinematics.sweepProgress(1f, i, count), 0.001f)
+        // In the middle the earlier cards are ahead: the pile peels off in order.
+        val mid = (0 until count).map { HokmCinematics.sweepProgress(0.5f, it, count) }
+        assertEquals(mid.sortedDescending(), mid)
+        assertTrue(mid.first() > 0.5f, "the first card should be well on its way: ${mid.first()}")
+        assertTrue(mid.last() < 0.5f, "the last card should still be leaving: ${mid.last()}")
+        // A single card is not staggered at all.
+        assertEquals(0.5f, HokmCinematics.sweepProgress(0.5f, 0, 1), 0.001f)
+    }
+
+    @Test
+    fun `the gathering pile shrinks and fades only near the end`() {
+        assertEquals(1f, HokmCinematics.sweepScale(0f), 0.001f)
+        assertEquals(0.55f, HokmCinematics.sweepScale(1f), 0.001f)
+        assertEquals(1f, HokmCinematics.sweepAlpha(0f), 0.001f)
+        assertTrue(HokmCinematics.sweepAlpha(0.4f) > 0.99f, "cards stay solid while they travel")
+        assertTrue(HokmCinematics.sweepAlpha(1f) < 0.12f, "cards are gone once they reach the hand")
+        assertTrue(HokmCinematics.sweepAlpha(0.8f) < HokmCinematics.sweepAlpha(0.6f))
+    }
 }

@@ -74,6 +74,7 @@ dependencies {
     implementation(project(":core:uikit"))
     implementation(project(":games:hokm:ui"))
     implementation(project(":games:chess:ui"))
+    implementation(project(":games:backgammon:ui"))
     implementation(project(":games:pantohub:ui"))
     implementation(project(":games:dejban:ui"))
 

@@ -30,6 +30,7 @@ import androidx.compose.foundation.gestures.detectDragGestures
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -68,6 +69,7 @@ import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
 import androidx.compose.ui.draw.scale
+import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -92,6 +94,9 @@ import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.delay
 
 /** Dark table chrome uses the app's own orange, teal, purple and aubergine surface colors. */
+/** How long the "dealing the rest of the deck" overlay runs; kept in sync with the table loop. */
+private const val DEAL_PREVIEW_MS = 1400
+
 private object Table {
     val feltLight = Color(0xFF177E78)
     val feltDark = Color(0xFF1E1A26)
@@ -363,9 +368,10 @@ fun HokmScreen(
                 }
             }
             state.introShown?.let { shown ->
-                HakemDrawOverlay(state, shown, Modifier.align(Alignment.Center))
+                HakemDrawOverlay(state, shown, Modifier.fillMaxSize())
             }
             if (state.dealing) DealingOverlay(state, Modifier.align(Alignment.Center))
+            state.trumpReveal?.let { suit -> TrumpSlamOverlay(suit, Modifier.align(Alignment.Center)) }
 
             FxOverlay(state, tableCardWidth = tableCardW, quality = quality, modifier = Modifier.fillMaxSize())
 
@@ -381,7 +387,7 @@ fun HokmScreen(
                     TurnTimer(state, haptics = haptics, onSound = onUiSound)
                 }
                 if (state.lastTrick.isNotEmpty() && state.handPhase == HandPhase.PLAYING) {
-                    RoundIconButton(text = "↶", onClick = { showLastTrick = true }, onTap = { onUiSound("tap") })
+                    RoundIconButton(icon = HokmIcon.Clock, onClick = { showLastTrick = true }, onTap = { onUiSound("tap") })
                 }
             }
 
@@ -461,6 +467,8 @@ private fun TableBackground() {
         contentScale = ContentScale.Crop,
         modifier = Modifier.fillMaxSize(),
     )
+    // The chosen table skin is a cheap wash + a few strokes over the same photograph.
+    HokmSkinWash(LocalHokmLook.current.table, Modifier.fillMaxSize())
     // Overhead spotlight + vignette: two static gradients, readable on cheap phones without bloom.
     SpotlightVignette(Modifier.fillMaxSize())
     Canvas(Modifier.fillMaxSize()) {
@@ -651,12 +659,18 @@ private fun TrickArea(
             return cw * 0.9f * direction.x to ch * 1.4f * direction.y
         }
 
+        // The sweep progress stays a plain lambda: it is only read inside `graphicsLayer`, so the
+        // 480ms collect animation never recomposes or re-measures any card.
         val collectTo = state.collectingTo
-        val collect by animateFloatAsState(
-            targetValue = if (collectTo != null) 1f else 0f,
-            animationSpec = tween(480, easing = FastOutSlowInEasing),
-            label = "collect",
-        )
+        val collect = remember { Animatable(0f) }
+        LaunchedEffect(collectTo) {
+            if (collectTo != null) {
+                collect.animateTo(1f, tween(680, easing = FastOutSlowInEasing))
+            } else {
+                collect.snapTo(0f)
+            }
+        }
+        val collectValue: () -> Float = { collect.value }
 
         state.tableCards.forEachIndexed { index, play ->
             key(play.card.code, state.handNumber, state.trickNumber) {
@@ -666,8 +680,9 @@ private fun TrickArea(
                     slot = slot(play.seat),
                     origin = origin(play.seat),
                     collectTarget = collectTo?.let { origin(it) },
-                    collect = collect,
+                    collect = collectValue,
                     cardIndex = index,
+                    cardCount = state.tableCards.size,
                     sheen = sheen,
                 )
             }
@@ -682,46 +697,68 @@ private fun TableCard(
     slot: Pair<Dp, Dp>,
     origin: Pair<Dp, Dp>,
     collectTarget: Pair<Dp, Dp>?,
-    collect: Float,
+    collect: () -> Float,
     cardIndex: Int = 0,
+    cardCount: Int = 1,
     sheen: State<HokmSheen> = NeutralSheenState,
 ) {
+    // One-shot entry animation, read in the draw phase only.
     val progress = remember { Animatable(0f) }
     LaunchedEffect(Unit) { progress.animateTo(1f, tween(300, easing = FastOutSlowInEasing)) }
-    val p = progress.value
-    val baseX = origin.first + (slot.first - origin.first) * p
-    val baseY = origin.second + (slot.second - origin.second) * p
     val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
-    // Magnetic, swirling gather: the four cards spiral into the winner's corner and disappear.
-    val pose = if (collectTarget != null && motionScale > 0f) {
-        HokmCinematics.collectSwirl(
-            startX = baseX.value,
-            startY = baseY.value,
-            endX = collectTarget.first.value,
-            endY = collectTarget.second.value,
-            progress = collect,
-            swirlPx = 20f * motionScale,
-            cardIndex = cardIndex,
-        )
-    } else {
-        CardPose(
-            x = if (collectTarget != null) baseX.value + (collectTarget.first.value - baseX.value) * collect else baseX.value,
-            y = if (collectTarget != null) baseY.value + (collectTarget.second.value - baseY.value) * collect else baseY.value,
-            rotationDeg = 0f,
-        )
-    }
     // A believable, slightly careless throw: a little tilt that depends on the card, not on chance.
     val tilt = (play.card.rank.ordinal % 5 - 2) * 3f + (play.seat * 7 % 11 - 5)
+    val slotX = slot.first
+    val slotY = slot.second
+    val originX = origin.first
+    val originY = origin.second
+    val targetX = collectTarget?.first
+    val targetY = collectTarget?.second
+
     PlayingCardView(
         card = play.card,
         width = cardWidth,
         elevation = 8.dp,
         sheen = sheen,
-        modifier = Modifier
-            .offset(x = pose.x.dp, y = pose.y.dp)
-            .rotate(tilt + pose.rotationDeg * 0.1f)
-            .scale(0.85f + 0.15f * p)
-            .alpha(1f - collect * 0.9f),
+        modifier = Modifier.graphicsLayer {
+            val p = progress.value
+            // The fall: an arc with a short spin, not a straight slide.
+            val fall = HokmCinematics.fallPose(
+                startX = originX.toPx(),
+                startY = originY.toPx(),
+                endX = slotX.toPx(),
+                endY = slotY.toPx(),
+                progress = p,
+                liftPx = 26f * motionScale,
+                spinDeg = 12f * motionScale * (if (play.seat % 2 == 0) 1f else -1f),
+            )
+            var x = fall.x
+            var y = fall.y
+            var rotation = tilt + fall.rotationDeg
+            // The sweep: cards peel off the pile one after another and gather at the winner.
+            val sweep = HokmCinematics.sweepProgress(collect(), cardIndex, cardCount)
+            if (targetX != null && targetY != null && sweep > 0f) {
+                val pose = HokmCinematics.collectSwirl(
+                    startX = x,
+                    startY = y,
+                    endX = targetX.toPx(),
+                    endY = targetY.toPx(),
+                    progress = sweep,
+                    swirlPx = 26f * motionScale,
+                    cardIndex = cardIndex,
+                )
+                x = pose.x
+                y = pose.y
+                rotation += pose.rotationDeg * 0.12f
+            }
+            translationX = x
+            translationY = y
+            rotationZ = rotation
+            val scale = HokmCinematics.fallScale(p) * HokmCinematics.sweepScale(sweep)
+            scaleX = scale
+            scaleY = scale
+            alpha = HokmCinematics.sweepAlpha(sweep)
+        },
     )
 }
 
@@ -850,7 +887,7 @@ private fun ScoreBar(
         ) {
             Hokm3DButton(
                 text = "خروج",
-                leading = "‹",
+                leadingIcon = HokmIcon.Back,
                 tone = HokmButtonTone.GLASS,
                 height = 39.dp,
                 modifier = Modifier.width(74.dp),
@@ -965,7 +1002,7 @@ private fun HokmChooser(
                     Hokm3DButton(
                         text = suit.titleFa,
                         subtitle = "${count.toFa()} برگ",
-                        leading = suit.symbol,
+                        leadingSuit = suit,
                         leadingColor = suitColor,
                         tone = HokmButtonTone.GLASS,
                         height = 66.dp,
@@ -982,55 +1019,110 @@ private fun HokmChooser(
 @Composable
 private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier = Modifier) {
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
-        Surface(
-            modifier
-                .padding(16.dp)
-                .fillMaxWidth(0.94f),
-            shape = RoundedCornerShape(24.dp),
-            color = Color(0xF22A2433),
-            border = androidx.compose.foundation.BorderStroke(1.dp, Table.brass.copy(alpha = 0.6f)),
-        ) {
-            Column(Modifier.padding(14.dp), horizontalAlignment = Alignment.CenterHorizontally) {
-                Text("تعیین حاکم", color = Table.brass, fontWeight = FontWeight.Bold, fontSize = 18.sp)
-                Text("کارت‌ها یکی‌یکی رو می‌شوند؛ اولین آس حاکم را مشخص می‌کند", color = Color.White.copy(alpha = 0.75f), fontSize = 12.sp, textAlign = TextAlign.Center)
-                Spacer(Modifier.height(12.dp))
-                val visible = state.hakemDraw.take(shown)
-                visible.chunked(6).forEach { row ->
-                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(vertical = 4.dp)) {
-                        row.forEach { play ->
-                            val isAce = play.card.rank == ir.dorehami.games.hokm.Rank.ACE
-                            val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Box(
-                                    Modifier
-                                        .size(44.dp, 44.dp / CARD_ASPECT)
-                                        .clip(RoundedCornerShape(4.dp))
-                                        .then(
-                                            if (isAce) Modifier.border(2.dp, Table.turnGlow, RoundedCornerShape(4.dp))
-                                            else Modifier,
-                                        ),
-                                ) {
-                                    PlayingCardView(
-                                        play.card,
-                                        width = 44.dp,
-                                        elevation = if (isAce) 12.dp else 3.dp,
-                                    )
-                                    if (isAce && motionScale > 0f) {
-                                        val foil = rememberInfiniteTransition(label = "foil")
-                                        val sweep by foil.animateFloat(
-                                            0f,
-                                            1f,
-                                            infiniteRepeatable(tween(1600, easing = LinearEasing), RepeatMode.Restart),
-                                            label = "foil-sweep",
-                                        )
-                                        GoldFoilGloss(Modifier.fillMaxSize(), progress = sweep)
-                                    }
-                                }
-                                Text(state.seats[play.seat].name, color = Color.White, fontSize = 10.sp)
-                            }
-                        }
-                    }
+        BoxWithConstraints(modifier) {
+            val areaW = maxWidth
+            val areaH = maxHeight
+            val visible = state.hakemDraw.take(shown)
+
+            // The stock sits in the middle; every card is dealt from here to its own seat.
+            Box(Modifier.align(Alignment.Center), contentAlignment = Alignment.Center) {
+                repeat(3) { i ->
+                    CardBackView(
+                        width = 38.dp,
+                        elevation = 2.dp,
+                        modifier = Modifier.offset(x = i.dp, y = (-i).dp),
+                    )
                 }
+            }
+
+            visible.forEachIndexed { index, play ->
+                key(play.card.code, play.seat, index) {
+                    val direction = HokmSeatLayout.direction(play.seat, state.mySeat, state.playerCount)
+                    // Cards of the same seat fan out sideways so a second draw stays visible.
+                    val nth = visible.take(index).count { it.seat == play.seat }
+                    val fan = (nth % 3 - 1) * (if (direction.y != 0f) 30f else 22f)
+                    val landingX = areaW * 0.26f * direction.x + (if (direction.y != 0f) fan.dp else 0.dp)
+                    val landingY = areaH * 0.30f * direction.y + (if (direction.y == 0f) fan.dp else 0.dp)
+                    DealtCard(
+                        play = play,
+                        landX = landingX,
+                        landY = landingY,
+                        isNewest = index == shown - 1,
+                    )
+                }
+            }
+
+            // Compact headline instead of a big panel: the table stays visible while cards fly.
+            Text(
+                text = "تعیین حاکم · اولین آس حاکم می‌شود",
+                color = Table.brass,
+                fontSize = 12.5.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier
+                    .align(Alignment.TopCenter)
+                    .padding(top = 8.dp)
+                    .clip(RoundedCornerShape(50))
+                    .background(Table.chip)
+                    .border(1.dp, Table.brass.copy(alpha = 0.55f), RoundedCornerShape(50))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        }
+    }
+}
+
+/** One hakem-draw card: flies from the stock to the seat that drew it, then stays face-up there. */
+@Composable
+private fun BoxScope.DealtCard(
+    play: Play,
+    landX: Dp,
+    landY: Dp,
+    isNewest: Boolean,
+) {
+    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
+    val fly = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        fly.snapTo(0f)
+        fly.animateTo(1f, tween(if (motionScale <= 0f) 1 else 280, easing = FastOutSlowInEasing))
+    }
+    val isAce = play.card.rank == ir.dorehami.games.hokm.Rank.ACE
+    val cardWidth = 44.dp
+    Box(
+        Modifier
+            .align(Alignment.Center)
+            .graphicsLayer {
+                val p = fly.value
+                // Ease-out approach from the middle of the table, with a small arc lift.
+                translationX = landX.toPx() * p
+                translationY = landY.toPx() * p
+                val lift = (1f - p) * 18f * motionScale
+                translationY -= lift
+                rotationZ = (1f - p) * 24f * motionScale * if (landX.value > 0f) 1f else -1f
+                scaleX = 0.8f + 0.2f * p
+                scaleY = 0.8f + 0.2f * p
+                alpha = (0.4f + 0.6f * p).coerceAtMost(1f)
+            },
+        contentAlignment = Alignment.Center,
+    ) {
+        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            Box(
+                Modifier
+                    .clip(RoundedCornerShape(5.dp))
+                    .then(
+                        if (isAce) Modifier.border(2.dp, Table.turnGlow, RoundedCornerShape(5.dp)) else Modifier,
+                    ),
+            ) {
+                PlayingCardView(
+                    card = play.card,
+                    width = cardWidth,
+                    elevation = if (isAce) 12.dp else 3.dp,
+                )
+                if (isAce && isNewest) {
+                    // Deterministic one-shot sheen: no infinite transition, no per-frame recompose.
+                    GoldFoilGloss(Modifier.fillMaxSize(), progress = fly.value)
+                }
+            }
+            if (isAce) {
+                HokmPill("آس · حاکم", icon = HokmIcon.Crown, color = Table.brass, modifier = Modifier.padding(top = 3.dp))
             }
         }
     }
@@ -1038,42 +1130,99 @@ private fun HakemDrawOverlay(state: HokmUiState, shown: Int, modifier: Modifier 
 
 @Composable
 private fun DealingOverlay(state: HokmUiState, modifier: Modifier = Modifier) {
-    val t = rememberInfiniteTransition(label = "deal")
-    val phase by t.animateFloat(0f, 1f, infiniteRepeatable(tween(700, easing = LinearEasing)), label = "p")
+    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
+    val t = remember { Animatable(0f) }
+    LaunchedEffect(Unit) {
+        t.animateTo(1f, tween(DEAL_PREVIEW_MS, easing = LinearEasing))
+    }
     Box(modifier.size(220.dp), contentAlignment = Alignment.Center) {
-        // deck
-        repeat(4) { i -> CardBackView(width = 56.dp, elevation = 2.dp, modifier = Modifier.offset(y = (-i).dp)) }
-        // Fly one card toward each real seat in turn, keeping the local player at the bottom.
-        // The path is a deterministic parabola (apex lift) with a fixed spin, not a straight line.
-        val step = phase * state.playerCount
-        val relativeSeat = step.toInt() % state.playerCount
-        val seat = HokmSeatLayout.seatAtOffset(state.mySeat, relativeSeat, state.playerCount)
-        val direction = HokmSeatLayout.direction(seat, state.mySeat, state.playerCount)
-        val f = step % 1f
-        val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
-        val pose = HokmCinematics.dealArc(
-            startX = 0f,
-            startY = 0f,
-            endX = 90f * direction.x,
-            endY = 90f * direction.y,
-            progress = f,
-            liftPx = 44f * motionScale,
-            spinDeg = 220f * motionScale,
-        )
-        CardBackView(
-            width = 56.dp,
-            elevation = 6.dp,
-            modifier = Modifier
-                .offset(pose.x.dp, pose.y.dp)
-                .rotate(pose.rotationDeg)
-                .alpha(1f - f * 0.8f),
-        )
+        // A short stack that visibly thins out as the deal runs.
+        repeat(4) { i ->
+            CardBackView(width = 54.dp, elevation = 2.dp, modifier = Modifier.offset(y = (-i).dp))
+        }
+        // One card per seat: it flies to that seat on its own slice of the timeline. Every value is
+        // read inside `graphicsLayer`, so the deal never recomposes or re-measures a card.
+        repeat(state.playerCount) { step ->
+            val direction = HokmSeatLayout.direction(
+                HokmSeatLayout.seatAtOffset(state.mySeat, step, state.playerCount),
+                state.mySeat,
+                state.playerCount,
+            )
+            CardBackView(
+                width = 54.dp,
+                elevation = 6.dp,
+                modifier = Modifier.graphicsLayer {
+                    val total = state.playerCount.toFloat()
+                    val raw = (t.value * total - step).coerceIn(0f, 1f)
+                    val f = raw
+                    // Arc: linear travel plus a sine lift, and a fixed spin that settles at landing.
+                    translationX = 210f * direction.x * f * motionScale
+                    translationY = 210f * direction.y * f * motionScale - kotlin.math.sin(f * Math.PI).toFloat() * 40f * motionScale
+                    rotationZ = 180f * f * motionScale
+                    alpha = if (f >= 1f) 0f else 1f - f * 0.35f
+                },
+            )
+        }
         Text(
             "در حال پخش کارت‌ها…",
             color = Color.White,
             fontSize = 12.sp,
             modifier = Modifier.align(Alignment.BottomCenter).clip(RoundedCornerShape(10.dp)).background(Table.chip).padding(horizontal = 10.dp, vertical = 4.dp),
         )
+    }
+}
+
+/**
+ * The trump card hitting the table: a heavy card that drops in with an overshoot, a shockwave ring
+ * and the suit pip painted in the centre. Purely a draw-phase animation (one Animatable).
+ */
+@Composable
+private fun TrumpSlamOverlay(suit: Suit, modifier: Modifier = Modifier) {
+    val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
+    val hit = remember { Animatable(0f) }
+    LaunchedEffect(suit) {
+        hit.snapTo(0f)
+        hit.animateTo(1f, tween(if (motionScale <= 0f) 1 else 420, easing = FastOutSlowInEasing))
+    }
+    val ink = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFB3202B) else Color(0xFF1C1C1E)
+    Box(modifier.size(150.dp), contentAlignment = Alignment.Center) {
+        Canvas(Modifier.fillMaxSize()) {
+            val p = hit.value
+            drawCircle(
+                color = Color.White.copy(alpha = (1f - p) * 0.35f),
+                radius = size.minDimension * (0.42f + 0.5f * p),
+                style = Stroke(width = 3.dp.toPx() * (1f - p).coerceAtLeast(0.05f)),
+            )
+        }
+        Box(
+            Modifier
+                .size(width = 96.dp, height = 96.dp / CARD_ASPECT)
+                .graphicsLayer {
+                    val p = hit.value
+                    val overshoot = 1.22f - 0.22f * p
+                    scaleX = overshoot
+                    scaleY = overshoot
+                    rotationZ = (1f - p) * -9f * motionScale
+                    translationY = (1f - p) * -46f * motionScale
+                    alpha = (0.2f + 0.8f * p).coerceIn(0f, 1f)
+                }
+                .shadow(14.dp, RoundedCornerShape(7.dp))
+                .clip(RoundedCornerShape(7.dp))
+                .background(Brush.linearGradient(listOf(CardColors.ivory, CardColors.ivoryShade)))
+                .border(2.dp, Table.brass.copy(alpha = 0.9f), RoundedCornerShape(7.dp)),
+            contentAlignment = Alignment.Center,
+        ) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawSuit(suit, Offset(size.width / 2f, size.height / 2f), size.minDimension * 0.52f, ink)
+            }
+            Text(
+                "حکم",
+                color = ink.copy(alpha = 0.75f),
+                fontSize = 12.sp,
+                fontWeight = FontWeight.Bold,
+                modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 6.dp),
+            )
+        }
     }
 }
 
@@ -1097,7 +1246,16 @@ private fun BannerOverlay(banner: Banner?, modifier: Modifier = Modifier) {
                     .padding(horizontal = 26.dp, vertical = 16.dp),
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text(b.title, color = Table.brass, fontWeight = FontWeight.Black, fontSize = if (b.big) 24.sp else 18.sp, textAlign = TextAlign.Center)
+                Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    b.suit?.let { suit ->
+                        HokmSuitPip(
+                            suit = suit,
+                            color = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) Color(0xFFFF8A8A) else Color.White,
+                            size = if (b.big) 24.dp else 19.dp,
+                        )
+                    }
+                    Text(b.title, color = Table.brass, fontWeight = FontWeight.Black, fontSize = if (b.big) 24.sp else 18.sp, textAlign = TextAlign.Center)
+                }
                 b.subtitle?.let { Text(it, color = Color.White.copy(alpha = 0.85f), fontSize = 13.sp, textAlign = TextAlign.Center) }
             }
         }
@@ -1267,7 +1425,7 @@ private fun DrawPanel(
                 Hokm3DButton(
                     text = "نگه می‌دارم",
                     subtitle = "همین کارت",
-                    leading = "✓",
+                    leadingIcon = HokmIcon.Check,
                     tone = HokmButtonTone.EMERALD,
                     height = 54.dp,
                     modifier = Modifier.weight(1f),
@@ -1277,7 +1435,7 @@ private fun DrawPanel(
                 Hokm3DButton(
                     text = "رد می‌کنم",
                     subtitle = "بعدی را کور بردار",
-                    leading = "↻",
+                    leadingIcon = HokmIcon.Bolt,
                     tone = HokmButtonTone.GLASS,
                     height = 54.dp,
                     modifier = Modifier.weight(1f),
@@ -1558,9 +1716,10 @@ private fun TurnTimer(state: HokmUiState, haptics: androidx.compose.ui.hapticfee
 }
 
 @Composable
-private fun RoundIconButton(text: String, onClick: () -> Unit, onTap: () -> Unit) {
+private fun RoundIconButton(icon: HokmIcon, onClick: () -> Unit, onTap: () -> Unit) {
     Hokm3DButton(
-        text = text,
+        text = "",
+        leadingIcon = icon,
         tone = HokmButtonTone.GLASS,
         height = 42.dp,
         modifier = Modifier.width(46.dp),

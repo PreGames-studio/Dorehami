@@ -7,6 +7,7 @@ import io.ktor.client.HttpClient
 import io.ktor.client.plugins.websocket.WebSockets
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.HokmSession
+import ir.dorehami.uikit.toFa
 import ir.dorehami.gamesdk.SplitMixRng
 import ir.dorehami.protocol.PlayerId
 import ir.dorehami.session.GuestController
@@ -23,6 +24,7 @@ import kotlinx.coroutines.CompletableJob
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.launch
@@ -133,29 +135,85 @@ class RoomFlow(
         try {
             _stage.value = RoomStage.Connecting("در حال اتصال به اتاق ${room.roomCode}…")
             t.stopDiscovery()
-            // Listen for the accept before asking, so we cannot miss it.
-            val accepted = scope.launch {
-                t.events.first { it is TransportEvent.PeerConnected && it.peer == room.endpointId }
-            }
-            resources.track("accept-wait") { accepted.cancel() }
             if (!t.connectTo(room, me.displayName)) {
-                _stage.value = RoomStage.Failed("میزبان اتصال را نپذیرفت.")
+                _stage.value = RoomStage.Failed("میزبان اتصال را نپذیرفت. نزدیک‌تر بیا و دوباره امتحان کن.")
                 return@launch
             }
-            val ok = withTimeoutOrNull(20_000) { accepted.join(); true } ?: false
-            if (!ok) {
+            val guest = GuestController(
+                t,
+                scope,
+                roomCode = room.roomCode,
+                hostPeer = room.endpointId,
+                player = me,
+                nowMs = { System.currentTimeMillis() },
+            )
+            client = resources.track("client", guest) { it.leave() }
+            guest.join()
+            // End-to-end proof of the link: `NearbyTransport` queues the join envelope until GMS
+            // confirms the connection and flushes it, so a lobby.ack means the room works, not just
+            // that requestConnection() returned. Waiting on PeerConnected used to deadlock for 20 s.
+            val st = withTimeoutOrNull(LINK_TIMEOUT_MS) { guest.state.first { it.room != null } }
+            if (st == null) {
                 _stage.value = RoomStage.Failed("اتصال برقرار نشد. نزدیک‌تر بیا و دوباره امتحان کن.")
                 return@launch
             }
-            val guest = GuestController(t, scope, roomCode = room.roomCode, hostPeer = room.endpointId, player = me, nowMs = { System.currentTimeMillis() })
-            client = resources.track("client", guest) { it.leave() }
-            guest.join()
-            _stage.value = RoomStage.Lobby(guest, room.roomCode, canStart = false, hint = "منتظر میزبان بمان؛ وقتی شروع کند میز باز می‌شود.")
+            val lobby = RoomStage.Lobby(
+                guest,
+                room.roomCode,
+                canStart = st.isHost,
+                hint = "منتظر میزبان بمان؛ وقتی شروع کند میز باز می‌شود.",
+            )
+            _stage.value = lobby
             watchStart(guest)
+            watchBluetoothLink(t, room, guest, lobby)
             connected = true
         } finally {
             if (!connected) teardown()
         }
+    }
+
+    /**
+     * Keeps a Bluetooth guest on the table after a dropped link.
+     *
+     * Walking away from the phone or a brief radio hiccup closes the Nearby endpoint; without this
+     * the lobby showed "connection lost" forever. Re-requesting the connection makes the host
+     * auto-accept, and `GuestController` re-joins with `resume = true`, so the host re-sends state.
+     */
+    private fun watchBluetoothLink(
+        t: NearbyTransport,
+        room: NearbyRoom,
+        guest: GuestController,
+        lobby: RoomStage.Lobby,
+    ) {
+        val job = scope.launch {
+            var reconnecting = false
+            // Never yank the table away when the link drops mid-match: reconnection is silent there,
+            // because the host resends state as soon as the guest rejoins.
+            val showStage: (RoomStage) -> Unit = { next ->
+                if (_stage.value !is RoomStage.Playing) _stage.value = next
+            }
+            guest.state.collect { st ->
+                if (reconnecting || st.connected || st.room == null) return@collect
+                reconnecting = true
+                launch {
+                    var attempt = 0
+                    while (attempt < BLUETOOTH_RETRIES && !guest.state.value.connected) {
+                        attempt++
+                        showStage(RoomStage.Connecting("ارتباط قطع شد · تلاش ${attempt.toFa()}…"))
+                        runCatching { t.connectTo(room, me.displayName) }
+                        withTimeoutOrNull(RECONNECT_TIMEOUT_MS) { guest.state.first { it.connected } }
+                        if (!guest.state.value.connected) delay(1_500L * attempt)
+                    }
+                    reconnecting = false
+                    if (guest.state.value.connected) {
+                        showStage(lobby)
+                    } else {
+                        showStage(RoomStage.Failed("ارتباط با میزبان قطع شد. نزدیک‌تر شو و اتاق را دوباره انتخاب کن."))
+                    }
+                }
+            }
+        }
+        resources.track("link-watcher") { job.cancel() }
     }
 
     // ------------------------------------------------------------------ Online
@@ -240,8 +298,6 @@ class RoomFlow(
         }
     }
 
-    fun setReady(ready: Boolean) = scope.launch { client?.ready(ready) }
-
     private fun watchStart(c: SessionClient) {
         watcher?.cancel()
         val job = scope.launch {
@@ -288,6 +344,13 @@ class RoomFlow(
 
     companion object {
         private const val ALPHABET = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"
+
+        /** How long a fresh Bluetooth join may take to produce a lobby ack. */
+        private const val LINK_TIMEOUT_MS = 25_000L
+
+        /** Attempts at rebuilding a dropped Nearby link before giving up. */
+        private const val BLUETOOTH_RETRIES = 3
+        private const val RECONNECT_TIMEOUT_MS = 10_000L
 
         /** Normalizes pasted input to exactly the alphabet used by generated room codes. */
         fun normalizeRoomCodeInput(value: String): String = value.uppercase().filter { it in ALPHABET }.take(5)

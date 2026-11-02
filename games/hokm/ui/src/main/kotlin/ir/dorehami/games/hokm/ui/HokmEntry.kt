@@ -16,6 +16,7 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -27,6 +28,7 @@ import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
@@ -54,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -62,6 +65,7 @@ import androidx.compose.ui.hapticfeedback.HapticFeedbackType
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
@@ -90,11 +94,16 @@ fun HokmEntry(onExit: () -> Unit) {
     }
 }
 
+/** Which Hokm section the player is in. The online room keeps its own flow (LobbyScreen). */
+private enum class HokmScreen { MENU, OFFLINE, SOLO, SETTINGS, SHOP }
+
 @Composable
 private fun HokmEntryContent(onExit: () -> Unit) {
     val context = LocalContext.current
     val prefs = remember { HokmPrefs(context) }
-    var started by rememberSaveable { mutableStateOf(false) }
+    var screen by rememberSaveable { mutableStateOf(HokmScreen.MENU.name) }
+    /** Section to come back to after a room is closed (Bluetooth → offline, online → menu). */
+    var roomReturnScreen by rememberSaveable { mutableStateOf(HokmScreen.MENU.name) }
     var name by rememberSaveable { mutableStateOf(prefs.name) }
     var target by rememberSaveable { mutableStateOf(prefs.targetPoints) }
     var playerCount by rememberSaveable { mutableStateOf(prefs.playerCount) }
@@ -117,6 +126,8 @@ private fun HokmEntryContent(onExit: () -> Unit) {
     var matchKey by rememberSaveable { mutableStateOf(0) }
     var roomMode by rememberSaveable { mutableStateOf<String?>(null) }
     var serverUrl by rememberSaveable { mutableStateOf(prefs.serverUrl) }
+    var cardBackId by rememberSaveable { mutableStateOf(prefs.cardBack) }
+    var tableId by rememberSaveable { mutableStateOf(prefs.tableSkin) }
     var stats by remember { mutableStateOf(prefs.stats) }
 
     val onFinished: (HokmUiState) -> Unit = { state ->
@@ -132,6 +143,7 @@ private fun HokmEntryContent(onExit: () -> Unit) {
     }
 
     HokmMotionProvider(effectiveMotion) {
+        HokmLookProvider(cardBackId = cardBackId, tableId = tableId) {
         when {
             roomMode != null -> HokmRoom(
                 mode = if (roomMode == "bt") RoomMode.BLUETOOTH else RoomMode.ONLINE,
@@ -143,10 +155,26 @@ private fun HokmEntryContent(onExit: () -> Unit) {
                 serverUrl = serverUrl,
                 onServerUrl = { serverUrl = it; prefs.serverUrl = it },
                 onFinished = onFinished,
-                onExit = { roomMode = null },
+                onExit = {
+                    roomMode = null
+                    screen = roomReturnScreen
+                },
             )
 
-            !started -> HokmSetupScreen(
+            screen == HokmScreen.SOLO.name -> HokmSoloGame(
+                key = matchKey,
+                playerName = name,
+                playerCount = playerCount,
+                targetPoints = target,
+                botLevel = botLevel,
+                soundOn = soundOn,
+                hapticsOn = hapticsOn,
+                onFinished = onFinished,
+                onPlayAgain = { matchKey++ },
+                onExit = { screen = HokmScreen.OFFLINE.name },
+            )
+
+            screen == HokmScreen.OFFLINE.name -> HokmOfflineScreen(
                 name = name,
                 onName = { name = it; prefs.name = it },
                 target = target,
@@ -163,23 +191,62 @@ private fun HokmEntryContent(onExit: () -> Unit) {
                 onBotLevel = { botLevel = it; prefs.botLevel = it },
                 stats = stats,
                 onResetStats = { prefs.resetStats(); stats = prefs.stats },
-                onStart = { started = true },
-                onMode = { roomMode = if (it == RoomMode.BLUETOOTH) "bt" else "online" },
-                onBack = onExit,
+                onStartBots = { screen = HokmScreen.SOLO.name },
+                onBluetooth = {
+                    roomReturnScreen = HokmScreen.OFFLINE.name
+                    roomMode = "bt"
+                },
+                onBack = { screen = HokmScreen.MENU.name },
             )
 
-            else -> HokmSoloGame(
-                key = matchKey,
+            screen == HokmScreen.SETTINGS.name -> HokmSettingsScreen(
+                name = name,
+                onName = { name = it; prefs.name = it },
+                target = target,
+                onTarget = { target = it; prefs.targetPoints = it },
+                playerCount = playerCount,
+                onPlayerCount = { playerCount = it; prefs.playerCount = it },
+                botLevel = botLevel,
+                onBotLevel = { botLevel = it; prefs.botLevel = it },
+                soundOn = soundOn,
+                onSound = { soundOn = it; prefs.soundOn = it },
+                hapticsOn = hapticsOn,
+                onHaptics = { hapticsOn = it; prefs.hapticsOn = it },
+                motion = effectiveMotion,
+                onMotion = { motionName = it.name; prefs.motionLevel = it.name },
+                cardBackId = cardBackId,
+                tableId = tableId,
+                wins = stats.wins,
+                onOpenShop = { screen = HokmScreen.SHOP.name },
+                onResetStats = { prefs.resetStats(); stats = prefs.stats },
+                onBack = { screen = HokmScreen.MENU.name },
+            )
+
+            screen == HokmScreen.SHOP.name -> HokmShopScreen(
+                cardBackId = cardBackId,
+                tableId = tableId,
+                wins = stats.wins,
+                onPickCardBack = { skin -> cardBackId = skin; prefs.cardBack = skin },
+                onPickTable = { skin -> tableId = skin; prefs.tableSkin = skin },
+                onBack = { screen = HokmScreen.MENU.name },
+            )
+
+            else -> HokmMainMenu(
                 playerName = name,
                 playerCount = playerCount,
-                targetPoints = target,
-                botLevel = botLevel,
-                soundOn = soundOn,
-                hapticsOn = hapticsOn,
-                onFinished = onFinished,
-                onPlayAgain = { matchKey++ },
-                onExit = { started = false },
+                target = target,
+                cardBackId = cardBackId,
+                tableId = tableId,
+                onOffline = { screen = HokmScreen.OFFLINE.name },
+                onOnline = {
+                    roomReturnScreen = HokmScreen.MENU.name
+                    roomMode = "online"
+                },
+                onSettings = { screen = HokmScreen.SETTINGS.name },
+                onShop = { screen = HokmScreen.SHOP.name },
+                onBack = onExit,
             )
+        }
         }
     }
 }
@@ -323,9 +390,12 @@ private fun HokmRoom(
     }
 }
 
-/** Premium setup lobby: quick start first, thoughtful settings and rules just below it. */
+/**
+ * The **offline** section: play with bots on this phone, or open a Bluetooth room where empty seats
+ * become bots. Table settings live here because every offline table uses them.
+ */
 @Composable
-private fun HokmSetupScreen(
+private fun HokmOfflineScreen(
     name: String,
     onName: (String) -> Unit,
     target: Int,
@@ -342,8 +412,8 @@ private fun HokmSetupScreen(
     onBotLevel: (String) -> Unit,
     stats: HokmStats,
     onResetStats: () -> Unit,
-    onStart: () -> Unit,
-    onMode: (RoomMode) -> Unit,
+    onStartBots: () -> Unit,
+    onBluetooth: () -> Unit,
     onBack: () -> Unit,
 ) {
     var showRules by rememberSaveable { mutableStateOf(false) }
@@ -366,13 +436,25 @@ private fun HokmSetupScreen(
                 .fillMaxSize()
                 .windowInsetsPadding(WindowInsets.safeDrawing)
                 .verticalScroll(rememberScrollState())
-                .padding(horizontal = 18.dp, vertical = 10.dp),
+                .padding(horizontal = 16.dp, vertical = 10.dp),
             horizontalAlignment = Alignment.CenterHorizontally,
         ) {
             HomeHeader(onBack = onBack, onTap = tap)
+            Spacer(Modifier.height(10.dp))
+            Text(
+                "حکم آفلاین",
+                color = HokmPalette.text,
+                fontSize = 22.sp,
+                fontWeight = FontWeight.Black,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Text(
+                "بدون اینترنت: با ربات‌ها یا با بلوتوث کنار هم",
+                color = HokmPalette.muted,
+                fontSize = 12.sp,
+                modifier = Modifier.fillMaxWidth(),
+            )
             Spacer(Modifier.height(12.dp))
-            HokmHero(playerCount = playerCount, target = target)
-            Spacer(Modifier.height(18.dp))
 
             SectionHeader("ترکیب میز", "تعداد بازیکن‌ها را انتخاب کن")
             Spacer(Modifier.height(8.dp))
@@ -385,54 +467,39 @@ private fun HokmSetupScreen(
                     Hokm3DButton(
                         text = title,
                         subtitle = detail,
-                        trailing = if (playerCount == count) "✓" else null,
+                        trailingIcon = if (playerCount == count) HokmIcon.Check else null,
                         tone = if (playerCount == count) HokmButtonTone.GOLD else HokmButtonTone.GLASS,
-                        height = 56.dp,
+                        height = 52.dp,
                         modifier = Modifier.weight(1f),
                         onSound = tap,
                         onClick = { onPlayerCount(count) },
                     )
                 }
             }
-            Spacer(Modifier.height(16.dp))
+            Spacer(Modifier.height(12.dp))
 
             Hokm3DButton(
-                text = "شروع بازی با ربات‌ها",
+                text = "بازی با ربات‌ها",
                 subtitle = "یک میز کامل، حتی بدون اینترنت",
-                leading = "♛",
-                trailing = "›",
+                leadingIcon = HokmIcon.Crown,
                 tone = HokmButtonTone.EMERALD,
-                height = 64.dp,
+                height = 56.dp,
                 modifier = Modifier.fillMaxWidth(),
                 onSound = tap,
-                onClick = onStart,
+                onClick = onStartBots,
             )
-            Spacer(Modifier.height(10.dp))
-            Text("یا دوستانت را به میز دعوت کن", color = HokmPalette.muted, fontSize = 12.sp)
             Spacer(Modifier.height(8.dp))
-            Row(horizontalArrangement = Arrangement.spacedBy(9.dp), modifier = Modifier.fillMaxWidth()) {
-                Hokm3DButton(
-                    text = "بلوتوث",
-                    subtitle = "بدون اینترنت",
-                    leading = "⌁",
-                    tone = HokmButtonTone.GLASS,
-                    height = 62.dp,
-                    modifier = Modifier.weight(1f),
-                    onSound = tap,
-                    onClick = { onMode(RoomMode.BLUETOOTH) },
-                )
-                Hokm3DButton(
-                    text = "بازی آنلاین",
-                    subtitle = "کد اتاق یا حریف تصادفی",
-                    leading = "◎",
-                    tone = HokmButtonTone.GLASS,
-                    height = 62.dp,
-                    modifier = Modifier.weight(1f),
-                    onSound = tap,
-                    onClick = { onMode(RoomMode.ONLINE) },
-                )
-            }
-            Spacer(Modifier.height(18.dp))
+            Hokm3DButton(
+                text = "اتاق بلوتوثی",
+                subtitle = "میزبان شو یا به اتاق دوستانت وصل شو",
+                leadingIcon = HokmIcon.Bolt,
+                tone = HokmButtonTone.GLASS,
+                height = 56.dp,
+                modifier = Modifier.fillMaxWidth(),
+                onSound = tap,
+                onClick = onBluetooth,
+            )
+            Spacer(Modifier.height(16.dp))
 
             SectionHeader("تنظیمات میز", "همه‌چیز را مطابق سلیقه‌ات بچین")
             Spacer(Modifier.height(8.dp))
@@ -456,7 +523,7 @@ private fun HokmSetupScreen(
                         cursorColor = MaterialTheme.colorScheme.primary,
                     ),
                 )
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
                 Text("امتیاز پایان بازی", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(7.dp), modifier = Modifier.fillMaxWidth()) {
@@ -464,23 +531,23 @@ private fun HokmSetupScreen(
                         Hokm3DButton(
                             text = points.toFa(),
                             subtitle = "امتیاز",
-                            trailing = if (target == points) "✓" else null,
+                            trailingIcon = if (target == points) HokmIcon.Check else null,
                             tone = if (target == points) HokmButtonTone.GOLD else HokmButtonTone.GLASS,
-                            height = 48.dp,
+                            height = 50.dp,
                             modifier = Modifier.weight(1f),
                             onSound = tap,
                             onClick = { onTarget(points) },
                         )
                     }
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
                 Text("قدرت ربات‌ها", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
                 Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     Hokm3DButton(
                         text = "حرفه‌ای",
                         subtitle = "بازی حساب‌شده",
-                        trailing = if (botLevel == HokmModule.BOT_PRO) "✓" else null,
+                        trailingIcon = if (botLevel == HokmModule.BOT_PRO) HokmIcon.Check else null,
                         tone = if (botLevel == HokmModule.BOT_PRO) HokmButtonTone.EMERALD else HokmButtonTone.GLASS,
                         height = 54.dp,
                         modifier = Modifier.weight(1f),
@@ -490,7 +557,7 @@ private fun HokmSetupScreen(
                     Hokm3DButton(
                         text = "ساده",
                         subtitle = "برای شروع یادگیری",
-                        trailing = if (botLevel == HokmModule.BOT_EASY) "✓" else null,
+                        trailingIcon = if (botLevel == HokmModule.BOT_EASY) HokmIcon.Check else null,
                         tone = if (botLevel == HokmModule.BOT_EASY) HokmButtonTone.EMERALD else HokmButtonTone.GLASS,
                         height = 54.dp,
                         modifier = Modifier.weight(1f),
@@ -498,7 +565,7 @@ private fun HokmSetupScreen(
                         onClick = { onBotLevel(HokmModule.BOT_EASY) },
                     )
                 }
-                Spacer(Modifier.height(14.dp))
+                Spacer(Modifier.height(12.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
                     SettingToggle(
                         title = "صدای بازی",
@@ -534,29 +601,18 @@ private fun HokmSetupScreen(
             }
 
             if (stats.games > 0) {
-                Spacer(Modifier.height(14.dp))
-                StatsCard(stats = stats, onReset = { confirmResetStats = true }, onTap = tap)
-            } else {
                 Spacer(Modifier.height(12.dp))
-                HokmInsetPanel(Modifier.fillMaxWidth()) {
-                    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                        Text("✦", color = HokmPalette.gold, fontSize = 20.sp)
-                        Column {
-                            Text("کارنامهٔ بازی‌ها", color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 13.sp)
-                            Text("بعد از اولین بازی، آمار بردها و دست‌ها اینجا می‌آید.", color = HokmPalette.muted, fontSize = 11.sp)
-                        }
-                    }
-                }
+                StatsCard(stats = stats, onReset = { confirmResetStats = true }, onTap = tap)
             }
 
-            Spacer(Modifier.height(14.dp))
+            Spacer(Modifier.height(12.dp))
             Hokm3DButton(
                 text = if (showRules) "بستن راهنمای بازی" else "راهنمای حکم",
                 subtitle = "قوانین کوتاه و تفاوت حالت‌ها",
                 leading = "؟",
                 trailing = if (showRules) "⌃" else "⌄",
                 tone = HokmButtonTone.GLASS,
-                height = 56.dp,
+                height = 54.dp,
                 modifier = Modifier.fillMaxWidth(),
                 onSound = tap,
                 onClick = { showRules = !showRules },
@@ -570,9 +626,7 @@ private fun HokmSetupScreen(
                     RulesCard(playerCount = playerCount)
                 }
             }
-            Spacer(Modifier.height(20.dp))
-            Text("ساخته‌شده برای دورهمی‌های ایرانی", color = HokmPalette.muted.copy(alpha = 0.65f), fontSize = 11.sp)
-            Spacer(Modifier.height(8.dp))
+            Spacer(Modifier.height(18.dp))
         }
         if (confirmResetStats) {
             AlertDialog(
@@ -610,8 +664,166 @@ private fun HokmSetupScreen(
     }
 }
 
+/** The entry screen: two big sections (offline / online), the same shape as the chess menu. */
 @Composable
-private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
+private fun HokmMainMenu(
+    playerName: String,
+    playerCount: Int,
+    target: Int,
+    cardBackId: String,
+    tableId: String,
+    onOffline: () -> Unit,
+    onOnline: () -> Unit,
+    onSettings: () -> Unit,
+    onShop: () -> Unit,
+    onBack: () -> Unit,
+) {
+    BackHandler(onBack = onBack)
+    Box(Modifier.fillMaxSize()) {
+        HokmBackdrop(Modifier.fillMaxSize())
+        Column(
+            Modifier
+                .fillMaxSize()
+                .windowInsetsPadding(WindowInsets.safeDrawing)
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 16.dp, vertical = 10.dp),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            HomeHeader(onBack = onBack, onTap = {})
+            Spacer(Modifier.height(10.dp))
+            HokmHero(playerCount = playerCount, target = target)
+            Spacer(Modifier.height(14.dp))
+            HokmSectionCard(
+                icon = HokmIcon.Bolt,
+                title = "آفلاین",
+                subtitle = "با ربات‌ها یا بلوتوث · بدون اینترنت",
+                detail = "میز ${playerCount.toFa()} نفره",
+                tone = HokmButtonTone.EMERALD,
+                onClick = onOffline,
+            )
+            Spacer(Modifier.height(10.dp))
+            HokmSectionCard(
+                icon = HokmIcon.Globe,
+                title = "آنلاین",
+                subtitle = "اتاق خصوصی، کد اتاق و حریف تصادفی",
+                detail = "با سرور دورهمی",
+                tone = HokmButtonTone.GOLD,
+                onClick = onOnline,
+            )
+            Spacer(Modifier.height(10.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Hokm3DButton(
+                    text = "تنظیمات",
+                    leadingIcon = HokmIcon.Settings,
+                    tone = HokmButtonTone.GLASS,
+                    height = 48.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = onSettings,
+                )
+                Hokm3DButton(
+                    text = "فروشگاه",
+                    leadingIcon = HokmIcon.Shop,
+                    tone = HokmButtonTone.GLASS,
+                    height = 48.dp,
+                    modifier = Modifier.weight(1f),
+                    onClick = onShop,
+                )
+            }
+            Spacer(Modifier.height(8.dp))
+            Row(
+                Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                HokmPill("پشت کارت: ${HokmSkins.cardBack(cardBackId).titleFa}", icon = HokmIcon.Deck, color = HokmPalette.mint)
+                HokmPill("میز: ${HokmSkins.table(tableId).titleFa}", icon = HokmIcon.Palette, color = HokmPalette.gold)
+            }
+            Spacer(Modifier.height(14.dp))
+            Text(
+                if (playerName.isBlank()) {
+                    "برای دیدن نامت روی میز، در «تنظیمات» نام نمایشی را وارد کن."
+                } else {
+                    "نام نمایشی: $playerName · امتیاز هدف: ${target.toFa()}"
+                },
+                color = HokmPalette.muted,
+                fontSize = 11.sp,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Spacer(Modifier.height(18.dp))
+        }
+    }
+}
+
+/** One big, readable section card of the Hokm menu. */
+@Composable
+private fun HokmSectionCard(
+    icon: HokmIcon,
+    title: String,
+    subtitle: String,
+    detail: String,
+    tone: HokmButtonTone,
+    onClick: () -> Unit,
+) {
+    val shape = RoundedCornerShape(24.dp)
+    val accent = when (tone) {
+        HokmButtonTone.GOLD -> HokmPalette.gold
+        HokmButtonTone.EMERALD -> HokmPalette.emerald
+        HokmButtonTone.CORAL -> HokmPalette.coral
+        HokmButtonTone.GLASS -> HokmPalette.muted
+    }
+    Row(
+        Modifier
+            .fillMaxWidth()
+            .heightIn(min = 104.dp)
+            .shadow(6.dp, shape)
+            .clip(shape)
+            .background(
+                Brush.horizontalGradient(
+                    listOf(
+                        MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                        MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.9f),
+                    ),
+                ),
+            )
+            .border(1.dp, accent.copy(alpha = 0.6f), shape)
+            .clickable(role = Role.Button, onClickLabel = title, onClick = onClick)
+            .padding(horizontal = 16.dp, vertical = 12.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        Box(
+            Modifier
+                .size(50.dp)
+                .clip(CircleShape)
+                .background(accent.copy(alpha = 0.18f))
+                .border(1.dp, accent.copy(alpha = 0.55f), CircleShape),
+            contentAlignment = Alignment.Center,
+        ) {
+            HokmIconView(icon, color = accent, size = 24.dp)
+        }
+        Column(Modifier.weight(1f)) {
+            Text(title, color = HokmPalette.text, fontSize = 19.sp, fontWeight = FontWeight.Black, maxLines = 1)
+            Text(
+                subtitle,
+                color = HokmPalette.muted,
+                fontSize = 12.sp,
+                lineHeight = 17.sp,
+                maxLines = 2,
+                overflow = TextOverflow.Ellipsis,
+            )
+            Spacer(Modifier.height(3.dp))
+            HokmPill(detail, icon = HokmIcon.Star, color = accent)
+        }
+        HokmIconView(HokmIcon.Back, color = accent, size = 20.dp)
+    }
+}
+
+@Composable
+internal fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Box(
             Modifier
@@ -631,7 +843,7 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
         }
         Hokm3DButton(
             text = "بازگشت",
-            leading = "‹",
+            leadingIcon = HokmIcon.Back,
             tone = HokmButtonTone.GLASS,
             height = 42.dp,
             modifier = Modifier.width(104.dp),
@@ -644,12 +856,6 @@ private fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
 @Composable
 private fun HokmHero(playerCount: Int, target: Int) {
     val transition = rememberInfiniteTransition(label = "hokm-hero")
-    val bob by transition.animateFloat(
-        initialValue = -3f,
-        targetValue = 3f,
-        animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "card-bob",
-    )
     val glow by transition.animateFloat(
         initialValue = 0.42f,
         targetValue = 0.82f,
@@ -702,7 +908,7 @@ private fun HokmHero(playerCount: Int, target: Int) {
             horizontalArrangement = Arrangement.SpaceBetween,
         ) {
             Column(Modifier.weight(1f), verticalArrangement = Arrangement.Center) {
-                HokmPill("بازی اصیل ایرانی", icon = "✦", color = HokmPalette.gold)
+                HokmPill("بازی اصیل ایرانی", icon = HokmIcon.Star, color = HokmPalette.gold)
                 Spacer(Modifier.height(10.dp))
                 Text("حُکم", color = HokmPalette.text, fontSize = if (narrow) 36.sp else 42.sp, fontWeight = FontWeight.Black)
                 Text(
@@ -712,31 +918,63 @@ private fun HokmHero(playerCount: Int, target: Int) {
                     fontWeight = FontWeight.Medium,
                 )
                 Spacer(Modifier.height(12.dp))
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
-                    HokmPill("${playerCount.toFa()} نفره", icon = "♟", color = HokmPalette.mint)
-                    HokmPill("تا ${target.toFa()}", icon = "★", color = HokmPalette.gold)
+                if (narrow) {
+                    Column(verticalArrangement = Arrangement.spacedBy(5.dp)) {
+                        HokmPill("${playerCount.toFa()} نفره", icon = HokmIcon.Users, color = HokmPalette.mint)
+                        HokmPill("تا ${target.toFa()} امتیاز", icon = HokmIcon.Target, color = HokmPalette.gold)
+                    }
+                } else {
+                    Row(horizontalArrangement = Arrangement.spacedBy(6.dp)) {
+                        HokmPill("${playerCount.toFa()} نفره", icon = HokmIcon.Users, color = HokmPalette.mint)
+                        HokmPill("تا ${target.toFa()} امتیاز", icon = HokmIcon.Target, color = HokmPalette.gold)
+                    }
                 }
             }
             Spacer(Modifier.width(if (narrow) 2.dp else 8.dp))
             Box(Modifier.width(if (narrow) 102.dp else 126.dp).height(175.dp)) {
                 val cardWidth = if (narrow) 66.dp else 76.dp
+                // The bob is read inside `graphicsLayer`, so the hero cards float without a single
+                // recomposition per frame (the old `.offset(bob.dp)` re-laid out the row 60× a second).
+                val bobState = transition.animateFloat(
+                    initialValue = -3f,
+                    targetValue = 3f,
+                    animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                    label = "card-bob-draw",
+                )
                 PlayingCardView(
                     card = Card.parse("7D")!!,
                     width = cardWidth,
                     elevation = 9.dp,
-                    modifier = Modifier.align(Alignment.Center).offset(x = (-15).dp, y = (bob + 5).dp).rotate(-11f),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer {
+                            translationX = (-15).dp.toPx()
+                            translationY = (bobState.value + 5f).dp.toPx()
+                            rotationZ = -11f
+                        },
                 )
                 PlayingCardView(
                     card = Card.parse("QH")!!,
                     width = cardWidth,
                     elevation = 11.dp,
-                    modifier = Modifier.align(Alignment.Center).offset(x = 11.dp, y = (bob - 5).dp).rotate(8f),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer {
+                            translationX = 11.dp.toPx()
+                            translationY = (bobState.value - 5f).dp.toPx()
+                            rotationZ = 8f
+                        },
                 )
                 PlayingCardView(
                     card = Card.parse("AS")!!,
                     width = cardWidth,
                     elevation = 15.dp,
-                    modifier = Modifier.align(Alignment.Center).offset(y = bob.dp).rotate(-1f),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer {
+                            translationY = bobState.value.dp.toPx()
+                            rotationZ = -1f
+                        },
                 )
             }
         }
@@ -744,7 +982,7 @@ private fun HokmHero(playerCount: Int, target: Int) {
 }
 
 @Composable
-private fun SectionHeader(title: String, subtitle: String) {
+internal fun SectionHeader(title: String, subtitle: String) {
     Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
         Column(Modifier.weight(1f)) {
             Text(title, color = HokmPalette.text, fontWeight = FontWeight.Bold, fontSize = 15.sp)
@@ -760,7 +998,7 @@ private fun SectionHeader(title: String, subtitle: String) {
 }
 
 @Composable
-private fun SettingToggle(
+internal fun SettingToggle(
     title: String,
     subtitle: String,
     checked: Boolean,
@@ -827,22 +1065,22 @@ private fun StatsCard(stats: HokmStats, onReset: () -> Unit, onTap: () -> Unit) 
         }
         Spacer(Modifier.height(12.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-            StatCell("بازی", stats.games.toFa(), "▣")
-            StatCell("برد", stats.wins.toFa(), "♛")
-            StatCell("کُت", stats.kots.toFa(), "✦")
+            StatCell("بازی", stats.games.toFa(), HokmIcon.Deck)
+            StatCell("برد", stats.wins.toFa(), HokmIcon.Trophy)
+            StatCell("کُت", stats.kots.toFa(), HokmIcon.Star)
         }
         Spacer(Modifier.height(10.dp))
         Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.SpaceAround) {
-            StatCell("درصد برد", "٪${stats.winRate.toFa()}", "↗")
-            StatCell("دست برده", "${stats.handsWon.toFa()} / ${stats.hands.toFa()}", "♧")
+            StatCell("درصد برد", "٪${stats.winRate.toFa()}", HokmIcon.Target)
+            StatCell("دست برده", "${stats.handsWon.toFa()} / ${stats.hands.toFa()}", HokmIcon.Check)
         }
     }
 }
 
 @Composable
-private fun StatCell(label: String, value: String, icon: String) {
+private fun StatCell(label: String, value: String, icon: HokmIcon) {
     Column(horizontalAlignment = Alignment.CenterHorizontally) {
-        Text(icon, color = HokmPalette.gold, fontSize = 15.sp, fontWeight = FontWeight.Bold)
+        HokmIconView(icon, color = HokmPalette.gold, size = 16.dp)
         Text(value, color = HokmPalette.text, fontWeight = FontWeight.Black, fontSize = 18.sp)
         Text(label, color = HokmPalette.muted, fontSize = 10.sp)
     }

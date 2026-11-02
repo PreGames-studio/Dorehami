@@ -10,6 +10,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.text.font.FontWeight
 import ir.dorehami.app.R
 
@@ -19,7 +20,18 @@ private val DorehamiFontFamily = FontFamily(
     Font(R.font.dorehami_vazirmatn_bold, FontWeight.Bold),
 )
 
-private fun TextStyle.withDorehamiFont() = copy(fontFamily = DorehamiFontFamily)
+/**
+ * The app-wide readable scale. Every game module (chess, Hokm, Pantohub, backgammon) already uses
+ * 1.15× Vazirmatn, so the shell uses the same number — one type scale for the whole app instead of
+ * a slightly smaller home screen than the games it opens.
+ */
+private const val DOREHAMI_TYPE_SCALE = 1.15f
+
+private fun TextStyle.withDorehamiFont() = copy(
+    fontFamily = DorehamiFontFamily,
+    fontSize = if (fontSize.isSpecified) fontSize * DOREHAMI_TYPE_SCALE else fontSize,
+    lineHeight = if (lineHeight.isSpecified) lineHeight * DOREHAMI_TYPE_SCALE else lineHeight,
+)
 
 private fun dorehamiTypography(): Typography {
     val base = Typography()

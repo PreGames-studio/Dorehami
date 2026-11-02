@@ -164,7 +164,7 @@ internal fun GameHistoryScreen(repository: PantohubRepository, onBack: () -> Uni
     selected?.let { game ->
         AlertDialog(
             onDismissRequest = { selected = null },
-            title = { Text(game.name) },
+            title = { Text("${game.name} (${game.settings.playMode.labelFa})") },
             text = {
                 Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     Text("شروع: ${formatDate(game.createdAtEpochMs)}")
@@ -207,7 +207,7 @@ internal fun GameHistoryScreen(repository: PantohubRepository, onBack: () -> Uni
 private fun HistoryGameCard(game: GameState, onOpen: () -> Unit, onDelete: () -> Unit) {
     Card(modifier = Modifier.fillMaxWidth(), onClick = onOpen) {
         Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(game.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            Text("${game.name} (${game.settings.playMode.labelFa})", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(formatDate(game.createdAtEpochMs), style = MaterialTheme.typography.bodySmall, color = MaterialTheme.colorScheme.onSurfaceVariant)
             game.teams.forEach { team ->
                 Text("${team.name}: ${(game.teamScores[team.id] ?: 0).toString().toPersianDigits()}", style = MaterialTheme.typography.bodyMedium)

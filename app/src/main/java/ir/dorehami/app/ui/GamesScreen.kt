@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.grid.GridCells
@@ -57,8 +58,8 @@ private val games = listOf(
     GameEntry("شطرنج", "♟️", "تک‌نفره • بلوتوث و هات‌اسپات", "games/chess", GameAccent.Teal, implemented = true),
     GameEntry("پانتومیم", "🎭", "بازی نمایشی گروهی", "games/pantohub", GameAccent.Purple, implemented = true),
     GameEntry("دژبان", "🏰", "بازی استراتژیک", "games/dejban", GameAccent.Gold, implemented = true),
-    GameEntry("منچ", "🎲", "بازی خانوادگی روی تخته", "games/mench", GameAccent.Gold),
-    GameEntry("تخته نرد", "⚫", "تاس، مهره و رقابت دونفره", "games/backgammon", GameAccent.Warm),
+    GameEntry("منچ", "🏁", "بازی خانوادگی روی تخته", "games/mench", GameAccent.Gold),
+    GameEntry("تخته نرد", "🎲", "تاس و مهره • ربات و دونفره", "games/backgammon", GameAccent.Warm, implemented = true),
     GameEntry("مونوپولی", "💼", "خریدوفروش و ساخت امپراتوری", "games/monopoly", GameAccent.Teal),
     GameEntry("مافیا", "🕵️", "نقش‌های پنهان و رأی‌گیری گروهی", "games/mafia", GameAccent.Purple),
 )
@@ -71,6 +72,7 @@ fun GamesScreen(
     onOpenChess: () -> Unit = {},
     onPantomime: () -> Unit = {},
     onOpenDejban: () -> Unit = {},
+    onOpenBackgammon: () -> Unit = {},
 ) {
     val context = LocalContext.current
     BackHandler(onBack = onBack)
@@ -129,6 +131,7 @@ fun GamesScreen(
                                     game.module == "games/chess" -> onOpenChess()
                                     game.module == "games/pantohub" -> onPantomime()
                                     game.module == "games/dejban" -> onOpenDejban()
+                                    game.module == "games/backgammon" -> onOpenBackgammon()
                                 }
                             },
                         )
@@ -155,10 +158,12 @@ private fun GameButton(
     }
     val shape = RoundedCornerShape(22.dp)
 
+    // The card grows with its content instead of forcing a fixed height: a fixed box plus
+    // `Arrangement.SpaceBetween` silently overflowed and cut the "به‌زودی" footer in half.
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .height(166.dp)
+            .heightIn(min = 176.dp)
             .clip(shape)
             .background(colors.surface.copy(alpha = if (dark) 0.84f else 0.78f))
             .border(1.dp, accent.copy(alpha = 0.48f), shape)
@@ -166,45 +171,49 @@ private fun GameButton(
             .padding(13.dp),
         verticalArrangement = Arrangement.SpaceBetween,
     ) {
-        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.SpaceBetween,
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.SpaceBetween,
+        ) {
+            Box(
+                modifier = Modifier
+                    .size(42.dp)
+                    .clip(RoundedCornerShape(14.dp))
+                    .background(accent.copy(alpha = 0.16f)),
+                contentAlignment = Alignment.Center,
             ) {
-                Box(
-                    modifier = Modifier
-                        .size(42.dp)
-                        .clip(RoundedCornerShape(14.dp))
-                        .background(accent.copy(alpha = 0.16f)),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    Text(game.emoji, fontSize = 25.sp)
-                }
-                Text(
-                    text = if (game.implemented) "آماده" else "به‌زودی",
-                    color = accent,
-                    style = MaterialTheme.typography.labelSmall,
-                    fontWeight = FontWeight.Bold,
-                    modifier = Modifier
-                        .clip(RoundedCornerShape(50))
-                        .background(accent.copy(alpha = 0.12f))
-                        .padding(horizontal = 9.dp, vertical = 5.dp),
-                )
+                Text(game.emoji, fontSize = 25.sp)
             }
             Text(
-                text = game.title,
-                color = colors.onSurface,
-                style = MaterialTheme.typography.titleMedium,
+                text = if (game.implemented) "آماده" else "به‌زودی",
+                color = accent,
+                style = MaterialTheme.typography.labelSmall,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
+                modifier = Modifier
+                    .clip(RoundedCornerShape(50))
+                    .background(accent.copy(alpha = 0.12f))
+                    .padding(horizontal = 9.dp, vertical = 5.dp),
             )
-            Text(
-                text = game.subtitle,
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+        }
+        Column(verticalArrangement = Arrangement.spacedBy(5.dp), modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = game.title,
+            color = colors.onSurface,
+            style = MaterialTheme.typography.titleMedium,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+            overflow = TextOverflow.Ellipsis,
+        )
+        Text(
+            text = game.subtitle,
+            color = colors.onSurfaceVariant,
+            style = MaterialTheme.typography.bodySmall,
+            maxLines = 2,
+            overflow = TextOverflow.Ellipsis,
+            modifier = Modifier.fillMaxWidth(),
+        )
         }
 
         Row(
@@ -217,12 +226,14 @@ private fun GameButton(
                 color = accent,
                 style = MaterialTheme.typography.labelLarge,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
             )
             Text(
                 text = "←",
                 color = accent,
                 style = MaterialTheme.typography.titleMedium,
                 fontWeight = FontWeight.Bold,
+                maxLines = 1,
             )
         }
     }
