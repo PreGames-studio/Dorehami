@@ -213,12 +213,12 @@ class BackgammonRoomFlow(
         scope.launch {
             runCatching {
                 // Host opens the table; a guest can only nudge the host to begin.
-                if (c is HostController) {
-                    if (!c.startMatch()) {
+                when (c) {
+                    is HostController -> if (!c.startMatch()) {
                         _stage.value = BackgammonRoomStage.Connecting("شروع انجام نشد؛ دوباره تلاش کن.")
                     }
-                } else {
-                    c.requestStart()
+                    is GuestController -> c.requestStart()
+                    else -> Unit
                 }
             }.onFailure {
                 _stage.value = BackgammonRoomStage.Failed("شروع بازی انجام نشد. اتصال را چک کن و دوباره تلاش کن.")
