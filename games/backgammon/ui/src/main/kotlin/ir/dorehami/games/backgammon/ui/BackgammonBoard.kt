@@ -78,7 +78,7 @@ internal class BackgammonGeometry(val width: Float, val height: Float) {
 }
 
 /** A checker that slides from one point to another: the drawn board already shows the result. */
-internal data class CheckerMove(val from: Int, val to: Int, val white: Boolean, val stamp: Long)
+data class CheckerMove(val from: Int, val to: Int, val white: Boolean, val stamp: Long)
 
 /**
  * The backgammon board: 24 points, the bar and both checker colours.
