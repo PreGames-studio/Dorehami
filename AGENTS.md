@@ -74,6 +74,21 @@ curl -s localhost:8080/healthz
   -Dkotlin.compiler.execution.strategy=in-process
 ```
 
+### بازبینی سریع پیش از push (بدون Gradle)
+
+```bash
+tools/jvm-check/run.sh     # کامپایل + تست ماژول‌های JVM با kotlinc؛ ≈ چند ثانیه
+```
+
+این ابزار فقط لایه‌های JVM را می‌بیند: `core/*`، `games/*/core` و بخش‌های غیر-Compose. **Compose را
+کامپایل نمی‌کند**، پس سبز بودنش اثبات سلامت UI نیست. دو نتیجهٔ عملی:
+
+* اگر امضای یک composable یا تابع `ui` را عوض کردی، همهٔ فراخوان‌ها را با
+  `grep -rn "GameSetupScreen("` (و مشابهش) پیدا و به‌روز کن؛ خطای پارامتر جاافتاده فقط در
+  `./gradlew :app:assembleDebug` یا CI دیده می‌شود.
+* تستی که به کلاس‌های Compose وابسته است (مثل `TableAnimationQueueTest`) در این ابزار اجرا نمی‌شود
+  و شاهدش فقط CI است؛ این را در گزارش بنویس، نه اینکه «تست نشد» را «سبز» حساب کنی.
+
 ### گرفتن APK برای تست روی گوشی (بدون ساخت محلی)
 
 ورک‌فلوی **Debug APK** را از تب Actions روی هر برنچ اجرا کن (یا `gh workflow run debug-apk.yml --ref <branch>`).
@@ -118,6 +133,9 @@ v1/Signing Block، تراز ۴ بایتی، حضور `assets/dezhban.pck` و `li
    Nearby Connections برای بلوتوث).
 7. **رابط کاربری فارسی و راست‌به‌چپ اول.** صفحهٔ جدید باید در RTL با اعداد و متن فارسی درست دیده
    شود؛ از اجزای `core/uikit` استفاده کن، چرخ را از نو نساز.
+8. **یک زبان طراحی برای کل اپ.** اعداد رنگ/تایپ/پرده فقط از `docs/DESIGN_LANGUAGE.md`؛ مقیاس متن
+   ×۱٫۱۵ و Vazirmatn؛ تم تیرهٔ اختصاصی برای یک صفحهٔ تازه ممنوع (تنها استثنای ثبت‌شده: میز شبانهٔ
+   حکم).
 
 ## ۵. انتظار تست در هر لایه
 
@@ -150,6 +168,8 @@ v1/Signing Block، تراز ۴ بایتی، حضور `assets/dezhban.pck` و `li
 | یک بازی باید چه چیزی پیاده کند؟ | `docs/GAME_CONTRACT.md` |
 | بازی جدید چطور اضافه می‌شود؟ | `docs/ADD_A_GAME.md` |
 | ترتیب ساخت و تسک‌های بعدی | `docs/ROADMAP.md` |
+| رنگ/تایپ/پرده و چک‌لیست ماژول تازه | `docs/DESIGN_LANGUAGE.md` |
+| گزارش‌های اجرایی مرحله‌ها | `docs/reports/` |
 | نصب روی VPS ایرانی | `docs/DEPLOY.md` |
 
 ## ۸. وضعیت و نقشهٔ راه
