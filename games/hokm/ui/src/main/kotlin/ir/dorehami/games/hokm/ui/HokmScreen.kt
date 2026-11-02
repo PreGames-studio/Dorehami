@@ -47,6 +47,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.layout.windowInsetsPadding
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -81,6 +82,7 @@ import androidx.compose.ui.platform.LocalHapticFeedback
 import androidx.compose.ui.platform.LocalLayoutDirection
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.ui.unit.dp
@@ -96,6 +98,13 @@ import kotlinx.coroutines.delay
 /** Dark table chrome uses the app's own orange, teal, purple and aubergine surface colors. */
 /** How long the "dealing the rest of the deck" overlay runs; kept in sync with the table loop. */
 private const val DEAL_PREVIEW_MS = 1400
+
+/** One fixed chair badge, identical on every side of the table. */
+private val SEAT_BADGE_WIDTH = 104.dp
+private val SEAT_BADGE_HEIGHT = 34.dp
+
+/** Gap between a card and the cards' animation entry, per card of the deal. */
+private const val DEAL_STAGGER_MS = 85L
 
 private object Table {
     val feltLight = Color(0xFF177E78)
@@ -135,6 +144,20 @@ fun HokmScreen(
     var stickerTray by remember { mutableStateOf(false) }
     var showLastTrick by remember { mutableStateOf(false) }
     var showSheet by remember { mutableStateOf(false) }
+
+    // The engine hands out a whole hand in one snapshot. Bump a stamp whenever a batch of new
+    // cards arrives (the deal after hokm, or a new hand) so the fan deals them one by one.
+    var dealStamp by remember { mutableStateOf(0) }
+    var lastHandNumber by remember { mutableStateOf(-1) }
+    var lastHandSize by remember { mutableStateOf(0) }
+    LaunchedEffect(state.handNumber, state.myHand.size, state.dealing) {
+        if (state.dealing) return@LaunchedEffect
+        val dealt = state.myHand.size > lastHandSize + 1
+        val newHand = state.handNumber != lastHandNumber && state.myHand.isNotEmpty()
+        if (dealt || newHand) dealStamp++
+        lastHandNumber = state.handNumber
+        lastHandSize = state.myHand.size
+    }
     BackHandler {
         when {
             stickerTray -> stickerTray = false
@@ -259,14 +282,22 @@ fun HokmScreen(
             if (state.playerCount == 4) {
                 val rightSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 1, state.playerCount)
                 val leftSeat = HokmSeatLayout.seatAtOffset(state.mySeat, 3, state.playerCount)
-                Column(Modifier.align(Alignment.CenterEnd).padding(end = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                // Both chairs sit at the same height, above the band where the played cards land, so
+                // a card never covers a name and the two sides stay symmetrical.
+                Column(
+                    Modifier.align(Alignment.CenterEnd).offset(y = (-74).dp).padding(end = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     SeatWithBubble(state, rightSeat)
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(4.dp))
                     OpponentHand(count = state.handCounts.getOrElse(rightSeat) { 0 }, rotation = 270f, horizontal = false)
                 }
-                Column(Modifier.align(Alignment.CenterStart).padding(start = 6.dp), horizontalAlignment = Alignment.CenterHorizontally) {
+                Column(
+                    Modifier.align(Alignment.CenterStart).offset(y = (-74).dp).padding(start = 4.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
                     SeatWithBubble(state, leftSeat)
-                    Spacer(Modifier.height(6.dp))
+                    Spacer(Modifier.height(4.dp))
                     OpponentHand(count = state.handCounts.getOrElse(leftSeat) { 0 }, rotation = 90f, horizontal = false)
                 }
             }
@@ -283,8 +314,8 @@ fun HokmScreen(
                 sheen = sheenState,
                 modifier = Modifier
                     .align(Alignment.Center)
-                    .size(w * 0.62f, h * 0.36f)
-                    .offset(y = (-12).dp),
+                    .size(w * 0.54f, h * 0.34f)
+                    .offset(y = (-8).dp),
             )
 
             // ---- my hand
@@ -302,6 +333,7 @@ fun HokmScreen(
                 Spacer(Modifier.height(4.dp))
                 HandFan(
                     cards = state.myHand,
+                    dealStamp = dealStamp,
                     legal = if (state.iDiscard) state.myHand.toSet() else state.legalCards,
                     enabled = (state.isMyTurn && !state.iDraw && !state.iChooseHokm) || state.iDiscard,
                     selected = state.selectedForDiscard,
@@ -550,69 +582,59 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
         label = "glow",
     )
 
+    // One fixed size for every chair on every side of the table: same width, same height, one line
+    // of text. The old badge grew with its hint text ("دارد کارت می‌سوزاند…", "تیم ما", …), so the
+    // four chairs had four different widths and the played cards slid under or over the names.
+    val shape = RoundedCornerShape(17.dp)
     CompositionLocalProvider(LocalLayoutDirection provides LayoutDirection.Rtl) {
         Row(
             modifier
-                .clip(RoundedCornerShape(22.dp))
+                .width(SEAT_BADGE_WIDTH)
+                .height(SEAT_BADGE_HEIGHT)
+                .clip(shape)
                 .background(Table.chip)
                 .border(
                     width = if (isTurn) 2.dp else 1.dp,
-                    color = if (isTurn) Table.turnGlow.copy(alpha = glow) else teamColor.copy(alpha = 0.5f),
-                    shape = RoundedCornerShape(22.dp),
+                    color = if (isTurn) Table.turnGlow.copy(alpha = glow) else teamColor.copy(alpha = 0.45f),
+                    shape = shape,
                 )
-                .padding(horizontal = 10.dp, vertical = 5.dp),
+                .padding(horizontal = 6.dp),
             verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
+            horizontalArrangement = Arrangement.spacedBy(5.dp),
         ) {
             Box(
                 Modifier
-                    .size(30.dp)
+                    .size(20.dp)
                     .clip(CircleShape)
-                    .background(Brush.linearGradient(listOf(teamColor, teamColor.copy(alpha = 0.6f)))),
+                    .background(Brush.linearGradient(listOf(teamColor, teamColor.copy(alpha = 0.55f)))),
                 contentAlignment = Alignment.Center,
             ) {
-                Text(info.name.take(1), color = Color.Black, fontWeight = FontWeight.Bold)
+                Text(info.name.take(1), color = Color.Black, fontWeight = FontWeight.Bold, fontSize = 10.sp)
             }
-            Column {
-                Text(info.name, color = Color.White, fontWeight = FontWeight.SemiBold, fontSize = 14.sp)
-                Text(
-                    when {
-                        state.isTeamGame -> if (team == state.myTeam) "تیم ما" else "حریف"
-                        seat == state.mySeat -> "شما"
-                        else -> "${state.scores.getOrElse(team) { 0 }.toFa()} امتیاز"
-                    },
-                    color = teamColor,
-                    fontSize = 11.sp,
-                )
+            Text(
+                text = info.name,
+                color = Color.White,
+                fontWeight = FontWeight.SemiBold,
+                fontSize = 12.sp,
+                maxLines = 1,
+                overflow = TextOverflow.Ellipsis,
+                textAlign = TextAlign.Start,
+                modifier = Modifier.weight(1f),
+            )
+            if (info.isBot && isTurn) {
+                // A single quiet dot replaces the long "thinking" caption that used to widen a seat.
+                Box(Modifier.size(5.dp).clip(CircleShape).background(Table.turnGlow.copy(alpha = glow)))
             }
             if (isHakem) {
-                // The crown is a vector, not the "👑" emoji: Vazirmatn has no dingbat/emoji glyphs,
-                // so on some devices the gold chip used to show a bare tofu box next to «حاکم».
-                Row(
-                    Modifier
-                        .clip(RoundedCornerShape(10.dp))
-                        .background(Table.brass)
-                        .padding(horizontal = 7.dp, vertical = 3.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    HokmIconView(HokmIcon.Crown, color = Color(0xFF3E2410), size = 11.dp)
-                    Text("حاکم", color = Color(0xFF3E2410), fontSize = 11.sp, fontWeight = FontWeight.Bold)
-                }
+                // Vector crown: the "👑" emoji turned into a bare tofu box on devices without an
+                // emoji font, right on top of the gold chip.
+                HokmIconView(HokmIcon.Crown, color = Table.brass, size = 11.dp)
             }
-            if (info.isBot && state.introShown == null && !state.dealing) {
-                val hint = when {
-                    state.handPhase == HandPhase.CHOOSING_HOKM && isHakem -> "در حال انتخاب حکم…"
-                    state.handPhase == HandPhase.DISCARDING && state.turn == seat -> "دارد کارت می‌سوزاند…"
-                    state.handPhase == HandPhase.DRAWING && state.turn == seat -> "دارد کارت برمی‌دارد…"
-                    else -> null
-                }
-                if (hint != null) Text(hint, color = Table.turnGlow, fontSize = 11.sp)
-            }
-            // Digital stack counter: how many tricks this seat (or team) has swept so far.
-            TrickCounterChip(
-                count = state.tricksWon.getOrElse(team) { 0 },
-                modifier = Modifier.padding(start = 2.dp),
+            Text(
+                text = state.tricksWon.getOrElse(team) { 0 }.toFa(),
+                color = teamColor,
+                fontSize = 11.sp,
+                fontWeight = FontWeight.Black,
             )
         }
     }
@@ -780,6 +802,8 @@ private fun HandFan(
     onDrop: (Card) -> Unit = {},
     selected: Set<Card> = emptySet(),
     sheen: State<HokmSheen> = NeutralSheenState,
+    /** Changes once per deal; every card then flies into the fan on its own beat. */
+    dealStamp: Int = 0,
 ) {
     val motionScale = HokmCinematics.motionScale(LocalHokmMotion.current)
     BoxWithConstraints(Modifier.fillMaxWidth().height(cardWidth / CARD_ASPECT + 26.dp)) {
@@ -797,6 +821,17 @@ private fun HandFan(
                 val lift = HokmCinematics.fanLift(i, n, 14f).dp
                 val playable = enabled && card in legal
                 val isSelected = card in selected
+                // A dealt card lands on its own beat instead of the whole hand popping in at once.
+                val enter = remember { Animatable(if (dealStamp == 0) 1f else 0f) }
+                LaunchedEffect(dealStamp) {
+                    if (dealStamp == 0) {
+                        enter.snapTo(1f)
+                        return@LaunchedEffect
+                    }
+                    enter.snapTo(0f)
+                    delay(i * DEAL_STAGGER_MS)
+                    enter.animateTo(1f, tween(if (motionScale <= 0f) 1 else 240, easing = FastOutSlowInEasing))
+                }
                 val raise by animateFloatAsState(if (isSelected) 2.2f else if (playable) 1f else 0f, tween(180), label = "raise")
                 var dragX by remember { mutableStateOf(0f) }
                 var dragY by remember { mutableStateOf(0f) }
@@ -820,11 +855,15 @@ private fun HandFan(
                         .offset(x = startX + step * i, y = 20.dp + lift - (12.dp * raise))
                         .rotate(angle)
                         .graphicsLayer {
+                            val e = enter.value
                             translationX = dragX
-                            translationY = dragY - 10f * liftAmount
-                            scaleX = 1f + 0.06f * liftAmount
-                            scaleY = 1f + 0.06f * liftAmount
+                            // The card comes down from the middle of the table, not from nowhere.
+                            translationY = dragY - 10f * liftAmount - (1f - e) * 210f
+                            val dealScale = 0.86f + 0.14f * e
+                            scaleX = (1f + 0.06f * liftAmount) * dealScale
+                            scaleY = (1f + 0.06f * liftAmount) * dealScale
                             rotationY = (dragX * 0.08f).coerceIn(-8f, 8f)
+                            alpha = (0.15f + 0.85f * e).coerceIn(0f, 1f)
                         }
                         .pointerInput(card.code, playable) {
                             if (!playable || motionScale <= 0f) return@pointerInput
@@ -1109,8 +1148,12 @@ private fun BoxScope.DealtCard(
         contentAlignment = Alignment.Center,
     ) {
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
+            // The card is sized by its own layout, so the sheen must be told the same box:
+            // `fillMaxSize()` here asked for the whole screen, and the gold sweep was drawn as a
+            // big yellow rectangle across the table the moment the ace was revealed.
             Box(
                 Modifier
+                    .size(cardWidth, cardWidth / CARD_ASPECT)
                     .clip(RoundedCornerShape(5.dp))
                     .then(
                         if (isAce) Modifier.border(2.dp, Table.turnGlow, RoundedCornerShape(5.dp)) else Modifier,
@@ -1122,8 +1165,8 @@ private fun BoxScope.DealtCard(
                     elevation = if (isAce) 12.dp else 3.dp,
                 )
                 if (isAce && isNewest) {
-                    // Deterministic one-shot sheen: no infinite transition, no per-frame recompose.
-                    GoldFoilGloss(Modifier.fillMaxSize(), progress = fly.value)
+                    // Deterministic one-shot sheen inside the card, never across the table.
+                    GoldFoilGloss(Modifier.matchParentSize(), progress = fly.value)
                 }
             }
             if (isAce) {
@@ -1481,7 +1524,8 @@ private fun SeatWithBubble(state: HokmUiState, seat: Int) {
 @Composable
 private fun StickerButton(onClick: () -> Unit, onTap: () -> Unit) {
     Hokm3DButton(
-        text = "☺",
+        text = "",
+        leadingIcon = HokmIcon.Star,
         tone = HokmButtonTone.GLASS,
         height = 42.dp,
         modifier = Modifier.width(45.dp),

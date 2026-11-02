@@ -489,7 +489,13 @@ abstract class HokmTable(
             is TableStep.Deal -> {
                 _state.value = _state.value.copy(dealing = true)
                 onSound("shuffle")
-                delay(DEAL_MS)
+                // One slap per round of four, like a real deal, instead of a silent wait and a
+                // hand that appears out of nowhere.
+                val rounds = 6
+                repeat(rounds) {
+                    delay(DEAL_MS / rounds)
+                    onSound("card_deal")
+                }
                 _state.value = _state.value.copy(dealing = false)
             }
         }
