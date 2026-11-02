@@ -47,7 +47,10 @@ class HokmSkinsTest {
         assertEquals(0, HokmSkins.cardBacks.first().winsRequired)
         assertEquals(0, HokmSkins.tables.first().winsRequired)
         // Thresholds are reachable: a player who keeps winning opens the whole shop.
-        val maxThreshold = (HokmSkins.cardBacks + HokmSkins.tables).maxOf { it.winsRequired }
+        val maxThreshold = maxOf(
+            HokmSkins.cardBacks.maxOf { it.winsRequired },
+            HokmSkins.tables.maxOf { it.winsRequired },
+        )
         assertTrue(maxThreshold <= 12, "the last design must not need more than a dozen wins")
     }
 

@@ -77,9 +77,10 @@ class BackgammonMoveTraceTest {
             it[5] = 2
             it[8] = -1
         }
+        // After the hit the point belongs to white (count 1) and the black checker sits on the bar.
         val after = empty().also {
             it[5] = 1
-            it[8] = -2
+            it[8] = 1
         }
         assertEquals(
             CheckerTrace(from = 5, to = 8, white = true),
