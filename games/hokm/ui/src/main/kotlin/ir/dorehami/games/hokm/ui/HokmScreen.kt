@@ -1095,10 +1095,10 @@ private fun HokmChooser(
                 Suit.HEARTS to Suit.DIAMONDS,
                 Suit.CLUBS to Suit.SPADES,
             )
-            suits.forEachIndexed { row, pair ->
+            suits.forEachIndexed { row, (first, second) ->
                 if (row > 0) Spacer(Modifier.height(8.dp))
                 Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    pair.forEach { suit ->
+                    listOf(first, second).forEach { suit ->
                         val count = hand.count { it.suit == suit }
                         val suitColor = if (suit == Suit.HEARTS || suit == Suit.DIAMONDS) {
                             MaterialTheme.colorScheme.error
