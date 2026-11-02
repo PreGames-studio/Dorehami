@@ -11,7 +11,7 @@ permissions:
 
 jobs:
   android-13:
-    name: Android 13 installer (${{ matrix.revision }})
+    name: Android ${{ matrix.api }} installer (${{ matrix.revision }})
     if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') }}
     runs-on: ubuntu-latest
     timeout-minutes: 30
@@ -21,8 +21,16 @@ jobs:
         include:
           - revision: '85b0d40'
             size: '124449298'
+            api: 30
           - revision: '253f3ca'
             size: '124801019'
+            api: 30
+          - revision: '85b0d40'
+            size: '124449298'
+            api: 35
+          - revision: '253f3ca'
+            size: '124801019'
+            api: 35
     steps:
       - uses: actions/checkout@v4
       - name: Download the specific published file
@@ -49,12 +57,12 @@ jobs:
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Install through Android 13's visible installer
+      - name: Check package manager and visible installer
         uses: reactivecircus/android-emulator-runner@v2
         env:
           REVISION: ${{ matrix.revision }}
         with:
-          api-level: 33
+          api-level: ${{ matrix.api }}
           target: google_apis
           arch: x86_64
           disable-animations: true
