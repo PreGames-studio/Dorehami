@@ -219,19 +219,22 @@ class TableAnimationQueueTest {
     @Test
     fun `a finished-hand banner survives the roll-over into the next hand`() {
         val summary = HandSummary(3, winnerTeam = 1, points = 3, kind = HandWinKind.NORMAL, hakem = 2, tricks = listOf(4, 7))
+        val nextHand = summary.handNumber + 1
+
+        // The bug this guards: filed under the hand that just ended, the banner is stale by the
+        // time refresh() reads the next hand and is silently dropped.
+        val filedOld = TableAnimQueue()
+        filedOld.offer(banner(hand = summary.handNumber, trick = 7, title = "این دست را باختیم!"))
+        assertEquals(1, filedOld.dropBeforeHand(nextHand), "the old filing is exactly what got dropped")
+        assertTrue(filedOld.isEmpty)
+
+        // Fixed filing: the swept trick is stale, the banner that announces the new hand is not.
         val queue = TableAnimQueue()
         queue.offer(collect(hand = summary.handNumber, trick = 7, winner = 2))
-        queue.offer(banner(hand = summary.handNumber, trick = 7, title = "این دست را باختیم!"))
-
-        // The engine starts the next hand in the same apply(), so refresh() sees handNumber + 1.
-        assertEquals(1, queue.dropBeforeHand(summary.handNumber + 1), "only the swept trick is stale")
+        queue.offer(banner(hand = TableEvents.bannerHand(summary), trick = 7, title = "این دست را باختیم!"))
+        assertEquals(1, queue.dropBeforeHand(nextHand), "only the swept trick is stale")
         assertEquals(1, queue.size, "the hand banner is still played")
-        assertEquals(summary.handNumber + 1, queue.peek()!!.handNumber)
-
-        val filed = TableAnimQueue()
-        filed.offer(TableStep.ShowBanner(Banner("x"), 1300L, TableEvents.bannerHand(summary), 7, 0L))
-        assertEquals(0, filed.dropBeforeHand(summary.handNumber + 1))
-        assertEquals(1, filed.size, "bannerHand() keeps the banner out of the staleness rule")
+        assertEquals(nextHand, queue.peek()!!.handNumber)
     }
 
     @Test
