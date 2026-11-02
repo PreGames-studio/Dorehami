@@ -37,12 +37,13 @@ jobs:
           gh release download debug-latest --pattern "$name" --dir apk
           actual=$(stat -c %s "apk/$name")
           test "$actual" = "$EXPECTED_SIZE"
-          sha256sum "apk/$name"
+          sha256sum "apk/$name" | tee package-report.txt
           unzip -tq "apk/$name"
           tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
-          python3 scripts/verify_shipped_apk.py "apk/$name" --aapt "$tools/aapt2" --min-sdk 24 --require-abi arm64-v8a --require-abi armeabi-v7a
+          python3 scripts/verify_shipped_apk.py "apk/$name" --aapt "$tools/aapt2" --min-sdk 24 --require-abi arm64-v8a --require-abi armeabi-v7a | tee -a package-report.txt
           "$tools/zipalign" -c -v 4 "apk/$name" >/dev/null
-          "$tools/apksigner" verify --verbose --print-certs "apk/$name"
+          "$tools/apksigner" verify --verbose --print-certs "apk/$name" | tee -a package-report.txt
+          python3 -c "from pathlib import Path; t=Path('package-report.txt').read_text(); print('::notice title=package-audit::'+t.replace('%','%25').replace(chr(10),'%0A'))"
       - name: Enable emulator acceleration
         run: |
           echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
@@ -58,7 +59,7 @@ jobs:
           arch: x86_64
           disable-animations: true
           emulator-options: -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none -gpu swiftshader_indirect
-          script: bash -c 'sed "s/^package=com.gf2227.dezhban$/package=ir.dorehami.app/" games/dejban/tools/diagnose_apk_installer_ui.sh > /tmp/host-installer.sh; bash /tmp/host-installer.sh "apk/Dorehami-debug-main-$REVISION.apk" > installer.log 2>&1'
+          script: bash -c 'bash tools/apk-proof/diagnose_host_android13.sh "apk/Dorehami-debug-main-$REVISION.apk" > installer.log 2>&1'
       - name: Report installer output
         if: always()
         run: |
