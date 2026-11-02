@@ -97,7 +97,7 @@ fun LobbyScreen(
                 Spacer(Modifier.weight(1f))
                 HokmPill(
                     text = if (flow.mode == RoomMode.BLUETOOTH) "بلوتوث · آفلاین" else "بازی آنلاین",
-                    icon = if (flow.mode == RoomMode.BLUETOOTH) "⌁" else "◎",
+                    icon = if (flow.mode == RoomMode.BLUETOOTH) HokmIcon.Bolt else HokmIcon.Globe,
                     color = HokmPalette.goldLight,
                 )
             }
