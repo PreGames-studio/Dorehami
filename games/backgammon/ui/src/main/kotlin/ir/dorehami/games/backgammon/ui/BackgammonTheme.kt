@@ -106,7 +106,8 @@ object BackgammonPalette {
     val ebony = Color(0xFF2E2415)
 }
 
-private const val BACKGAMMON_TYPE_SCALE = 1.08f
+/** Same 15% bump as the shell, chess, Hokm and Pantohub: one type scale for the whole app. */
+private const val BACKGAMMON_TYPE_SCALE = 1.15f
 
 /** Same bundled Persian face as the app shell, chess and Hokm. */
 private val BackgammonFontFamily = FontFamily(
@@ -176,9 +177,9 @@ fun BackgammonTheme(content: @Composable () -> Unit) {
 }
 
 /**
- * The module backdrop: the generated table art under the **same light veil** the app shell uses,
- * plus three soft colour glows (orange, teal, violet). No dark scrim — the artwork has to stay
- * visible, exactly like the home screen, the game picker and chess.
+ * The module backdrop: the generated table art under the **exact veil and glow recipe chess uses**
+ * (0.18 / 0.12 / 0.32 of the page colour plus orange, teal and violet glows). No dark scrim — the
+ * artwork has to stay visible, exactly like the home screen, the game picker and chess.
  */
 @Composable
 fun BackgammonBackdrop(modifier: Modifier = Modifier) {
@@ -214,9 +215,9 @@ fun BackgammonBackdrop(modifier: Modifier = Modifier) {
                 .background(
                     Brush.verticalGradient(
                         listOf(
-                            BackgammonPalette.paper.copy(alpha = 0.20f),
-                            BackgammonPalette.paper.copy(alpha = 0.14f),
-                            BackgammonPalette.paper.copy(alpha = 0.34f),
+                            BackgammonPalette.paper.copy(alpha = 0.18f),
+                            BackgammonPalette.paper.copy(alpha = 0.12f),
+                            BackgammonPalette.paper.copy(alpha = 0.32f),
                         ),
                     ),
                 ),

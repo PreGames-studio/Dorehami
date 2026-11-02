@@ -111,7 +111,7 @@ fun BackgammonScreen(
                             enabled = state.canMove,
                             onPoint = onPoint,
                             moving = moving,
-                            modifier = Modifier.fillMaxWidth(),
+                            modifier = Modifier.fillMaxHeight(),
                         )
                     }
                     Column(

@@ -95,6 +95,9 @@ internal fun PantohubGameScreen(
     var now by remember { mutableStateOf(gameMoment()) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
     var showEndGameDialog by remember { mutableStateOf(false) }
+    // True right after an outcome: the performer still holds the phone, so the next word is put on
+    // their screen immediately instead of flashing the public one.
+    var revealNextWord by remember { mutableStateOf(false) }
 
     DisposableEffect(tone) {
         onDispose { tone?.release() }
@@ -140,6 +143,22 @@ internal fun PantohubGameScreen(
         }
     }
 
+    LaunchedEffect(state.version, revealNextWord) {
+        val turn = latestState.currentTurn
+        if (shouldAutoRevealNextWord(
+                phase = latestState.phase,
+                wordRevealed = turn?.wordRevealed == true,
+                hasWord = turn?.currentWord != null,
+                wanted = revealNextWord,
+            )
+        ) {
+            revealNextWord = false
+            dispatch(GameAction.RevealWord(latestState.version, gameMoment()))
+        } else if (revealNextWord && (latestState.phase != GamePhase.RUNNING || turn?.currentWord == null)) {
+            revealNextWord = false
+        }
+    }
+
     fun startNextTurn() {
         val current = latestState
         scope.launch {
@@ -167,6 +186,9 @@ internal fun PantohubGameScreen(
             val pick = selection.getOrThrow()
             val nextWord = (pick as? WordSelectionResult.Selected)?.word
             val result = dispatch(GameAction.ResolveWord(current.version, outcome, nextWord, gameMoment()))
+            if (result != null && result.phase == GamePhase.RUNNING && result.currentTurn?.currentWord != null) {
+                revealNextWord = true
+            }
             if (result != null && outcome == WordOutcome.CORRECT && current.settings.soundEnabled) {
                 tone?.startTone(ToneGenerator.TONE_PROP_ACK, 110)
             }
@@ -219,6 +241,15 @@ internal fun PantohubGameScreen(
                     remainingMs = remaining,
                     remainingSeconds = remainingSeconds,
                     storageError = storageError,
+                    canRegister = canRegisterOutcome(
+                        phase = state.phase,
+                        wordRevealed = currentTurn?.wordRevealed == true,
+                        hasWord = currentTurn?.currentWord != null,
+                    ),
+                    allowSkip = state.settings.allowSkip &&
+                        (currentTurn?.skippedWords ?: 0) < state.settings.maxSkipsPerTurn,
+                    onResolve = { outcome -> resolve(outcome) },
+                    onPause = { dispatch(GameAction.PauseTurn(latestState.version, gameMoment())) },
                     onHide = { dispatch(GameAction.HideWord(latestState.version, gameMoment())) },
                 )
             } else {
@@ -304,20 +335,16 @@ internal fun PantohubGameScreen(
                                             Text("ادامهٔ نوبت")
                                         }
                                     } else {
-                                        Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                                            Button(
-                                                onClick = { resolve(WordOutcome.CORRECT) },
-                                                enabled = currentWord != null && currentTurn?.wordRevealed == true,
-                                                modifier = Modifier.weight(1f),
-                                            ) { Text("حدس درست") }
-                                            if (state.settings.allowSkip) {
-                                                OutlinedButton(
-                                                    onClick = { resolve(WordOutcome.SKIPPED) },
-                                                    enabled = currentWord != null && currentTurn?.wordRevealed == true && (currentTurn?.skippedWords ?: Int.MAX_VALUE) < state.settings.maxSkipsPerTurn,
-                                                    modifier = Modifier.weight(1f),
-                                                ) { Text("رد واژه") }
-                                            }
-                                        }
+                                        // «درست» و «رد» روی صفحهٔ خودِ اجراکننده است: موتور بازی تا واژه
+                                        // به او نشان داده نشود نتیجه را ثبت نمی‌کند، پس دکمه‌ای که اینجا
+                                        // همیشه خاکستری بود حذف شد.
+                                        Text(
+                                            "ثبت پاسخ («درست» یا «رد واژه») روی صفحهٔ اجراکننده است؛ بالا «نمایش واژه» را بزن.",
+                                            style = MaterialTheme.typography.bodySmall,
+                                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                            textAlign = TextAlign.Center,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
                                         OutlinedButton(
                                             onClick = { dispatch(GameAction.PauseTurn(latestState.version, gameMoment())) },
                                             modifier = Modifier.fillMaxWidth(),
@@ -387,6 +414,10 @@ private fun SecretWordScreen(
     remainingMs: Long,
     remainingSeconds: Int,
     storageError: String?,
+    canRegister: Boolean,
+    allowSkip: Boolean,
+    onResolve: (WordOutcome) -> Unit,
+    onPause: () -> Unit,
     onHide: () -> Unit,
 ) {
     val window = LocalContext.current.findActivity()?.window
@@ -434,10 +465,39 @@ private fun SecretWordScreen(
         } else {
             Box(modifier = Modifier.weight(1f).fillMaxWidth(), contentAlignment = Alignment.Center) { wordCard() }
         }
-        Button(onClick = onHide, modifier = Modifier.fillMaxWidth().height(64.dp)) {
-            Text("پوشاندن سریع واژه")
+        // ثبت نتیجه همان‌جایی است که واژه دیده می‌شود: موتور بازی پیش از نمایش واژه اجازهٔ ثبت
+        // نمی‌دهد، پس دکمه‌ها باید روی همین صفحه باشند، نه پشتِ یک «پوشاندن».
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            Button(
+                onClick = { onResolve(WordOutcome.CORRECT) },
+                enabled = canRegister,
+                modifier = Modifier.weight(1f).height(64.dp),
+            ) {
+                Text("درست", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            }
+            if (allowSkip) {
+                OutlinedButton(
+                    onClick = { onResolve(WordOutcome.SKIPPED) },
+                    enabled = canRegister,
+                    modifier = Modifier.weight(1f).height(64.dp),
+                ) {
+                    Text("رد واژه", style = MaterialTheme.typography.titleMedium)
+                }
+            }
         }
-        Text("برای ثبت پاسخ، ابتدا واژه را بپوشان و گوشی را برگردان.", style = MaterialTheme.typography.bodySmall, textAlign = TextAlign.Center)
+        Row(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.fillMaxWidth()) {
+            OutlinedButton(onClick = onHide, modifier = Modifier.weight(1f)) {
+                Text("پوشاندن واژه")
+            }
+            OutlinedButton(onClick = onPause, enabled = state.phase == GamePhase.RUNNING, modifier = Modifier.weight(1f)) {
+                Text("توقف موقت")
+            }
+        }
+        Text(
+            "پس از «درست» یا «رد»، واژهٔ بعدی خودکار روی همین صفحه می‌آید.",
+            style = MaterialTheme.typography.bodySmall,
+            textAlign = TextAlign.Center,
+        )
     }
 }
 

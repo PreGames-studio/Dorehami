@@ -11,7 +11,6 @@ import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.aspectRatio
-import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.State
@@ -33,6 +32,9 @@ import androidx.compose.ui.input.pointer.pointerInput
 import ir.dorehami.games.backgammon.BackgammonPosition
 import ir.dorehami.games.backgammon.BackgammonRules
 import kotlin.math.min
+
+/** Width / height of the board artwork; shared by the geometry and the hit test. */
+private const val BOARD_ASPECT = 1.42f
 
 /**
  * Geometry of one 2D board, shared by drawing and hit-testing so a tap can never disagree with what
@@ -131,9 +133,11 @@ fun BackgammonBoard(
     }
 
     Canvas(
+        // The caller decides which axis is tight: portrait hands in `fillMaxWidth`, landscape
+        // `fillMaxHeight`. `aspectRatio` then derives the other axis from that one, so the whole
+        // board fits the space instead of running off the top, bottom and one side.
         modifier
-            .fillMaxSize()
-            .aspectRatio(1.42f)
+            .aspectRatio(BOARD_ASPECT)
             .pointerInput(board, enabled) {
                 if (!enabled) return@pointerInput
                 detectTapGestures { offset ->

@@ -26,9 +26,11 @@ echo "== compile pure UI helpers (no Android/Compose)"
   "$STUBS/pantohub" \
   "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/PersianDigits.kt" \
   "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/TeamSetup.kt" \
+  "$R/games/pantohub/ui/src/main/java/ir/dorehami/games/pantohub/ui/TurnFlow.kt" \
   "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmCinematics.kt" 2>&1 | grep -v "^warning" || true
 echo "== compile pure UI tests"
-"$KC" -nowarn -Xallow-kotlin-package -cp "$OUT/ui.jar:$LIB/kotlin-test.jar" -d "$OUT/uitest.jar" \
+"$KC" -nowarn -Xallow-kotlin-package -Xfriend-paths="$OUT/ui.jar" -cp "$OUT/ui.jar:$LIB/kotlin-test.jar" -d "$OUT/uitest.jar" \
+  "$R/games/pantohub/ui/src/test/kotlin/ir/dorehami/games/pantohub/ui/TurnFlowTest.kt" \
   "$R/games/hokm/ui/src/test/kotlin/ir/dorehami/games/hokm/ui/HokmCinematicsTest.kt" \
   "$STUBS/junit" 2>&1 | grep -v "^warning" || true
 echo "== run"
