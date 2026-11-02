@@ -127,6 +127,7 @@ class RoomHubTest {
             awaitUntil("match record persisted") { store.get("ROOM1") != null }
             assertNotNull(store.get("ROOM1"), "record persisted on finish")
             assertEquals(ga.state.value.result!!["result"].toString(), gb.state.value.result!!["result"].toString())
+            hub.reap()
             awaitUntil("room reaped") { hub.get("ROOM1") == null }
             assertNull(hub.get("ROOM1"), "finished room reaped")
         } finally { scope.cancel() }
