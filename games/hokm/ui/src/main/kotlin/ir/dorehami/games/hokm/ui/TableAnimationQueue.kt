@@ -151,14 +151,28 @@ object TableEvents {
 
     /**
      * Whose turn it is once [play] was drawn. A closed trick has nobody on turn (`-1`) until the
-     * snapshot names the winner again. A duplicate keeps the previous turn, because no new card
-     * was added.
+     * snapshot names the winner again.
+     *
+     * @return `null` when nothing changed — a duplicate delivery added no card, so the seat that
+     *   was on turn still is. (Returning `-1` here used to freeze the turn indicator on a replayed
+     *   event.)
      */
-    fun turnAfter(update: TableCards, play: Play, players: Int): Int = when {
-        update.duplicate -> -1
+    fun turnAfter(update: TableCards, play: Play, players: Int): Int? = when {
+        update.duplicate -> null
         update.plays.size >= players -> -1
         else -> (play.seat + 1) % players
     }
+
+    /**
+     * Hand number a finished-hand banner is filed under.
+     *
+     * The engine starts the next hand inside the same `apply()` that finishes this one, so by the
+     * time the banner is on screen the table already has `handNumber + 1` and
+     * [TableAnimQueue.dropBeforeHand] would drop a step filed under the *old* number. Filing it
+     * under the hand it introduces keeps the banner while the staleness rule still discards the
+     * collect/deal steps of the hand that is gone.
+     */
+    fun bannerHand(summary: HandSummary): Int = summary.handNumber + 1
 
     /**
      * The banner a finished hand shows. `null` only when there is nothing to celebrate (never for a

@@ -126,6 +126,14 @@ data class HokmUiState(
     val tableCards: List<Play> = emptyList(),
     /** Seat that is sweeping the current trick, while the collect animation runs. */
     val collectingTo: Int? = null,
+    /**
+     * A closed trick is on screen and waiting to be swept (HK-010).
+     *
+     * Without this the engine had already moved to the next trick by the time the four cards were
+     * shown, so any snapshot read during that window replaced them with an empty table and the cards
+     * seemed to vanish instead of being collected.
+     */
+    val holdingTrick: Boolean = false,
     val lastHand: HandSummary? = null,
     val banner: Banner? = null,
     val hakemDraw: List<Play> = emptyList(),
@@ -163,7 +171,8 @@ data class HokmUiState(
      * Nothing is being animated, so a snapshot may be drawn as-is: no collect, banner, deal or
      * opening draw is on screen (`HokmTable.refresh()` and the event queue both use this gate).
      */
-    val isCalm: Boolean get() = !finished && introShown == null && collectingTo == null && !dealing && banner == null
+    val isCalm: Boolean get() =
+        !finished && introShown == null && collectingTo == null && !holdingTrick && !dealing && banner == null
     val isMyTurn: Boolean get() = isCalm && !isSendingMove && handPhase == HandPhase.PLAYING && turn == mySeat
     val iChooseHokm: Boolean get() = isCalm && !isSendingMove && handPhase == HandPhase.CHOOSING_HOKM && hakem == mySeat
     val iDiscard: Boolean get() =
@@ -456,6 +465,9 @@ abstract class HokmTable(
     private suspend fun runStep(step: TableStep) {
         when (step) {
             is TableStep.CollectTrick -> {
+                // Hold the four cards on screen before the sweep: a snapshot read must not empty
+                // the table while the player is still looking at the finished trick.
+                _state.value = _state.value.copy(holdingTrick = true)
                 delay(TRICK_SHOW_MS)
                 _state.value = _state.value.copy(collectingTo = step.winner)
                 onSound("whoosh")
@@ -463,7 +475,11 @@ abstract class HokmTable(
                 onSound(if (mine) "trick_won" else "trick_lost")
                 pushFx(FxKind.TRICK_WIN, step.winner, 900)
                 delay(COLLECT_MS)
-                _state.value = _state.value.copy(tableCards = emptyList(), collectingTo = null)
+                _state.value = _state.value.copy(
+                    tableCards = emptyList(),
+                    collectingTo = null,
+                    holdingTrick = false,
+                )
             }
             is TableStep.ShowBanner -> {
                 _state.value = _state.value.copy(banner = step.banner)
@@ -541,7 +557,7 @@ abstract class HokmTable(
                                 myHand = if (seat == mySeat) cur.myHand - card else cur.myHand,
                                 legalCards = if (seat == mySeat) emptySet() else cur.legalCards,
                                 // While a closed trick sits on the table nobody is "on turn".
-                                turn = TableEvents.turnAfter(update, Play(seat, card), playerCount),
+                                turn = TableEvents.turnAfter(update, Play(seat, card), playerCount) ?: cur.turn,
                             )
                         }
                     }
@@ -561,7 +577,10 @@ abstract class HokmTable(
                             // result is. Scores/winner still come from a validated snapshot.
                             val myTeam = HokmRules.teamOf(mySeat, playerCount)
                             val banner = TableEvents.handBanner(summary, playerCount, myTeam, ::teamName)
-                            val hand = summary.handNumber
+                            // The banner reports the hand that just ended, but it is shown while the
+                            // next one is already on the table: tag it with the new hand number, or
+                            // `dropBeforeHand` in refresh() throws it away before it is ever played.
+                            val hand = TableEvents.bannerHand(summary)
                             val revision = _state.value.revision
                             animQueue.offer(
                                 TableStep.ShowBanner(

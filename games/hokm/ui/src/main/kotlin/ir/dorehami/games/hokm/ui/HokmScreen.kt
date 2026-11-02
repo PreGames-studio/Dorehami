@@ -586,13 +586,18 @@ private fun SeatBadge(state: HokmUiState, seat: Int, modifier: Modifier = Modifi
                 )
             }
             if (isHakem) {
-                Box(
+                // The crown is a vector, not the "👑" emoji: Vazirmatn has no dingbat/emoji glyphs,
+                // so on some devices the gold chip used to show a bare tofu box next to «حاکم».
+                Row(
                     Modifier
                         .clip(RoundedCornerShape(10.dp))
                         .background(Table.brass)
-                        .padding(horizontal = 7.dp, vertical = 2.dp),
+                        .padding(horizontal = 7.dp, vertical = 3.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(4.dp),
                 ) {
-                    Text("👑 حاکم", color = Color(0xFF3E2410), fontSize = 11.sp, fontWeight = FontWeight.Bold)
+                    HokmIconView(HokmIcon.Crown, color = Color(0xFF3E2410), size = 11.dp)
+                    Text("حاکم", color = Color(0xFF3E2410), fontSize = 11.sp, fontWeight = FontWeight.Bold)
                 }
             }
             if (info.isBot && state.introShown == null && !state.dealing) {
