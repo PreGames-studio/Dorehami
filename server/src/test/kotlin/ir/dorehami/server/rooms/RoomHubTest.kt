@@ -55,7 +55,7 @@ class RoomHubTest {
      * coroutines, so `delay(40)` was a coin toss on a loaded CI runner (the "record stored" test
      * failed intermittently for exactly that reason).
      */
-    private suspend fun awaitUntil(label: String, timeoutMs: Long = 15_000, condition: () -> Boolean) {
+    private suspend fun awaitUntil(label: String, timeoutMs: Long = 15_000, condition: suspend () -> Boolean) {
         try {
             withTimeout(timeoutMs) {
                 while (!condition()) delay(5)
@@ -127,8 +127,12 @@ class RoomHubTest {
             awaitUntil("match record persisted") { store.get("ROOM1") != null }
             assertNotNull(store.get("ROOM1"), "record persisted on finish")
             assertEquals(ga.state.value.result!!["result"].toString(), gb.state.value.result!!["result"].toString())
-            hub.reap()
-            awaitUntil("room reaped") { hub.get("ROOM1") == null }
+            // The host marks the room finished a moment after the broadcast, so keep reaping while
+            // waiting instead of calling reap() once and hoping the flag was already set.
+            awaitUntil("room reaped") {
+                hub.reap()
+                hub.get("ROOM1") == null
+            }
             assertNull(hub.get("ROOM1"), "finished room reaped")
         } finally { scope.cancel() }
     }
