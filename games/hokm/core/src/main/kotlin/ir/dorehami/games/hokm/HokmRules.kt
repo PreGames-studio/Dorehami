@@ -55,6 +55,47 @@ object HokmRules {
     fun deckFor(players: Int): List<Card> =
         if (players == 3) Card.fullDeck().filter { it != THREE_PLAYER_REMOVED } else Card.fullDeck()
 
+    /**
+     * The order a dealer hands out the *rest* of the deck once the hakem named the trump, as seats.
+     *
+     * This mirrors [ir.dorehami.games.hokm.HokmSession.dealRest] card for card: five to everybody but
+     * the hakem (who already holds five), then rounds of four around the table until each seat holds
+     * [cardsPerPlayer]. The table animates one card per entry, so the deal looks like a real one
+     * instead of a hand that appears at once; the rules themselves never need this function.
+     */
+    fun dealOrder(players: Int, hakem: Int, start: List<Int>? = null): List<Int> {
+        if (players < 3) return emptyList()
+        val target = cardsPerPlayer(players)
+        val counts = MutableList(players) { seat ->
+            start?.getOrNull(seat) ?: if (seat == hakem) HAKEM_FIRST_DEAL else 0
+        }
+        val order = ArrayList<Int>(players * target)
+        var seat = nextSeat(hakem, players)
+        repeat(players - 1) {
+            repeat(HAKEM_FIRST_DEAL) {
+                if (counts[seat] < target) {
+                    order += seat
+                    counts[seat]++
+                }
+            }
+            seat = nextSeat(seat, players)
+        }
+        var guard = 0
+        while (counts.any { it < target } && guard++ < 64) {
+            var s = nextSeat(hakem, players)
+            repeat(players) {
+                repeat(4) {
+                    if (counts[s] < target) {
+                        order += s
+                        counts[s]++
+                    }
+                }
+                s = nextSeat(s, players)
+            }
+        }
+        return order
+    }
+
     /** Cards [seat] is allowed to play: must follow the led suit when possible. */
     fun legalCards(hand: List<Card>, trick: List<Play>): List<Card> {
         if (trick.isEmpty()) return hand

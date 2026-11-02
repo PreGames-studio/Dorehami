@@ -1007,7 +1007,7 @@ internal fun SettingToggle(
 ) {
     Row(
         modifier
-            .height(68.dp)
+            .heightIn(min = 68.dp)
             .clip(RoundedCornerShape(15.dp))
             .background(MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.62f))
             .border(1.dp, MaterialTheme.colorScheme.outline.copy(alpha = 0.48f), RoundedCornerShape(15.dp))
@@ -1017,8 +1017,8 @@ internal fun SettingToggle(
         horizontalArrangement = Arrangement.spacedBy(7.dp),
     ) {
         Column(Modifier.weight(1f)) {
-            Text(title, color = HokmPalette.text, fontSize = 12.sp, fontWeight = FontWeight.Bold, maxLines = 1)
-            Text(subtitle, color = HokmPalette.muted, fontSize = 10.sp)
+            Text(title, color = HokmPalette.text, fontSize = 12.5.sp, fontWeight = FontWeight.Bold, maxLines = 1)
+            Text(subtitle, color = HokmPalette.muted, fontSize = 10.5.sp, maxLines = 1, overflow = TextOverflow.Ellipsis)
         }
         val knob by androidx.compose.animation.core.animateFloatAsState(
             targetValue = if (checked) 1f else 0f,

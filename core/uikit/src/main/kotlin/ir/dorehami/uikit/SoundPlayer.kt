@@ -16,7 +16,7 @@ import androidx.compose.ui.platform.LocalContext
  */
 class UiSoundPlayer(context: Context, sounds: Map<String, Int>) {
     private val pool: SoundPool = SoundPool.Builder()
-        .setMaxStreams(6)
+        .setMaxStreams(12)
         .setAudioAttributes(
             AudioAttributes.Builder()
                 .setUsage(AudioAttributes.USAGE_GAME)
