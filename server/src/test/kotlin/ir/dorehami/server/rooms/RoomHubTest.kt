@@ -49,6 +49,17 @@ class RoomHubTest {
         override suspend fun close() { hub.detach(code, player.id, sink); inbox.trySend(TransportEvent.Closed) }
     }
 
+    /**
+     * Waits for a condition instead of sleeping a fixed number of milliseconds: the hub hops between
+     * coroutines, so `delay(40)` was a coin toss on a loaded CI runner (the "record stored" test
+     * failed intermittently for exactly that reason).
+     */
+    private suspend fun awaitUntil(timeoutMs: Long = 5_000, condition: () -> Boolean) {
+        withTimeout(timeoutMs) {
+            while (!condition()) delay(5)
+        }
+    }
+
     private suspend fun move(g: GuestController): Boolean {
         val s = g.state.value
         val legal = s.legalActions
@@ -85,14 +96,18 @@ class RoomHubTest {
             val errsB = ArrayList<SessionEvent.Error>()
             scope.launch { gb.events.collect { if (it is SessionEvent.Error) errsB += it } }
             delay(40)
-            ga.join(); delay(40); gb.join(); delay(40)
+            ga.join(); gb.join()
+            awaitUntil { ga.state.value.seat == 0 && gb.state.value.seat == 1 }
             assertEquals(0, ga.state.value.seat); assertEquals(1, gb.state.value.seat)
             assertTrue(ga.state.value.isHost, "first human owns the room")
 
-            gb.requestStart(); delay(40)
+            gb.requestStart()
+            awaitUntil { errsB.any { it.code == "auth.unauthorized" } }
             assertTrue(errsB.any { it.code == "auth.unauthorized" }, "only the owner may start")
-            ga.requestStart(); delay(60)
+            ga.requestStart()
+            awaitUntil { room.started }
             assertTrue(room.started)
+            awaitUntil { ga.state.value.room?.members?.size == 4 }
             assertEquals(4, ga.state.value.room!!.members.size)
 
             withTimeout(60_000) {
@@ -100,9 +115,10 @@ class RoomHubTest {
                     val a = move(ga); val b = move(gb); delay(if (a || b) 15 else 5)
                 }
             }
+            awaitUntil { store.get("ROOM1") != null }
             assertNotNull(store.get("ROOM1"), "record persisted on finish")
             assertEquals(ga.state.value.result!!["result"].toString(), gb.state.value.result!!["result"].toString())
-            hub.reap()
+            awaitUntil { hub.get("ROOM1") == null }
             assertNull(hub.get("ROOM1"), "finished room reaped")
         } finally { scope.cancel() }
     }
