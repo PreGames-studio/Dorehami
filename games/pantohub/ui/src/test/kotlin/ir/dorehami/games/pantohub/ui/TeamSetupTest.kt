@@ -112,4 +112,14 @@ class TeamSetupTest {
         assertEquals(2, two.size)
         assertTrue(two.all { it.players.size == 2 })
     }
+
+    @Test
+    fun `a big team of ten seats is allowed`() {
+        // A real party table turned up with ten people on one side; the wizard used to stop at six.
+        val big = team("جمع").withSeatCount(10)
+        assertEquals(10, big.players.size)
+        assertEquals("بازیکن ۱", big.players.first())
+        assertEquals("بازیکن ۱۰", big.players.last())
+        assertTrue(MAX_PLAYERS_PER_TEAM >= 10)
+    }
 }

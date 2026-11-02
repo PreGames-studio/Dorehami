@@ -152,8 +152,11 @@ fun CardBackView(
     width: Dp,
     modifier: Modifier = Modifier,
     elevation: Dp = 4.dp,
+    skin: HokmCardBackSkin? = null,
 ) {
-    // Photographic back (crimson girih on gold); the painted lattice below stays as a fallback.
+    // The bundled crimson-girih artwork is the base of every design; the shop only changes the wash,
+    // the edge and (on larger cards) a small motif, so a hand of 13 backs never gets expensive.
+    val look = skin ?: LocalHokmLook.current.cardBack
     val height = width / CARD_ASPECT
     val corner = width * 0.09f
     val shape = RoundedCornerShape(corner)
@@ -171,6 +174,20 @@ fun CardBackView(
             contentScale = ContentScale.Crop,
             modifier = Modifier.fillMaxSize(),
         )
+        if (look.tintTop != Color.Transparent || look.tintBottom != Color.Transparent) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawRect(Brush.verticalGradient(listOf(look.tintTop, look.tintBottom)))
+            }
+        }
+        if (look.edge != HokmSkins.DefaultCardBack.edge) {
+            Canvas(Modifier.fillMaxSize()) {
+                drawRoundRect(
+                    color = look.edge.copy(alpha = 0.8f),
+                    cornerRadius = androidx.compose.ui.geometry.CornerRadius(corner.toPx() * 0.8f),
+                    style = Stroke(width = width.toPx() * 0.03f),
+                )
+            }
+        }
     }
 }
 

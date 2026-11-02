@@ -19,6 +19,8 @@ object HokmSounds {
         "sticker" to R.raw.hokm_sticker,
         "card_cut" to R.raw.hokm_card_cut,
         "card_slide" to R.raw.hokm_card_slide,
+        /** Heavy slap of the trump card hitting the baize. */
+        "card_slam" to R.raw.hokm_card_slam,
         "timer_tick" to R.raw.hokm_timer_tick,
         "timer_warn" to R.raw.hokm_timer_warn,
         "whoosh" to R.raw.hokm_whoosh,

@@ -23,7 +23,12 @@ internal const val MAX_TEAMS = 8
 /** Shared-preferences file that keeps the last wizard state on this device. */
 internal const val SETUP_PREFS = "pantohub-setup"
 internal const val MIN_PLAYERS_PER_TEAM = 1
-internal const val MAX_PLAYERS_PER_TEAM = 6
+/**
+ * Seats per team. Raised from 6 to 12: a real party table turned up with ten people on one side and
+ * the wizard simply refused the seventh seat. Twelve keeps even a big family in one team while the
+ * chip grid below stays two rows of six.
+ */
+internal const val MAX_PLAYERS_PER_TEAM = 12
 
 /** 1-based seat label, e.g. «بازیکن ۲». */
 internal fun defaultPlayerName(seat: Int): String = "بازیکن ${seat.toPersianDigits()}"

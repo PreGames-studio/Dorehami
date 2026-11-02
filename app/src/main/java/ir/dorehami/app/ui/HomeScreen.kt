@@ -154,17 +154,6 @@ fun HomeScreen(
                     }
                 }
             }
-
-            Text(
-                text = "شطرنج  •  حکم  •  پانتومیم  •  دژبان",
-                color = colors.onSurfaceVariant,
-                style = MaterialTheme.typography.labelMedium,
-                textAlign = TextAlign.Center,
-                modifier = Modifier
-                    .clip(RoundedCornerShape(16.dp))
-                    .background(glass.copy(alpha = 0.78f))
-                    .padding(horizontal = 12.dp, vertical = 6.dp),
-            )
         }
     }
 }

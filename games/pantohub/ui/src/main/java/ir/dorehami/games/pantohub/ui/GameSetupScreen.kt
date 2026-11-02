@@ -90,7 +90,11 @@ internal fun GameSetupScreen(
     }
     var gameName by remember { mutableStateOf(setupPrefs.getString("gameName", null) ?: "پانتومیم") }
     var step by remember { mutableStateOf(SetupStep.COUNT) }
-    var playersPerTeam by remember { mutableStateOf(setupPrefs.getInt("playersPerTeam", 2).coerceIn(1, 6)) }
+    var playersPerTeam by remember {
+        mutableStateOf(
+            setupPrefs.getInt("playersPerTeam", 2).coerceIn(MIN_PLAYERS_PER_TEAM, MAX_PLAYERS_PER_TEAM),
+        )
+    }
     var roundsPerTeam by remember { mutableStateOf(setupPrefs.getInt("roundsPerTeam", 3)) }
     var turnSeconds by remember { mutableStateOf(setupPrefs.getInt("turnSeconds", 60)) }
     var finalRoundSeconds by remember { mutableStateOf(setupPrefs.getInt("finalRoundSeconds", 60)) }
@@ -172,38 +176,42 @@ internal fun GameSetupScreen(
             SetupStep.COUNT -> {
                 // Step 1 — purely graphical: no typing, just how many people play.
                 Text("چند نفر در هر تیم؟", style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
-                    (1..6).forEach { count ->
-                        val selected = count == playersPerTeam
-                        OutlinedButton(
-                            onClick = {
-                                playersPerTeam = count
-                                resizeTeams(teams.toList(), count).forEachIndexed { index, team -> teams[index] = team }
-                                errorMessage = null
-                            },
-                            shape = RoundedCornerShape(16.dp),
-                            colors = if (selected) {
-                                ButtonDefaults.outlinedButtonColors(
-                                    containerColor = MaterialTheme.colorScheme.primaryContainer,
-                                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                                )
-                            } else {
-                                ButtonDefaults.outlinedButtonColors()
-                            },
-                            border = BorderStroke(
-                                width = if (selected) 2.dp else 1.dp,
-                                color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
-                            ),
-                            contentPadding = PaddingValues(vertical = 10.dp, horizontal = 2.dp),
-                            modifier = Modifier.weight(1f),
-                        ) {
-                            Column(horizontalAlignment = Alignment.CenterHorizontally) {
-                                Text(
-                                    count.toString().toPersianDigits(),
-                                    fontWeight = FontWeight.Bold,
-                                    fontSize = 17.sp,
-                                )
-                                Text("نفر", style = MaterialTheme.typography.labelSmall)
+                // Two rows of six: one long row of twelve chips would leave every target too small
+                // to hit on a phone.
+                (MIN_PLAYERS_PER_TEAM..MAX_PLAYERS_PER_TEAM).toList().chunked(6).forEach { line ->
+                    Row(horizontalArrangement = Arrangement.spacedBy(8.dp), modifier = Modifier.fillMaxWidth()) {
+                        line.forEach { count ->
+                            val selected = count == playersPerTeam
+                            OutlinedButton(
+                                onClick = {
+                                    playersPerTeam = count
+                                    resizeTeams(teams.toList(), count).forEachIndexed { index, team -> teams[index] = team }
+                                    errorMessage = null
+                                },
+                                shape = RoundedCornerShape(16.dp),
+                                colors = if (selected) {
+                                    ButtonDefaults.outlinedButtonColors(
+                                        containerColor = MaterialTheme.colorScheme.primaryContainer,
+                                        contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                                    )
+                                } else {
+                                    ButtonDefaults.outlinedButtonColors()
+                                },
+                                border = BorderStroke(
+                                    width = if (selected) 2.dp else 1.dp,
+                                    color = if (selected) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.outline,
+                                ),
+                                contentPadding = PaddingValues(vertical = 10.dp, horizontal = 2.dp),
+                                modifier = Modifier.weight(1f),
+                            ) {
+                                Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                                    Text(
+                                        count.toString().toPersianDigits(),
+                                        fontWeight = FontWeight.Bold,
+                                        fontSize = 17.sp,
+                                    )
+                                    Text("نفر", style = MaterialTheme.typography.labelSmall)
+                                }
                             }
                         }
                     }

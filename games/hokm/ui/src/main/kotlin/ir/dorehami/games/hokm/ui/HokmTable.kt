@@ -13,6 +13,7 @@ import ir.dorehami.games.hokm.HandWinKind
 import ir.dorehami.games.hokm.HokmModule
 import ir.dorehami.games.hokm.HokmRules
 import ir.dorehami.games.hokm.Play
+import ir.dorehami.games.hokm.Rank
 import ir.dorehami.games.hokm.Suit
 import ir.dorehami.uikit.toFa
 import kotlinx.coroutines.CoroutineScope
@@ -68,7 +69,13 @@ object Stickers {
 data class SeatSticker(val seat: Int, val sticker: Sticker, val stamp: Long)
 
 /** Something transient to say on the table (feed line / banner). */
-data class Banner(val title: String, val subtitle: String? = null, val big: Boolean = false)
+data class Banner(
+    val title: String,
+    val subtitle: String? = null,
+    val big: Boolean = false,
+    /** Trump suit of a "حکم شد" banner, drawn as a vector pip (the bundled font has no suit glyphs). */
+    val suit: Suit? = null,
+)
 
 /** One-shot visual effects the screen renders on top of the table. */
 enum class FxKind {
@@ -123,6 +130,8 @@ data class HokmUiState(
     /** How many of [hakemDraw] are face-up during the opening animation (`null` = intro finished). */
     val introShown: Int? = null,
     val dealing: Boolean = false,
+    /** Trump suit while the "حکم شد" card is being slapped onto the table (short-lived). */
+    val trumpReveal: Suit? = null,
     val error: String? = null,
     val finished: Boolean = false,
     val winnerTeam: Int? = null,
@@ -355,7 +364,13 @@ abstract class HokmTable(
         val draw = _state.value.hakemDraw
         for (i in 1..draw.size) {
             _state.value = _state.value.copy(introShown = i)
-            onSound("card_deal")
+            val card = draw[i - 1].card
+            // The first ace decides the hakem: give it the heavy slap instead of a soft deal tick.
+            onSound(if (card.rank == Rank.ACE) "card_slam" else "card_deal")
+            if (card.rank == Rank.ACE) {
+                pushFx(FxKind.CUT, draw[i - 1].seat, 900)
+                delay(240)
+            }
             delay(INTRO_CARD_MS)
         }
         val hakem = _state.value.hakem
@@ -551,7 +566,14 @@ abstract class HokmTable(
                         val suit = Suit.parse(e.payload["hokm"]!!.jsonPrimitive.content)!!
                         feed += "${seats[hakem].name} حکم را ${suit.titleFa} کرد"
                         if (actor != mySeat) {
-                            pendingHandBanner = Banner("حکم: ${suit.titleFa} ${suit.symbol}", "به انتخاب ${seats[hakem].name}")
+                            pendingHandBanner = Banner("حکم: ${suit.titleFa}", "به انتخاب ${seats[hakem].name}", suit = suit)
+                        }
+                        // The trump card lands on the baize: its own punchy slap + a short reveal.
+                        onSound("card_slam")
+                        _state.value = _state.value.copy(trumpReveal = suit)
+                        scope.launch {
+                            delay(1600)
+                            if (_state.value.trumpReveal == suit) _state.value = _state.value.copy(trumpReveal = null)
                         }
                         // 3p/4p: the remaining cards are dealt out — animate it before showing them.
                         if (playerCount > 2) pendingDeal = true

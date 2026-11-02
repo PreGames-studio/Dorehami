@@ -40,6 +40,16 @@ class HokmPrefs(context: Context) {
     var botLevel: String
         get() = sp.getString("botLevel", HokmModule.BOT_PRO) ?: HokmModule.BOT_PRO
         set(v) = sp.edit().putString("botLevel", v).apply()
+    /** Id of the chosen card-back design (see [HokmSkins]). */
+    var cardBack: String
+        get() = sp.getString("cardBack", HokmSkins.DefaultCardBack.id) ?: HokmSkins.DefaultCardBack.id
+        set(v) = sp.edit().putString("cardBack", v).apply()
+
+    /** Id of the chosen table design (see [HokmSkins]). */
+    var tableSkin: String
+        get() = sp.getString("tableSkin", HokmSkins.DefaultTable.id) ?: HokmSkins.DefaultTable.id
+        set(v) = sp.edit().putString("tableSkin", v).apply()
+
     var serverUrl: String
         get() = sp.getString("serverUrl", DEFAULT_SERVER_URL) ?: DEFAULT_SERVER_URL
         set(v) = sp.edit().putString("serverUrl", v).apply()

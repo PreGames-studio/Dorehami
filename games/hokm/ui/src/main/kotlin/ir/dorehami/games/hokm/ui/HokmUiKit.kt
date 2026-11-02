@@ -1,5 +1,7 @@
 package ir.dorehami.games.hokm.ui
 
+import ir.dorehami.games.hokm.Suit
+
 import androidx.compose.animation.core.FastOutSlowInEasing
 import androidx.compose.animation.core.animateFloatAsState
 import androidx.compose.animation.core.tween
@@ -180,6 +182,9 @@ fun Hokm3DButton(
     subtitle: String? = null,
     leading: String? = null,
     trailing: String? = null,
+    leadingIcon: HokmIcon? = null,
+    trailingIcon: HokmIcon? = null,
+    leadingSuit: Suit? = null,
     height: Dp = 54.dp,
     tone: HokmButtonTone = HokmButtonTone.GOLD,
     enabled: Boolean = true,
@@ -228,7 +233,19 @@ fun Hokm3DButton(
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        if (leading != null) {
+        if (leadingSuit != null) {
+            HokmSuitPip(
+                suit = leadingSuit,
+                color = leadingColor ?: foreground,
+                size = if (height < 48.dp) 16.dp else 20.dp,
+            )
+        } else if (leadingIcon != null) {
+            HokmIconView(
+                icon = leadingIcon,
+                color = leadingColor ?: foreground,
+                size = if (height < 48.dp) 16.dp else 20.dp,
+            )
+        } else if (leading != null) {
             Text(
                 text = leading,
                 color = leadingColor ?: foreground,
@@ -248,9 +265,9 @@ fun Hokm3DButton(
                 text = text,
                 color = foreground,
                 fontSize = when {
-                    height < 48.dp -> 12.sp
-                    text.length > 16 -> 13.sp
-                    else -> 14.sp
+                    height < 48.dp -> 12.5.sp
+                    text.length > 16 -> 13.5.sp
+                    else -> 14.5.sp
                 },
                 lineHeight = if (height < 48.dp) 15.sp else 18.sp,
                 fontWeight = FontWeight.Bold,
@@ -273,7 +290,9 @@ fun Hokm3DButton(
                 )
             }
         }
-        if (trailing != null) {
+        if (trailingIcon != null) {
+            HokmIconView(icon = trailingIcon, color = foreground, size = 16.dp)
+        } else if (trailing != null) {
             Text(
                 text = trailing,
                 color = foreground,
@@ -285,25 +304,36 @@ fun Hokm3DButton(
     }
 }
 
-/** Small decorative chip for status or settings summaries. */
+/**
+ * Small status chip. Sized to its text (never to a fixed box), with a dark translucent base and a
+ * bright accent label so it stays legible on the artwork: the old 11sp accent-on-tint pills were the
+ * unreadable "سبز و صورتی" boxes under the hero title.
+ */
 @Composable
 fun HokmPill(
     text: String,
     modifier: Modifier = Modifier,
-    icon: String? = null,
+    icon: HokmIcon? = null,
     color: Color = HokmPalette.gold,
 ) {
     Row(
         modifier
             .clip(RoundedCornerShape(50))
-            .background(color.copy(alpha = 0.12f))
-            .border(1.dp, color.copy(alpha = 0.34f), RoundedCornerShape(50))
-            .padding(horizontal = 11.dp, vertical = 6.dp),
+            .background(Color(0xCC171320))
+            .border(1.dp, color.copy(alpha = 0.7f), RoundedCornerShape(50))
+            .padding(horizontal = 11.dp, vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = androidx.compose.foundation.layout.Arrangement.spacedBy(6.dp),
     ) {
-        if (icon != null) Text(icon, color = color, fontSize = 12.sp, fontWeight = FontWeight.Bold)
-        Text(text, color = color, fontSize = 11.sp, fontWeight = FontWeight.SemiBold, maxLines = 1)
+        if (icon != null) HokmIconView(icon = icon, color = color, size = 13.dp)
+        Text(
+            text = text,
+            color = color,
+            fontSize = 12.sp,
+            lineHeight = 15.sp,
+            fontWeight = FontWeight.Bold,
+            maxLines = 1,
+        )
     }
 }
 

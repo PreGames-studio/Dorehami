@@ -8,7 +8,9 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -20,11 +22,18 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
+import androidx.compose.material3.Typography
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.layout.ContentScale
+import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.Font
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
@@ -34,27 +43,68 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 
-/** Warm walnut board colours — the same "authentic table, calm and premium" direction as chess. */
+/**
+ * The module's colours. The chrome follows the app's dark scheme (`#1E1A26` / `#2A2433`, amber
+ * `#FFB86B`, teal `#5FD3C7`, violet `#C9A5FF`) so backgammon looks like a room of the same house as
+ * the shell and Hokm; only the board itself keeps its wooden material colours.
+ */
 object BackgammonPalette {
-    val night = Color(0xFF14100C)
-    val walnut = Color(0xFF3A2718)
-    val walnutLight = Color(0xFF573B24)
-    val pointLight = Color(0xFFD9B98A)
+    val night = Color(0xFF1E1A26)
+    val walnut = Color(0xFF2A2433)
+    val walnutLight = Color(0xFF3A3346)
+    val pointLight = Color(0xFFE6D3AE)
     val pointDark = Color(0xFF6E3F22)
-    val bar = Color(0xFF241708)
-    val ivory = Color(0xFFF4E7CE)
-    val ebony = Color(0xFF1F1B17)
-    val gold = Color(0xFFE0B65A)
-    val goldDim = Color(0xFF9C7B33)
-    val mint = Color(0xFF7FD1B9)
-    val coral = Color(0xFFE2705E)
-    val text = Color(0xFFF6ECDA)
-    val muted = Color(0xFFC7B49A)
+    val bar = Color(0xFF241B14)
+    val ivory = Color(0xFFFDFBF4)
+    val ebony = Color(0xFF1C1C1E)
+    val gold = Color(0xFFFFB86B)
+    val goldDim = Color(0xFF9A90A8)
+    val mint = Color(0xFF5FD3C7)
+    val coral = Color(0xFFFFB4A9)
+    val text = Color(0xFFF4EEFA)
+    val muted = Color(0xFFD2C8DC)
+}
+
+private const val BACKGAMMON_TYPE_SCALE = 1.08f
+
+/** Same bundled Persian face as the app shell, chess and Hokm. */
+private val BackgammonFontFamily = FontFamily(
+    Font(R.font.vazirmatn_regular, FontWeight.Normal),
+    Font(R.font.vazirmatn_medium, FontWeight.Medium),
+    Font(R.font.vazirmatn_bold, FontWeight.Bold),
+)
+
+private fun TextStyle.scaled() = copy(
+    fontFamily = BackgammonFontFamily,
+    fontSize = if (fontSize.isSpecified) fontSize * BACKGAMMON_TYPE_SCALE else fontSize,
+    lineHeight = if (lineHeight.isSpecified) lineHeight * BACKGAMMON_TYPE_SCALE else lineHeight,
+)
+
+private fun backgammonTypography(): Typography {
+    val base = Typography()
+    return Typography(
+        displayLarge = base.displayLarge.scaled(),
+        displayMedium = base.displayMedium.scaled(),
+        displaySmall = base.displaySmall.scaled(),
+        headlineLarge = base.headlineLarge.scaled(),
+        headlineMedium = base.headlineMedium.scaled(),
+        headlineSmall = base.headlineSmall.scaled(),
+        titleLarge = base.titleLarge.scaled(),
+        titleMedium = base.titleMedium.scaled(),
+        titleSmall = base.titleSmall.scaled(),
+        bodyLarge = base.bodyLarge.scaled(),
+        bodyMedium = base.bodyMedium.scaled(),
+        bodySmall = base.bodySmall.scaled(),
+        labelLarge = base.labelLarge.scaled(),
+        labelMedium = base.labelMedium.scaled(),
+        labelSmall = base.labelSmall.scaled(),
+    )
 }
 
 @Composable
 fun BackgammonTheme(content: @Composable () -> Unit) {
     MaterialTheme(
+        typography = backgammonTypography(),
         colorScheme = darkColorScheme(
             primary = BackgammonPalette.gold,
             onPrimary = BackgammonPalette.night,
@@ -69,15 +119,40 @@ fun BackgammonTheme(content: @Composable () -> Unit) {
             onSurfaceVariant = BackgammonPalette.muted,
             outline = BackgammonPalette.goldDim,
             error = BackgammonPalette.coral,
+            onError = BackgammonPalette.night,
+            outlineVariant = BackgammonPalette.walnutLight,
+            surfaceContainer = BackgammonPalette.walnut,
         ),
         content = content,
     )
 }
 
-/** Backdrop drawn procedurally so the module ships no extra artwork and stays lightweight. */
+/**
+ * The module backdrop: the generated table photograph under the app's dark scrim, plus two soft
+ * corner glows so the screen stays readable on cheap panels.
+ */
 @Composable
 fun BackgammonBackdrop(modifier: Modifier = Modifier) {
     Box(modifier.fillMaxSize().background(BackgammonPalette.night)) {
+        Image(
+            painter = painterResource(R.drawable.backgammon_backdrop),
+            contentDescription = null,
+            contentScale = ContentScale.Crop,
+            modifier = Modifier.fillMaxSize(),
+        )
+        Box(
+            Modifier
+                .fillMaxSize()
+                .background(
+                    Brush.verticalGradient(
+                        listOf(
+                            BackgammonPalette.night.copy(alpha = 0.80f),
+                            BackgammonPalette.night.copy(alpha = 0.72f),
+                            BackgammonPalette.night.copy(alpha = 0.88f),
+                        ),
+                    ),
+                ),
+        )
         Canvas(Modifier.fillMaxSize()) {
             drawRect(
                 brush = Brush.verticalGradient(
@@ -117,7 +192,7 @@ fun BackgammonCard(
 /** Big menu row: the offline/online split reads the same as the chess menu. */
 @Composable
 fun BackgammonMenuAction(
-    icon: String,
+    icon: BackgammonIcon,
     title: String,
     subtitle: String,
     enabled: Boolean = true,
@@ -136,17 +211,19 @@ fun BackgammonMenuAction(
     ) {
         Box(
             Modifier
+                .size(38.dp)
                 .clip(RoundedCornerShape(12.dp))
                 .background(BackgammonPalette.gold.copy(alpha = 0.16f))
-                .padding(horizontal = 10.dp, vertical = 6.dp),
+                .border(1.dp, BackgammonPalette.gold.copy(alpha = 0.35f), RoundedCornerShape(12.dp)),
+            contentAlignment = Alignment.Center,
         ) {
-            Text(icon, color = BackgammonPalette.gold, fontSize = 18.sp, fontWeight = FontWeight.Bold)
+            BackgammonIconView(icon = icon, color = if (enabled) BackgammonPalette.gold else BackgammonPalette.muted)
         }
         Column(Modifier.weight(1f)) {
             Text(title, color = BackgammonPalette.text, fontSize = 16.sp, fontWeight = FontWeight.Bold)
             Text(subtitle, color = BackgammonPalette.muted, fontSize = 12.sp, lineHeight = 17.sp)
         }
-        Text("‹", color = BackgammonPalette.gold, fontSize = 20.sp, fontWeight = FontWeight.Bold)
+        BackgammonIconView(BackgammonIcon.Back, color = if (enabled) BackgammonPalette.gold else BackgammonPalette.muted)
     }
 }
 
@@ -168,7 +245,10 @@ fun BackgammonHeader(title: String, subtitle: String?, onBack: () -> Unit) {
                 .clickable(role = Role.Button, onClick = onBack)
                 .padding(horizontal = 14.dp, vertical = 8.dp),
         ) {
-            Text("بازگشت", color = BackgammonPalette.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(5.dp)) {
+                BackgammonIconView(BackgammonIcon.Back, color = BackgammonPalette.text, size = 14.dp)
+                Text("بازگشت", color = BackgammonPalette.text, fontSize = 13.sp, fontWeight = FontWeight.Bold)
+            }
         }
     }
 }

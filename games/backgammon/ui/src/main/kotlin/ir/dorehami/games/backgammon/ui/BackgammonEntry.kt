@@ -1,6 +1,11 @@
 package ir.dorehami.games.backgammon.ui
 
+import android.app.Activity
+import android.content.Context
+import android.content.ContextWrapper
+import android.content.pm.ActivityInfo
 import androidx.activity.compose.BackHandler
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -45,7 +50,17 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.cancel
 
-private enum class BackgammonDestination { MENU, OFFLINE, ONLINE, SETUP, PLAYING }
+/** The hosting activity (null in a Compose preview / test harness). */
+private fun Context.findActivity(): Activity? {
+    var current: Context? = this
+    while (current is ContextWrapper) {
+        if (current is Activity) return current
+        current = current.baseContext
+    }
+    return null
+}
+
+private enum class BackgammonDestination { MENU, OFFLINE, ONLINE, SETUP, PLAYING, SETTINGS, SHOP }
 
 /** Which local table is being set up. */
 private enum class LocalKind { VS_BOT, PASS_AND_PLAY }
@@ -74,6 +89,13 @@ private fun BackgammonEntryContent(onExit: () -> Unit) {
     var targetPoints by rememberSaveable {
         mutableStateOf(prefs.getInt("targetPoints", BackgammonModule.DEFAULT_TARGET_POINTS))
     }
+    var boardId by rememberSaveable {
+        mutableStateOf(prefs.getString("boardId", BackgammonSkins.DefaultBoard.id) ?: BackgammonSkins.DefaultBoard.id)
+    }
+    var pieceId by rememberSaveable {
+        mutableStateOf(prefs.getString("pieceId", BackgammonSkins.DefaultPieces.id) ?: BackgammonSkins.DefaultPieces.id)
+    }
+    var wins by rememberSaveable { mutableStateOf(prefs.getInt("wins", 0)) }
 
     fun updateName(value: String) {
         playerName = value
@@ -85,10 +107,40 @@ private fun BackgammonEntryContent(onExit: () -> Unit) {
         prefs.edit().putInt("targetPoints", value).apply()
     }
 
+    BackgammonLookProvider(boardId = boardId, pieceId = pieceId) {
     when (destination) {
+        BackgammonDestination.SETTINGS -> BackgammonSettingsPage(
+            name = playerName,
+            onName = ::updateName,
+            targetPoints = targetPoints,
+            onTargetPoints = ::updateTarget,
+            boardId = boardId,
+            pieceId = pieceId,
+            wins = wins,
+            onOpenShop = { destination = BackgammonDestination.SHOP },
+            onBack = { destination = BackgammonDestination.MENU },
+        )
+
+        BackgammonDestination.SHOP -> BackgammonShopPage(
+            boardId = boardId,
+            pieceId = pieceId,
+            wins = wins,
+            onPickBoard = { id ->
+                boardId = id
+                prefs.edit().putString("boardId", id).apply()
+            },
+            onPickPieces = { id ->
+                pieceId = id
+                prefs.edit().putString("pieceId", id).apply()
+            },
+            onBack = { destination = BackgammonDestination.SETTINGS },
+        )
+
         BackgammonDestination.MENU -> BackgammonMenuPage(
             onOffline = { destination = BackgammonDestination.OFFLINE },
             onOnline = { destination = BackgammonDestination.ONLINE },
+            onSettings = { destination = BackgammonDestination.SETTINGS },
+            onShop = { destination = BackgammonDestination.SHOP },
             onBack = onExit,
         )
 
@@ -124,9 +176,14 @@ private fun BackgammonEntryContent(onExit: () -> Unit) {
             mode = if (localKind == LocalKind.PASS_AND_PLAY) BackgammonMode.PASS_AND_PLAY else BackgammonMode.VS_BOT,
             playerName = playerName.ifBlank { "شما" },
             targetPoints = targetPoints,
+            onGameWon = {
+                wins += 1
+                prefs.edit().putInt("wins", wins).apply()
+            },
             onPlayAgain = { matchKey++ },
             onExit = { destination = BackgammonDestination.SETUP },
         )
+    }
     }
 }
 
@@ -136,9 +193,21 @@ private fun BackgammonTable(
     mode: BackgammonMode,
     playerName: String,
     targetPoints: Int,
+    onGameWon: () -> Unit,
     onPlayAgain: () -> Unit,
     onExit: () -> Unit,
 ) {
+    // The table is a landscape board: lock the orientation while it is open and hand control back
+    // to the system when the player leaves, so the rest of the app still rotates freely.
+    val context = LocalContext.current
+    DisposableEffect(key) {
+        val activity = context.findActivity()
+        val previous = activity?.requestedOrientation
+        activity?.requestedOrientation = ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+        onDispose {
+            if (previous != null) activity?.requestedOrientation = previous
+        }
+    }
     val tableScope = remember(key) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     val match = remember(key) {
         BackgammonLocalMatch(
@@ -159,6 +228,14 @@ private fun BackgammonTable(
         }
     }
     val state by match.state
+    // The shop unlocks on real wins: count a finished match once.
+    var reportedWin by remember(key) { mutableStateOf(false) }
+    LaunchedEffect(state.finished) {
+        if (state.finished && !reportedWin && state.outcomeTitle == "سفید برد") {
+            reportedWin = true
+            onGameWon()
+        }
+    }
     BackgammonScreen(
         state = state,
         modeLabel = if (mode == BackgammonMode.PASS_AND_PLAY) "آفلاین · دونفره روی همین گوشی" else "آفلاین · مقابل ربات",
@@ -176,6 +253,8 @@ private fun BackgammonTable(
 private fun BackgammonMenuPage(
     onOffline: () -> Unit,
     onOnline: () -> Unit,
+    onSettings: () -> Unit,
+    onShop: () -> Unit,
     onBack: () -> Unit,
 ) {
     BackHandler(onBack = onBack)
@@ -192,17 +271,33 @@ private fun BackgammonMenuPage(
             )
         }
         BackgammonMenuAction(
-            icon = "⌁",
+            icon = BackgammonIcon.Offline,
             title = "آفلاین",
             subtitle = "با ربات یا دونفره روی یک گوشی — بدون اینترنت",
             onClick = onOffline,
         )
         BackgammonMenuAction(
-            icon = "☁",
+            icon = BackgammonIcon.Online,
             title = "آنلاین",
             subtitle = "اتاق خصوصی، کد و حریف تصادفی — فعلاً نمایشی",
             onClick = onOnline,
         )
+        Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            TableButton(
+                text = "تنظیمات",
+                primary = false,
+                enabled = true,
+                modifier = Modifier.weight(1f),
+                onClick = onSettings,
+            )
+            TableButton(
+                text = "فروشگاه",
+                primary = false,
+                enabled = true,
+                modifier = Modifier.weight(1f),
+                onClick = onShop,
+            )
+        }
         BackgammonRulesCard()
     }
 }
@@ -212,10 +307,10 @@ private fun BackgammonOfflinePage(onBot: () -> Unit, onPassAndPlay: () -> Unit, 
     BackHandler(onBack = onBack)
     BackgammonPage {
         BackgammonHeader(title = "تخته نرد آفلاین", subtitle = "بدون سرور و بدون اینترنت", onBack = onBack)
-        BackgammonMenuAction("♛", "بازی با ربات", "قطعی و منصفانه؛ ربات فقط اطلاعات روی تخته را می‌بیند", onClick = onBot)
-        BackgammonMenuAction("♙", "دونفره روی همین گوشی", "نوبتی بازی کن و گوشی را به حریف بده", onClick = onPassAndPlay)
+        BackgammonMenuAction(BackgammonIcon.Bot, "بازی با ربات", "قطعی و منصفانه؛ ربات فقط اطلاعات روی تخته را می‌بیند", onClick = onBot)
+        BackgammonMenuAction(BackgammonIcon.TwoPlayers, "دونفره روی همین گوشی", "نوبتی بازی کن و گوشی را به حریف بده", onClick = onPassAndPlay)
         BackgammonMenuAction(
-            icon = "⌁",
+            icon = BackgammonIcon.Bluetooth,
             title = "بلوتوث (به‌زودی)",
             subtitle = "اتاق نزدیک در همین مرحله فعال نیست",
             enabled = false,
@@ -239,13 +334,13 @@ private fun BackgammonOnlinePage(onBack: () -> Unit) {
                 lineHeight = 18.sp,
             )
         }
-        BackgammonMenuAction("＋", "ساختن اتاق خصوصی", "نمایشی — کدی ساخته نمی‌شود") {
+        BackgammonMenuAction(BackgammonIcon.Plus, "ساختن اتاق خصوصی", "نمایشی — کدی ساخته نمی‌شود") {
             message = "ساخت اتاق آنلاین هنوز به سرور وصل نیست؛ این گزینه فقط نمایشی است."
         }
-        BackgammonMenuAction("↗", "ورود با کد اتاق", "نمایشی — بدون اتصال به سرور") {
+        BackgammonMenuAction(BackgammonIcon.Enter, "ورود با کد اتاق", "نمایشی — بدون اتصال به سرور") {
             message = "ورود با کد اتاق در نسخهٔ آنلاین واقعی فعال خواهد شد."
         }
-        BackgammonMenuAction("✦", "حریف تصادفی", "نمایشی — صف سرور هنوز وصل نیست") {
+        BackgammonMenuAction(BackgammonIcon.Sparkle, "حریف تصادفی", "نمایشی — صف سرور هنوز وصل نیست") {
             message = "جست‌وجوی حریف تصادفی فعلاً فقط نمایشی است."
         }
         message?.let { text ->
@@ -354,7 +449,11 @@ private fun BackgammonRulesCard() {
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Text("قوانین کامل تخته نرد", color = BackgammonPalette.gold, fontSize = 14.sp, fontWeight = FontWeight.Bold, modifier = Modifier.weight(1f))
-            Text(if (expanded) "⌃" else "⌄", color = BackgammonPalette.gold, fontSize = 16.sp, fontWeight = FontWeight.Bold)
+            BackgammonIconView(
+                if (expanded) BackgammonIcon.ChevronUp else BackgammonIcon.ChevronDown,
+                color = BackgammonPalette.gold,
+                size = 18.dp,
+            )
         }
         if (expanded) {
             Spacer(Modifier.height(8.dp))
