@@ -56,6 +56,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.draw.rotate
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Brush
@@ -743,7 +744,7 @@ private fun HokmMainMenu(
             Spacer(Modifier.height(14.dp))
             Text(
                 if (playerName.isBlank()) {
-                    "برای دیدن نامت روی میز، در بخش آفلاین نام نمایشی را وارد کن."
+                    "برای دیدن نامت روی میز، در «تنظیمات» نام نمایشی را وارد کن."
                 } else {
                     "نام نمایشی: $playerName · امتیاز هدف: ${target.toFa()}"
                 },
@@ -855,12 +856,6 @@ internal fun HomeHeader(onBack: () -> Unit, onTap: () -> Unit) {
 @Composable
 private fun HokmHero(playerCount: Int, target: Int) {
     val transition = rememberInfiniteTransition(label = "hokm-hero")
-    val bob by transition.animateFloat(
-        initialValue = -3f,
-        targetValue = 3f,
-        animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
-        label = "card-bob",
-    )
     val glow by transition.animateFloat(
         initialValue = 0.42f,
         targetValue = 0.82f,
@@ -938,23 +933,48 @@ private fun HokmHero(playerCount: Int, target: Int) {
             Spacer(Modifier.width(if (narrow) 2.dp else 8.dp))
             Box(Modifier.width(if (narrow) 102.dp else 126.dp).height(175.dp)) {
                 val cardWidth = if (narrow) 66.dp else 76.dp
+                // The bob is read inside `graphicsLayer`, so the hero cards float without a single
+                // recomposition per frame (the old `.offset(bob.dp)` re-laid out the row 60× a second).
+                val bobState = transition.animateFloat(
+                    initialValue = -3f,
+                    targetValue = 3f,
+                    animationSpec = infiniteRepeatable(tween(2100, easing = FastOutSlowInEasing), RepeatMode.Reverse),
+                    label = "card-bob-draw",
+                )
                 PlayingCardView(
                     card = Card.parse("7D")!!,
                     width = cardWidth,
                     elevation = 9.dp,
-                    modifier = Modifier.align(Alignment.Center).offset(x = (-15).dp, y = (bob + 5).dp).rotate(-11f),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer {
+                            translationX = (-15).dp.toPx()
+                            translationY = (bobState.value + 5f).dp.toPx()
+                            rotationZ = -11f
+                        },
                 )
                 PlayingCardView(
                     card = Card.parse("QH")!!,
                     width = cardWidth,
                     elevation = 11.dp,
-                    modifier = Modifier.align(Alignment.Center).offset(x = 11.dp, y = (bob - 5).dp).rotate(8f),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer {
+                            translationX = 11.dp.toPx()
+                            translationY = (bobState.value - 5f).dp.toPx()
+                            rotationZ = 8f
+                        },
                 )
                 PlayingCardView(
                     card = Card.parse("AS")!!,
                     width = cardWidth,
                     elevation = 15.dp,
-                    modifier = Modifier.align(Alignment.Center).offset(y = bob.dp).rotate(-1f),
+                    modifier = Modifier
+                        .align(Alignment.Center)
+                        .graphicsLayer {
+                            translationY = bobState.value.dp.toPx()
+                            rotationZ = -1f
+                        },
                 )
             }
         }
