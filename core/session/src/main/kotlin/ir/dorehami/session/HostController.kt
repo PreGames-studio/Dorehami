@@ -295,13 +295,15 @@ class HostController(
         }
         if (eng.session.result() != null && !finishedSent) {
             finishedSent = true
+            // Persist before announcing: players (and the room store the server exposes) must never
+            // observe a finished match that has no record yet.
+            onFinished?.invoke(eng.record())
             val payload = buildJsonObject {
                 put("result", resultJson(eng))
                 put("record", recordJson(eng))
             }
             broadcast(Msg.SESSION_FINISHED, payload)
             _state.value = _state.value.copy(result = payload, phase = "FINISHED")
-            onFinished?.invoke(eng.record())
         }
     }
 
