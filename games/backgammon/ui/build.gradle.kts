@@ -1,5 +1,6 @@
 // :games:backgammon:ui — the backgammon table (Compose 2D board with the same warm wood language
-// as the chess table). Depends on the backgammon rules + core/uikit only.
+// as the chess table). Depends on the backgammon rules, core/uikit, and the shared session +
+// Nearby transport for the Bluetooth room.
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.compose.compiler)
@@ -32,6 +33,10 @@ kotlin {
 dependencies {
     implementation(project(":games:backgammon:core"))
     implementation(project(":core:uikit"))
+    // Bluetooth room: the shared session loop plus the Nearby transport (the same engine the bot
+    // table runs). No game-to-game dependency.
+    implementation(project(":core:session"))
+    implementation(project(":transport:nearby"))
 
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.compose.ui)
