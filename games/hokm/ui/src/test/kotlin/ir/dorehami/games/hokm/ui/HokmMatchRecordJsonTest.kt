@@ -37,7 +37,7 @@ class HokmMatchRecordJsonTest {
             digest = "deadbeef",
             schema = 1,
         )
-        val back = matchRecordFromJson(matchRecordToJson(record))!!
+        val back = record.toJson().matchRecordFromJson()!!
         assertEquals(record, back)
     }
 
@@ -58,7 +58,7 @@ class HokmMatchRecordJsonTest {
             digest = "digest",
             schema = 1,
         )
-        val back = matchRecordFromJson(matchRecordToJson(record))!!
+        val back = record.toJson().matchRecordFromJson()!!
         assertEquals(record, back)
     }
 
@@ -74,7 +74,7 @@ class HokmMatchRecordJsonTest {
             digest = "x",
             schema = 2,
         )
-        assertNull(matchRecordFromJson(matchRecordToJson(record)))
+        assertNull(record.toJson().matchRecordFromJson())
     }
 
     @Test
@@ -88,26 +88,24 @@ class HokmMatchRecordJsonTest {
             put("digest", "x")
             put("schema", 1)
         }
-        assertNull(matchRecordFromJson(tampered))
+        assertNull(tampered.matchRecordFromJson())
     }
 
     @Test
-    fun `truncated action log is rejected`() {
-        val full = matchRecordToJson(
-            MatchRecord(
-                gameId = HokmModule.ID,
-                seed = 1L,
-                options = emptyOptions(),
-                players = players,
-                actions = listOf(
-                    LoggedAction(0, players[0], "choose_hokm", buildJsonObject { put("suit", "hearts") }, 1000L),
-                ),
-                result = null,
-                digest = "x",
-                schema = 1,
-            )
+    fun `truncated action log round-trips`() {
+        val full = MatchRecord(
+            gameId = HokmModule.ID,
+            seed = 1L,
+            options = emptyOptions(),
+            players = players,
+            actions = listOf(
+                LoggedAction(0, players[0], "choose_hokm", buildJsonObject { put("suit", "hearts") }, 1000L),
+            ),
+            result = null,
+            digest = "x",
+            schema = 1,
         )
-        val truncated = buildJsonObject {
+        val truncatedJson = buildJsonObject {
             put("gameId", HokmModule.ID)
             put("seed", 1L)
             put("options", emptyOptions())
@@ -116,8 +114,8 @@ class HokmMatchRecordJsonTest {
             put("digest", "x")
             put("schema", 1)
         }
-        assertNotNull(matchRecordFromJson(full))
-        val back = matchRecordFromJson(truncated)
+        assertNotNull(full.toJson().matchRecordFromJson())
+        val back = truncatedJson.matchRecordFromJson()
         assertNotNull(back)
         assertEquals(emptyList<LoggedAction>(), back.actions)
     }

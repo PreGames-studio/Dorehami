@@ -29,7 +29,7 @@ class HokmMatchStore(private val context: Context) {
     private val file: File = File(context.filesDir, SOLO_MATCH_FILE)
 
     fun save(record: MatchRecord) {
-        file.writeText(matchRecordToJson(record).toString(), Charsets.UTF_8)
+        file.writeText(record.toJson().toString(), Charsets.UTF_8)
     }
 
     /**
@@ -40,7 +40,7 @@ class HokmMatchStore(private val context: Context) {
         if (!file.exists()) return null
         val json = runCatching { Json {}.parseToJsonElement(file.readText(Charsets.UTF_8)) }.getOrNull()
         val obj = (json as? JsonObject) ?: return run { file.delete(); null }
-        return matchRecordFromJson(obj) ?: run { file.delete(); null }
+        return obj.matchRecordFromJson() ?: run { file.delete(); null }
     }
 
     fun clear() {
@@ -65,13 +65,13 @@ internal fun MatchRecord.toJson(): JsonObject = buildJsonObject {
             put("atMs", a.atMs)
         })
     }})
-    result?.let { put("result", matchResultToJson(it)) }
+    result?.let { put("result", it.matchResultToJson()) }
     put("digest", digest)
     put("schema", SOLO_MATCH_SCHEMA)
 }
 
-internal fun matchResultToJson(r: MatchResult): JsonObject = buildJsonObject {
-    put("standings", buildJsonArray { r.standings.forEach { s ->
+internal fun MatchResult.matchResultToJson(): JsonObject = buildJsonObject {
+    put("standings", buildJsonArray { standings.forEach { s ->
         add(buildJsonObject {
             put("members", buildJsonArray { s.members.forEach { add(JsonPrimitive(it.value)) } })
             put("rank", s.rank)
@@ -80,16 +80,16 @@ internal fun matchResultToJson(r: MatchResult): JsonObject = buildJsonObject {
     }})
 }
 
-internal fun matchRecordFromJson(obj: JsonObject): MatchRecord? {
-    if (obj["schema"]?.jsonPrimitive?.intOrNull() != SOLO_MATCH_SCHEMA) return null
-    val gameIdText = obj["gameId"]?.jsonPrimitive?.content ?: return null
+internal fun JsonObject.matchRecordFromJson(): MatchRecord? {
+    if (this["schema"]?.jsonPrimitive?.intOrNull() != SOLO_MATCH_SCHEMA) return null
+    val gameIdText = this["gameId"]?.jsonPrimitive?.content ?: return null
     if (gameIdText != HokmModule.ID) return null
-    val seed = obj["seed"]?.jsonPrimitive?.longOrNull() ?: return null
-    val options = obj["options"] as? JsonObject ?: return null
-    val players = playerIds(obj["players"]) ?: return null
-    val actions = loggedActions(obj["actions"]) ?: return null
-    val result = (obj["result"] as? JsonObject)?.let { matchResultFromJson(it) }
-    val digest = obj["digest"]?.jsonPrimitive?.content ?: return null
+    val seed = this["seed"]?.jsonPrimitive?.longOrNull() ?: return null
+    val options = this["options"] as? JsonObject ?: return null
+    val players = playerIds(this["players"]) ?: return null
+    val actions = loggedActions(this["actions"]) ?: return null
+    val result = (this["result"] as? JsonObject)?.matchResultFromJson()
+    val digest = this["digest"]?.jsonPrimitive?.content ?: return null
     return MatchRecord(
         gameId = GameId(gameIdText),
         seed = seed,
@@ -102,8 +102,8 @@ internal fun matchRecordFromJson(obj: JsonObject): MatchRecord? {
     )
 }
 
-private fun matchResultFromJson(obj: JsonObject): MatchResult? {
-    val arr = (obj["standings"] as? JsonArray) ?: return null
+private fun JsonObject.matchResultFromJson(): MatchResult? {
+    val arr = (this["standings"] as? JsonArray) ?: return null
     val standings = mutableListOf<Standing>()
     for (e in arr) {
         val o = (e as? JsonObject) ?: return null
