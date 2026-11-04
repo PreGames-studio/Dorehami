@@ -279,6 +279,11 @@ private fun HokmSoloGame(
     val sounds = rememberSoundPlayer(HokmSounds.map)
     LaunchedEffect(soundOn) { sounds.enabled = soundOn }
 
+    val context = LocalContext.current
+    val store = remember { HokmMatchStore(context) }
+    // A saved unfinished match resumes here; a finished match was already cleared below, so this
+    // is null for a brand-new solo game (HK-011).
+    val restored = remember { store.load() }
     val scope = remember(key) { CoroutineScope(SupervisorJob() + Dispatchers.Main.immediate) }
     val match = remember(key) {
         HokmLocalMatch(
@@ -290,7 +295,9 @@ private fun HokmSoloGame(
             seed = System.currentTimeMillis() xor (key.toLong() shl 20),
             botLevel = botLevel,
             onSound = { sounds.play(it) },
-        )
+            // Persist after every accepted move so process death never loses the match.
+            onSaved = { store.save(it) },
+        ).apply { restored?.let { restore(it) } }
     }
     DisposableEffect(key) {
         match.start()
@@ -299,6 +306,11 @@ private fun HokmSoloGame(
 
     val state by match.state
     RecordWhenFinished(state, matchKey = key, onFinished = onFinished)
+    // The file holds only unfinished matches: once the match is over (and stats were recorded
+    // exactly once above), clear it so the next solo game starts fresh.
+    LaunchedEffect(state.finished) {
+        if (state.finished) store.clear()
+    }
     HokmScreen(
         state = state,
         hapticsEnabled = hapticsOn,
