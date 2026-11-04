@@ -23,7 +23,7 @@ class HokmMatchRecordJsonTest {
 
     private val players = listOf(PlayerId("p_me"), PlayerId("p_bot1"))
 
-    private fun emptyOptions() = buildJsonObject { put("targetPoints", 7) }
+    private fun emptyOptions() = buildJsonObject { put("targetPoints", JsonPrimitive(7)) }
 
     @Test
     fun `record round-trips through JSON without a result`() {
@@ -81,12 +81,12 @@ class HokmMatchRecordJsonTest {
     fun `wrong game id is rejected`() {
         val tampered = buildJsonObject {
             put("gameId", JsonPrimitive("chess"))
-            put("seed", 1L)
+            put("seed", JsonPrimitive(1L))
             put("options", emptyOptions())
             put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
             put("actions", buildJsonArray {})
             put("digest", JsonPrimitive("x"))
-            put("schema", 1)
+            put("schema", JsonPrimitive(1))
         }
         assertNull(tampered.matchRecordFromJson())
     }
@@ -107,12 +107,12 @@ class HokmMatchRecordJsonTest {
         )
         val truncatedJson = buildJsonObject {
             put("gameId", JsonPrimitive(HokmModule.ID))
-            put("seed", 1L)
+            put("seed", JsonPrimitive(1L))
             put("options", emptyOptions())
             put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
             put("actions", buildJsonArray {})
             put("digest", JsonPrimitive("x"))
-            put("schema", 1)
+            put("schema", JsonPrimitive(1))
         }
         assertNotNull(full.toJson().matchRecordFromJson())
         val back = truncatedJson.matchRecordFromJson()

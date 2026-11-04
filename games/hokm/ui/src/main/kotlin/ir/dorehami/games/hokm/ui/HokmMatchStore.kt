@@ -53,29 +53,29 @@ private const val SOLO_MATCH_SCHEMA = 1
 
 internal fun MatchRecord.toJson(): JsonObject = buildJsonObject {
     put("gameId", JsonPrimitive(gameId.value))
-    put("seed", seed)
+    put("seed", JsonPrimitive(seed))
     put("options", options)
     put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
     put("actions", buildJsonArray { actions.forEach { a ->
         add(buildJsonObject {
-            put("seq", a.seq)
+            put("seq", JsonPrimitive(a.seq))
             put("player", JsonPrimitive(a.player.value))
             put("type", JsonPrimitive(a.type))
             put("payload", a.payload)
-            put("atMs", a.atMs)
+            put("atMs", JsonPrimitive(a.atMs))
         })
     }})
     result?.let { put("result", it.matchResultToJson()) }
     put("digest", JsonPrimitive(digest))
-    put("schema", SOLO_MATCH_SCHEMA)
+    put("schema", JsonPrimitive(SOLO_MATCH_SCHEMA))
 }
 
 internal fun MatchResult.matchResultToJson(): JsonObject = buildJsonObject {
     put("standings", buildJsonArray { standings.forEach { s ->
         add(buildJsonObject {
             put("members", buildJsonArray { s.members.forEach { add(JsonPrimitive(it.value)) } })
-            put("rank", s.rank)
-            put("score", s.score)
+            put("rank", JsonPrimitive(s.rank))
+            put("score", JsonPrimitive(s.score))
         })
     }})
 }
