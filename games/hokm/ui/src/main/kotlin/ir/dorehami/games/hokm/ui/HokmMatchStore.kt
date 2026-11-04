@@ -52,21 +52,21 @@ private const val SOLO_MATCH_FILE = "hokm_solo_match.json"
 private const val SOLO_MATCH_SCHEMA = 1
 
 internal fun MatchRecord.toJson(): JsonObject = buildJsonObject {
-    put("gameId", gameId.value)
+    put("gameId", JsonPrimitive(gameId.value))
     put("seed", seed)
     put("options", options)
     put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
     put("actions", buildJsonArray { actions.forEach { a ->
         add(buildJsonObject {
             put("seq", a.seq)
-            put("player", a.player.value)
-            put("type", a.type)
+            put("player", JsonPrimitive(a.player.value))
+            put("type", JsonPrimitive(a.type))
             put("payload", a.payload)
             put("atMs", a.atMs)
         })
     }})
     result?.let { put("result", it.matchResultToJson()) }
-    put("digest", digest)
+    put("digest", JsonPrimitive(digest))
     put("schema", SOLO_MATCH_SCHEMA)
 }
 

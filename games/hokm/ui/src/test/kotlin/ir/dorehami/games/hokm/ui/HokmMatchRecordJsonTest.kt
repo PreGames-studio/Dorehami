@@ -49,7 +49,7 @@ class HokmMatchRecordJsonTest {
             options = emptyOptions(),
             players = players,
             actions = listOf(
-                LoggedAction(0, players[0], "choose_hokm", buildJsonObject { put("suit", "hearts") }, 1000L),
+                LoggedAction(0, players[0], "choose_hokm", buildJsonObject { put("suit", JsonPrimitive("hearts")) }, 1000L),
             ),
             result = MatchResult(listOf(
                 Standing(listOf(players[0]), 1, 9),
@@ -71,7 +71,7 @@ class HokmMatchRecordJsonTest {
             players = players,
             actions = emptyList(),
             result = null,
-            digest = "x",
+            digest = JsonPrimitive("x"),
             schema = 2,
         )
         assertNull(record.toJson().matchRecordFromJson())
@@ -80,12 +80,12 @@ class HokmMatchRecordJsonTest {
     @Test
     fun `wrong game id is rejected`() {
         val tampered = buildJsonObject {
-            put("gameId", "chess")
+            put("gameId", JsonPrimitive("chess"))
             put("seed", 1L)
             put("options", emptyOptions())
             put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
             put("actions", buildJsonArray {})
-            put("digest", "x")
+            put("digest", JsonPrimitive("x"))
             put("schema", 1)
         }
         assertNull(tampered.matchRecordFromJson())
@@ -99,19 +99,19 @@ class HokmMatchRecordJsonTest {
             options = emptyOptions(),
             players = players,
             actions = listOf(
-                LoggedAction(0, players[0], "choose_hokm", buildJsonObject { put("suit", "hearts") }, 1000L),
+                LoggedAction(0, players[0], "choose_hokm", buildJsonObject { put("suit", JsonPrimitive("hearts")) }, 1000L),
             ),
             result = null,
             digest = "x",
             schema = 1,
         )
         val truncatedJson = buildJsonObject {
-            put("gameId", HokmModule.ID)
+            put("gameId", JsonPrimitive(HokmModule.ID))
             put("seed", 1L)
             put("options", emptyOptions())
             put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
             put("actions", buildJsonArray {})
-            put("digest", "x")
+            put("digest", JsonPrimitive("x"))
             put("schema", 1)
         }
         assertNotNull(full.toJson().matchRecordFromJson())
