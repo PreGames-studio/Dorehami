@@ -81,15 +81,15 @@ internal fun MatchResult.matchResultToJson(): JsonObject = buildJsonObject {
 }
 
 internal fun JsonObject.matchRecordFromJson(): MatchRecord? {
-    if (this["schema"]?.jsonPrimitive?.intOrNull() != SOLO_MATCH_SCHEMA) return null
-    val gameIdText = this["gameId"]?.jsonPrimitive?.content ?: return null
+    if (schemaInt() != SOLO_MATCH_SCHEMA) return null
+    val gameIdText = primitiveText(this["gameId"]) ?: return null
     if (gameIdText != HokmModule.ID) return null
-    val seed = this["seed"]?.jsonPrimitive?.longOrNull() ?: return null
+    val seed = primitiveLong(this["seed"]) ?: return null
     val options = this["options"] as? JsonObject ?: return null
     val players = playerIds(this["players"]) ?: return null
     val actions = loggedActions(this["actions"]) ?: return null
     val result = (this["result"] as? JsonObject)?.matchResultFromJson()
-    val digest = this["digest"]?.jsonPrimitive?.content ?: return null
+    val digest = primitiveText(this["digest"]) ?: return null
     return MatchRecord(
         gameId = GameId(gameIdText),
         seed = seed,
@@ -108,18 +108,28 @@ private fun JsonObject.matchResultFromJson(): MatchResult? {
     for (e in arr) {
         val o = (e as? JsonObject) ?: return null
         val members = playerIds(o["members"]) ?: return null
-        val rank = o["rank"]?.jsonPrimitive?.intOrNull() ?: return null
-        val score = o["score"]?.jsonPrimitive?.intOrNull() ?: return null
+        val rank = primitiveInt(o["rank"]) ?: return null
+        val score = primitiveInt(o["score"]) ?: return null
         standings += Standing(members, rank, score)
     }
     return MatchResult(standings)
 }
 
+private fun schemaInt(obj: JsonObject): Int = primitiveInt(obj["schema"]) ?: -1
+
+private fun primitiveText(el: kotlinx.serialization.json.JsonElement?): String? = (el as? JsonPrimitive)?.content
+
+private fun primitiveInt(el: kotlinx.serialization.json.JsonElement?): Int? =
+    (el as? JsonPrimitive)?.content?.toIntOrNull()
+
+private fun primitiveLong(el: kotlinx.serialization.json.JsonElement?): Long? =
+    (el as? JsonPrimitive)?.content?.toLongOrNull()
+
 private fun playerIds(el: kotlinx.serialization.json.JsonElement?): List<PlayerId>? {
     val arr = (el as? JsonArray) ?: return null
     val ids = mutableListOf<PlayerId>()
     for (e in arr) {
-        val v = e.jsonPrimitive?.content ?: return null
+        val v = (e as? JsonPrimitive)?.content ?: return null
         ids += PlayerId(v)
     }
     return ids
@@ -130,11 +140,11 @@ private fun loggedActions(el: kotlinx.serialization.json.JsonElement?): List<Log
     val actions = mutableListOf<LoggedAction>()
     for (e in arr) {
         val o = (e as? JsonObject) ?: return null
-        val seq = o["seq"]?.jsonPrimitive?.longOrNull() ?: return null
-        val player = o["player"]?.jsonPrimitive?.content ?: return null
-        val type = o["type"]?.jsonPrimitive?.content ?: return null
+        val seq = primitiveLong(o["seq"]) ?: return null
+        val player = primitiveText(o["player"]) ?: return null
+        val type = primitiveText(o["type"]) ?: return null
         val payload = (o["payload"] as? JsonObject) ?: return null
-        val atMs = o["atMs"]?.jsonPrimitive?.longOrNull() ?: return null
+        val atMs = primitiveLong(o["atMs"]) ?: return null
         actions += LoggedAction(seq, PlayerId(player), type, payload, atMs)
     }
     return actions
