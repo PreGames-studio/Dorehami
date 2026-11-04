@@ -81,7 +81,7 @@ internal fun MatchResult.matchResultToJson(): JsonObject = buildJsonObject {
 }
 
 internal fun JsonObject.matchRecordFromJson(): MatchRecord? {
-    if (schemaInt() != SOLO_MATCH_SCHEMA) return null
+    if (primitiveInt(this["schema"]) != SOLO_MATCH_SCHEMA) return null
     val gameIdText = primitiveText(this["gameId"]) ?: return null
     if (gameIdText != HokmModule.ID) return null
     val seed = primitiveLong(this["seed"]) ?: return null
@@ -114,8 +114,6 @@ private fun JsonObject.matchResultFromJson(): MatchResult? {
     }
     return MatchResult(standings)
 }
-
-private fun schemaInt(obj: JsonObject): Int = primitiveInt(obj["schema"]) ?: -1
 
 private fun primitiveText(el: kotlinx.serialization.json.JsonElement?): String? = (el as? JsonPrimitive)?.content
 
