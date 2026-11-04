@@ -9,12 +9,12 @@ import ir.dorehami.gamesdk.Standing
 import ir.dorehami.protocol.GameId
 import ir.dorehami.protocol.PlayerId
 import java.io.File
+import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
 import kotlinx.serialization.json.JsonPrimitive
 import kotlinx.serialization.json.buildJsonArray
 import kotlinx.serialization.json.buildJsonObject
-import kotlinx.serialization.json.parseJson
 import kotlin.runCatching
 
 /**
@@ -38,7 +38,7 @@ class HokmMatchStore(private val context: Context) {
      */
     fun load(): MatchRecord? {
         if (!file.exists()) return null
-        val json = runCatching { file.readText(Charsets.UTF_8).parseJson() }.getOrNull()
+        val json = runCatching { Json {}.parseToJsonElement(file.readText(Charsets.UTF_8)) }.getOrNull()
         val obj = (json as? JsonObject) ?: return run { file.delete(); null }
         return matchRecordFromJson(obj) ?: run { file.delete(); null }
     }
