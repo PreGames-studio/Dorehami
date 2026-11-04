@@ -35,7 +35,7 @@ class HokmLocalMatch(
     botLevel: String = HokmModule.BOT_PRO,
     onSound: (String) -> Unit,
     /** Fired after every accepted human or bot move with the current [MatchRecord]. */
-    onSaved: (MatchRecord) -> Unit = {},
+    private val onSaved: (MatchRecord) -> Unit = {},
 ) : HokmTable(
     scope = scope,
     seats = (0 until playerCount).map { seat ->
