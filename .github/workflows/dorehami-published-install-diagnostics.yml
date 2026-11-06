@@ -1,0 +1,79 @@
+# Inspect existing published host APKs; this workflow does not build or publish an APK.
+name: Dorehami published install diagnostics
+on:
+  push:
+    branches: ["arena/**"]
+    paths:
+      - ".github/workflows/dorehami-published-install-diagnostics.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  android-13:
+    name: Android ${{ matrix.api }} installer (${{ matrix.revision }})
+    if: ${{ contains(github.event.head_commit.message, '[diagnose-apk]') }}
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - revision: '85b0d40'
+            size: '124449298'
+            api: 30
+          - revision: '253f3ca'
+            size: '124801019'
+            api: 30
+          - revision: '85b0d40'
+            size: '124449298'
+            api: 35
+          - revision: '253f3ca'
+            size: '124801019'
+            api: 35
+    steps:
+      - uses: actions/checkout@v4
+      - name: Download the specific published file
+        env:
+          GH_TOKEN: ${{ github.token }}
+          REVISION: ${{ matrix.revision }}
+          EXPECTED_SIZE: ${{ matrix.size }}
+        run: |
+          set -euo pipefail
+          mkdir -p apk
+          name="Dorehami-debug-main-${REVISION}.apk"
+          gh release download debug-latest --pattern "$name" --dir apk
+          actual=$(stat -c %s "apk/$name")
+          test "$actual" = "$EXPECTED_SIZE"
+          sha256sum "apk/$name" | tee package-report.txt
+          unzip -tq "apk/$name"
+          tools=$(find "$ANDROID_HOME/build-tools" -mindepth 1 -maxdepth 1 -type d | sort -V | tail -1)
+          python3 scripts/verify_shipped_apk.py "apk/$name" --aapt "$tools/aapt2" --min-sdk 24 --require-abi arm64-v8a --require-abi armeabi-v7a | tee -a package-report.txt
+          "$tools/zipalign" -c -v 4 "apk/$name" >/dev/null
+          "$tools/apksigner" verify --verbose --print-certs "apk/$name" | tee -a package-report.txt
+          python3 -c "from pathlib import Path; t=Path('package-report.txt').read_text(); print('::notice title=package-audit::'+t.replace('%','%25').replace(chr(10),'%0A'))"
+      - name: Enable emulator acceleration
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - name: Check package manager and visible installer
+        uses: reactivecircus/android-emulator-runner@v2
+        env:
+          REVISION: ${{ matrix.revision }}
+        with:
+          api-level: ${{ matrix.api }}
+          target: google_apis
+          arch: x86_64
+          disable-animations: true
+          emulator-options: -no-snapshot -no-window -no-boot-anim -no-audio -camera-back none -gpu swiftshader_indirect
+          script: bash -c 'bash tools/apk-proof/diagnose_host_android13.sh "apk/Dorehami-debug-main-$REVISION.apk" > installer.log 2>&1'
+      - name: Report installer output
+        if: always()
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+          p = Path('installer.log')
+          text = p.read_text(errors='replace')[-12000:] if p.exists() else 'Installer did not run; no installer result is available.'
+          print('::notice title=android13-installer::' + text.replace('%','%25').replace('\r','%0D').replace('\n','%0A'))
+          PY
