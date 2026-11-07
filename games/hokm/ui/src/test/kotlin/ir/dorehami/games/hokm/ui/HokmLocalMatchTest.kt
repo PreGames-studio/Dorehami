@@ -58,12 +58,12 @@ class HokmLocalMatchTest {
     @Test
     fun `saved record survives restore with identical state`() {
         val m1 = newMatch()
-        val view1 = assertNotNull(m1.privateView()) { "private view must exist from the start" }
+        val view1 = assertNotNull(m1.humanView()) { "private view must exist from the start" }
 
         // If the human (seat 0) is the hakem, play a real move so the record holds actions.
         if (hakemSeat(view1) == 0) {
             m1.chooseHokm(Suit.HEARTS)
-            val code = handCodes(m1.privateView()).firstOrNull() ?: return
+            val code = handCodes(m1.humanView()).firstOrNull() ?: return
             Card.parse(code)?.let { m1.playCard(it) }
         }
 
@@ -72,14 +72,14 @@ class HokmLocalMatchTest {
         m2.restore(record1)
 
         assertEquals(record1, m2.save())
-        assertEquals(view1, m2.privateView())
+        assertEquals(view1, m2.humanView())
     }
 
     @Test
     fun `restore rejects a tampered action log`() {
         // Find a seed where the human is the hakem, so the record contains at least one action.
         val seed = generateSequence(1L) { it + 1 }.first { seed ->
-            hakemSeat(newMatch(seed = seed).privateView()) == 0
+            hakemSeat(newMatch(seed = seed).humanView()) == 0
         }
 
         val m1 = newMatch(seed = seed)
