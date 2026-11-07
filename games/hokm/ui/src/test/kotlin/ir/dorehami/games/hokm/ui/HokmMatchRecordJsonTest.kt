@@ -5,6 +5,7 @@ import ir.dorehami.gamesdk.LoggedAction
 import ir.dorehami.gamesdk.MatchRecord
 import ir.dorehami.gamesdk.MatchResult
 import ir.dorehami.gamesdk.Standing
+import ir.dorehami.protocol.GameId
 import ir.dorehami.protocol.PlayerId
 import kotlinx.serialization.json.JsonArray
 import kotlinx.serialization.json.JsonObject
@@ -28,7 +29,7 @@ class HokmMatchRecordJsonTest {
     @Test
     fun `record round-trips through JSON without a result`() {
         val record = MatchRecord(
-            gameId = HokmModule.ID,
+            gameId = GameId(HokmModule.ID),
             seed = 11L,
             options = emptyOptions(),
             players = players,
@@ -44,7 +45,7 @@ class HokmMatchRecordJsonTest {
     @Test
     fun `record round-trips through JSON with a finished result`() {
         val record = MatchRecord(
-            gameId = HokmModule.ID,
+            gameId = GameId(HokmModule.ID),
             seed = 11L,
             options = emptyOptions(),
             players = players,
@@ -64,17 +65,19 @@ class HokmMatchRecordJsonTest {
 
     @Test
     fun `unknown schema is rejected`() {
-        val record = MatchRecord(
-            gameId = HokmModule.ID,
-            seed = 11L,
-            options = emptyOptions(),
-            players = players,
-            actions = emptyList(),
-            result = null,
-            digest = JsonPrimitive("x"),
-            schema = 2,
-        )
-        assertNull(record.toJson().matchRecordFromJson())
+        // A file written by a newer build has the same shape with schema 2. The loader must
+        // refuse it instead of guessing. Built by hand because `toJson()` always stamps the
+        // schema this build writes.
+        val newer = buildJsonObject {
+            put("gameId", JsonPrimitive(HokmModule.ID))
+            put("seed", JsonPrimitive(11L))
+            put("options", emptyOptions())
+            put("players", buildJsonArray { players.forEach { add(JsonPrimitive(it.value)) } })
+            put("actions", buildJsonArray {})
+            put("digest", JsonPrimitive("x"))
+            put("schema", JsonPrimitive(2))
+        }
+        assertNull(newer.matchRecordFromJson())
     }
 
     @Test
@@ -94,7 +97,7 @@ class HokmMatchRecordJsonTest {
     @Test
     fun `truncated action log round-trips`() {
         val full = MatchRecord(
-            gameId = HokmModule.ID,
+            gameId = GameId(HokmModule.ID),
             seed = 1L,
             options = emptyOptions(),
             players = players,
