@@ -14,11 +14,13 @@ STUBS="$R/tools/jvm-check/stubs"
 echo "== compile main"
 "$KC" -nowarn -cp "$CO" -d "$OUT/main.jar" "$STUBS/kxs" \
   "$R/core/protocol/src/main/kotlin" "$R/core/gamesdk/src/main/kotlin" "$R/games/hokm/core/src/main/kotlin" \
+  "$R/games/esmfamil/core/src/main/kotlin" \
   "$R/transport/api/src/main/kotlin" "$R/core/testkit/src/main/kotlin" "$R/core/session/src/main/kotlin" \
   "$R/server/src/main/kotlin/ir/dorehami/server/rooms" 2>&1 | grep -v "^warning" || true
 echo "== compile tests"
 "$KC" -nowarn -Xallow-kotlin-package -cp "$OUT/main.jar:$LIB/kotlin-test.jar:$CO" -d "$OUT/test.jar" \
   "$R/core/gamesdk/src/test/kotlin" "$R/games/hokm/core/src/test/kotlin" "$R/core/session/src/test/kotlin" \
+  "$R/games/esmfamil/core/src/test/kotlin" \
   "$R/transport/api/src/test/kotlin" "$R/server/src/test/kotlin/ir/dorehami/server/rooms" "$STUBS/junit" 2>&1 | grep -v "^warning" || true
 
 echo "== compile pure UI helpers (no Android/Compose)"
@@ -30,12 +32,16 @@ echo "== compile pure UI helpers (no Android/Compose)"
   "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/HokmCinematics.kt" \
   "$R/core/uikit/src/main/kotlin/ir/dorehami/uikit/FaDigits.kt" \
   "$R/games/hokm/ui/src/main/kotlin/ir/dorehami/games/hokm/ui/TableAnimationQueue.kt" \
-  "$STUBS/hokm" 2>&1 | grep -v "^warning" || true
+  "$STUBS/hokm" \
+  "$R/games/esmfamil/ui/src/main/kotlin/ir/dorehami/games/esmfamil/ui/EsmFamilUiModel.kt" \
+  "$R/games/esmfamil/ui/src/main/kotlin/ir/dorehami/games/esmfamil/ui/EsmFamilUiState.kt" \
+  "$R/games/esmfamil/ui/src/main/kotlin/ir/dorehami/games/esmfamil/ui/EsmFamilRoomModel.kt" 2>&1 | grep -v "^warning" || true
 # `TableAnimationQueueTest` needs `HokmUiState`, which lives in the Compose table; it runs on CI.
 echo "== compile pure UI tests"
-"$KC" -nowarn -Xallow-kotlin-package -Xfriend-paths="$OUT/ui.jar" -cp "$OUT/ui.jar:$LIB/kotlin-test.jar" -d "$OUT/uitest.jar" \
+"$KC" -nowarn -Xallow-kotlin-package -Xfriend-paths="$OUT/ui.jar" -cp "$OUT/ui.jar:$OUT/main.jar:$LIB/kotlin-test.jar" -d "$OUT/uitest.jar" \
   "$R/games/pantohub/ui/src/test/kotlin/ir/dorehami/games/pantohub/ui/TurnFlowTest.kt" \
   "$R/games/hokm/ui/src/test/kotlin/ir/dorehami/games/hokm/ui/HokmCinematicsTest.kt" \
+  "$R/games/esmfamil/ui/src/test/kotlin/ir/dorehami/games/esmfamil/ui/EsmFamilUiModelTest.kt" \
   "$STUBS/junit" 2>&1 | grep -v "^warning" || true
 echo "== run"
-java -cp "$OUT/main.jar:$OUT/test.jar:$OUT/ui.jar:$OUT/uitest.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$LIB/kotlin-reflect.jar:$CO" sandbox.RunnerKt "$OUT/test.jar" && java -cp "$OUT/main.jar:$OUT/ui.jar:$OUT/uitest.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$CO" sandbox.RunnerKt "$OUT/uitest.jar"
+java -cp "$OUT/main.jar:$OUT/test.jar:$OUT/ui.jar:$OUT/uitest.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$LIB/kotlin-reflect.jar:$CO" sandbox.RunnerKt "$OUT/test.jar" && java -cp "$OUT/main.jar:$OUT/ui.jar:$OUT/uitest.jar:$LIB/kotlin-test.jar:$LIB/kotlin-stdlib.jar:$LIB/kotlin-reflect.jar:$CO" sandbox.RunnerKt "$OUT/uitest.jar"
