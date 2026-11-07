@@ -65,12 +65,12 @@
 ## ۳. مرزهای ماژولها (قانون طلایی)
 
 ```
-core/protocol    ← قالب پیام: Envelope، Msg، خطاها، فریمبندی، شناسهها        (وابستگی: هیچ)
+core/protocol    ← کدهای خطا (ErrCodes) + شناسه‌ها (Ids)                        (وابستگی: هیچ)
 core/gamesdk     ← قرارداد بازی: GameModule/GameSession/GameEngine + قطعیت     (وابستگی: protocol)
-core/session     ← چرخهی اتاق: SessionController + پیامهای لابی/نشست          (وابستگی: gamesdk)
+core/session     ← Envelope/PROTO_VERSION + چرخهٔ اتاق و پیام‌های لابی/نشست    (وابستگی: gamesdk)
 core/testkit     ← فیکهای درونحافظه برای تست سریع                             (وابستگی: session)
 core/uikit       ← تم Compose، RTL، اجزای مشترک UI                             (وابستگی: Android)
-transport/api    ← «لوله»: GameTransport + رویدادها + پیکربندی                 (وابستگی: protocol)
+transport/api    ← «لوله»: GameTransport + Frames (تکه‌بندی) + رویدادها        (وابستگی: protocol)
 transport/nearby ← پیادهسازی بلوتوث/وایفای دایرکت                              (وابستگی: api)
 transport/hotspot ← اتصال مستقیم TCP داخل هات‌اسپات/شبکهٔ محلی، بدون سرور     (وابستگی: api)
 transport/online ← پیادهسازی وبسوکت + کلاینت صف رندوم                          (وابستگی: api)

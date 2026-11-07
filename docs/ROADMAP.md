@@ -30,6 +30,8 @@
 **خروجی:** `Envelope`، `ProtocolCodec` (encode/decode/خطا)، `Msg` و `ErrCodes`، `Frames`
 (تکه‌تکه‌کردن و بازچینی)، `Ids` (کد اتاق ۵ حرفی و شناسه‌ها).
 **معیار:** تست‌های رفت‌وبرگشت + فریم‌بندی + رد نسخهٔ ناهمخوان سبز.
+**یادداشت ۲۰۲۶-۱۱-۰۷:** در چیدمان فعلی، `Envelope`/`PROTO_VERSION` در `core/session/Protocol.kt`
+و `Frames` در `transport/api` زندگی می‌کنند؛ `core/protocol` فقط `ErrCodes` و `Ids` دارد.
 
 ## M2 — `core/gamesdk` (قواعد و موتور)
 
