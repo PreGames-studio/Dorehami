@@ -14,6 +14,7 @@ import ir.dorehami.games.esmfamil.EsmFamilModule
 import ir.dorehami.gamesdk.GameAction
 import ir.dorehami.gamesdk.view
 import ir.dorehami.session.SessionClient
+import kotlinx.serialization.json.put
 import kotlinx.coroutines.launch
 
 /** How many seats a Bluetooth table opens with (the module's preferred size). */
