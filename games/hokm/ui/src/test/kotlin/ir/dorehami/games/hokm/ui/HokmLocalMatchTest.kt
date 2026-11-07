@@ -43,7 +43,7 @@ class HokmLocalMatchTest {
             val obj = (e as? JsonObject) ?: continue
             val card = Card.parse(obj["card"]?.jsonPrimitive?.content ?: "") ?: continue
             if (card.rank == Rank.ACE) {
-                return obj["seat"]?.jsonPrimitive?.intOrNull() ?: -1
+                return obj["seat"]?.jsonPrimitive?.intOrNull ?: -1
             }
         }
         return -1
