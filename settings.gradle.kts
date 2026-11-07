@@ -36,6 +36,8 @@ include(
     ":games:chess:ui",
     ":games:backgammon:core",
     ":games:backgammon:ui",
+    ":games:esmfamil:core",
+    ":games:esmfamil:ui",
     ":games:dejban:core",
     ":games:dejban:ui",
 )
