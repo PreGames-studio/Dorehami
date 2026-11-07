@@ -17,7 +17,6 @@ import kotlinx.serialization.json.put
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertNotNull
 
 /**
  * Pure-JVM tests for [HokmLocalMatch] persistence (HK-011): no Android, no Compose rendering,
@@ -58,7 +57,7 @@ class HokmLocalMatchTest {
     @Test
     fun `saved record survives restore with identical state`() {
         val m1 = newMatch()
-        val view1 = assertNotNull(m1.humanView()) { "private view must exist from the start" }
+        val view1 = m1.humanView()
 
         // If the human (seat 0) is the hakem, play a real move so the record holds actions.
         if (hakemSeat(view1) == 0) {
