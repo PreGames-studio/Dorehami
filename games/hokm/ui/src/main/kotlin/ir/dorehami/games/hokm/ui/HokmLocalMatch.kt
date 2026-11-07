@@ -92,6 +92,13 @@ class HokmLocalMatch(
 
     override fun privateView(): JsonObject = engine.session.privateView(players[mySeat])
 
+    /**
+     * What the human sees right now — hand, hakem draw, turn — as the engine's private view.
+     * Public so the persistence tests (and a future resume screen) can read the very table state
+     * that [save] and [restore] carry, without a device or a composition.
+     */
+    fun humanView(): JsonObject = privateView()
+
     override fun isFinished(): Boolean = engine.session.phase == Phase.FINISHED
 
     override fun sendMine(action: GameAction) {
