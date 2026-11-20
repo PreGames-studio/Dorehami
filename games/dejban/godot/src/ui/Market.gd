@@ -217,8 +217,14 @@ func _refresh_market_ui() -> void:
 
 func _on_watch_free_star_ad() -> void:
 	var ad_url := _ad_url_for_step(Game.free_star_ads_watched)
-	if not ad_url.is_empty():
-		OS.shell_open(ad_url)
+	# Never count a tap as an ad view. Until an ad URL/provider is configured,
+	# the reward flow must remain inert (otherwise two taps grant free stars).
+	if ad_url.is_empty():
+		Audio.ui_click()
+		if _notice_label != null:
+			_notice_label.text = "تبلیغ هنوز فعال نشده است؛ بعداً دوباره امتحان کنید"
+		return
+	OS.shell_open(ad_url)
 	var result := Game.record_free_star_ad_watch(FREE_STAR_REQUIRED_ADS, FREE_STAR_REWARD)
 	_refresh_market_ui()
 	if bool(result["rewarded"]):
