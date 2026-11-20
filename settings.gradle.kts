@@ -18,6 +18,7 @@ rootProject.name = "dorehami"
 
 include(
     ":app",
+    ":hokm-app",
     ":server",
     ":core:protocol",
     ":core:gamesdk",
