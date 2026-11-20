@@ -248,12 +248,13 @@ func _smoke_scenes() -> void:
 			var free_btn := instance.find_child("FreeStarButton", true, false) as Button
 			check(free_btn != null, "دکمهٔ مشاهدهٔ تبلیغ ستاره رایگان پیدا نشد")
 			if free_btn != null:
+				# No ad URL/provider is configured: taps are not proof of a watched ad.
 				free_btn.pressed.emit()
-				check(Game.stars == 10 and Game.free_star_ads_watched == 1,
-					"پس از دیدن تبلیغ اول هنوز نباید ستاره داده شود و شمارنده باید ۱ از ۲ شود")
+				check(Game.stars == 10 and Game.free_star_ads_watched == 0,
+					"بدون لینک تبلیغ، لمس گزینه نباید ستاره یا پیشرفت تبلیغ ثبت کند")
 				free_btn.pressed.emit()
-				check(Game.stars == 15 and Game.free_star_ads_watched == 0,
-					"پس از دیدن تبلیغ دوم باید دقیقاً ۵ ستارهٔ رایگان اضافه شود و شمارنده صفر شود")
+				check(Game.stars == 10 and Game.free_star_ads_watched == 0,
+					"دو لمس بدون لینک تبلیغ نباید پاداش رایگان بدهد")
 			Game.stars = saved_mkt_stars
 			Game.free_star_ads_watched = saved_mkt_ads
 			Game.save()
